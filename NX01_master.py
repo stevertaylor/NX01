@@ -52,10 +52,10 @@ if args.use_gpu:
 
     culinalg.init()
 
-dir = ['J1909-3744', 'J1713+0747', 'J1744-1134', 'J0613-0200', 'J1600-3053', 'J1012+5307']   #give 90%
-#addition of 1640, 2145, 1857, 1022, 0030 give 95% of total SNR^2
+dir = ['J1909-3744', 'J1713+0747', 'J1744-1134', 'J0613-0200', 'J1600-3053', 'J1012+5307']   #gives 90%
+# addition of 1640, 2145, 1857, 1022, 0030 give 95% of total SNR^2
 
-path = os.getcwd()
+path = '/Users/staylor/Research/EPTAv2/UniEQ'   #os.getcwd()
 
 if not os.path.exists('chains_Analysis'):
     os.makedirs('chains_Analysis')
@@ -70,7 +70,7 @@ print pulsars
 
 psr=[]
 for ii in range(len(pulsars)):
-    os.chdir(pulsars[ii])
+    os.chdir(path+'/'+pulsars[ii])
     if os.path.isfile('{0}_NoAFB.par'.format(pulsars[ii])):
         psr.append(T2.tempopulsar(parfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_TD.Mean.par',timfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_NoAFB.tim'))
     else:
@@ -78,7 +78,7 @@ for ii in range(len(pulsars)):
     os.chdir(path)
     psr[ii].fit(iters=10)
     if np.any(np.isfinite(psr[ii].residuals())==False)==True:
-        os.chdir(pulsars[ii])
+        os.chdir(path+'/'+pulsars[ii])
 	if os.path.isfile('{0}_NoAFB.par'.format(pulsars[ii])):
 	    psr[ii] = T2.tempopulsar(parfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_TD.Mean.par',timfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_NoAFB.tim')
 	else:
