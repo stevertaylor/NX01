@@ -12,6 +12,7 @@ from scipy import special as ss
 from scipy import linalg as sl
 import numexpr as ne
 import optparse
+import cProfile
 import ephem
 from ephem import *
 import PALInferencePTMCMC as PAL
@@ -35,7 +36,8 @@ parser.add_option('--lmax', dest='LMAX', action='store', type=int, default=0,
                    help='Maximum multipole in anisotropic search (default = 0, i.e. isotropic-search)')
 parser.add_option('--use-gpu', dest='use_gpu', action='store_true', default=False,
                   help='Do you want to use the GPU for accelerated linear algebra? (default = False)')
-
+parser.add_option('--mean-or-max', dest='mean_or_max', action='store', type=str,
+                   help='Do you want to use the .par files with mean or max-likelihood white-noise parameters?')
 
 (args, x) = parser.parse_args()
 
@@ -69,27 +71,36 @@ print pulsars
 ################################################################################################################################
 # PASSING THROUGH TEMPO2 VIA libstempo
 ################################################################################################################################
+if args.mean_or_max == 'mean':
+    par_ext = 'Mean'
+elif args.mean_or_max == 'max':
+    par_ext = 'ML'
 
 t2psr=[]
 for ii in range(len(pulsars)):
     os.chdir(path+'/'+pulsars[ii])
     if os.path.isfile('{0}_NoAFB.par'.format(pulsars[ii])):
-        t2psr.append(T2.tempopulsar(parfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_TD.Mean.par',timfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_NoAFB.tim'))
+        t2psr.append(T2.tempopulsar(parfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_TD.{0}.par'.format(par_ext),\
+                                    timfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_NoAFB.tim'))
     else:
-        t2psr.append(T2.tempopulsar(parfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_TD.Mean.par',timfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_all.tim'))
+        t2psr.append(T2.tempopulsar(parfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_TD.{0}.par'.format(par_ext),\
+                                    timfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_all.tim'))
     os.chdir(path)
     t2psr[ii].fit(iters=10)
     if np.any(np.isfinite(t2psr[ii].residuals())==False)==True:
         os.chdir(path+'/'+pulsars[ii])
 	if os.path.isfile('{0}_NoAFB.par'.format(pulsars[ii])):
-	    t2psr[ii] = T2.tempopulsar(parfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_TD.Mean.par',timfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_NoAFB.tim')
+	    t2psr[ii] = T2.tempopulsar(parfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_TD.{0}.par'.format(par_ext),\
+                                   timfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_NoAFB.tim')
 	else:
-	    t2psr.append(T2.tempopulsar(parfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_TD.Mean.par',timfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_all.tim'))
+	    t2psr.append(T2.tempopulsar(parfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_TD.{0}.par'.format(par_ext),\
+                                    timfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_all.tim'))
         os.chdir(path)
 
 os.chdir(master_path)
+
 ################################################################################################################################
-# GETTING THE DESIGN MATRICES AND COMPUTING ALL THE 'G' MATRICES
+# MAKING A PULSAR OBJECT, THEN GRABBING ALL THE VARIABLES, e.g. toas, residuals, error-bars, designmatrices etc.
 ################################################################################################################################
 
 psr = [NX01_psr.PsrObj(t2psr[ii]) for ii in range(len(t2psr))]
@@ -99,11 +110,10 @@ psr = [NX01_psr.PsrObj(t2psr[ii]) for ii in range(len(t2psr))]
 psr_positions = [np.array([psr[ii].psr_locs[0], np.pi/2. - psr[ii].psr_locs[1]]) for ii in range(len(psr))]
 positions = np.array(psr_positions).copy()
 
-CorrCoeff = np.array(anis.CorrBasis(positions,args.LMAX))
-
-harm_sky_vals = utils.SetupPriorSkyGrid(args.LMAX)
-
-gwfreqs_per_win = int(1.*args.nmodes/(1.*args.num_gwfreq_wins))
+CorrCoeff = np.array(anis.CorrBasis(positions,args.LMAX))       # computing all the correlation basis-functions for the array
+harm_sky_vals = utils.SetupPriorSkyGrid(args.LMAX)              # computing the values of the spherical-harmonics up to order
+                                                                # LMAX on a pre-specified grid
+gwfreqs_per_win = int(1.*args.nmodes/(1.*args.num_gwfreq_wins)) # getting the number of GW frequencies per window
         
 ################################################################################################################################
 # GETTING MAXIMUM TIME, COMPUTING FOURIER DESIGN MATRICES, AND GETTING MODES 
@@ -111,15 +121,11 @@ gwfreqs_per_win = int(1.*args.nmodes/(1.*args.num_gwfreq_wins))
 Tmax = np.max([psr[p].toas.max() - psr[p].toas.min() for p in range(len(psr))])
 
 # initialize fourier design matrices
-Fred = [utils.createfourierdesignmatrix_RED(psr[p].toas, args.nmodes, Tspan=Tmax) for p in range(len(psr))]
-Fdm = [utils.createfourierdesignmatrix_DM(psr[p].toas, args.nmodes, psr[p].obs_freqs, Tspan=Tmax) for p in range(len(psr))]
+[psr[ii].makeFtot(args.nmodes, Tmax) for ii in range(len(psr))]
+F = [psr[ii].Ftot for ii in range(len(psr))]
 
-F = [np.append(Fred[p], Fdm[p], axis=1) for p in range(len(psr))]
-
-# get frequency
-tmp, fqs = utils.createfourierdesignmatrix_RED(psr[0].toas, args.nmodes, Tspan=Tmax, freq=True)
-
-#print Tmax, len(fqs), len(F), F[0].shape
+# get GW frequencies
+fqs = np.linspace(1/Tmax, args.nmodes/Tmax, args.nmodes)
 
 ################################################################################################################################
 # FORM A LIST COMPOSED OF NP ARRAYS CONTAINING THE INDEX POSITIONS WHERE EACH UNIQUE 'sys' BACKEND IS APPLIED
@@ -197,25 +203,14 @@ for ii in range(len(pulsars)):
 ################################################################################################################################
 # MAKE FIXED NOISE MATRICES FROM MAXIMUM-LIKELIHOOD VALUES OF SINGLE-PULSAR ANALYSIS
 ################################################################################################################################
-MLerrors=[]
 Diag=[]
 res_prime=[]
 F_prime=[]
 for ii in range(len(psr)):   
-    MLerrors.append( psr[ii].toaerrs )
-    ########
-    efac_bit = np.dot(psr[ii].G.T, np.dot( np.diag(MLerrors[ii]**2.0), psr[ii].G ) )
-    equad_bit = np.dot(psr[ii].G.T,psr[ii].G)
-    Lequad = np.linalg.cholesky(equad_bit)
-    Lequad_inv = np.linalg.inv(Lequad)
-    sand = np.dot(Lequad_inv, np.dot(efac_bit, Lequad_inv.T))
-    u,s,v = np.linalg.svd(sand)
-    Diag.append(s)
-    proj = np.dot(u.T, np.dot(Lequad_inv, psr[ii].G.T))
-    ########
-    res_prime.append( np.dot(proj, psr[ii].res) )
-    F_prime.append( np.dot(proj, F[ii]) )
-
+    psr[ii].two_comp_noise(MLerrors=psr[ii].toaerrs)
+    Diag.append( psr[ii].diag_white )
+    res_prime.append( psr[ii].res_prime )
+    F_prime.append( psr[ii].Ftot_prime )
 
 ################################################################################################################################
 # SETTING UP PRIOR RANGES
@@ -291,8 +286,6 @@ def modelIndependentFullPTANoisePL(x):
             else:
                 physicality += 0.
 
-    # get the number of modes, should be the same for all pulsars
-    #nmode = args.num_gwfreq_wins*gwfreqs_per_win
     npsr = len(psr)
 
     ORF=[]
@@ -346,7 +339,8 @@ def modelIndependentFullPTANoisePL(x):
     # parameterize intrinsic red-noise and DM-variations as power law
     kappa = [] 
     for ii in range(npsr):
-        kappa.append(np.log10( np.append( Ared[ii]**2/12/np.pi**2 * f1yr**(gam_red[ii]-3) * (fqs/86400.0)**(-gam_red[ii])/Tspan, Adm[ii]**2/12/np.pi**2 * f1yr**(gam_dm[ii]-3) * (fqs/86400.0)**(-gam_dm[ii])/Tspan ) ))
+        kappa.append(np.log10( np.append( Ared[ii]**2/12/np.pi**2 * f1yr**(gam_red[ii]-3) * (fqs/86400.0)**(-gam_red[ii])/Tspan,\
+                                          Adm[ii]**2/12/np.pi**2 * f1yr**(gam_dm[ii]-3) * (fqs/86400.0)**(-gam_dm[ii])/Tspan ) ))
 
     # construct elements of sigma array
     sigdiag = []
@@ -402,15 +396,13 @@ def modelIndependentFullPTANoisePL(x):
     if non_pos_def > 0:
         return -np.inf
     else:
+        nftot = 4*args.nmodes
+        Phi = np.zeros((npsr*nftot, npsr*nftot))
         # now fill in real covariance matrix
-        Phi = np.zeros((4*npsr*args.nmodes, 4*npsr*args.nmodes))
+        ind = [np.arange(kk*nftot, kk*nftot+nftot) for kk in range(npsr)]
         for ii in range(npsr):
-            for jj in range(ii,npsr):
-                for kk in range(0,4*args.nmodes):
-                    Phi[kk+ii*4*args.nmodes,kk+jj*4*args.nmodes] = smallMatrix[kk,ii,jj]
-    
-        # symmeterize Phi
-        Phi = Phi + Phi.T - np.diag(np.diag(Phi))
+            for jj in range(npsr):
+                Phi[ind[ii],ind[jj]] = smallMatrix[:,ii,jj]
             
         # compute sigma
         Sigma = sl.block_diag(*FtNF) + Phi
@@ -444,7 +436,7 @@ def modelIndependentFullPTANoisePL(x):
 
             logLike = -0.5 * (logdet_Phi + logdet_Sigma) + 0.5 * (np.dot(d, expval2)) + loglike1 
 
-        return logLike + np.log(Agwb) + physicality
+        return logLike + np.log(Agwb * np.log(10.0)) + physicality
 
 
 
@@ -500,10 +492,13 @@ cov_diag = np.append(cov_diag,np.array([0.5,0.5]))
 cov_diag = np.append(cov_diag,0.05*np.ones( args.num_gwfreq_wins*(((args.LMAX+1)**2)-1) ))
 
 
+print "\n Running a quick profile on the likelihood to estimate evaluation speed...\n"
+cProfile.run('modelIndependentFullPTANoisePL(x0)')
+
 #####################
 # Now, we sample.....
 #####################
 
 print "\n Now, we sample... \n"
 sampler = PAL.PTSampler(ndim=n_params,logl=modelIndependentFullPTANoisePL,logp=my_prior,cov=np.diag(cov_diag),outDir='./chains_Analysis/EPTAv2_90pct_Test',resume=False)
-sampler.sample(p0=x0,Niter=500000,thin=1)
+sampler.sample(p0=x0,Niter=500000,thin=10)
