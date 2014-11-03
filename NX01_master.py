@@ -20,7 +20,7 @@ import time
 from time import gmtime, strftime
 import AnisCoefficients as anis
 import NX01_utils as utils
-import NX01psr
+import NX01_psr
 
 parser = optparse.OptionParser(description = 'NX01 - Precursor to the PANTHER Group ENTERPRISE project')
 
@@ -92,7 +92,7 @@ os.chdir(master_path)
 # GETTING THE DESIGN MATRICES AND COMPUTING ALL THE 'G' MATRICES
 ################################################################################################################################
 
-psr = [NX01psr.PsrObj(t2psr[ii]) for ii in range(len(t2psr))]
+psr = [NX01_psr.PsrObj(t2psr[ii]) for ii in range(len(t2psr))]
 
 [psr[ii].grab_all_vars() for ii in range(len(psr))]
 
@@ -125,9 +125,9 @@ tmp, fqs = utils.createfourierdesignmatrix_RED(psr[0].toas, args.nmodes, Tspan=T
 # FORM A LIST COMPOSED OF NP ARRAYS CONTAINING THE INDEX POSITIONS WHERE EACH UNIQUE 'sys' BACKEND IS APPLIED
 ################################################################################################################################
 
-backends = [] 
+backends = []
+[psr[ii].get_backends() for ii in range(len(psr))]
 for ii in range(len(psr)):
-    [psr[ii].get_backends() for ii in range(len(psr))]
     backends.append(psr[ii].bkends)
 
 ################################################################################################################################
