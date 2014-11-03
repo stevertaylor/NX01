@@ -18,7 +18,7 @@ import PALInferencePTMCMC as PAL
 import libstempo as T2
 import time
 from time import gmtime, strftime
-import AnisCoefficients as anis
+import NX01_AnisCoefficients as anis
 import NX01_utils as utils
 import NX01_psr
 
