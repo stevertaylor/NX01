@@ -20,6 +20,7 @@ import time
 from time import gmtime, strftime
 import AnisCoefficients as anis
 import NX01_utils as utils
+import NX01psr
 
 parser = optparse.OptionParser(description = 'NX01 - Precursor to the PANTHER Group ENTERPRISE project')
 
@@ -53,9 +54,10 @@ if args.use_gpu:
     culinalg.init()
 
 dir = ['J1909-3744', 'J1713+0747', 'J1744-1134', 'J0613-0200', 'J1600-3053', 'J1012+5307']   #gives 90%
-# addition of 1640, 2145, 1857, 1022, 0030 give 95% of total SNR^2
+      # addition of 1640, 2145, 1857, 1022, 0030 give 95% of total SNR^2
 
-path = '/Users/staylor/Research/EPTAv2/UniEQ'   #os.getcwd()
+master_path = os.getcwd()
+path = '/Users/staylor/Research/EPTAv2/UniEQ'  
 
 if not os.path.exists('chains_Analysis'):
     os.makedirs('chains_Analysis')
@@ -68,55 +70,34 @@ print pulsars
 # PASSING THROUGH TEMPO2 VIA libstempo
 ################################################################################################################################
 
-psr=[]
+t2psr=[]
 for ii in range(len(pulsars)):
     os.chdir(path+'/'+pulsars[ii])
     if os.path.isfile('{0}_NoAFB.par'.format(pulsars[ii])):
-        psr.append(T2.tempopulsar(parfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_TD.Mean.par',timfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_NoAFB.tim'))
+        t2psr.append(T2.tempopulsar(parfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_TD.Mean.par',timfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_NoAFB.tim'))
     else:
-        psr.append(T2.tempopulsar(parfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_TD.Mean.par',timfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_all.tim'))
+        t2psr.append(T2.tempopulsar(parfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_TD.Mean.par',timfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_all.tim'))
     os.chdir(path)
-    psr[ii].fit(iters=10)
-    if np.any(np.isfinite(psr[ii].residuals())==False)==True:
+    t2psr[ii].fit(iters=10)
+    if np.any(np.isfinite(t2psr[ii].residuals())==False)==True:
         os.chdir(path+'/'+pulsars[ii])
 	if os.path.isfile('{0}_NoAFB.par'.format(pulsars[ii])):
-	    psr[ii] = T2.tempopulsar(parfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_TD.Mean.par',timfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_NoAFB.tim')
+	    t2psr[ii] = T2.tempopulsar(parfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_TD.Mean.par',timfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_NoAFB.tim')
 	else:
-	    psr.append(T2.tempopulsar(parfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_TD.Mean.par',timfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_all.tim'))
+	    t2psr.append(T2.tempopulsar(parfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_TD.Mean.par',timfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_all.tim'))
         os.chdir(path)
 
+os.chdir(master_path)
 ################################################################################################################################
 # GETTING THE DESIGN MATRICES AND COMPUTING ALL THE 'G' MATRICES
 ################################################################################################################################
 
-d=[]
-G=[]
-for ii in range(len(psr)):
-    d.append(psr[ii].designmatrix())
-    U,S,V = np.linalg.svd(d[ii])
-    G.append(U[:,len(S):len(U)])
+psr = [NX01psr.PsrObj(t2psr[ii]) for ii in range(len(t2psr))]
 
-################################################################################################################################
-# GRABBING ALL THE TIME-STAMPS, RESIDUALS, AND ERROR-BARS
-################################################################################################################################
+[psr[ii].grab_all_vars() for ii in range(len(psr))]
 
-obs=[]
-res=[]
-err=[]
-psr_locs=[]
-for ii in range(len(psr)):
-    obs.append(np.array(psr[ii].toas()))
-    res.append(np.array(psr[ii].residuals()))
-    err.append(np.array(1e-6*psr[ii].toaerrs))
-    if 'RAJ' and 'DECJ' in psr[ii].pars:
-        psr_locs.append([psr[ii]['RAJ'].val,psr[ii]['DECJ'].val])
-    elif 'ELONG' and 'ELAT' in psr[ii].pars:
-        fac = 180./np.pi
-        coords = Equatorial(Ecliptic(str(psr[ii]['ELONG'].val*fac), str(psr[ii]['ELAT'].val*fac)))
-        psr_locs.append([float(repr(coords.ra)),float(repr(coords.dec))])
-
-psr_locs = [np.array([psr_locs[ii][0], np.pi/2. - psr_locs[ii][1]]) for ii in range(len(psr_locs))]
-positions = np.array(psr_locs).copy()
+psr_positions = [np.array([psr[ii].psr_locs[0], np.pi/2. - psr[ii].psr_locs[1]]) for ii in range(len(psr))]
+positions = np.array(psr_positions).copy()
 
 CorrCoeff = np.array(anis.CorrBasis(positions,args.LMAX))
 
@@ -127,16 +108,16 @@ gwfreqs_per_win = int(1.*args.nmodes/(1.*args.num_gwfreq_wins))
 ################################################################################################################################
 # GETTING MAXIMUM TIME, COMPUTING FOURIER DESIGN MATRICES, AND GETTING MODES 
 ################################################################################################################################
-Tmax = np.max([obs[p].max() - obs[p].min() for p in range(len(psr))])
+Tmax = np.max([psr[p].toas.max() - psr[p].toas.min() for p in range(len(psr))])
 
 # initialize fourier design matrices
-Fred = [utils.createfourierdesignmatrix_RED(obs[p], args.nmodes, Tspan=Tmax) for p in range(len(psr))]
-Fdm = [utils.createfourierdesignmatrix_DM(obs[p], args.nmodes, psr[p].freqs, Tspan=Tmax) for p in range(len(psr))]
+Fred = [utils.createfourierdesignmatrix_RED(psr[p].toas, args.nmodes, Tspan=Tmax) for p in range(len(psr))]
+Fdm = [utils.createfourierdesignmatrix_DM(psr[p].toas, args.nmodes, psr[p].obs_freqs, Tspan=Tmax) for p in range(len(psr))]
 
 F = [np.append(Fred[p], Fdm[p], axis=1) for p in range(len(psr))]
 
 # get frequency
-tmp, fqs = utils.createfourierdesignmatrix_RED(obs[0], args.nmodes, Tspan=Tmax, freq=True)
+tmp, fqs = utils.createfourierdesignmatrix_RED(psr[0].toas, args.nmodes, Tspan=Tmax, freq=True)
 
 #print Tmax, len(fqs), len(F), F[0].shape
 
@@ -144,15 +125,10 @@ tmp, fqs = utils.createfourierdesignmatrix_RED(obs[0], args.nmodes, Tspan=Tmax, 
 # FORM A LIST COMPOSED OF NP ARRAYS CONTAINING THE INDEX POSITIONS WHERE EACH UNIQUE 'sys' BACKEND IS APPLIED
 ################################################################################################################################
 
-backends = [0.0]*len(pulsars)
-for ii in range(len(pulsars)):
-    if 'sys' in psr[ii].flags:
-        backends[ii] = [0.0]*len(np.unique(psr[ii].flags['sys']))
-        for k in range(len(np.unique(psr[ii].flags['sys']))):
-            backends[ii][k] = np.where(psr[ii].flags['sys'] == np.unique(psr[ii].flags['sys'])[k])[0]
-    else:
-        print "No 'sys' flags found :("
-        print "Using one overall EFAC for {0}\n".format(psr[ii].name)
+backends = [] 
+for ii in range(len(psr)):
+    [psr[ii].get_backends() for ii in range(len(psr))]
+    backends.append(psr[ii].bkends)
 
 ################################################################################################################################
 # GETTING MAXIMUM-LIKELIHOOD VALUES OF SINGLE-PULSAR ANALYSIS
@@ -165,7 +141,7 @@ gam_red_ML=[]
 EFAC_ML = [[0.0]*len(backends[jj]) for jj in range(len(backends))]
 EQUAD_ML = [[0.0]*len(backends[jj]) for jj in range(len(backends))]
 for ii in range(len(pulsars)):
-    with open('{0}/{0}_Taylor_TimeDomain_model1.txt'.format(pulsars[ii]), 'r') as f:
+    with open(path+'/{0}/{0}_Taylor_TimeDomain_model1.txt'.format(psr[ii].name), 'r') as f:
         Adm_ML.append(float(f.readline().split()[3]))
         gam_dm_ML.append(float(f.readline().split()[3]))
         Ared_ML.append(float(f.readline().split()[3]))
@@ -192,7 +168,7 @@ EFAC_err = [[0.0]*len(backends[jj]) for jj in range(len(backends))]
 EQUAD_mean = [[0.0]*len(backends[jj]) for jj in range(len(backends))]
 EQUAD_err = [[0.0]*len(backends[jj]) for jj in range(len(backends))]
 for ii in range(len(pulsars)):
-    with open('{0}/{0}_Taylor_TimeDomain_model1.txt'.format(pulsars[ii]), 'r') as f:
+    with open(path+'/{0}/{0}_Taylor_TimeDomain_model1.txt'.format(psr[ii].name), 'r') as f:
         line = f.readline().split()
         Adm_mean.append( 0.5 * (np.log10(float(line[5])) + np.log10(float(line[4]))) ) # the means and error bars will be in log10
         Adm_err.append( 0.5 * (np.log10(float(line[5])) - np.log10(float(line[4]))) )
@@ -225,19 +201,19 @@ MLerrors=[]
 Diag=[]
 res_prime=[]
 F_prime=[]
-for ii in range(len(pulsars)):   
-    MLerrors.append( err[ii] )
+for ii in range(len(psr)):   
+    MLerrors.append( psr[ii].toaerrs )
     ########
-    efac_bit = np.dot(G[ii].T, np.dot( np.diag(MLerrors[ii]**2.0), G[ii] ) )
-    equad_bit = np.dot(G[ii].T,G[ii])
+    efac_bit = np.dot(psr[ii].G.T, np.dot( np.diag(MLerrors[ii]**2.0), psr[ii].G ) )
+    equad_bit = np.dot(psr[ii].G.T,psr[ii].G)
     Lequad = np.linalg.cholesky(equad_bit)
     Lequad_inv = np.linalg.inv(Lequad)
     sand = np.dot(Lequad_inv, np.dot(efac_bit, Lequad_inv.T))
     u,s,v = np.linalg.svd(sand)
     Diag.append(s)
-    proj = np.dot(u.T, np.dot(Lequad_inv, G[ii].T))
+    proj = np.dot(u.T, np.dot(Lequad_inv, psr[ii].G.T))
     ########
-    res_prime.append( np.dot(proj, res[ii]) )
+    res_prime.append( np.dot(proj, psr[ii].res) )
     F_prime.append( np.dot(proj, F[ii]) )
 
 
@@ -317,7 +293,7 @@ def modelIndependentFullPTANoisePL(x):
 
     # get the number of modes, should be the same for all pulsars
     #nmode = args.num_gwfreq_wins*gwfreqs_per_win
-    npsr = len(obs)
+    npsr = len(psr)
 
     ORF=[]
     for ii in range(args.num_gwfreq_wins): # number of frequency windows
