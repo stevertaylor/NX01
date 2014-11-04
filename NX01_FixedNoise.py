@@ -36,6 +36,11 @@ parser.add_option('--lmax', dest='LMAX', action='store', type=int, default=0,
                    help='Maximum multipole in anisotropic search (default = 0, i.e. isotropic-search)')
 parser.add_option('--use-gpu', dest='use_gpu', action='store_true', default=False,
                   help='Do you want to use the GPU for accelerated linear algebra? (default = False)')
+parser.add_option('--fix-slope', dest='fix_slope', action='store_true', default=False,
+                  help='Do you want to fix the slope of the GWB spectrum? (default = False)')
+parser.add_option('--snr-tag', dest='snr_tag', action='store', type=float, default=0.9, 
+                   help='Do you want the 90%, 95% or 100% SNR dataset? [6, 11, and 41 pulsars respectively] (default=0.90)')
+
 
 (args, x) = parser.parse_args()
 
@@ -53,8 +58,17 @@ if args.use_gpu:
 
     culinalg.init()
 
-dir = ['J1909-3744', 'J1713+0747', 'J1744-1134', 'J0613-0200', 'J1600-3053', 'J1012+5307']   #gives 90%
-      # addition of 1640, 2145, 1857, 1022, 0030 give 95% of total SNR^2
+if args.snr_tag == 0.9:
+    dir = ['J1909-3744', 'J1713+0747', 'J1744-1134', 'J0613-0200', 'J1600-3053', 'J1012+5307']   #gives 90% of total SNR^2
+    snr_tag_ext = '90pct'
+elif args.snr_tag == 0.95:
+    dir = ['J1909-3744', 'J1713+0747', 'J1744-1134', 'J0613-0200', 'J1600-3053', 'J1012+5307', \
+           'J1640+2224', 'J2145-0750', 'J1857+0943', 'J1022+1001', 'J0030+0451'] # gives 95% of total SNR^2
+    snr_tag_ext = '95pct'
+elif args.snr_tag == 1.0:
+    dir = os.walk('.').next()[1]
+    dir.remove('J1939+2134')
+    snr_tag_ext = '100pct'
 
 master_path = os.getcwd()
 path = '/Users/staylor/Research/EPTAv2/UniEQ'  
@@ -261,7 +275,10 @@ def modelIndependentFullPTANoisePL(x):
     """ 
 
     Agwb = 10.0**x[0]
-    gam_gwb = x[1]
+    if args.fix_slope:
+        gam_gwb = 13./3.
+    else:
+        gam_gwb = x[1]
     #####
     ###################
     orf_coeffs = x[2+5*len(psr) + 4:]
@@ -400,8 +417,12 @@ def modelIndependentFullPTANoisePL(x):
 #########################
 #########################
 
-
-parameters = ["Agwb","gam_gwb"]
+parameters = ["Agwb"]
+if args.fix_slope is False:
+    parameters.append("gam_gwb")
+    gamma_ext = 'GamVary'
+else:
+    gamma_ext = 'Gam4p33' 
 for ii in range( args.num_gwfreq_wins*(((args.LMAX+1)**2)-1) ):
     parameters.append('clm_{0}'.format(ii+1))
 
@@ -411,12 +432,16 @@ n_params = len(parameters)
 
 print "\n The total number of parameters is {0}\n".format(n_params)
 
-x0 = np.array([-15.0,13./3.])
+x0 = np.array([-15.0])
+if args.fix_slope is False:
+    x0 = np.append(x0,[13./3.])
 x0 = np.append(x0,np.zeros( args.num_gwfreq_wins*(((args.LMAX+1)**2)-1) ))
 
 print "\n Your initial parameters are {0}\n".format(x0)
 
-cov_diag = np.array([0.5,0.5])
+cov_diag = np.array([0.5])
+if args.fix_slope is False:
+    cov_diag = np.append(cov_diag,[0.5])
 cov_diag = np.append(cov_diag,0.05*np.ones( args.num_gwfreq_wins*(((args.LMAX+1)**2)-1) ))
 
 
@@ -428,5 +453,6 @@ cProfile.run('modelIndependentFullPTANoisePL(x0)')
 #####################
 
 print "\n Now, we sample... \n"
-sampler = PAL.PTSampler(ndim=n_params,logl=modelIndependentFullPTANoisePL,logp=my_prior,cov=np.diag(cov_diag),outDir='./chains_Analysis/EPTAv2_90pct_FixedNoiseIsoGam',resume=False)
+sampler = PAL.PTSampler(ndim=n_params,logl=modelIndependentFullPTANoisePL,logp=my_prior,cov=np.diag(cov_diag),\
+                        outDir='./chains_Analysis/EPTAv2_{0}_MLnoise_Lmax{1}_{2}'.format(snr_tag_ext,args.LMAX,gamma_ext),resume=False)
 sampler.sample(p0=x0,Niter=500000,thin=10)
