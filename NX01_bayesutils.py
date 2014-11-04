@@ -3,12 +3,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy.interpolate as interp
 import scipy.ndimage.filters as filter
+import statsmodels.api as sm
 import healpy as hp
 from bayestar import plot
 import matplotlib.mlab as ml
-from matplotlib.ticker import FormatStrFormatter, LinearLocator, NullFormatter, NullLocator
+from matplotlib.ticker import FormatStrFormatter, LinearLocator, NullFormatter, NullLocator, AutoMinorLocator
 import matplotlib.ticker
 import matplotlib.colors
+import matplotlib.cm as cmx
 from optparse import OptionParser
 import os
 
@@ -195,6 +197,12 @@ def makesubplot2d(ax, samples1, samples2, cmap, color=True, weights=None, smooth
         c1 = ax.contour(xedges,yedges,hist2d.T,contourlevels, \
                 colors=contourcolors, linestyles=contourlinestyles, \
                 linewidths=contourlinewidths, zorder=2)
+
+        fmt = {}
+        for l,s in zip( c1.levels, contlabels ):
+            fmt[l] = s
+
+        ax.clabel(c1,inline=True,fmt=fmt,fontsize=10)
     if cmap:
         if logz:
             c2 = ax.imshow(np.flipud(hist2d.T), extent=extent, aspect=ax.get_aspect(), \
@@ -236,6 +244,10 @@ def makesubplot1d(ax, samples, weights=None, interpolate=False, smooth=True,\
     Make histogram of samples
 
     """
+    spec = cm = plt.get_cmap('Spectral_r') 
+    cNorm  = matplotlib.colors.Normalize(vmin=0, vmax=1)
+    scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=spec)
+    colorVal = scalarMap.to_rgba(0)
 
     if range is None:
         hist, xedges = np.histogram(samples, bins, normed=True, weights=weights)
@@ -255,8 +267,10 @@ def makesubplot1d(ax, samples, weights=None, interpolate=False, smooth=True,\
     # make plot
     if label is not None:
         ax.plot(xedges, hist, color=color, lw=1.5, label=label)
+        ax.fill_between(xedges, hist, y2=0, where=None, color=colorVal, alpha=0.7)
     else:
         ax.plot(xedges, hist, color=color, lw=1.5)
+        ax.fill_between(xedges, hist, y2=0, where=None, color=colorVal, alpha=0.7)
 
 def getMax(samples, weights=None, range=None, bins=50):
     """ 
@@ -286,7 +300,7 @@ def getMax(samples, weights=None, range=None, bins=50):
 # make triangle plot of marginalized posterior distribution
 def triplot(chain, color='k', weights=None, interpolate=False, smooth=True, \
            labels=None, figsize=(11,8.5), title=None, inj=None, tex=True, \
-            incMaxPost=True, cmap='YlOrBr', holdon=False):
+            incMaxPost=True, cmap='Spectral_r', holdon=False):
     """
 
     Make Triangle plot
@@ -294,7 +308,10 @@ def triplot(chain, color='k', weights=None, interpolate=False, smooth=True, \
     """
 
     # rcParams settings
-    if chain.shape[1] < 10:
+    if chain.shape[1] < 3:
+        plt.rcParams['ytick.labelsize'] = 18.0
+        plt.rcParams['xtick.labelsize'] = 18.0
+    elif chain.shape[1] < 10:
         plt.rcParams['ytick.labelsize'] = 10.0
         plt.rcParams['xtick.labelsize'] = 10.0
     else:
@@ -344,7 +361,7 @@ def triplot(chain, color='k', weights=None, interpolate=False, smooth=True, \
                     axarr[ii][jj].set_ylim(ymin=0)
                     if incMaxPost:
                         mx = getMax(chain[:,parameters[ii]], weights=weights)
-                        axarr[ii][jj].set_title('%5.4g'%(mx), fontsize=10)
+                        axarr[ii][jj].set_title('MAP = %5.4g'%(mx), fontsize=10)
 
                     if inj is not None:
                         axarr[ii][ii].axvline(inj[ii], lw=2, color='k')
@@ -352,7 +369,7 @@ def triplot(chain, color='k', weights=None, interpolate=False, smooth=True, \
                     # Make a 2D plot
                     makesubplot2d(axarr[jj][ii], chain[:,parameters[ii]], \
                             chain[:,parameters[jj]], cmap=cmap, color=color, weights=weights, \
-                                  smooth=smooth)
+                                  smooth=smooth, bins=[60,60])
 
                     if inj is not None:
                         axarr[jj][ii].plot(inj[ii], inj[jj], 'x', color='k', markersize=12, \
@@ -367,7 +384,7 @@ def triplot(chain, color='k', weights=None, interpolate=False, smooth=True, \
             if jj == len(parameters)-1:
                 axarr[jj][ii].xaxis.set_major_formatter(xmajorFormatter)
                 if labels:
-                    axarr[jj][ii].set_xlabel(labels[ii])
+                    axarr[jj][ii].set_xlabel(labels[ii], fontsize=20)
 
             if ii == 0:
                 if jj == 0:
@@ -376,7 +393,7 @@ def triplot(chain, color='k', weights=None, interpolate=False, smooth=True, \
                 else:
                     axarr[jj][ii].yaxis.set_major_formatter(ymajorFormatter)
                     if labels:
-                        axarr[jj][ii].set_ylabel(labels[jj])
+                        axarr[jj][ii].set_ylabel(labels[jj], fontsize=20)
 
     # overall plot title
     if title:
@@ -508,7 +525,7 @@ def plotSkyMap(raSample, decSample, nside=64, contours=None, colorbar=True, \
 
 
 def upperlimitplot2d(x, y, sigma=0.95, ymin=None, ymax=None, bins=40, log=False, \
-                     savename=None, labels=None, hold=False, linestyle='solid', \
+                     logA=False, savename=None, labels=None, hold=False, linestyle='solid', \
                      color='black', linewidth=None, leglabel=None, savetable=False, **kwargs):
 
     """
@@ -562,25 +579,31 @@ def upperlimitplot2d(x, y, sigma=0.95, ymin=None, ymax=None, bins=40, log=False,
         plt.loglog(10**yvals[bin_index], 10**upper, ls=linestyle, lw=linewidth, color=color, label=leglabel, **kwargs)
         plt.grid(which='major')
         plt.grid(which='minor')
-        plt.legend(fancybox=True, shadow=True)
+        #plt.legend(fancybox=True, shadow=True)
         if savetable == True:
           np.savetxt('2D_UpperTable_sigma{0}.txt'.format(int(100*sigma)), np.vstack([10**yvals[bin_index],10**upper]).T)
+    elif logA:
+        plt.plot(yvals[bin_index], 10**upper, ls=linestyle, lw=linewidth, color=color, label=leglabel, **kwargs)
+        plt.yscale('log')
+        plt.grid(which='major')
+        plt.grid(which='minor')
+        #plt.legend(fancybox=True, shadow=True)
+        if savetable == True:
+          np.savetxt('2D_UpperTable_sigma{0}.txt'.format(int(100*sigma)), np.vstack([yvals[bin_index],10**upper]).T)
     else:
         plt.plot(yvals[bin_index], upper, ls=linestyle, lw=linewidth, color=color, label=leglabel, **kwargs)
         plt.grid()
-        plt.legend(fancybox=True, shadow=True)
+        #plt.legend(fancybox=True, shadow=True)
         if savetable == True:
           np.savetxt('2D_UpperTable_sigma{0}.txt'.format(int(100*sigma)), np.vstack([yvals[bin_index],upper]).T)
 
     # labels
     if labels:
-        plt.xlabel(labels[0])
-        plt.ylabel(labels[1])
+        plt.xlabel(labels[0], fontsize=20)
+        plt.ylabel(labels[1],fontsize=20)
 
     if savename:
         plt.savefig(savename, bbox_inches='tight')
-    else:
-        plt.savefig('2dUpperLimit.pdf', bbox_inches='tight')
 
         """
 Given an mcmc chain, plot the log-spectrum
@@ -709,29 +732,57 @@ def makePostPlots(chain, labels, outDir='./postplots'):
         plt.savefig(outDir + '/' + labels[ii] + '_post.png', bbox_inches='tight', \
                    dpi=200)
 
+def makePostPlots_show(chain, ndim, labels):
 
-def makeCDF(sample, linestyle=None, linewidth=None, labels=None, legendbox=False, title=None):
-  fig, ax = plt.subplots(1)
-  #sample = np.loadtxt('IsoCompressDense_FixNoise_post_equal_weights.dat',usecols=[0])/(1.0e-15)
-  ecdf = sm.distributions.ECDF(sample)
-  
-  x = np.linspace(min(sample), max(sample))
-  y = ecdf(x)
-  plt.step(x, y, linestyle, lw=linewidth)
-  #p1 = plt.step(x, y, 'k--',lw=1.5)
-  #plt.title('Isotropic GWB ($\gamma=13/3$), ABC-compression with $99.9\%$ fidelty')
-  if labels:
-    plt.xlabel(labels[0])
-    plt.ylabel(labels[1])
-  plt.grid()
-  
-  if legendbox == True:
-    props = dict(boxstyle='round', facecolor='white', alpha=1.0)
-    textstr = title
-    ax.text(0.40, 0.45, textstr, transform=ax.transAxes, fontsize=14,
-            verticalalignment='top', bbox=props)
+    import acor
+
+    for ii in range(ndim):
+
+        xmajorLocator = matplotlib.ticker.MaxNLocator(nbins=6,prune='both')
+        ymajorLocator = matplotlib.ticker.MaxNLocator(nbins=6,prune='both')
+
+        fig = plt.figure(figsize=(10,4))
+
+        ax = fig.add_subplot(121)
+        acl = acor.acor(chain[:,ii])[0]
+        neff = len(chain[:,ii]) / acl * 10
+        ax.plot(chain[:,ii])
+        plt.title('Neff = {0}'.format(int(neff)))
+        plt.ylabel(labels[ii])
+        majorFormatter = FormatStrFormatter('%d')
+        ax.xaxis.set_major_formatter(majorFormatter)
+
+        ax = fig.add_subplot(122)
+        ax.hist(chain[:,ii], 50, lw=2, color='b', normed=True)
+        plt.xlabel(labels[ii])
     
-  #plt.show()
+        ax.xaxis.set_major_locator(xmajorLocator)
+        ax.yaxis.set_major_locator(ymajorLocator)
+
+
+def makeCDF(sample, linestyle=None, linewidth=None, labels=None, legendbox=False, title=None, tex=True):
+    if tex == True:
+        plt.rcParams['text.usetex'] = True
+    
+    fig, ax = plt.subplots()
+    #sample = np.loadtxt('IsoCompressDense_FixNoise_post_equal_weights.dat',usecols=[0])/(1.0e-15)
+    ecdf = sm.distributions.ECDF(sample)
+  
+    x = np.linspace(min(sample), max(sample))
+    y = ecdf(x)
+    plt.step(x, y, linestyle, lw=linewidth)
+    ax.xaxis.set_minor_locator(AutoMinorLocator(5))
+    ax.yaxis.set_minor_locator(AutoMinorLocator(5))
+    if labels:
+        plt.xlabel(labels[0])
+        plt.ylabel(labels[1])
+    plt.grid(which='both')
+  
+    if legendbox == True:
+        props = dict(boxstyle='round', facecolor='white', alpha=1.0)
+        textstr = title
+        ax.text(0.40, 0.45, textstr, transform=ax.transAxes, fontsize=20,
+                verticalalignment='top', bbox=props)
     
 
 ################################
