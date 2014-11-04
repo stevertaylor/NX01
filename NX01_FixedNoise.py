@@ -226,10 +226,14 @@ for ii in range(len(psr)):
 # SETTING UP PRIOR RANGES
 ################################################################################################################################
 
-pmin = np.array([-20.0,0.0])
+pmin = np.array([-20.0])
+if args.fix_slope is False:
+    pmin = np.append(pmin,[0.0])
 pmin = np.append(pmin,-10.0*np.ones( args.num_gwfreq_wins*(((args.LMAX+1)**2)-1) ))
 
-pmax = np.array([-10.0,7.0])
+pmax = np.array([-10.0])
+if args.fix_slope is False:
+    pmax = np.append(pmax,[7.0])
 pmax = np.append(pmax,10.0*np.ones( args.num_gwfreq_wins*(((args.LMAX+1)**2)-1) ))
 ##################################################################################################################################
 
@@ -277,11 +281,13 @@ def modelIndependentFullPTANoisePL(x):
     Agwb = 10.0**x[0]
     if args.fix_slope:
         gam_gwb = 13./3.
+        ct = 1
     else:
         gam_gwb = x[1]
+        ct = 2
     #####
     ###################
-    orf_coeffs = x[2+5*len(psr) + 4:]
+    orf_coeffs = x[ct:]
     orf_coeffs = orf_coeffs.reshape((args.num_gwfreq_wins,((args.LMAX+1)**2)-1))
     clm = np.array([[0.0]*((args.LMAX+1)**2) for ii in range(args.num_gwfreq_wins)])
     clm[:,0] = 2.0*np.sqrt(np.pi)
@@ -325,11 +331,9 @@ def modelIndependentFullPTANoisePL(x):
     # construct elements of sigma array
     sigdiag = []
     sigoffdiag = []
-    sigcm = []
     for ii in range(npsr):
         tot = np.zeros(4*args.nmodes)
         offdiag = np.zeros(4*args.nmodes)
-        commonmode = np.zeros(4*args.nmodes)
 
         # off diagonal terms
         offdiag[0::2] = np.append( 10**rho, np.zeros(len(rho)) )
@@ -454,5 +458,5 @@ cProfile.run('modelIndependentFullPTANoisePL(x0)')
 
 print "\n Now, we sample... \n"
 sampler = PAL.PTSampler(ndim=n_params,logl=modelIndependentFullPTANoisePL,logp=my_prior,cov=np.diag(cov_diag),\
-                        outDir='./chains_Analysis/EPTAv2_{0}_MLnoise_Lmax{1}_{2}'.format(snr_tag_ext,args.LMAX,gamma_ext),resume=False)
+                        outDir='./chains_Analysis/EPTAv2_{0}_MLnoise_nmodes{1}_Lmax{2}_{3}'.format(snr_tag_ext,args.nmodes,args.LMAX,gamma_ext),resume=False)
 sampler.sample(p0=x0,Niter=500000,thin=10)
