@@ -36,8 +36,6 @@ parser.add_option('--lmax', dest='LMAX', action='store', type=int, default=0,
                    help='Maximum multipole in anisotropic search (default = 0, i.e. isotropic-search)')
 parser.add_option('--use-gpu', dest='use_gpu', action='store_true', default=False,
                   help='Do you want to use the GPU for accelerated linear algebra? (default = False)')
-parser.add_option('--mean-or-max', dest='mean_or_max', action='store', type=str,
-                   help='Do you want to use the .par files with mean or max-likelihood white-noise parameters?')
 
 (args, x) = parser.parse_args()
 
@@ -71,10 +69,8 @@ print pulsars
 ################################################################################################################################
 # PASSING THROUGH TEMPO2 VIA libstempo
 ################################################################################################################################
-if args.mean_or_max == 'mean':
-    par_ext = 'Mean'
-elif args.mean_or_max == 'max':
-    par_ext = 'ML'
+
+par_ext = 'ML'  # Running fixed-noise search with ML parameters. Need ML EFACs and EQUADs to represent covariance of params
 
 t2psr=[]
 for ii in range(len(pulsars)):
@@ -217,29 +213,35 @@ for ii in range(len(psr)):
 ################################################################################################################################
 
 pmin = np.array([-20.0,0.0])
-pmin = np.append(pmin,-20.0*np.ones(len(psr)))
-pmin = np.append(pmin,0.0*np.ones(len(psr)))
-pmin = np.append(pmin,-20.0*np.ones(len(psr)))
-pmin = np.append(pmin,0.0*np.ones(len(psr)))
-pmin = np.append(pmin,0.1*np.ones(len(psr)))
-pmin = np.append(pmin,-20.0)
-pmin = np.append(pmin,0.0)
-pmin = np.append(pmin,-20.0)
-pmin = np.append(pmin,0.0)
 pmin = np.append(pmin,-10.0*np.ones( args.num_gwfreq_wins*(((args.LMAX+1)**2)-1) ))
 
 pmax = np.array([-10.0,7.0])
-pmax = np.append(pmax,-10.0*np.ones(len(psr)))
-pmax = np.append(pmax,7.0*np.ones(len(psr)))
-pmax = np.append(pmax,-10.0*np.ones(len(psr)))
-pmax = np.append(pmax,7.0*np.ones(len(psr)))
-pmax = np.append(pmax,10.0*np.ones(len(psr)))
-pmax = np.append(pmax,-10.0)
-pmax = np.append(pmax,7.0)
-pmax = np.append(pmax,-10.0)
-pmax = np.append(pmax,7.0)
 pmax = np.append(pmax,10.0*np.ones( args.num_gwfreq_wins*(((args.LMAX+1)**2)-1) ))
 ##################################################################################################################################
+
+loglike1 = 0
+FtNF = []
+for p in range(len(psr)):
+        
+    # compute d
+    if p == 0:
+        d = np.dot(F_prime[p].T, res_prime[p]/Diag[p] )
+    else:
+        d = np.append(d, np.dot(F_prime[p].T, res_prime[p]/Diag[p] ))
+
+    # compute FT N F
+    N = 1./Diag[p]
+    right = (N*F_prime[p].T).T
+    FtNF.append(np.dot(F_prime[p].T, right))
+
+    # log determinant of N
+    logdet_N = np.sum(np.log( Diag[p] ))
+        
+    # triple product in likelihood function
+    dtNdt = np.sum(res_prime[p]**2.0/( Diag[p] ))
+
+    loglike1 += -0.5 * (logdet_N + dtNdt)
+
 
 def my_prior(x):
     logp = 0.
@@ -261,15 +263,6 @@ def modelIndependentFullPTANoisePL(x):
     Agwb = 10.0**x[0]
     gam_gwb = x[1]
     #####
-    Ared = 10.0**x[2:2+len(psr)]
-    gam_red = x[2+len(psr):2+2*len(psr)]
-    Adm = 10.0**x[2+2*len(psr):2+3*len(psr)]
-    gam_dm = x[2+3*len(psr):2+4*len(psr)]
-    EFAC = x[2+4*len(psr):2+5*len(psr)]
-    Acm = 10.0**x[2+5*len(psr)]
-    gam_cm = x[2+5*len(psr) + 1]
-    Aun = 10.0**x[2+5*len(psr) + 2]
-    gam_un = x[2+5*len(psr) + 3]
     ###################
     orf_coeffs = x[2+5*len(psr) + 4:]
     orf_coeffs = orf_coeffs.reshape((args.num_gwfreq_wins,((args.LMAX+1)**2)-1))
@@ -301,46 +294,16 @@ def modelIndependentFullPTANoisePL(x):
     ORFtot[0::2] = ORF
     ORFtot[1::2] = ORF
 
-    loglike1 = 0
-    FtNF = []
-    for p in range(len(psr)):
-
-        # compute d
-        if p == 0:
-            d = np.dot(F_prime[p].T, res_prime[p]/( (EFAC[p]**2.0)*Diag[p] ))
-        else:
-            d = np.append(d, np.dot(F_prime[p].T, res_prime[p]/( (EFAC[p]**2.0)*Diag[p] )))
-
-        # compute FT N F
-        N = 1./( (EFAC[p]**2.0)*Diag[p] )
-        right = (N*F_prime[p].T).T
-        FtNF.append(np.dot(F_prime[p].T, right))
-
-        # log determinant of N
-        logdet_N = np.sum(np.log( (EFAC[p]**2.0)*Diag[p] ))
-        
-        # triple product in likelihood function
-        dtNdt = np.sum(res_prime[p]**2.0/( (EFAC[p]**2.0)*Diag[p] ))
-
-        loglike1 += -0.5 * (logdet_N + dtNdt)
-    
-    
     # parameterize intrinsic red noise as power law
     Tspan = (1/fqs[0])*86400.0
     f1yr = 1/3.16e7
     rho = np.log10(Agwb**2/12/np.pi**2 * f1yr**(gam_gwb-3) * (fqs/86400.0)**(-gam_gwb)/Tspan)
 
-    # spectrum of common-mode
-    cm = np.log10(Acm**2/12/np.pi**2 * f1yr**(gam_cm-3) * (fqs/86400.0)**(-gam_cm)/Tspan)
-
-    # spectrum of common uncorrelated red-noise
-    un = np.log10(Aun**2/12/np.pi**2 * f1yr**(gam_un-3) * (fqs/86400.0)**(-gam_un)/Tspan)
-
     # parameterize intrinsic red-noise and DM-variations as power law
     kappa = [] 
     for ii in range(npsr):
-        kappa.append(np.log10( np.append( Ared[ii]**2/12/np.pi**2 * f1yr**(gam_red[ii]-3) * (fqs/86400.0)**(-gam_red[ii])/Tspan,\
-                                          Adm[ii]**2/12/np.pi**2 * f1yr**(gam_dm[ii]-3) * (fqs/86400.0)**(-gam_dm[ii])/Tspan ) ))
+        kappa.append(np.log10( np.append( Ared_ML[ii]**2/12/np.pi**2 * f1yr**(gam_red_ML[ii]-3) * (fqs/86400.0)**(-gam_red_ML[ii])/Tspan,\
+                                          Adm_ML[ii]**2/12/np.pi**2 * f1yr**(gam_dm_ML[ii]-3) * (fqs/86400.0)**(-gam_dm_ML[ii])/Tspan ) ))
 
     # construct elements of sigma array
     sigdiag = []
@@ -356,18 +319,12 @@ def modelIndependentFullPTANoisePL(x):
         offdiag[1::2] = np.append( 10**rho, np.zeros(len(rho)) )
 
         # diagonal terms
-        tot[0::2] = ORF[:,ii,ii]*np.append( 10**rho, np.zeros(len(rho)) ) + np.append( 10**cm + 10**un, np.zeros(len(rho)) ) + 10**kappa[ii]
-        tot[1::2] = ORF[:,ii,ii]*np.append( 10**rho, np.zeros(len(rho)) ) + np.append( 10**cm + 10**un, np.zeros(len(rho)) ) + 10**kappa[ii]
-
-        # common-mode terms
-        commonmode[0::2] = np.append( 10**cm, np.zeros(len(rho)) )
-        commonmode[1::2] = np.append( 10**cm, np.zeros(len(rho)) )
+        tot[0::2] = ORF[:,ii,ii]*np.append( 10**rho, np.zeros(len(rho)) ) + 10**kappa[ii]
+        tot[1::2] = ORF[:,ii,ii]*np.append( 10**rho, np.zeros(len(rho)) ) + 10**kappa[ii]
                 
         # fill in lists of arrays
         sigdiag.append(tot)
         sigoffdiag.append(offdiag)
-        sigcm.append(commonmode)
-
 
     # compute Phi inverse from Lindley's code
     smallMatrix = np.zeros((4*args.nmodes, npsr, npsr))
@@ -377,7 +334,7 @@ def modelIndependentFullPTANoisePL(x):
             if ii == jj:
                 smallMatrix[:,ii,jj] = sigdiag[jj] 
             else:
-                smallMatrix[:,ii,jj] = ORFtot[:,ii,jj] * sigoffdiag[jj] + sigcm[jj]
+                smallMatrix[:,ii,jj] = ORFtot[:,ii,jj] * sigoffdiag[jj] 
                 smallMatrix[:,jj,ii] = smallMatrix[:,ii,jj]
 
     
@@ -445,20 +402,6 @@ def modelIndependentFullPTANoisePL(x):
 
 
 parameters = ["Agwb","gam_gwb"]
-for ii in range(len(psr)):
-    parameters.append('Ared_'+psr[ii].name)
-for ii in range(len(psr)):
-    parameters.append('gam_red_'+psr[ii].name)
-for ii in range(len(psr)):
-    parameters.append('Adm_'+psr[ii].name)
-for ii in range(len(psr)):
-    parameters.append('gam_dm_'+psr[ii].name)
-for ii in range(len(psr)):
-    parameters.append('EFAC_'+psr[ii].name)
-parameters.append('Acm')
-parameters.append('gam_cm')
-parameters.append('Aun')
-parameters.append('gam_un')
 for ii in range( args.num_gwfreq_wins*(((args.LMAX+1)**2)-1) ):
     parameters.append('clm_{0}'.format(ii+1))
 
@@ -468,27 +411,12 @@ n_params = len(parameters)
 
 print "\n The total number of parameters is {0}\n".format(n_params)
 
-
 x0 = np.array([-15.0,13./3.])
-x0 = np.append(x0,np.log10(np.array(Ared_ML)))
-x0 = np.append(x0,np.array(gam_red_ML))
-x0 = np.append(x0,np.log10(np.array(Adm_ML)))
-x0 = np.append(x0,np.array(gam_dm_ML))
-x0 = np.append(x0,np.random.uniform(0.75,1.25,len(psr)))
-x0 = np.append(x0,np.array([-15.0,2.0]))
-x0 = np.append(x0,np.array([-15.0,2.0]))
 x0 = np.append(x0,np.zeros( args.num_gwfreq_wins*(((args.LMAX+1)**2)-1) ))
 
 print "\n Your initial parameters are {0}\n".format(x0)
 
 cov_diag = np.array([0.5,0.5])
-cov_diag = np.append(cov_diag,np.array(Ared_err)**2.0)
-cov_diag = np.append(cov_diag,np.array(gam_red_err)**2.0)
-cov_diag = np.append(cov_diag,np.array(Adm_err)**2.0)
-cov_diag = np.append(cov_diag,np.array(gam_dm_err)**2.0)
-cov_diag = np.append(cov_diag,0.2*np.ones(len(psr)))
-cov_diag = np.append(cov_diag,np.array([0.5,0.5]))
-cov_diag = np.append(cov_diag,np.array([0.5,0.5]))
 cov_diag = np.append(cov_diag,0.05*np.ones( args.num_gwfreq_wins*(((args.LMAX+1)**2)-1) ))
 
 
@@ -500,5 +428,5 @@ cProfile.run('modelIndependentFullPTANoisePL(x0)')
 #####################
 
 print "\n Now, we sample... \n"
-sampler = PAL.PTSampler(ndim=n_params,logl=modelIndependentFullPTANoisePL,logp=my_prior,cov=np.diag(cov_diag),outDir='./chains_Analysis/EPTAv2_90pct_Test',resume=False)
+sampler = PAL.PTSampler(ndim=n_params,logl=modelIndependentFullPTANoisePL,logp=my_prior,cov=np.diag(cov_diag),outDir='./chains_Analysis/EPTAv2_90pct_FixedNoiseIsoGam',resume=False)
 sampler.sample(p0=x0,Niter=500000,thin=10)
