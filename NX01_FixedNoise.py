@@ -40,6 +40,8 @@ parser.add_option('--fix-slope', dest='fix_slope', action='store_true', default=
                   help='Do you want to fix the slope of the GWB spectrum? (default = False)')
 parser.add_option('--snr-tag', dest='snr_tag', action='store', type=float, default=0.9, 
                    help='Do you want the 90%, 95% or 100% SNR dataset? [6, 11, and 41 pulsars respectively] (default=0.90)')
+parser.add_option('--limit-or-detect', dest='limit_or_detect', action='store', type=str, default='limit'
+                   help='Do you want to use a uniform prior on log_10(Agwb) [detect] or Agwb itself [upper-limit] (default=\'limit\')?')
 
 
 (args, x) = parser.parse_args()
@@ -260,7 +262,7 @@ for p in range(len(psr)):
 
     loglike1 += -0.5 * (logdet_N + dtNdt)
 
-
+    
 def my_prior(x):
     logp = 0.
     
@@ -414,7 +416,11 @@ def modelIndependentFullPTANoisePL(x):
 
             logLike = -0.5 * (logdet_Phi + logdet_Sigma) + 0.5 * (np.dot(d, expval2)) + loglike1 
 
-        return logLike + np.log(Agwb * np.log(10.0)) + physicality
+        if args.limit_or_detect == 'limit':
+            prior_factor = np.log(Agwb * np.log(10.0))
+        else:
+            prior_factor = 0.0
+        return logLike + prior_factor + physicality
 
 
 
@@ -458,5 +464,5 @@ cProfile.run('modelIndependentFullPTANoisePL(x0)')
 
 print "\n Now, we sample... \n"
 sampler = PAL.PTSampler(ndim=n_params,logl=modelIndependentFullPTANoisePL,logp=my_prior,cov=np.diag(cov_diag),\
-                        outDir='./chains_Analysis/EPTAv2_{0}_MLnoise_nmodes{1}_Lmax{2}_{3}'.format(snr_tag_ext,args.nmodes,args.LMAX,gamma_ext),resume=False)
+                        outDir='./chains_Analysis/EPTAv2_{0}_{1}mode_MLnoise_nmodes{2}_Lmax{3}_{4}'.format(snr_tag_ext,args.limit_or_detect,args.nmodes,args.LMAX,gamma_ext),resume=False)
 sampler.sample(p0=x0,Niter=500000,thin=10)

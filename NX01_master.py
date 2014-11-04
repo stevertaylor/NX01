@@ -38,6 +38,10 @@ parser.add_option('--use-gpu', dest='use_gpu', action='store_true', default=Fals
                   help='Do you want to use the GPU for accelerated linear algebra? (default = False)')
 parser.add_option('--mean-or-max', dest='mean_or_max', action='store', type=str,
                    help='Do you want to use the .par files with mean or max-likelihood white-noise parameters?')
+parser.add_option('--snr-tag', dest='snr_tag', action='store', type=float, default=0.9, 
+                   help='Do you want the 90%, 95% or 100% SNR dataset? [6, 11, and 41 pulsars respectively] (default=0.90)')
+parser.add_option('--limit-or-detect', dest='limit_or_detect', action='store', type=str, default='limit'
+                   help='Do you want to use a uniform prior on log_10(Agwb) [detect] or Agwb itself [upper-limit] (default=\'limit\')?')
 
 (args, x) = parser.parse_args()
 
@@ -55,8 +59,17 @@ if args.use_gpu:
 
     culinalg.init()
 
-dir = ['J1909-3744', 'J1713+0747', 'J1744-1134', 'J0613-0200', 'J1600-3053', 'J1012+5307']   #gives 90%
-      # addition of 1640, 2145, 1857, 1022, 0030 give 95% of total SNR^2
+if args.snr_tag == 0.9:
+    dir = ['J1909-3744', 'J1713+0747', 'J1744-1134', 'J0613-0200', 'J1600-3053', 'J1012+5307']   #gives 90% of total SNR^2
+    snr_tag_ext = '90pct'
+elif args.snr_tag == 0.95:
+    dir = ['J1909-3744', 'J1713+0747', 'J1744-1134', 'J0613-0200', 'J1600-3053', 'J1012+5307', \
+           'J1640+2224', 'J2145-0750', 'J1857+0943', 'J1022+1001', 'J0030+0451'] # gives 95% of total SNR^2
+    snr_tag_ext = '95pct'
+elif args.snr_tag == 1.0:
+    dir = os.walk('.').next()[1]
+    dir.remove('J1939+2134')
+    snr_tag_ext = '100pct'
 
 master_path = os.getcwd()
 path = '/Users/staylor/Research/EPTAv2/UniEQ'  
@@ -436,8 +449,12 @@ def modelIndependentFullPTANoisePL(x):
 
             logLike = -0.5 * (logdet_Phi + logdet_Sigma) + 0.5 * (np.dot(d, expval2)) + loglike1 
 
-        return logLike + np.log(Agwb * np.log(10.0)) + physicality
 
+        if args.limit_or_detect == 'limit':
+            prior_factor = np.log(Agwb * np.log(10.0))
+        else:
+            prior_factor = 0.0
+        return logLike + prior_factor + physicality
 
 
 #########################
@@ -500,5 +517,6 @@ cProfile.run('modelIndependentFullPTANoisePL(x0)')
 #####################
 
 print "\n Now, we sample... \n"
-sampler = PAL.PTSampler(ndim=n_params,logl=modelIndependentFullPTANoisePL,logp=my_prior,cov=np.diag(cov_diag),outDir='./chains_Analysis/EPTAv2_90pct_Test',resume=False)
+sampler = PAL.PTSampler(ndim=n_params,logl=modelIndependentFullPTANoisePL,logp=my_prior,cov=np.diag(cov_diag),\
+                        outDir='./chains_Analysis/EPTAv2_{0}_{1}mode_nmodes{2}_Lmax{3}'.format(snr_tag_ext,args.limit_or_detect,args.nmodes,args.LMAX),resume=False)
 sampler.sample(p0=x0,Niter=500000,thin=10)
