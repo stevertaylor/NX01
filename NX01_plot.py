@@ -61,10 +61,10 @@ else:
     bu.triplot(chain[var:,0:2], labels=[r'$\log_{10}(A_h)$', r'$\gamma$'])
     plt.show()
 
-    bu.upperlimitplot2d(chain[var:,0], chain[var:,1], sigma=0.68, bins=60, logA=True, \
+    bu.upperlimitplot2d(chain[var:,0], chain[var:,1], sigma=0.68, bins=30, logA=True, \
                      labels=[r'$\gamma=3-2\alpha$', r'$A_h$'], hold=True, linestyle='solid', \
                      color='black', linewidth=3.0, leglabel=r'68\% upper-limit')
-    bu.upperlimitplot2d(chain[var:,0], chain[var:,1], sigma=0.95, bins=60, logA=True, \
+    bu.upperlimitplot2d(chain[var:,0], chain[var:,1], sigma=0.95, bins=30, logA=True, \
                      labels=[r'$\gamma=3-2\alpha$', r'$A_h$'], hold=True, linestyle='dashed', \
                      color='black', linewidth=3.0, leglabel=r'95\% upper-limit')
     plt.grid(which='major')

@@ -36,6 +36,8 @@ parser.add_option('--lmax', dest='LMAX', action='store', type=int, default=0,
                    help='Maximum multipole in anisotropic search (default = 0, i.e. isotropic-search)')
 parser.add_option('--use-gpu', dest='use_gpu', action='store_true', default=False,
                   help='Do you want to use the GPU for accelerated linear algebra? (default = False)')
+parser.add_option('--fix-slope', dest='fix_slope', action='store_true', default=False,
+                  help='Do you want to fix the slope of the GWB spectrum? (default = False)')
 parser.add_option('--mean-or-max', dest='mean_or_max', action='store', type=str,
                    help='Do you want to use the .par files with mean or max-likelihood white-noise parameters?')
 parser.add_option('--snr-tag', dest='snr_tag', action='store', type=float, default=0.9, 
@@ -229,7 +231,9 @@ for ii in range(len(psr)):
 # SETTING UP PRIOR RANGES
 ################################################################################################################################
 
-pmin = np.array([-20.0,0.0])
+pmin = np.array([-20.0])
+if args.fix_slope is False:
+    pmin = np.append(pmin,[0.0])
 pmin = np.append(pmin,-20.0*np.ones(len(psr)))
 pmin = np.append(pmin,0.0*np.ones(len(psr)))
 pmin = np.append(pmin,-20.0*np.ones(len(psr)))
@@ -241,7 +245,9 @@ pmin = np.append(pmin,-20.0)
 pmin = np.append(pmin,0.0)
 pmin = np.append(pmin,-10.0*np.ones( args.num_gwfreq_wins*(((args.LMAX+1)**2)-1) ))
 
-pmax = np.array([-10.0,7.0])
+pmax = np.array([-10.0])
+if args.fix_slope is False:
+    pmax = np.append(pmax,[7.0])
 pmax = np.append(pmax,-10.0*np.ones(len(psr)))
 pmax = np.append(pmax,7.0*np.ones(len(psr)))
 pmax = np.append(pmax,-10.0*np.ones(len(psr)))
@@ -272,19 +278,24 @@ def modelIndependentFullPTANoisePL(x):
     """ 
 
     Agwb = 10.0**x[0]
-    gam_gwb = x[1]
+    if args.fix_slope:
+        gam_gwb = 13./3.
+        ct = 1
+    else:
+        gam_gwb = x[1]
+        ct = 2
     #####
-    Ared = 10.0**x[2:2+len(psr)]
-    gam_red = x[2+len(psr):2+2*len(psr)]
-    Adm = 10.0**x[2+2*len(psr):2+3*len(psr)]
-    gam_dm = x[2+3*len(psr):2+4*len(psr)]
-    EFAC = x[2+4*len(psr):2+5*len(psr)]
-    Acm = 10.0**x[2+5*len(psr)]
-    gam_cm = x[2+5*len(psr) + 1]
-    Aun = 10.0**x[2+5*len(psr) + 2]
-    gam_un = x[2+5*len(psr) + 3]
+    Ared = 10.0**x[ct:ct+len(psr)]
+    gam_red = x[ct+len(psr):ct+2*len(psr)]
+    Adm = 10.0**x[ct+2*len(psr):ct+3*len(psr)]
+    gam_dm = x[ct+3*len(psr):ct+4*len(psr)]
+    EFAC = x[ct+4*len(psr):ct+5*len(psr)]
+    Acm = 10.0**x[ct+5*len(psr)]
+    gam_cm = x[ct+5*len(psr) + 1]
+    Aun = 10.0**x[ct+5*len(psr) + 2]
+    gam_un = x[ct+5*len(psr) + 3]
     ###################
-    orf_coeffs = x[2+5*len(psr) + 4:]
+    orf_coeffs = x[ct+5*len(psr) + 4:]
     orf_coeffs = orf_coeffs.reshape((args.num_gwfreq_wins,((args.LMAX+1)**2)-1))
     clm = np.array([[0.0]*((args.LMAX+1)**2) for ii in range(args.num_gwfreq_wins)])
     clm[:,0] = 2.0*np.sqrt(np.pi)
@@ -460,8 +471,13 @@ def modelIndependentFullPTANoisePL(x):
 #########################
 #########################
 
+parameters = ["Agwb"]
+if args.fix_slope is False:
+    parameters.append("gam_gwb")
+    gamma_ext = 'GamVary'
+else:
+    gamma_ext = 'Gam4p33'
 
-parameters = ["Agwb","gam_gwb"]
 for ii in range(len(psr)):
     parameters.append('Ared_'+psr[ii].name)
 for ii in range(len(psr)):
@@ -486,7 +502,9 @@ n_params = len(parameters)
 print "\n The total number of parameters is {0}\n".format(n_params)
 
 
-x0 = np.array([-15.0,13./3.])
+x0 = np.array([-15.0])
+if args.fix_slope is False:
+    x0 = np.append(x0,[13./3.])
 x0 = np.append(x0,np.log10(np.array(Ared_ML)))
 x0 = np.append(x0,np.array(gam_red_ML))
 x0 = np.append(x0,np.log10(np.array(Adm_ML)))
@@ -498,7 +516,9 @@ x0 = np.append(x0,np.zeros( args.num_gwfreq_wins*(((args.LMAX+1)**2)-1) ))
 
 print "\n Your initial parameters are {0}\n".format(x0)
 
-cov_diag = np.array([0.5,0.5])
+cov_diag = np.array([0.5])
+if args.fix_slope is False:
+    cov_diag = np.append(cov_diag,[0.5])
 cov_diag = np.append(cov_diag,np.array(Ared_err)**2.0)
 cov_diag = np.append(cov_diag,np.array(gam_red_err)**2.0)
 cov_diag = np.append(cov_diag,np.array(Adm_err)**2.0)
@@ -518,5 +538,5 @@ cProfile.run('modelIndependentFullPTANoisePL(x0)')
 
 print "\n Now, we sample... \n"
 sampler = PAL.PTSampler(ndim=n_params,logl=modelIndependentFullPTANoisePL,logp=my_prior,cov=np.diag(cov_diag),\
-                        outDir='./chains_Analysis/EPTAv2_{0}_{1}mode_nmodes{2}_Lmax{3}'.format(snr_tag_ext,args.limit_or_detect,args.nmodes,args.LMAX),resume=False)
+                        outDir='./chains_Analysis/EPTAv2_{0}_{1}mode_nmodes{2}_Lmax{3}_{4}'.format(snr_tag_ext,args.limit_or_detect,args.nmodes,args.LMAX,gamma_ext),resume=False)
 sampler.sample(p0=x0,Niter=500000,thin=10)
