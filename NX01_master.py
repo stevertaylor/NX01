@@ -61,6 +61,9 @@ if args.use_gpu:
 
     culinalg.init()
 
+master_path = os.getcwd()
+path = '/Users/staylor/Research/EPTAv2/UniEQ'  
+
 if args.snr_tag == 0.9:
     dir = ['J1909-3744', 'J1713+0747', 'J1744-1134', 'J0613-0200', 'J1600-3053', 'J1012+5307']   #gives 90% of total SNR^2
     snr_tag_ext = '90pct'
@@ -69,12 +72,11 @@ elif args.snr_tag == 0.95:
            'J1640+2224', 'J2145-0750', 'J1857+0943', 'J1022+1001', 'J0030+0451'] # gives 95% of total SNR^2
     snr_tag_ext = '95pct'
 elif args.snr_tag == 1.0:
+    os.chdir(path)
     dir = os.walk('.').next()[1]
     dir.remove('J1939+2134')
+    os.chdir(master_path)
     snr_tag_ext = '100pct'
-
-master_path = os.getcwd()
-path = '/Users/staylor/Research/EPTAv2/UniEQ'  
 
 if not os.path.exists('chains_Analysis'):
     os.makedirs('chains_Analysis')
