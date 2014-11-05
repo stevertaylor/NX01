@@ -40,7 +40,7 @@ parser.add_option('--mean-or-max', dest='mean_or_max', action='store', type=str,
                    help='Do you want to use the .par files with mean or max-likelihood white-noise parameters?')
 parser.add_option('--snr-tag', dest='snr_tag', action='store', type=float, default=0.9, 
                    help='Do you want the 90%, 95% or 100% SNR dataset? [6, 11, and 41 pulsars respectively] (default=0.90)')
-parser.add_option('--limit-or-detect', dest='limit_or_detect', action='store', type=str, default='limit'
+parser.add_option('--limit-or-detect', dest='limit_or_detect', action='store', type=str, default='limit',
                    help='Do you want to use a uniform prior on log_10(Agwb) [detect] or Agwb itself [upper-limit] (default=\'limit\')?')
 
 (args, x) = parser.parse_args()

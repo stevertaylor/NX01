@@ -40,7 +40,7 @@ parser.add_option('--fix-slope', dest='fix_slope', action='store_true', default=
                   help='Do you want to fix the slope of the GWB spectrum? (default = False)')
 parser.add_option('--snr-tag', dest='snr_tag', action='store', type=float, default=0.9, 
                    help='Do you want the 90%, 95% or 100% SNR dataset? [6, 11, and 41 pulsars respectively] (default=0.90)')
-parser.add_option('--limit-or-detect', dest='limit_or_detect', action='store', type=str, default='limit'
+parser.add_option('--limit-or-detect', dest='limit_or_detect', action='store', type=str, default='limit',
                    help='Do you want to use a uniform prior on log_10(Agwb) [detect] or Agwb itself [upper-limit] (default=\'limit\')?')
 
 
