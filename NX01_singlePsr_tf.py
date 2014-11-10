@@ -44,9 +44,14 @@ parser.add_option('--parfile', dest='parfile', action='store', type=str,
                    help='Full path to parfile')
 parser.add_option('--timfile', dest='timfile', action='store', type=str,
                    help='Full path to timfile')
+parser.add_option('--sample-or-maximize', dest='sample_or_maximize', action='store', type=str, default='maximize',
+                   help='Do you want sample from the posteror distribution or just find the maximum likelihood noise values? (default=\'maximize\')?')
 
 (args, x) = parser.parse_args()
 
+if args.sample_or_maximize == 'maximize':
+    from pyswarm import pso
+    
 if not os.path.exists('chains_singlePsr'):
     os.makedirs('chains_singlePsr')
 
@@ -214,11 +219,11 @@ def ln_prob(x):
 #########################
 #########################
 
-parameters = ["A_red","gam_red","A_dm","gam_dm"]
+parameters = ["log(A_red)","gam_red","log(A_dm)","gam_dm"]
 for ii in range(len(backends)):
     parameters.append('EFAC_'+psr.bkend_names[ii])
 for ii in range(len(backends)):
-    parameters.append('EQUAD_'+psr.bkend_names[ii])
+    parameters.append('log(EQUAD_'+psr.bkend_names[ii]+')')
 
 print "\n You are searching for the following single-pulsar parameters: {0}\n".format(parameters)
 n_params = len(parameters)
@@ -238,15 +243,29 @@ cov_diag = np.append(cov_diag,0.5*np.ones(len(backends)))
 print "\n Running a quick profile on the likelihood to estimate evaluation speed...\n"
 cProfile.run('ln_prob(x0)')
 
-#####################
-# Now, we sample.....
-#####################
+##################################
+# Now, we sample or maximize.....
+##################################
 
-print "\n Now, we sample... \n"
-sampler = PAL.PTSampler(ndim=n_params,logl=ln_prob,logp=my_prior,cov=np.diag(cov_diag),\
-                        outDir='./chains_singlePsr/{0}_singlePsr_tf_nmode{1}'.format(psr.name,nmode),resume=False)
-sampler.sample(p0=x0,Niter=500000,thin=10)
+if args.sample_or_maximize == 'maximize':
+    def swarm_prob(x):
+        return -ln_prob(x)
 
+    xopt, fopt = pso(swarm_prob, pmin, pmax, swarmsize=100, omega=0.5, phip=0.5, phig=0.5, maxiter=10000, debug=True)
+
+    print "\n Printing out the ML noise values for {0}...\n".format(psr.name)
+    fil = open("{0}_MLnoise.txt".format(psr.name),'w')
+    for ii in range(len(xopt)):
+        print "{0} = {1}".format(parameters[ii],xopt[ii])
+        print >>fil, "{0} {1}".format(parameters[ii],xopt[ii])
+    print "\n Values saved in {0}_MLnoise_nmode{1}.txt".format(psr.name,nmode)
+
+else:
+    
+    print "\n Now, we sample... \n"
+    sampler = PAL.PTSampler(ndim=n_params,logl=ln_prob,logp=my_prior,cov=np.diag(cov_diag),\
+                            outDir='./chains_singlePsr/{0}_singlePsr_tf_nmode{1}'.format(psr.name,nmode),resume=False)
+    sampler.sample(p0=x0,Niter=500000,thin=10)
 
 
 
