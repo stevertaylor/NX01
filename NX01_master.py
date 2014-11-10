@@ -114,12 +114,12 @@ for ii in range(len(pulsars)):
     t2psr[ii].fit(iters=10)
     if np.any(np.isfinite(t2psr[ii].residuals())==False)==True:
         os.chdir(path+'/'+pulsars[ii])
-	if os.path.isfile('{0}_NoAFB.par'.format(pulsars[ii])):
-	    t2psr[ii] = T2.tempopulsar(parfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_TD.{0}.par'.format(par_ext),\
-                                   timfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_NoAFB.tim')
-	else:
-	    t2psr.append(T2.tempopulsar(parfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_TD.{0}.par'.format(par_ext),\
-                                    timfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_all.tim'))
+        if os.path.isfile('{0}_NoAFB.par'.format(pulsars[ii])):
+            t2psr[ii] = T2.tempopulsar(parfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_TD.{0}.par'.format(par_ext),\
+                                       timfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_NoAFB.tim')
+        else:
+            t2psr[ii] = T2.tempopulsar(parfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_TD.{0}.par'.format(par_ext),\
+                                       timfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_all.tim')
         os.chdir(path)
 
 os.chdir(master_path)
