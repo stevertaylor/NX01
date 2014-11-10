@@ -68,8 +68,8 @@ psr.grab_all_vars()
 if args.sample_or_maximize == 'maximize':
     from pyswarm import pso
 else:    
-    if not os.path.exists('chains_singlePsr_{0}'.format(psr.name)):
-        os.makedirs('chains_singlePsr_{0}'.format(psr.name))
+    if not os.path.exists('chains_singlePsr_EPTAsims_{0}'.format(psr.name)):
+        os.makedirs('chains_singlePsr_EPTAsims_{0}'.format(psr.name))
 
 ################################################################################################################################
 # GETTING MAXIMUM TIME, COMPUTING FOURIER DESIGN MATRICES, AND GETTING MODES 
@@ -79,7 +79,8 @@ Tmax = psr.toas.max() - psr.toas.min()
 
 if args.nmodes:
 
-    psr.makeTe(args.nmodes, Tmax)
+    psr.makeFred(args.nmodes, Tmax)
+    Te = np.append(psr.Gc, psr.Fred, axis=1)
     # get GW frequencies
     fqs = np.linspace(1/Tmax, args.nmodes/Tmax, args.nmodes)
     nmode = args.nmodes
@@ -87,29 +88,16 @@ if args.nmodes:
 else:
 
     nmode = int(round(Tmax/args.cadence))
-    psr.makeTe(nmode, Tmax)
+    psr.makeFred(nmode, Tmax)
+    Te = np.append(psr.Gc, psr.Fred, axis=1)
     # get GW frequencies
     fqs = np.linspace(1/Tmax, nmode/Tmax, nmode)
-
-################################################################################################################################
-# FORM A LIST COMPOSED OF NP ARRAYS CONTAINING THE INDEX POSITIONS WHERE EACH UNIQUE 'sys' BACKEND IS APPLIED
-################################################################################################################################
-
-psr.get_backends() 
-backends = psr.bkends
         
 ################################################################################################################################
 # SETTING UP PRIOR RANGES
 ################################################################################################################################
 pmin = np.array([-20.0,0.0]) # red-noise
-pmin = np.append(pmin,np.array([-20.0,0.0])) # DM-variation noise
-pmin = np.append(pmin,0.1*np.ones(len(backends))) # EFACs
-pmin = np.append(pmin,-10.0*np.ones(len(backends))) #EQUADs
-
 pmax = np.array([-10.0,7.0]) # red-noise
-pmax = np.append(pmax,np.array([-10.0,7.0])) # DM-variation noise
-pmax = np.append(pmax,11.9*np.ones(len(backends))) # EFACs
-pmax = np.append(pmax,-3.0*np.ones(len(backends))) #EQUADs
 
 ##################################################################################################################################
 
@@ -129,44 +117,22 @@ def ln_prob(x):
     Ared = 10.0**x[0]
     gam_red = x[1]
 
-    Adm = 10.0**x[2]
-    gam_dm = x[3]
-
-    EFAC=[0.0]*len(backends)
-    EQUAD=[0.0]*len(backends)
-    for ii in range(len(backends)):
-        EFAC[ii] = x[4+ii] 
-    for ii in range(len(backends)):
-        EQUAD[ii] = 10.0**x[4+len(backends)+ii] 
-
-
     loglike1 = 0
     
-    ####################################
-    ####################################
-    scaled_err = (psr.toaerrs).copy()
-    for jj in range(len(backends)):
-        scaled_err[backends[jj]] *= EFAC[jj] 
-    ###
-    white_noise = np.ones(len(scaled_err))
-    for jj in range(len(backends)):
-        white_noise[backends[jj]] *= EQUAD[jj]
-    
-    new_err = np.sqrt( scaled_err**2.0 + white_noise**2.0 )
     ########
     # compute d    
-    d = np.dot(psr.Te.T, psr.res/( new_err**2.0 ))
+    d = np.dot(Te.T, psr.res/( psr.toaerrs**2.0 ))
        
     # compute T.T * N^-1 * T
-    N = 1./( new_err**2.0 )
-    right = (N*psr.Te.T).T
-    TtNT = np.dot(psr.Te.T, right)
+    N = 1./( psr.toaerrs**2.0 )
+    right = (N*Te.T).T
+    TtNT = np.dot(Te.T, right)
 
     # log determinant of N
-    logdet_N = np.sum(np.log( new_err**2.0 ))
+    logdet_N = np.sum(np.log( psr.toaerrs**2.0 ))
         
     # triple product in likelihood function
-    dtNdt = np.sum(psr.res**2.0/( new_err**2.0 ))
+    dtNdt = np.sum(psr.res**2.0/( psr.toaerrs**2.0 ))
 
     loglike1 += -0.5 * (logdet_N + dtNdt)
     ####################################
@@ -177,10 +143,10 @@ def ln_prob(x):
     f1yr = 1/3.16e7
 
     # parameterize intrinsic red-noise and DM-variations as power law
-    kappa = np.log10( np.append( Ared**2/12/np.pi**2 * f1yr**(gam_red-3) * (fqs/86400.0)**(-gam_red)/Tspan, Adm**2/12/np.pi**2 * f1yr**(gam_dm-3) * (fqs/86400.0)**(-gam_dm)/Tspan ) )
+    kappa = np.log10( Ared**2/12/np.pi**2 * f1yr**(gam_red-3) * (fqs/86400.0)**(-gam_red)/Tspan )
 
     # construct elements of sigma array
-    diagonal = np.zeros(4*nmode)
+    diagonal = np.zeros(2*nmode)
     diagonal[0::2] =  10**kappa
     diagonal[1::2] = 10**kappa
 
@@ -190,7 +156,7 @@ def ln_prob(x):
   
     # now fill in real covariance matrix
     Phi = np.zeros( TtNT.shape ) 
-    for kk in range(0,4*nmode):
+    for kk in range(0,2*nmode):
         Phi[kk+psr.Gc.shape[1],kk+psr.Gc.shape[1]] = red_phi[kk,kk]
 
     # symmeterize Phi
@@ -214,25 +180,19 @@ def ln_prob(x):
 
     logLike = -0.5 * (logdet_Phi + logdet_Sigma) + 0.5 * (np.dot(d, expval2)) + loglike1 
     
-    return logLike + sum(np.log(EQUAD[ii] * np.log(10.0)) for ii in range(len(backends)))
+    return logLike
 
 #########################
 #########################
 
-parameters = ["log(A_red)","gam_red","log(A_dm)","gam_dm"]
-for ii in range(len(backends)):
-    parameters.append('EFAC_'+psr.bkend_names[ii])
-for ii in range(len(backends)):
-    parameters.append('log(EQUAD_'+psr.bkend_names[ii]+')')
+parameters = ["log(A_red)","gam_red"]
 
 print "\n You are searching for the following single-pulsar parameters: {0}\n".format(parameters)
 n_params = len(parameters)
 
 print "\n The total number of parameters is {0}\n".format(n_params)
 
-x0 = np.array([-15.0,3.0,-15.0,3.0])
-x0 = np.append(x0,np.random.uniform(0.75,1.25,len(backends)))
-x0 = np.append(x0,np.random.uniform(-10.0,-3.0,len(backends)))
+x0 = np.array([-15.0,3.0])
 
 print "\n Your initial parameters are {0}\n".format(x0)
 
@@ -259,13 +219,11 @@ if args.sample_or_maximize == 'maximize':
 
 else:
 
-    cov_diag = np.array([0.5,0.5,0.5,0.5])
-    cov_diag = np.append(cov_diag,0.2*np.ones(len(backends)))
-    cov_diag = np.append(cov_diag,0.5*np.ones(len(backends)))
+    cov_diag = np.array([0.5,0.5])
     
     print "\n Now, we sample... \n"
     sampler = PAL.PTSampler(ndim=n_params,logl=ln_prob,logp=my_prior,cov=np.diag(cov_diag),\
-                            outDir='./chains_singlePsr_{0}/{0}_singlePsr_tf_nmode{1}'.format(psr.name,nmode),resume=False)
+                            outDir='./chains_singlePsr_EPTAsims_{0}/{0}_singlePsr_tf_nmode{1}_EPTAsims'.format(psr.name,nmode),resume=False)
     sampler.sample(p0=x0,Niter=500000,thin=10)
 
 
