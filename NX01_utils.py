@@ -1,3 +1,12 @@
+
+"""
+Created by stevertaylor
+Copyright (c) 2014 Stephen R. Taylor
+
+Code contributions by Rutger van Haasteren (piccard) and Justin Ellis (PAL/PAL2).
+
+"""
+
 import numpy as np
 from numpy import *
 import os

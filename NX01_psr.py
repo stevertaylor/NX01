@@ -1,5 +1,13 @@
 #!/usr/bin/env python
 
+"""
+Created by stevertaylor
+Copyright (c) 2014 Stephen R. Taylor
+
+Code contributions by Rutger van Haasteren (piccard) and Justin Ellis (PAL/PAL2).
+
+"""
+
 import numpy as np
 import sys, os, glob
 import libstempo as T2
@@ -23,7 +31,8 @@ class PsrObj(object):
     diag_white = None
     res_prime = None
     Ftot_prime = None
-    Gcmat = None
+    Gc = None
+    Te = None
     name = "J0000+0000"
     Tmax = None
 
@@ -41,7 +50,8 @@ class PsrObj(object):
         self.diag_white = None
         self.res_prime = None
         self.Ftot_prime = None
-        self.Gcmat = None
+        self.Gc = None
+        self.Te = None
         self.name = "J0000+0000"
         self.Tmax = None
         self.bkends = None
@@ -61,6 +71,7 @@ class PsrObj(object):
         self.des = self.T2psr.designmatrix()
         U,S,V = np.linalg.svd(self.des)
         self.G = U[:,len(S):len(U)]
+        self.Gc =  U[:,:len(S)]
 
         if 'RAJ' and 'DECJ' in self.T2psr.pars:
             self.psr_locs = [self.T2psr['RAJ'].val,self.T2psr['DECJ'].val]
@@ -90,6 +101,13 @@ class PsrObj(object):
         self.Fdm = utils.createfourierdesignmatrix_DM(self.toas, nmodes, self.obs_freqs, Tspan=Ttot)
 
         self.Ftot = np.append(self.Fred, self.Fdm, axis=1)
+
+    def makeTe(self, nmodes, Ttot):
+        self.Fred = utils.createfourierdesignmatrix_RED(self.toas, nmodes, Tspan=Ttot)
+        self.Fdm = utils.createfourierdesignmatrix_DM(self.toas, nmodes, self.obs_freqs, Tspan=Ttot)
+
+        self.Ftot = np.append(self.Fred, self.Fdm, axis=1)
+        self.Te = np.append(self.Gc, self.Ftot, axis=1)
 
     def two_comp_noise(self, MLerrors):
         efac_bit = np.dot(self.G.T, np.dot( np.diag(MLerrors**2.0), self.G ) )

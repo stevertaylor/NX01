@@ -1,3 +1,12 @@
+
+"""
+Created by stevertaylor
+Copyright (c) 2014 Stephen R. Taylor
+
+Code contributions by Rutger van Haasteren (piccard), Justin Ellis (PAL/PAL2), and Chiara Mingarelli.
+
+"""
+
 import math
 import matplotlib.pyplot as plt
 import numpy as np
