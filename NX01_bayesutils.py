@@ -779,7 +779,20 @@ def makeCDF(sample, linestyle=None, linewidth=None, labels=None, legendbox=False
   
     x = np.linspace(min(sample), max(sample))
     y = ecdf(x)
-    plt.step(ecdf.x, ecdf.y, linestyle, lw=linewidth)
+    plt.step(x, y, linestyle, lw=linewidth)
+
+    up68 = confinterval(sample, sigma=0.68, onesided=True)[1]
+    up90 = confinterval(sample, sigma=0.90, onesided=True)[1]
+    up95 = confinterval(sample, sigma=0.95, onesided=True)[1]
+
+    plt.hlines(y=0.68, xmin=min(sample), xmax=up68, linewidth=2.0, linestyle='dashed', color='black')
+    plt.vlines(x=up68, ymin=0.0, ymax=0.68, linewidth=2, linestyle='dashed', color='black')
+
+    plt.hlines(y=0.90, xmin=min(sample), xmax=up90, linewidth=2.0, linestyle='dashed', color='black')
+    plt.vlines(x=up90, ymin=0.0, ymax=0.90, linewidth=2, linestyle='dashed', color='black')
+
+    plt.hlines(y=0.95, xmin=min(sample), xmax=up95, linewidth=2.0, linestyle='dashed', color='black')
+    plt.vlines(x=up95, ymin=0.0, ymax=0.95, linewidth=2, linestyle='dashed', color='black')
     
     ax.xaxis.set_minor_locator(AutoMinorLocator(5))
     ax.yaxis.set_minor_locator(AutoMinorLocator(5))
