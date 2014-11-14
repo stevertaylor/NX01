@@ -548,5 +548,5 @@ cProfile.run('modelIndependentFullPTANoisePL(x0)')
 
 print "\n Now, we sample... \n"
 sampler = PAL.PTSampler(ndim=n_params,logl=modelIndependentFullPTANoisePL,logp=my_prior,cov=np.diag(cov_diag),\
-                        outDir='./chains_Analysis/EPTAv2_{0}_{1}mode_SearchNoise_nmodes{2}_Lmax{3}_{4}'.format(snr_tag_ext,args.limit_or_detect,args.nmodes,args.LMAX,gamma_ext),resume=False)
+                        outDir='./chains_Analysis/EPTAv2_{0}_{1}mode_SearchNoise_nmodes{2}_Lmax{3}_{4}'.format(snr_tag_ext,args.limit_or_detect,args.nmodes,args.LMAX,gamma_ext),resume=True)
 sampler.sample(p0=x0,Niter=500000,thin=10)

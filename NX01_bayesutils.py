@@ -774,12 +774,13 @@ def makeCDF(sample, linestyle=None, linewidth=None, labels=None, legendbox=False
         plt.rcParams['text.usetex'] = True
     
     fig, ax = plt.subplots()
-    #sample = np.loadtxt('IsoCompressDense_FixNoise_post_equal_weights.dat',usecols=[0])/(1.0e-15)
+
     ecdf = sm.distributions.ECDF(sample)
   
     x = np.linspace(min(sample), max(sample))
     y = ecdf(x)
-    plt.step(x, y, linestyle, lw=linewidth)
+    plt.step(ecdf.x, ecdf.y, linestyle, lw=linewidth)
+    
     ax.xaxis.set_minor_locator(AutoMinorLocator(5))
     ax.yaxis.set_minor_locator(AutoMinorLocator(5))
     if labels:
