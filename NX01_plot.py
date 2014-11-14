@@ -172,8 +172,10 @@ if 'Gam4p33' in args.chaindir:
         plt.plot(delta_ell[10:], func_r, linestyle='dashed', color='red', linewidth=3.0)
 
         ax.set_xticks(ll)
-        plt.xlim(1,3)
-        plt.ylim(0.0,0.1)
+        plt.xlim(xmin=1)
+        tmplist = delta_ell.tolist()
+        indl1 = min(range(len(tmplist)), key=lambda i: abs(tmplist[i]-1.0))
+        plt.ylim(0.0, np.max(func_r[indl1:]))
         plt.tick_params(labelsize=18)
         plt.xlabel('$l$', fontsize=20)
         plt.ylabel('$C_l/4\pi$', fontsize=20)
@@ -216,12 +218,73 @@ else:
             Cl[ii+1] = np.sum( clm[:,(ll[ii]+1)**2-1:(ll[ii+1]+1)**2-1]**2 / (2*ll[ii+1]+1.) , axis=1)
 
         Cl = np.array(Cl)
+        delta_ell = np.linspace(0.0,LMAX*1.0,1000)
+        func=np.zeros((len(clm), len(delta_ell)))
         for ii in range(len(clm)):
-                ax.plot(ll, Cl[:,ii]/(4.0*np.pi), color='0.7', linewidth=3.0)
+                tmp = interp1d(ll, Cl[:,ii]/(4.0*np.pi) )
+                func[ii,:] = tmp(delta_ell) 
+
+        xx=np.tile(delta_ell,len(clm))
+        yy=func.reshape((len(xx),))
+
+        # get the central and bound of the lines
+        func_c = np.zeros(len(delta_ell))
+        func_l = np.zeros(len(delta_ell[10:]))
+        func_r = np.zeros(len(delta_ell[10:]))
+        row,col = func.shape
+
+        for ii in range(len(delta_ell)):
+            dat = func[:,ii]
+            func_c[ii] = np.mean(dat)
+
+        for ii in range(10,len(delta_ell)):
+            dat = func[:,ii]
+            c,l,r = getclr(dat, 100, 0.95)
+            func_l[ii-10] = l
+            func_r[ii-10] = r
+
+        #2D hist of the line distributions
+        H, xedges, yedges = np.histogram2d(xx, yy, bins=(100, 100),
+                                    range=([0.0,1.0*LMAX], [0.0,1.0]))
+
+        H = H.transpose()
+
+        x2edges = (xedges[:-1] + xedges[1:]) / 2
+        y2edges = (yedges[:-1] + yedges[1:]) / 2
+        mxx, mxy = np.meshgrid(x2edges, y2edges)
+        plt.contourf(mxx, mxy, H/np.sum(H), 50, cmap='Greys')
+        plt.colorbar()
+
+        plt.plot(delta_ell, func_c, linestyle='solid', color='black', linewidth=3.0)
+        plt.plot(delta_ell[10:], func_l, linestyle='dashed', color='red', linewidth=3.0)
+        plt.plot(delta_ell[10:], func_r, linestyle='dashed', color='red', linewidth=3.0)
 
         ax.set_xticks(ll)
         plt.tick_params(labelsize=18)
         plt.xlabel('$l$', fontsize=20)
         plt.ylabel('$C_l/4\pi$', fontsize=20)
         plt.show()
+
+        ################################
+        ################################
+
+        fig, ax = plt.subplots()
+        plt.contourf(mxx, mxy, H/np.sum(H), 50, cmap='Greys')
+        plt.colorbar()
+
+        plt.plot(delta_ell, func_c, linestyle='solid', color='black', linewidth=3.0)
+        plt.plot(delta_ell[10:], func_l, linestyle='dashed', color='red', linewidth=3.0)
+        plt.plot(delta_ell[10:], func_r, linestyle='dashed', color='red', linewidth=3.0)
+
+        ax.set_xticks(ll)
+        plt.xlim(xmin=1)
+        plt.ylim(ymin=0.0)
+        plt.tick_params(labelsize=18)
+        plt.xlabel('$l$', fontsize=20)
+        plt.ylabel('$C_l/4\pi$', fontsize=20)
+        plt.show()
+
+        
+
+        
     
