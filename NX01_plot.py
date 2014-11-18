@@ -78,9 +78,9 @@ if 'Gam4p33' in args.chaindir:
     plt.show()
 
     if 'MLnoise' in args.chaindir:
-        noisetag = 'ML noise'
+        noisetag = 'ML-noise'
     else:
-        noisetag = 'Varied noise'
+        noisetag = 'Varied-noise'
 
     if 'Lmax0' in args.chaindir:
         ltag = 'Isotropic search'
@@ -90,12 +90,12 @@ if 'Gam4p33' in args.chaindir:
             if 'Lmax' in ii:
                 LMAX = int(ii[-1])
 
-        ltag = 'Anisotropic search ($l_{\mathrm{max}}=\;$'+str(LMAX)+')'
+        ltag = 'anisotropic search ($l_{\mathrm{max}}=\;$'+str(LMAX)+')'
         
     
     # make a CDF plot to get the upper limit
     bu.makeCDF(10.0**chain[var:,0]/1.e-15, linestyle='k-', linewidth=3.0, labels=None, legendbox=True,\
-               title=noisetag+';\n'+ltag+';\n $\gamma_{\mathrm{GWB}}=13/3$')
+               title=noisetag+' '+ltag+', $\gamma_{\mathrm{GWB}}=13/3$')   #title=noisetag+';\n'+ltag+';\n $\gamma_{\mathrm{GWB}}=13/3$')
     plt.xlabel(r'$A_h\; /\; 10^{-15}$', fontsize=20)
     plt.ylabel('Cumulative probability', fontsize=20)
     plt.tick_params(labelsize=18)

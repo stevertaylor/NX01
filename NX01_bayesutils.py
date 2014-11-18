@@ -785,14 +785,20 @@ def makeCDF(sample, linestyle=None, linewidth=None, labels=None, legendbox=False
     up90 = confinterval(sample, sigma=0.90, onesided=True)[1]
     up95 = confinterval(sample, sigma=0.95, onesided=True)[1]
 
-    plt.hlines(y=0.68, xmin=min(sample), xmax=up68, linewidth=2.0, linestyle='dashed', color='black')
-    plt.vlines(x=up68, ymin=0.0, ymax=0.68, linewidth=2, linestyle='dashed', color='black')
+    lab68 = "%.2f" % up68
+    lab90 = "%.2f" % up90
+    lab95 = "%.2f" % up95
 
-    plt.hlines(y=0.90, xmin=min(sample), xmax=up90, linewidth=2.0, linestyle='dashed', color='black')
-    plt.vlines(x=up90, ymin=0.0, ymax=0.90, linewidth=2, linestyle='dashed', color='black')
+    plt.hlines(y=0.68, xmin=min(sample), xmax=up68, linewidth=3.0, linestyle='dashed', color='green', label=r'$A_{h,68\%}=$'+str(lab68)+r'$\times 10^{-15}$')
+    plt.vlines(x=up68, ymin=0.0, ymax=0.68, linewidth=3.0, linestyle='dashed', color='green')
 
-    plt.hlines(y=0.95, xmin=min(sample), xmax=up95, linewidth=2.0, linestyle='dashed', color='black')
-    plt.vlines(x=up95, ymin=0.0, ymax=0.95, linewidth=2, linestyle='dashed', color='black')
+    plt.hlines(y=0.90, xmin=min(sample), xmax=up90, linewidth=3.0, linestyle='dashed', color='blue', label=r'$A_{h,90\%}=$'+str(lab90)+r'$\times 10^{-15}$')
+    plt.vlines(x=up90, ymin=0.0, ymax=0.90, linewidth=3.0, linestyle='dashed', color='blue')
+
+    plt.hlines(y=0.95, xmin=min(sample), xmax=up95, linewidth=3.0, linestyle='dashed', color='red', label=r'$A_{h,95\%}=$'+str(lab95)+r'$\times 10^{-15}$')
+    plt.vlines(x=up95, ymin=0.0, ymax=0.95, linewidth=3.0, linestyle='dashed', color='red')
+
+    plt.legend(loc='lower right', shadow=True, frameon=True, prop={'size':15})
     
     ax.xaxis.set_minor_locator(AutoMinorLocator(5))
     ax.yaxis.set_minor_locator(AutoMinorLocator(5))
@@ -800,12 +806,14 @@ def makeCDF(sample, linestyle=None, linewidth=None, labels=None, legendbox=False
         plt.xlabel(labels[0])
         plt.ylabel(labels[1])
     plt.grid(which='both')
+
+    plt.title(title, fontsize=20)
   
-    if legendbox == True:
+    '''if legendbox == True:
         props = dict(boxstyle='round', facecolor='white', alpha=1.0)
         textstr = title
         ax.text(0.40, 0.45, textstr, transform=ax.transAxes, fontsize=20,
-                verticalalignment='top', bbox=props)
+                verticalalignment='top', bbox=props)'''
     
 
 ################################

@@ -1,0 +1,63 @@
+# Increase the default DPI, and change the file type from png to pdf 
+savefig.dpi             :   300
+savefig.format          :   pdf
+
+# Simplify paths by removing "invisible" points, useful for reducing
+# file size when plotting a large number of points
+path.simplify           :   True
+
+# Instead of individually increasing font sizes, point sizes, and line 
+# thicknesses, I found it easier to just decrease the figure size so
+# that the line weights of various components still agree 
+#figure.figsize          :   4,4
+figure.figsize          :   10.65,6.585
+
+# I am still working on getting fonts as nice as those in SM. In the 
+# meantime, I have settled for having the fonts in math mode agree 
+# with the regular ones.  
+font.family             :   serif
+font.serif              :   Times New Roman
+mathtext.fontset        :   custom
+
+# Increase the tick-mark lengths (defaults are 4 and 2)
+xtick.major.size        :   6
+ytick.major.size        :   6 
+xtick.minor.size        :   3	
+ytick.minor.size        :   3
+
+# Increase the tick-mark widths as well as the widths of lines 
+# used to draw marker edges to be consistent with the other figure
+# linewidths (defaults are all 0.5)
+xtick.major.width       :   1
+ytick.major.width       :   1
+xtick.minor.width       :   1
+ytick.minor.width       :   1
+lines.markeredgewidth   :   1
+
+axes.labelsize          :   10
+lines.markersize        :   4
+
+axes.linewidth          :   1
+legend.fontsize         :   7
+xtick.labelsize         :   10
+ytick.labelsize         :   10
+
+# Have the legend only plot one point instead of two, turn off the 
+# frame, and reduce the space between the point and the label  
+legend.numpoints        :   1
+legend.frameon          :   False
+legend.handletextpad    :   0.3
+
+
+
+
+
+     
+     
+      
+     
+       
+      
+      
+       
+     
