@@ -83,7 +83,7 @@ if 'Gam4p33' in args.chaindir:
         noisetag = 'Varied-noise'
 
     if 'Lmax0' in args.chaindir:
-        ltag = 'Isotropic search'
+        ltag = 'isotropic search'
     else:
         st = args.chaindir.split('_')
         for ii in st:
@@ -95,7 +95,7 @@ if 'Gam4p33' in args.chaindir:
     
     # make a CDF plot to get the upper limit
     bu.makeCDF(10.0**chain[var:,0]/1.e-15, linestyle='k-', linewidth=3.0, labels=None, legendbox=True,\
-               title=noisetag+' '+ltag+', $\gamma_{\mathrm{GWB}}=13/3$')   #title=noisetag+';\n'+ltag+';\n $\gamma_{\mathrm{GWB}}=13/3$')
+               title=noisetag+' '+ltag+', $\gamma_{\mathrm{GWB}}=13/3$')
     plt.xlabel(r'$A_h\; /\; 10^{-15}$', fontsize=20)
     plt.ylabel('Cumulative probability', fontsize=20)
     plt.tick_params(labelsize=18)
@@ -179,6 +179,13 @@ if 'Gam4p33' in args.chaindir:
         plt.tick_params(labelsize=18)
         plt.xlabel('$l$', fontsize=20)
         plt.ylabel('$C_l/4\pi$', fontsize=20)
+        plt.show()
+
+        
+        ################################
+        ################################
+
+        bu.makeSkyMap(clm, lmax=LMAX)
         plt.show()
 
         
@@ -283,6 +290,13 @@ else:
         plt.xlabel('$l$', fontsize=20)
         plt.ylabel('$C_l/4\pi$', fontsize=20)
         plt.show()
+
+        ################################
+        ################################
+
+        bu.makeSkyMap(clm, lmax=LMAX)
+        plt.show()
+        
 
         
 

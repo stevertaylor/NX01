@@ -9,6 +9,7 @@ Code contributions by Rutger van Haasteren (piccard) and Justin Ellis (PAL/PAL2)
 
 from __future__ import division
 import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
 import scipy.interpolate as interp
 import scipy.ndimage.filters as filter
@@ -22,6 +23,7 @@ import matplotlib.colors
 import matplotlib.cm as cmx
 from optparse import OptionParser
 import os
+import NX01_utils as utils
 
 """
 Plotting codes from Justin Ellis' PAL package, with additions by Steve Taylor
@@ -789,13 +791,13 @@ def makeCDF(sample, linestyle=None, linewidth=None, labels=None, legendbox=False
     lab90 = "%.2f" % up90
     lab95 = "%.2f" % up95
 
-    plt.hlines(y=0.68, xmin=min(sample), xmax=up68, linewidth=3.0, linestyle='dashed', color='green', label=r'$A_{h,68\%}=$'+str(lab68)+r'$\times 10^{-15}$')
+    plt.hlines(y=0.68, xmin=0.0, xmax=up68, linewidth=3.0, linestyle='dashed', color='green', label=r'$A_{h,68\%}=$'+str(lab68)+r'$\times 10^{-15}$')
     plt.vlines(x=up68, ymin=0.0, ymax=0.68, linewidth=3.0, linestyle='dashed', color='green')
 
-    plt.hlines(y=0.90, xmin=min(sample), xmax=up90, linewidth=3.0, linestyle='dashed', color='blue', label=r'$A_{h,90\%}=$'+str(lab90)+r'$\times 10^{-15}$')
+    plt.hlines(y=0.90, xmin=0.0, xmax=up90, linewidth=3.0, linestyle='dashed', color='blue', label=r'$A_{h,90\%}=$'+str(lab90)+r'$\times 10^{-15}$')
     plt.vlines(x=up90, ymin=0.0, ymax=0.90, linewidth=3.0, linestyle='dashed', color='blue')
 
-    plt.hlines(y=0.95, xmin=min(sample), xmax=up95, linewidth=3.0, linestyle='dashed', color='red', label=r'$A_{h,95\%}=$'+str(lab95)+r'$\times 10^{-15}$')
+    plt.hlines(y=0.95, xmin=0.0, xmax=up95, linewidth=3.0, linestyle='dashed', color='red', label=r'$A_{h,95\%}=$'+str(lab95)+r'$\times 10^{-15}$')
     plt.vlines(x=up95, ymin=0.0, ymax=0.95, linewidth=3.0, linestyle='dashed', color='red')
 
     plt.legend(loc='lower right', shadow=True, frameon=True, prop={'size':15})
@@ -808,12 +810,33 @@ def makeCDF(sample, linestyle=None, linewidth=None, labels=None, legendbox=False
     plt.grid(which='both')
 
     plt.title(title, fontsize=20)
-  
-    '''if legendbox == True:
-        props = dict(boxstyle='round', facecolor='white', alpha=1.0)
-        textstr = title
-        ax.text(0.40, 0.45, textstr, transform=ax.transAxes, fontsize=20,
-                verticalalignment='top', bbox=props)'''
+
+def makeSkyMap(samples, lmax, nside=32, tex=True, psrs=None):
+    if tex == True:
+        plt.rcParams['text.usetex'] = True
+
+    nside=32
+    npix = hp.nside2npix(nside)   # number of pixels total
+
+    # initialize theta and phi map coordinantes
+    skypos=[]
+    for ii in range(npix):
+        skypos.append(np.array(hp.pix2ang(nside,ii)))
+    
+    skypos = np.array(skypos)
+
+    harmvals = utils.SetupSkymapPlottingGrid(lmax,skypos)
+
+    clm_mean = np.mean(samples, axis=0)
+    clm_mean = np.append(2.*np.sqrt(np.pi), clm_mean)
+    pwr = utils.GWpower(clm_mean, harmvals)
+
+    ax = plt.subplot(111, projection='astro mollweide')
+    ax.grid()
+    plot.outline_text(ax)
+    plot.healpix_heatmap(pwr[::-1])
+    plt.colorbar(orientation='horizontal')
+    plt.suptitle(r'$\langle P_{\mathrm{GWB}}(-\hat\Omega)\rangle$', y=0.1)
     
 
 ################################

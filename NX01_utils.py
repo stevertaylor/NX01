@@ -173,3 +173,30 @@ def PhysPrior(clm,harm_sky_vals):
         return 'Unphysical'
     else:
         return 'Physical'
+
+
+def SetupSkymapPlottingGrid(lmax,skypos):
+    """
+    Compute the real spherical harmonics
+    on a sky-grid defined by healpy for
+    plotting purposes.
+    """
+    
+    harmvals = [[0.0]*(2*ll+1) for ll in range(lmax+1)]
+    for ll in range(len(harmvals)):
+        for mm in range(len(harmvals[ll])):
+            harmvals[ll][mm] = real_sph_harm(ll,mm-ll,skypos[:,1],skypos[:,0])
+
+    return harmvals
+
+def GWpower(clm,harmvals):
+    """
+    Construct the GW power flowing into each pixel
+    """
+
+    Pdist=0.
+    for ll in range(len(harmvals)):
+        for mm in range(len(harmvals[ll])):
+            Pdist += clm[ ll**2 + mm ] * harmvals[ll][mm]
+    
+    return Pdist
