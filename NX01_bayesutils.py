@@ -837,6 +837,11 @@ def makeSkyMap(samples, lmax, nside=32, tex=True, psrs=None):
     plot.healpix_heatmap(pwr[::-1])
     plt.colorbar(orientation='horizontal')
     plt.suptitle(r'$\langle P_{\mathrm{GWB}}(-\hat\Omega)\rangle$', y=0.1)
+
+    # add pulsars locations
+    if np.all(psrs):
+        ax.plot(psrs[:,0], psrs[:,1], 'D', color='w', markersize=3, mew=1, mec='w')
+
     
 
 ################################

@@ -185,7 +185,13 @@ if 'Gam4p33' in args.chaindir:
         ################################
         ################################
 
-        bu.makeSkyMap(clm, lmax=LMAX)
+        for ii in st:
+            if 'pct' in ii:
+                snr_tag_ext = ii
+
+        psrlocs = np.loadtxt('PsrPos_SNR_{0}.txt'.format(snr_tag_ext),usecols=[1,2])
+
+        bu.makeSkyMap(clm, lmax=LMAX, psrs=psrlocs)
         plt.show()
 
         
@@ -294,7 +300,13 @@ else:
         ################################
         ################################
 
-        bu.makeSkyMap(clm, lmax=LMAX)
+        for ii in st:
+            if 'pct' in ii:
+                snr_tag_ext = ii
+
+        psrlocs = np.loadtxt('PsrPos_SNR_{0}.txt'.format(snr_tag_ext),usecols=[1,2])
+
+        bu.makeSkyMap(clm, lmax=LMAX, psrs=psrlocs)
         plt.show()
         
 
