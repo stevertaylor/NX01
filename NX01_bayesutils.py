@@ -840,7 +840,7 @@ def makeSkyMap(samples, lmax, nside=32, tex=True, psrs=None):
 
     # add pulsars locations
     if np.all(psrs):
-        ax.plot(psrs[:,0], psrs[:,1], 'D', color='w', markersize=3, mew=1, mec='w')
+        ax.plot(psrs[:,0], psrs[:,1], '*', color='w', markersize=6, mew=1, mec='w')
 
     
 
