@@ -22,6 +22,61 @@ import optparse
 import ephem
 from ephem import *
 
+def sumTermCovarianceMatrix_fast(tm, fL, gam):
+    """
+    Calculate the power series expansion for the Hypergeometric
+    function in the standard power-law covariance matrix. This
+    version uses the Python package numexpr and is much faster
+    than using numpy. For now it is hardcoded to use only the 
+    first 3 terms.
+    
+    @param tm: Matrix of time lags in years
+    @param fL: Low frequency cutoff
+    @param gam: Power Law spectral index
+    """
+    ########
+    x = 2*np.pi*fL*tm
+    ########
+    sum = ne.evaluate("1/(1-gam) - x**2/(2*(3-gam)) + x**4/(24*(5-gam))")
+    ########
+    return sum
+
+def makeTimeGrid(psra, psrb):
+
+    ta, tb = np.meshgrid(psra.toas, psrb.toas)  
+    tm = np.abs(ta-tb).astype(np.float64)/365.25
+  
+    return tm
+
+def makeRedTDcov(Ared, gam_red, tm):
+
+    Tspan = tm.max()
+    fL = 1/(100.0*Tspan)
+    xgrid = 2.0*np.pi*fL*tm
+    
+    Cred = ( (Ared**2.0)*(fL**(1.0-gam_red)) / (12.0*np.pi**2.0) ) * ((ss.gamma(1.0-gam_red)*np.sin(np.pi*gam_red/2.)*ne.evaluate("xgrid**(gam_red-1.0)"))\
+                                                                      - sumTermCovarianceMatrix_fast(tm, fL, gam_red))
+    Cred *= ((365.25*86400.0)**2.0)
+
+    return Cred
+
+def makeDmTDcov(psr, Adm, gam_dm, tm):
+
+    Tspan = tm.max()
+    fL = 1/(100.0*Tspan)
+    xgrid = 2.0*np.pi*fL*tm
+    
+    K = 2.41*10.0**(-16.0)
+    Dm = 1.0/(K*(psr.obs_freqs*1e6)**2.0)
+    DmA,DmB = np.meshgrid(Dm,Dm)
+    DmGrid = DmA*DmB
+   
+    Cdm = ( (Adm**2.0)*(fL**(1.0-gam_dm)) / (12.0*np.pi**2.0) ) * ((ss.gamma(1-gam_dm)*np.sin(np.pi*gam_dm/2)*ne.evaluate("xgrid**(gam_dm-1)")) \
+                                                                   - sumTermCovarianceMatrix_fast(tm, fL, gam_dm))
+    Cdm *= ((365.25*86400.0)**2.0)
+    Cdm = np.multiply(DmGrid,Cdm)
+
+    return Cdm
 
 def createfourierdesignmatrix_RED(t, nmodes, freq=False, Tspan=None):
     """
@@ -200,3 +255,43 @@ def GWpower(clm,harmvals):
             Pdist += clm[ ll**2 + mm ] * harmvals[ll][mm]
     
     return Pdist
+
+def optStat(psr, GCGnoiseInv, ORF, gam_gwb=4.33333):
+    """
+    Computes the Optimal statistic as defined in Chamberlin et al. (2014)
+
+    @param psr: List of pulsar object instances
+    @param ORF: Vector of pairwise overlap reduction values
+    @param gam: Power Spectral index of GBW (default = 13/3, ie SMBMBs)
+
+    @return: Opt: Optimal statistic value (A_gw^2)
+    @return: sigma: 1-sigma uncertanty on Optimal statistic
+    @return: snr: signal-to-noise ratio of cross correlations
+
+    """
+    
+    top = 0
+    bot = 0
+    for ll in range(len(psr)):
+        for kk in range(ll+1, len(psr)):
+            # form matrix of toa residuals and compute SigmaIJ
+            tgrid = makeTimeGrid(psr[kk], psr[ll])
+            
+            # create cross covariance matrix without overall amplitude A^2
+            SIJ = ORF[ll][kk] * makeRedTDcov(1.0, gam_gwb, tgrid)    
+            G_SIJ_G = np.dot(psr[ll].G.T, np.dot(SIJ, psr[kk].G))
+            # construct numerator and denominator of optimal statistic
+            bot += np.trace(np.dot(GCGnoiseInv[ll], np.dot(G_SIJ_G, np.dot(GCGnoiseInv[kk], G_SIJ_G.T))))
+            top += np.dot(psr[ll].Gres, np.dot(GCGnoiseInv[ll], np.dot(G_SIJ_G, np.dot(GCGnoiseInv[kk], psr[kk].Gres))))
+            
+    # compute optimal statistic
+    Opt = top/bot
+    
+    # compute uncertainty
+    sigma = 1/np.sqrt(bot)
+
+    # compute SNR
+    snr = top/np.sqrt(bot)
+
+    # return optimal statistic and snr
+    return Opt, sigma, snr

@@ -811,6 +811,62 @@ def makeCDF(sample, linestyle=None, linewidth=None, labels=None, legendbox=False
 
     plt.title(title, fontsize=20)
 
+def make_all_CDF(sample0, sample1, sample2, sample3, linestyle=None, linewidth=None, labels=None, legendbox=False, title=None, tex=False):
+   if tex == True:
+       plt.rcParams['text.usetex'] = True
+
+   fig, ax = plt.subplots()
+
+   ecdf0 = sm.distributions.ECDF(sample0)
+   ecdf1 = sm.distributions.ECDF(sample1)
+   ecdf2 = sm.distributions.ECDF(sample2)
+   ecdf3 = sm.distributions.ECDF(sample3)
+
+   x0 = np.linspace(min(sample0), max(sample0))
+   y0 = ecdf0(x0)
+
+   x1 = np.linspace(min(sample1), max(sample1))
+   y1 = ecdf1(x1)
+
+   x2 = np.linspace(min(sample2), max(sample2))    
+   y2 = ecdf2(x2)
+
+   x3 = np.linspace(min(sample3), max(sample3))
+   y3 = ecdf3(x3)
+
+   plt.step(x0, y0, linestyle, lw=linewidth, color='blue',label=r'$l_{max}=0$')
+   plt.step(x1, y1, linestyle, lw=linewidth, color='green',label=r'$l_{max}=1$')
+   plt.step(x2, y2, linestyle, lw=linewidth, color='black',label=r'$l_{max}=2$')
+   plt.step(x3, y3, linestyle, lw=linewidth, color='purple',label=r'$l_{max}=3$')
+
+   up68 = confinterval(sample3, sigma=0.68, onesided=True)[1]
+   up90 = confinterval(sample3, sigma=0.90, onesided=True)[1]
+   up95 = confinterval(sample3, sigma=0.95, onesided=True)[1]
+
+   lab68 = "%.2f" % up68
+   lab90 = "%.2f" % up90
+   lab95 = "%.2f" % up95
+
+   plt.hlines(y=0.68, xmin=0.0, xmax=up68, linewidth=3.0, linestyle='dashed', color='green', label=r'$A_{h,68\%}=$'+str(lab68)+r'$\times 10^{-15}$, $l_{max}=3$')
+   plt.vlines(x=up68, ymin=0.0, ymax=0.68, linewidth=3.0, linestyle='dashed', color='green')
+
+   plt.hlines(y=0.90, xmin=0.0, xmax=up90, linewidth=3.0, linestyle='dashed', color='blue', label=r'$A_{h,90\%}=$'+str(lab90)+r'$\times 10^{-15}$, $l_{max}=3$')
+   plt.vlines(x=up90, ymin=0.0, ymax=0.90, linewidth=3.0, linestyle='dashed', color='blue')
+
+   plt.hlines(y=0.95, xmin=0.0, xmax=up95, linewidth=3.0, linestyle='dashed', color='red', label=r'$A_{h,95\%}=$'+str(lab95)+r'$\times 10^{-15}$, $l_{max}=3$')
+   plt.vlines(x=up95, ymin=0.0, ymax=0.95, linewidth=3.0, linestyle='dashed', color='red')
+
+   plt.legend(loc='lower right', shadow=True, frameon=True, prop={'size':15})
+
+   ax.xaxis.set_minor_locator(AutoMinorLocator(5))
+   ax.yaxis.set_minor_locator(AutoMinorLocator(5))
+   if labels:
+       plt.xlabel(labels[0])
+       plt.ylabel(labels[1])
+   plt.grid(which='both')
+
+   plt.title(title, fontsize=20)
+
 def makeSkyMap(samples, lmax, nside=32, tex=True, psrs=None):
     if tex == True:
         plt.rcParams['text.usetex'] = True

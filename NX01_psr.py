@@ -35,6 +35,7 @@ class PsrObj(object):
     Te = None
     name = "J0000+0000"
     Tmax = None
+    Gres = None
 
     def __init__(self, t2obj):
         self.T2psr = t2obj
@@ -56,6 +57,7 @@ class PsrObj(object):
         self.Tmax = None
         self.bkends = None
         self.bkend_names = None
+        self.Gres = None
 
     """
     Initialise the libstempo object for use in nonlinear timing model modelling.
@@ -72,6 +74,8 @@ class PsrObj(object):
         U,S,V = np.linalg.svd(self.des)
         self.G = U[:,len(S):len(U)]
         self.Gc =  U[:,:len(S)]
+
+        self.Gres = np.dot(self.G.T, self.res)
 
         if 'RAJ' and 'DECJ' in self.T2psr.pars:
             self.psr_locs = [self.T2psr['RAJ'].val,self.T2psr['DECJ'].val]
