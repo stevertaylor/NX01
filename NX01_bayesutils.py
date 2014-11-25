@@ -13,6 +13,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import scipy.interpolate as interp
 import scipy.ndimage.filters as filter
+import scipy.special as ss
 import statsmodels.api as sm
 import healpy as hp
 from bayestar import plot
@@ -897,6 +898,39 @@ def makeSkyMap(samples, lmax, nside=32, tex=True, psrs=None):
     # add pulsars locations
     if np.all(psrs):
         ax.plot(psrs[:,0], psrs[:,1], '*', color='w', markersize=6, mew=1, mec='w')
+
+
+def OSupperLimit(psr, GCGnoiseInv, ORF, far, drlist, OSsmbhb, tex=True, nlims=20):
+    if tex == True:
+        plt.rcParams['text.usetex'] = True
+
+    gam_bkgrd = np.linspace(1.01,6.99,nlims)
+    optStatList=[]
+    ct=0
+    for indx in gam_bkgrd:
+        optStatList.append( utils.optStat(psr, GCGnoiseInv, ORF, gam_gwb=indx) )
+        ct+=1
+        print "Finished {0}% of optimal-statistic upper-limit calculations...".format( 100.0*ct/(1.0*nlims) )
+
+    optStatList = np.array(optStatList)
+
+    fig, ax = plt.subplots()
+    stylelist = ['solid','dashed','dotted']
+    for ii in range(len(drlist)):
+        ax.plot(gam_bkgrd, np.sqrt( optStatList[:,1]*np.sqrt(2.0)*( ss.erfcinv(2.0*far) - ss.erfcinv(2.0*drlist[ii]) ) ), linestyle=stylelist[ii], color='black', linewidth=3.0)
+        plt.hlines(y=np.sqrt( OSsmbhb*np.sqrt(2.0)*( ss.erfcinv(2.0*far) - ss.erfcinv(2.0*drlist[ii]) ) ), xmin=gam_bkgrd.min(), xmax=13./3., linewidth=3.0, linestyle='solid', color='red')
+        plt.vlines(x=13./3., ymin=0.0, ymax=np.sqrt( OSsmbhb*np.sqrt(2.0)*( ss.erfcinv(2.0*far) - ss.erfcinv(2.0*drlist[ii]) ) ), linewidth=3.0, linestyle='solid', color='red')
+
+    ax.set_yscale('log')
+    ax.set_xlabel(r'$\gamma\equiv 3-2\alpha$', fontsize=20)
+    ax.set_ylabel(r'$A_h$', fontsize=20)
+    ax.minorticks_on()
+    plt.tick_params(labelsize=18)
+    plt.grid(which='major')
+    plt.grid(which='minor')
+    plt.title('Optimal-statistic upper-limits')
+    plt.show()
+
 
     
 

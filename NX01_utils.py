@@ -261,8 +261,9 @@ def optStat(psr, GCGnoiseInv, ORF, gam_gwb=4.33333):
     Computes the Optimal statistic as defined in Chamberlin et al. (2014)
 
     @param psr: List of pulsar object instances
+    @param GCGnoiseInv: List of (G * Cnoise * G)^{-1} for all pulsars
     @param ORF: Vector of pairwise overlap reduction values
-    @param gam: Power Spectral index of GBW (default = 13/3, ie SMBMBs)
+    @param gam_gwb: Power Spectral index of GBW (default = 13/3, ie SMBMBs)
 
     @return: Opt: Optimal statistic value (A_gw^2)
     @return: sigma: 1-sigma uncertanty on Optimal statistic
@@ -295,3 +296,77 @@ def optStat(psr, GCGnoiseInv, ORF, gam_gwb=4.33333):
 
     # return optimal statistic and snr
     return Opt, sigma, snr
+
+
+
+
+'''
+def AnisOptStat(gam_gwb=4.33333):
+    """
+    Computes the Optimal statistic as defined in Chamberlin, Creighton, Demorest et al (2013)
+
+    @param psr: List of pulsar object instances
+    @param ORF: Vector of pairwise overlap reduction values
+    @param gam: Power Spectral index of GBW (default = 13/3, ie SMBMBs)
+
+    @return: Opt: Optimal statistic value (A_gw^2)
+    @return: sigma: 1-sigma uncertanty on Optimal statistic
+    @return: snr: signal-to-noise ratio of cross correlations
+
+    """
+ 
+    top = np.zeros((len(psr),len(psr)))
+    bot = np.zeros((len(psr),len(psr)))
+    for ll in range(len(psr)):
+        for kk in range(ll+1, len(psr)):
+            # form matrix of toa residuals and compute SigmaIJ
+            ta, tb = np.meshgrid(obs[kk], obs[ll])  
+            tgrid = np.abs(ta-tb).astype(np.float64)/365.25
+            Tspan = tgrid.max()
+            fL = 1/(100.0*Tspan)
+            xgrid = 2*np.pi*fL*tgrid
+            #
+            # create cross covariance matrix without overall amplitude A^2
+            SIJ = ((fL**(1.0-gam_gwb))/(12.0*np.pi**2.0))*((ss.gamma(1-gam_gwb)*np.sin(np.pi*gam_gwb/2)*ne.evaluate("xgrid**(gam_gwb-1)")) \
+                                                                  -sumTermCovarianceMatrix_fast(tgrid, fL, gam_gwb))
+            SIJ *= ((365.25*86400.0)**2.0)
+            G_SIJ_G = np.dot(G[ll].T,np.dot(SIJ,G[kk]))
+            # construct numerator and denominator of optimal statistic
+            bot[ll,kk] = np.trace(np.dot(GCGnoise_inv[ll], np.dot(G_SIJ_G, np.dot(GCGnoise_inv[kk], G_SIJ_G.T))))
+            top[ll,kk] = np.dot(Gt[ll], np.dot(GCGnoise_inv[ll], np.dot(G_SIJ_G, \
+                                                                                np.dot(GCGnoise_inv[kk], Gt[kk]))))
+            #
+            #
+    return top, bot
+'''
+
+
+
+'''
+amp, weight = AnisOptStat(gam_gwb=13./3.)
+
+lmax=2
+coeff = np.array(anis.AnisCoeff(positions,lmax))
+coeff[0] = coeff[0]/(np.sqrt(4.0*np.pi))
+
+X = np.array([np.multiply(coeff[ii],amp) for ii in range(len(coeff))])
+X = np.array([np.sum(X[ii]) for ii in range(len(X))])
+
+gamma = np.zeros((len(coeff),len(coeff)))
+for alpha in range(len(coeff)):
+            for beta in range(len(coeff)):
+                for ll in range(len(psr)):
+                    for kk in range(ll+1, len(psr)):
+                        #
+                        #p,q = np.meshgrid(np.array(coeff)[alpha,ll,kk], np.array(coeff)[beta,ll,kk])
+                        #orf_grid = p*q
+                        orf_grid = np.array(coeff)[alpha,ll,kk]*np.array(coeff)[beta,ll,kk]
+                        gamma[alpha,beta] += orf_grid*weight[ll,kk]
+
+P = np.dot(sl.inv(gamma), X)
+'''                          
+    
+
+   
+
+
