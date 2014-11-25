@@ -62,8 +62,6 @@ if args.use_gpu:
     import pycuda.driver as drv
     import pycuda.elementwise as el
     import pycuda.tools as tools
-    import scikits.cuda.cublas as cublas
-    import scikits.cuda.cula as cula
     import scikits.cuda.linalg as culinalg
     import scikits.cuda.misc as cumisc
 
