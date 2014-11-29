@@ -22,6 +22,9 @@ import optparse
 import ephem
 from ephem import *
 
+day = 24 * 3600
+year = 365.25 * day
+
 def sumTermCovarianceMatrix_fast(tm, fL, gam):
     """
     Calculate the power series expansion for the Hypergeometric
@@ -256,6 +259,48 @@ def GWpower(clm,harmvals):
     
     return Pdist
 
+def singlePsrLL(psr, Amp=5e-14, gam_gwb=13./3.):
+    ######################################
+    # Calculate the GW covariance matrix
+    ######################################
+    ta, tb = np.meshgrid(psr.toas, psr.toas)  
+    tgrid = np.abs(ta-tb).astype(np.float64)/365.25
+    Tspan = tgrid.max()
+    fL = 1./(100.0*Tspan)
+    xgrid = 2.0*np.pi*fL*tgrid
+    
+    C = ((Amp**2.0)*(fL**(1.0-gam_gwb))/(12.0*np.pi**2.0)) *\
+    ( (ss.gamma(1.0-gam_gwb)*np.sin(np.pi*gam_gwb/2.0)*ne.evaluate("xgrid**(gam_gwb-1.)")) - sumTermCovarianceMatrix_fast(tgrid, fL, gam_gwb) )
+    C *= ((365.25*86400.0)**2.0)
+    #############################################
+    # Add other white, red or DM-variation noise
+    #############################################
+    white = psr.toaerrs
+    C += np.diag(white**2.0)
+
+    GCG = np.dot(psr.G.T, np.dot(C, psr.G))
+    
+    try:
+        cho = sl.cho_factor(GCG)
+        like = -0.5 * np.dot(psr.Gres, sl.cho_solve(cho, psr.Gres)) - 0.5 * len(psr.Gres) * np.log((2.0*np.pi)) - 0.5 * np.sum(np.log(np.diag(cho[0])**2.0))
+    except np.linalg.LinAlgError:
+        print "Problem inverting matrix at A = %s, alpha = %s:" % (Amp,alpha)
+
+        raise
+
+    return like
+
+def sigma_gwRMS(psr):
+    # Formula by van Haasteren & Levin (2013, equation 24)
+    # sigma_gwb = 1.37e-9 * (Ah / 1e-15) * (T / yr) ^ (5/3)
+    # At the minute only applicable for gamma=13/3
+    
+    gwbvar = np.absolute(np.var(psr.res)-psr.toaerrs[0]*psr.toaerrs[0])
+    gwbstd = np.sqrt(gwbvar)
+
+    Tspan = np.max((psr.toas).max() - (psr.toas).min()) * day
+    return (gwbstd / 1.37e-9) * 1e-15 / ((Tspan / year) ** (5.0/3.0))
+
 def optStat(psr, GCGnoiseInv, ORF, gam_gwb=4.33333):
     """
     Computes the Optimal statistic as defined in Chamberlin et al. (2014)
@@ -273,6 +318,8 @@ def optStat(psr, GCGnoiseInv, ORF, gam_gwb=4.33333):
     
     top = 0
     bot = 0
+    all_top = []
+    all_bot = []
     for ll in range(len(psr)):
         for kk in range(ll+1, len(psr)):
             # form matrix of toa residuals and compute SigmaIJ
@@ -281,9 +328,16 @@ def optStat(psr, GCGnoiseInv, ORF, gam_gwb=4.33333):
             # create cross covariance matrix without overall amplitude A^2
             SIJ = ORF[ll][kk] * makeRedTDcov(1.0, gam_gwb, tgrid)    
             G_SIJ_G = np.dot(psr[ll].G.T, np.dot(SIJ, psr[kk].G))
+
             # construct numerator and denominator of optimal statistic
-            bot += np.trace(np.dot(GCGnoiseInv[ll], np.dot(G_SIJ_G, np.dot(GCGnoiseInv[kk], G_SIJ_G.T))))
-            top += np.dot(psr[ll].Gres, np.dot(GCGnoiseInv[ll], np.dot(G_SIJ_G, np.dot(GCGnoiseInv[kk], psr[kk].Gres))))
+            tmp_bot = np.trace(np.dot(GCGnoiseInv[ll], np.dot(G_SIJ_G, np.dot(GCGnoiseInv[kk], G_SIJ_G.T))))
+            tmp_top = np.dot(psr[ll].Gres, np.dot(GCGnoiseInv[ll], np.dot(G_SIJ_G, np.dot(GCGnoiseInv[kk], psr[kk].Gres))))
+            
+            bot += tmp_bot
+            top += tmp_top
+
+            all_top.append(tmp_top / tmp_bot)
+            all_bot.append(1./np.sqrt(tmp_bot))
             
     # compute optimal statistic
     Opt = top/bot
@@ -295,7 +349,7 @@ def optStat(psr, GCGnoiseInv, ORF, gam_gwb=4.33333):
     snr = top/np.sqrt(bot)
 
     # return optimal statistic and snr
-    return Opt, sigma, snr
+    return Opt, sigma, snr, np.array(all_top), np.array(all_bot)
 
 
 

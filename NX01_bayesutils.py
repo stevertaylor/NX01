@@ -908,7 +908,7 @@ def OSupperLimit(psr, GCGnoiseInv, ORF, far, drlist, OSsmbhb, tex=True, nlims=20
     optStatList=[]
     ct=0
     for indx in gam_bkgrd:
-        optStatList.append( utils.optStat(psr, GCGnoiseInv, ORF, gam_gwb=indx) )
+        optStatList.append( utils.optStat(psr, GCGnoiseInv, ORF, gam_gwb=indx)[:3] )
         ct+=1
         print "Finished {0}% of optimal-statistic upper-limit calculations...".format( 100.0*ct/(1.0*nlims) )
 
@@ -917,7 +917,7 @@ def OSupperLimit(psr, GCGnoiseInv, ORF, far, drlist, OSsmbhb, tex=True, nlims=20
     fig, ax = plt.subplots()
     stylelist = ['solid','dashed','dotted']
     for ii in range(len(drlist)):
-        ax.plot(gam_bkgrd, np.sqrt( optStatList[:,1]*np.sqrt(2.0)*( ss.erfcinv(2.0*far) - ss.erfcinv(2.0*drlist[ii]) ) ), linestyle=stylelist[ii], color='black', linewidth=3.0)
+        ax.plot(gam_bkgrd, np.sqrt( optStatList[:,1]*np.sqrt(2.0)*( ss.erfcinv(2.0*far) - ss.erfcinv(2.0*drlist[ii]) ) ), linestyle=stylelist[ii], color='black', linewidth=3.0, label='$A_h$ ({0}$\%$ FAR, {1}$\%$ DR)'.format(far*100,drlist[ii]*100))
         plt.hlines(y=np.sqrt( OSsmbhb*np.sqrt(2.0)*( ss.erfcinv(2.0*far) - ss.erfcinv(2.0*drlist[ii]) ) ), xmin=gam_bkgrd.min(), xmax=13./3., linewidth=3.0, linestyle='solid', color='red')
         plt.vlines(x=13./3., ymin=0.0, ymax=np.sqrt( OSsmbhb*np.sqrt(2.0)*( ss.erfcinv(2.0*far) - ss.erfcinv(2.0*drlist[ii]) ) ), linewidth=3.0, linestyle='solid', color='red')
 
@@ -928,7 +928,32 @@ def OSupperLimit(psr, GCGnoiseInv, ORF, far, drlist, OSsmbhb, tex=True, nlims=20
     plt.tick_params(labelsize=18)
     plt.grid(which='major')
     plt.grid(which='minor')
-    plt.title('Optimal-statistic upper-limits')
+    plt.title('Optimal-statistic bounds')
+    plt.legend(loc='lower left', shadow=True, frameon=True, prop={'size':15})
+    plt.show()
+
+def OScrossPower(angSep, crossCorr, crossCorrErr, tex=True):
+    if tex == True:
+        plt.rcParams['text.usetex'] = True
+
+    fig, ax = plt.subplots()
+
+    seps = []
+    rows,cols = angSep.shape
+    for ii in range(rows):
+        for jj in range(ii+1,cols):
+           seps.append(angSep[ii,jj])
+            
+    #ax.plot(seps, crossCorr, 'k', color='#1B2ACC')
+    #ax.fill_between(seps, crossCorr-crossCorrErr, crossCorr-crossCorrErr, alpha=0.2, edgecolor='#1B2ACC', facecolor='#089FFF', linewidth=4, linestyle='dashdot', antialiased=True)
+    ax.errorbar(seps, crossCorr, yerr=crossCorrErr, fmt='o', color='#089FFF', ecolor='#089FFF', capsize=8, linewidth=3)
+    ax.set_xlabel('Pulsar angular separation [rads]', fontsize=20)
+    ax.set_ylabel('Cross power', fontsize=20)
+    ax.minorticks_on()
+    plt.tick_params(labelsize=18)
+    plt.grid(which='major')
+    plt.grid(which='minor')
+    plt.title('Cross-power measurements')
     plt.show()
 
 

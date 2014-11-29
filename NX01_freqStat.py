@@ -13,7 +13,7 @@ from numpy import *
 import os
 import math
 from scipy import integrate
-from scipy import optimize
+from scipy import optimize as sciopt
 from scipy import constants
 from numpy import random
 from scipy import special as ss
@@ -110,6 +110,15 @@ positions = np.array(psr_positions).copy()
 CorrCoeff = np.array(anis.CorrBasis(positions,args.LMAX))       # computing all the correlation basis-functions for the array
 HnD = 2.0*np.sqrt(np.pi)*CorrCoeff[0]
 
+skyLocs = np.array([np.sin(positions[:,1])*np.cos(positions[:,0]), np.sin(positions[:,1])*np.sin(positions[:,0]), np.cos(positions[:,1])]).T
+#print skyLocs.shape
+
+angSep = np.zeros((len(psr),len(psr)))
+for ii in range(len(psr)):
+    for jj in range(ii,len(psr)):
+        angSep[ii,jj] = np.dot(skyLocs[ii],skyLocs[jj])
+        angSep[jj,ii] = angSep[ii,jj]
+
 ################################################################################################################################
 # FORM A LIST COMPOSED OF NP ARRAYS CONTAINING THE INDEX POSITIONS WHERE EACH UNIQUE 'sys' BACKEND IS APPLIED
 ################################################################################################################################
@@ -146,12 +155,21 @@ for ii in range(len(pulsars)):
 
 GCGnoiseInv=[]
 for ii in range(len(psr)):
+    ####################################################################
+    # For each pulsar, obtain the ML A_h value with scalar maximisation
+    ####################################################################
+    #func = lambda x: -utils.singlePsrLL(psr[ii], x, gam_gwb=13./3.)
+    #fbounded = sciopt.minimize_scalar(func, bounds=(0.0, utils.sigma_gwRMS(psr[ii]), 1.0e-13), method='Golden')
+    #Agwb_ML = fbounded.x
+    
     tgrid = utils.makeTimeGrid(psr[ii], psr[ii])
 
+    #Cgwb_ML = utils.makeRedTDcov(Agwb_ML, 13./3., tgrid)
     Cred = utils.makeRedTDcov(Ared_ML[ii], gam_red_ML[ii], tgrid)
     Cdm = utils.makeDmTDcov(psr[ii], Adm_ML[ii], gam_dm_ML[ii], tgrid)
     Cwhite = np.diag(psr[ii].toaerrs**2.0)
     ########
+    #GCGnoise = np.dot(psr[ii].G.T, np.dot(Cgwb_ML+Cred+Cdm+Cwhite, psr[ii].G))
     GCGnoise = np.dot(psr[ii].G.T, np.dot(Cred+Cdm+Cwhite, psr[ii].G))
     GCGnoise = np.nan_to_num(GCGnoise)
     cho = sl.cho_factor(GCGnoise)
@@ -161,7 +179,12 @@ for ii in range(len(psr)):
 gam_bkgrd = 4.33333
 optimalStat = utils.optStat(psr, GCGnoiseInv, HnD, gam_gwb=gam_bkgrd)
 print "\n A^2 = {0}, std = {1}, SNR = {2}\n".format(optimalStat[0],optimalStat[1],optimalStat[2])
+print "\n In this data, the minimum Ah of an SMBHB background that is required for 5% FAR and 68% DR is {0}\n".\
+  format(np.sqrt( optimalStat[1]*np.sqrt(2.0)*( ss.erfcinv(2.0*0.05) - ss.erfcinv(2.0*0.68) ) ))
+print "\n In this data, the minimum Ah of an SMBHB background that is required for 5% FAR and 95% DR is {0}\n".\
+  format(np.sqrt( optimalStat[1]*np.sqrt(2.0)*( ss.erfcinv(2.0*0.05) - ss.erfcinv(2.0*0.95) ) ))
 
 far = 0.05
 dr_list = [0.95,0.68]
 bu.OSupperLimit(psr, GCGnoiseInv, HnD, far, dr_list, optimalStat[1])
+bu.OScrossPower(angSep, optimalStat[3], optimalStat[4])
