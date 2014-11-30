@@ -52,6 +52,8 @@ parser.add_option('--snr-tag', dest='snr_tag', action='store', type=float, defau
                    help='Do you want the 90%, 95% or 100% SNR dataset? [6, 11, and 41 pulsars respectively] (default=0.90)')
 parser.add_option('--limit-or-detect', dest='limit_or_detect', action='store', type=str, default='limit',
                    help='Do you want to use a uniform prior on log_10(Agwb) [detect] or Agwb itself [upper-limit] (default=\'limit\')?')
+parser.add_option('--anis-modefile', dest='anis_modefile', action='store', type=str, default = None,
+                   help='Do you want to provide an anisotropy modefile to split band into frequency windows?')
 
 (args, x) = parser.parse_args()
 
@@ -136,8 +138,25 @@ positions = np.array(psr_positions).copy()
 CorrCoeff = np.array(anis.CorrBasis(positions,args.LMAX))       # computing all the correlation basis-functions for the array
 harm_sky_vals = utils.SetupPriorSkyGrid(args.LMAX)              # computing the values of the spherical-harmonics up to order
                                                                 # LMAX on a pre-specified grid
-gwfreqs_per_win = int(1.*args.nmodes/(1.*args.num_gwfreq_wins)) # getting the number of GW frequencies per window
-        
+
+if args.anis_modefile is None:
+    gwfreqs_per_win = int(1.*args.nmodes/(1.*args.num_gwfreq_wins)) # getting the number of GW frequencies per window
+    anis_modefreqs = np.arange(1,args.nmodes+1)
+    anis_modefreqs = np.reshape(anis_modefreqs, (args.num_gwfreq_wins,gwfreqs_per_win))
+
+    tmp_num_gwfreq_wins = args.num_gwfreq_wins
+else:
+    tmp_modefreqs = np.loadtxt(args.anis_modefile)
+    tmp_num_gwfreq_wins = tmp_modefreqs.shape[0]
+    anis_modefreqs = []
+    for ii in range(tmp_num_gwfreq_wins):
+        anis_modefreqs.append(np.arange(tmp_modefreqs[ii,0],tmp_modefreqs[ii,1]+1))
+
+if (args.LMAX!=0) and (tmp_num_gwfreq_wins > 1):
+    evol_anis_tag = 'EvAnis'
+else:
+    evol_anis_tag = ''
+              
 ################################################################################################################################
 # GETTING MAXIMUM TIME, COMPUTING FOURIER DESIGN MATRICES, AND GETTING MODES 
 ################################################################################################################################
@@ -251,7 +270,7 @@ pmin = np.append(pmin,-20.0)
 pmin = np.append(pmin,0.0)
 pmin = np.append(pmin,-20.0)
 pmin = np.append(pmin,0.0)
-pmin = np.append(pmin,-10.0*np.ones( args.num_gwfreq_wins*(((args.LMAX+1)**2)-1) ))
+pmin = np.append(pmin,-10.0*np.ones( tmp_num_gwfreq_wins*(((args.LMAX+1)**2)-1) ))
 
 pmax = np.array([-10.0])
 if args.fix_slope is False:
@@ -265,7 +284,7 @@ pmax = np.append(pmax,-10.0)
 pmax = np.append(pmax,7.0)
 pmax = np.append(pmax,-10.0)
 pmax = np.append(pmax,7.0)
-pmax = np.append(pmax,10.0*np.ones( args.num_gwfreq_wins*(((args.LMAX+1)**2)-1) ))
+pmax = np.append(pmax,10.0*np.ones( tmp_num_gwfreq_wins*(((args.LMAX+1)**2)-1) ))
 ##################################################################################################################################
 
 def my_prior(x):
@@ -304,12 +323,12 @@ def modelIndependentFullPTANoisePL(x):
     gam_un = x[ct+5*len(psr) + 3]
     ###################
     orf_coeffs = x[ct+5*len(psr) + 4:]
-    orf_coeffs = orf_coeffs.reshape((args.num_gwfreq_wins,((args.LMAX+1)**2)-1))
-    clm = np.array([[0.0]*((args.LMAX+1)**2) for ii in range(args.num_gwfreq_wins)])
+    orf_coeffs = orf_coeffs.reshape((tmp_num_gwfreq_wins,((args.LMAX+1)**2)-1))
+    clm = np.array([[0.0]*((args.LMAX+1)**2) for ii in range(tmp_num_gwfreq_wins)])
     clm[:,0] = 2.0*np.sqrt(np.pi)
     physicality = 0.
     if args.LMAX!=0:
-        for kk in range(args.num_gwfreq_wins):
+        for kk in range(tmp_num_gwfreq_wins):
             for ii in range(1,((args.LMAX+1)**2)):
                 clm[kk,ii] = orf_coeffs[kk,ii-1]   
     
@@ -321,11 +340,11 @@ def modelIndependentFullPTANoisePL(x):
     npsr = len(psr)
 
     ORF=[]
-    for ii in range(args.num_gwfreq_wins): # number of frequency windows
-        for jj in range(gwfreqs_per_win): # number of frequencies in this window
+    for ii in range(tmp_num_gwfreq_wins): # number of frequency windows
+        for jj in range(len(anis_modefreqs[ii])): # number of frequencies in this window
             ORF.append( sum(clm[ii,kk]*CorrCoeff[kk] for kk in range(len(CorrCoeff))) )
-    for ii in range(args.num_gwfreq_wins): # number of frequency windows
-        for jj in range(gwfreqs_per_win): # number of frequencies in this window
+    for ii in range(tmp_num_gwfreq_wins): # number of frequency windows
+        for jj in range(len(anis_modefreqs[ii])): # number of frequencies in this window
             ORF.append( np.zeros((npsr,npsr)) )
 
     ORF = np.array(ORF)
@@ -500,7 +519,7 @@ parameters.append('Acm')
 parameters.append('gam_cm')
 parameters.append('Aun')
 parameters.append('gam_un')
-for ii in range( args.num_gwfreq_wins*(((args.LMAX+1)**2)-1) ):
+for ii in range( tmp_num_gwfreq_wins*(((args.LMAX+1)**2)-1) ):
     parameters.append('clm_{0}'.format(ii+1))
 
 
@@ -520,7 +539,7 @@ x0 = np.append(x0,np.array(gam_dm_ML))
 x0 = np.append(x0,np.random.uniform(0.75,1.25,len(psr)))
 x0 = np.append(x0,np.array([-15.0,2.0]))
 x0 = np.append(x0,np.array([-15.0,2.0]))
-x0 = np.append(x0,np.zeros( args.num_gwfreq_wins*(((args.LMAX+1)**2)-1) ))
+x0 = np.append(x0,np.zeros( tmp_num_gwfreq_wins*(((args.LMAX+1)**2)-1) ))
 
 print "\n Your initial parameters are {0}\n".format(x0)
 
@@ -534,7 +553,7 @@ cov_diag = np.append(cov_diag,np.array(gam_dm_err)**2.0)
 cov_diag = np.append(cov_diag,0.2*np.ones(len(psr)))
 cov_diag = np.append(cov_diag,np.array([0.5,0.5]))
 cov_diag = np.append(cov_diag,np.array([0.5,0.5]))
-cov_diag = np.append(cov_diag,0.05*np.ones( args.num_gwfreq_wins*(((args.LMAX+1)**2)-1) ))
+cov_diag = np.append(cov_diag,0.05*np.ones( tmp_num_gwfreq_wins*(((args.LMAX+1)**2)-1) ))
 
 
 print "\n Running a quick profile on the likelihood to estimate evaluation speed...\n"
@@ -546,5 +565,10 @@ cProfile.run('modelIndependentFullPTANoisePL(x0)')
 
 print "\n Now, we sample... \n"
 sampler = PAL.PTSampler(ndim=n_params,logl=modelIndependentFullPTANoisePL,logp=my_prior,cov=np.diag(cov_diag),\
-                        outDir='./chains_Analysis/EPTAv2_{0}_{1}mode_SearchNoise_nmodes{2}_Lmax{3}_{4}'.format(snr_tag_ext,args.limit_or_detect,args.nmodes,args.LMAX,gamma_ext),resume=True)
+                        outDir='./chains_Analysis/EPTAv2_{0}_{1}mode_SearchNoise_nmodes{2}_Lmax{3}_{4}_{5}'.\
+                        format(snr_tag_ext,args.limit_or_detect,args.nmodes,args.LMAX,evol_anis_tag,gamma_ext),resume=True)
+if args.anis_modefile is not None:
+    os.system('cp {0} {1}'.format(args.anis_modefile,'./chains_Analysis/EPTAv2_{0}_{1}mode_SearchNoise_nmodes{2}_Lmax{3}_{4}_{5}'.\
+                                  format(snr_tag_ext,args.limit_or_detect,args.nmodes,args.LMAX,evol_anis_tag,gamma_ext)))
+
 sampler.sample(p0=x0,Niter=1e6,thin=10)
