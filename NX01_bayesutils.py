@@ -202,7 +202,7 @@ def makesubplot2d(ax, samples1, samples2, cmap, color=True, weights=None, smooth
         contourlinestyles = ('-', '--', '-.')
         #contourlinewidths = (2.0, 2.0, 2.0)
         contourlinewidths = (1.5, 1.5, 1.5)
-        contourlabels = [r'1 $\sigma$', r'2 $\sigma$',r'3 $\sigma$']
+        contourlabels = [r'$68\%$', r'$95\%$',r'$99.7\%$']
         
         contlabels = (contourlabels[0], contourlabels[1], contourlabels[2])
 
@@ -902,7 +902,7 @@ def makeSkyMap(samples, lmax, nside=32, tex=True, psrs=None):
         ax.plot(psrs[:,0], psrs[:,1], '*', color='w', markersize=6, mew=1, mec='w')
 
 
-def OSupperLimit(psr, GCGnoiseInv, ORF, far, drlist, OSsmbhb, tex=True, nlims=20):
+def OSupperLimit(psr, GCGnoiseInv, ORF, far, drlist, OSsmbhb, tex=True, nlims=60):
     if tex == True:
         plt.rcParams['text.usetex'] = True
 
@@ -944,17 +944,19 @@ def OScrossPower(angSep, crossCorr, crossCorrErr, tex=True):
     rows,cols = angSep.shape
     for ii in range(rows):
         for jj in range(ii+1,cols):
-           seps.append(angSep[ii,jj])
+           seps.append(np.arccos(angSep[ii,jj]))
             
     #ax.plot(seps, crossCorr, 'k', color='#1B2ACC')
     #ax.fill_between(seps, crossCorr-crossCorrErr, crossCorr-crossCorrErr, alpha=0.2, edgecolor='#1B2ACC', facecolor='#089FFF', linewidth=4, linestyle='dashdot', antialiased=True)
     ax.errorbar(seps, crossCorr, yerr=crossCorrErr, fmt='o', color='#089FFF', ecolor='#089FFF', capsize=8, linewidth=3)
+    plt.hlines(y=0.0, xmin=0.0, xmax=np.pi, linewidth=3.0, linestyle='solid', color='black')
     ax.set_xlabel('Pulsar angular separation [rads]', fontsize=20)
     ax.set_ylabel('Cross power', fontsize=20)
     ax.minorticks_on()
     plt.tick_params(labelsize=18)
     plt.grid(which='major')
     plt.grid(which='minor')
+    plt.xlim(0.0,np.pi)
     plt.title('Cross-power measurements')
     plt.show()
 
