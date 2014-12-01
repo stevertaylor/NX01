@@ -884,9 +884,11 @@ def makeSkyMap(samples, lmax, nside=32, tex=True, psrs=None):
 
     harmvals = utils.SetupSkymapPlottingGrid(lmax,skypos)
 
-    clm_mean = np.mean(samples, axis=0)
-    clm_mean = np.append(2.*np.sqrt(np.pi), clm_mean)
-    pwr = utils.GWpower(clm_mean, harmvals)
+    if np.atleast_2d(samples).shape[0]>1:
+        samples = np.mean(samples, axis=0)
+        samples = np.append(2.*np.sqrt(np.pi), samples)
+
+    pwr = utils.GWpower(samples, harmvals)
 
     ax = plt.subplot(111, projection='astro mollweide')
     ax.grid()

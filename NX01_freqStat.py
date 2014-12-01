@@ -18,6 +18,12 @@ from scipy import constants
 from numpy import random
 from scipy import special as ss
 from scipy import linalg as sl
+import matplotlib
+#matplotlib.use('TkAgg')
+matplotlib.use('macosx')
+import matplotlib.pyplot as plt
+from matplotlib.ticker import FormatStrFormatter, LinearLocator, NullFormatter, NullLocator, AutoMinorLocator
+import matplotlib.ticker
 import numexpr as ne
 import optparse
 import cProfile
@@ -41,6 +47,8 @@ parser.add_option('--lmax', dest='LMAX', action='store', type=int, default=0,
                    help='Maximum multipole for generalised OS (default = 0, i.e. isotropic OS)')
 parser.add_option('--snr-tag', dest='snr_tag', action='store', type=float, default=0.9, 
                    help='Do you want the 90%, 95% or 100% SNR dataset? [6, 11, and 41 pulsars respectively] (default=0.90)')
+parser.add_option('--make-plot', dest='make_plot', action='store_true', default=False, 
+                   help='Do you want to make a plot for the optimal-statistic upper-limits? (default=False)')
 
 (args, x) = parser.parse_args()
 
@@ -184,7 +192,20 @@ print "\n In this data, the minimum Ah of an SMBHB background that is required f
 print "\n In this data, the minimum Ah of an SMBHB background that is required for 5% FAR and 95% DR is {0}\n".\
   format(np.sqrt( optimalStat[1]*np.sqrt(2.0)*( ss.erfcinv(2.0*0.05) - ss.erfcinv(2.0*0.95) ) ))
 
-far = 0.05
-dr_list = [0.95,0.68]
-bu.OSupperLimit(psr, GCGnoiseInv, HnD, far, dr_list, optimalStat[1])
-bu.OScrossPower(angSep, optimalStat[3], optimalStat[4])
+if args.make_plot:
+    far = 0.05
+    dr_list = [0.95,0.68]
+    bu.OSupperLimit(psr, GCGnoiseInv, HnD, far, dr_list, optimalStat[1])
+    bu.OScrossPower(angSep, optimalStat[3], optimalStat[4])
+
+
+if args.LMAX!=0:
+    anisOptStat = utils.AnisOptStat(psr, GCGnoiseInv, CorrCoeff, args.LMAX, gam_gwb=gam_bkgrd)
+
+    print "\n The ML coefficients of an l={0} search are {1}\n".format(args.LMAX,anisOptStat[0]/np.sqrt(4.0*np.pi))
+    print "\n The error-bars from the inverse Fisher matrix are {0}\n".format(np.sqrt(np.diag(anisOptStat[1]))/np.sqrt(4.0*np.pi))
+
+    psrlocs = np.loadtxt('PsrPos_SNR_{0}.txt'.format(snr_tag_ext),usecols=[1,2])
+
+    bu.makeSkyMap(anisOptStat[0], lmax=args.LMAX, psrs=psrlocs)
+    plt.show()
