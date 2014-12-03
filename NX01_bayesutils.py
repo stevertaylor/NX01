@@ -902,7 +902,7 @@ def makeSkyMap(samples, lmax, nside=32, tex=True, psrs=None):
         ax.plot(psrs[:,0], psrs[:,1], '*', color='w', markersize=6, mew=1, mec='w')
 
 
-def OSupperLimit(psr, GCGnoiseInv, ORF, far, drlist, OSsmbhb, tex=True, nlims=60):
+def OSupperLimit(psr, GCGnoiseInv, ORF, OSsmbhb, ul_list=None, far=None, drlist=None, tex=True, nlims=60):
     if tex == True:
         plt.rcParams['text.usetex'] = True
 
@@ -918,10 +918,16 @@ def OSupperLimit(psr, GCGnoiseInv, ORF, far, drlist, OSsmbhb, tex=True, nlims=60
 
     fig, ax = plt.subplots()
     stylelist = ['solid','dashed','dotted']
-    for ii in range(len(drlist)):
-        ax.plot(gam_bkgrd, np.sqrt( optStatList[:,1]*np.sqrt(2.0)*( ss.erfcinv(2.0*far) - ss.erfcinv(2.0*drlist[ii]) ) ), linestyle=stylelist[ii], color='black', linewidth=3.0, label='$A_h$ ({0}$\%$ FAR, {1}$\%$ DR)'.format(far*100,drlist[ii]*100))
-        plt.hlines(y=np.sqrt( OSsmbhb*np.sqrt(2.0)*( ss.erfcinv(2.0*far) - ss.erfcinv(2.0*drlist[ii]) ) ), xmin=gam_bkgrd.min(), xmax=13./3., linewidth=3.0, linestyle='solid', color='red')
-        plt.vlines(x=13./3., ymin=0.0, ymax=np.sqrt( OSsmbhb*np.sqrt(2.0)*( ss.erfcinv(2.0*far) - ss.erfcinv(2.0*drlist[ii]) ) ), linewidth=3.0, linestyle='solid', color='red')
+    if ul_list is not None:
+        for ii in range(len(ul_list)):
+            ax.plot(gam_bkgrd, np.sqrt( optStatList[:,0] + optStatList[:,1]*np.sqrt(2.0)*( ss.erfcinv(2.0*(1.-ul_list[ii])) ) ), linestyle=stylelist[ii], color='black', linewidth=3.0, label='$A_h$ {0}$\%$ upper-limit'.format(ul_list[ii]*100))
+            plt.hlines(y=np.sqrt( OSsmbhb[0] + OSsmbhb[1]*np.sqrt(2.0)*( ss.erfcinv(2.0*(1.-ul_list[ii])) ) ), xmin=gam_bkgrd.min(), xmax=13./3., linewidth=3.0, linestyle='solid', color='red')
+            plt.vlines(x=13./3., ymin=0.0, ymax=np.sqrt( OSsmbhb[0] + OSsmbhb[1]*np.sqrt(2.0)*( ss.erfcinv(2.0*(1.-ul_list[ii])) ) ), linewidth=3.0, linestyle='solid', color='red')
+    else:
+        for ii in range(len(drlist)):
+            ax.plot(gam_bkgrd, np.sqrt( optStatList[:,1]*np.sqrt(2.0)*( ss.erfcinv(2.0*far) - ss.erfcinv(2.0*drlist[ii]) ) ), linestyle=stylelist[ii], color='black', linewidth=3.0, label='$A_h$ ({0}$\%$ FAR, {1}$\%$ DR)'.format(far*100,drlist[ii]*100))
+            plt.hlines(y=np.sqrt( OSsmbhb*np.sqrt(2.0)*( ss.erfcinv(2.0*far) - ss.erfcinv(2.0*drlist[ii]) ) ), xmin=gam_bkgrd.min(), xmax=13./3., linewidth=3.0, linestyle='solid', color='red')
+            plt.vlines(x=13./3., ymin=0.0, ymax=np.sqrt( OSsmbhb*np.sqrt(2.0)*( ss.erfcinv(2.0*far) - ss.erfcinv(2.0*drlist[ii]) ) ), linewidth=3.0, linestyle='solid', color='red')
 
     ax.set_yscale('log')
     ax.set_xlabel(r'$\gamma\equiv 3-2\alpha$', fontsize=20)

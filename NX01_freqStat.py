@@ -49,6 +49,8 @@ parser.add_option('--snr-tag', dest='snr_tag', action='store', type=float, defau
                    help='Do you want the 90%, 95% or 100% SNR dataset? [6, 11, and 41 pulsars respectively] (default=0.90)')
 parser.add_option('--make-plot', dest='make_plot', action='store_true', default=False, 
                    help='Do you want to make a plot for the optimal-statistic upper-limits? (default=False)')
+parser.add_option('--limit-or-detect', dest='limit_or_detect', action='store', type=str, default='limit', 
+                   help='Do you want to get limits or detection probabilities (default=limit)')
 
 (args, x) = parser.parse_args()
 
@@ -187,15 +189,28 @@ for ii in range(len(psr)):
 gam_bkgrd = 4.33333
 optimalStat = utils.optStat(psr, GCGnoiseInv, HnD, gam_gwb=gam_bkgrd)
 print "\n A^2 = {0}, std = {1}, SNR = {2}\n".format(optimalStat[0],optimalStat[1],optimalStat[2])
+
 print "\n In this data, the minimum Ah of an SMBHB background that is required for 5% FAR and 68% DR is {0}\n".\
   format(np.sqrt( optimalStat[1]*np.sqrt(2.0)*( ss.erfcinv(2.0*0.05) - ss.erfcinv(2.0*0.68) ) ))
 print "\n In this data, the minimum Ah of an SMBHB background that is required for 5% FAR and 95% DR is {0}\n".\
   format(np.sqrt( optimalStat[1]*np.sqrt(2.0)*( ss.erfcinv(2.0*0.05) - ss.erfcinv(2.0*0.95) ) ))
 
+print "\n The 90% upper-limit on Ah is {0}\n".\
+  format(np.sqrt( optimalStat[0] + optimalStat[1]*np.sqrt(2.0)*( ss.erfcinv(2.0*(1.-0.90)) ) ))
+print "\n The 95% upper-limit on Ah is {0}\n".\
+  format(np.sqrt( optimalStat[0] + optimalStat[1]*np.sqrt(2.0)*( ss.erfcinv(2.0*(1.-0.95)) ) ))
+
+
 if args.make_plot:
-    far = 0.05
-    dr_list = [0.95,0.68]
-    bu.OSupperLimit(psr, GCGnoiseInv, HnD, far, dr_list, optimalStat[1])
+
+    if args.limit_or_detect=='detect':
+        far = 0.05
+        dr_list = [0.95,0.68]
+        bu.OSupperLimit(psr, GCGnoiseInv, HnD, optimalStat, far, dr_list)
+    else:
+        ul_list = [0.95,0.90]
+        bu.OSupperLimit(psr, GCGnoiseInv, HnD, optimalStat, ul_list)
+
     bu.OScrossPower(angSep, optimalStat[3], optimalStat[4])
 
 
