@@ -26,6 +26,7 @@ searches for gravitational-waves via pulsar-timing.
   single-pulsar analysis on real dataset. Background is injected with
   user-specified parameters.
 
+
 * **NX01_AnisCoefficients.py**: utility file to create power-anisotropy
   basis-functions.
 * **NX01_utils.py**: utility file.
@@ -33,6 +34,7 @@ searches for gravitational-waves via pulsar-timing.
 * **NX01_psr.py**: utility file which defines the pulsar class for
   storing all relevant variables.
 * **NX01_bayesutils.py**: utilities file for generating plotting data.
+
 
 * **NX01_master_EPTAsims.py**: specifically designed for EPTA
   injection and calibration tests. Only searches for GWB and
