@@ -489,6 +489,7 @@ def heatmap(func, *args, **kwargs):
 
     # Hide masked-out values by displaying them in transparent white.
     aximg.cmap.set_bad('w', alpha=0.)
+    aximg.set_cmap('jet')
 
     # Done.
     return aximg

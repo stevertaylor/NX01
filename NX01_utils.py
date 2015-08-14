@@ -352,6 +352,63 @@ def optStat(psr, GCGnoiseInv, ORF, gam_gwb=4.33333):
     return Opt, sigma, snr, np.array(all_top), np.array(all_bot)
 
 
+def TFoptStat(psr, fqs, Tspan, F, GCGnoiseInv, ORF, gam_gwb=4.33333):
+    """
+    Computes the Optimal statistic as defined in Chamberlin et al. (2014)
+
+    @param psr: List of pulsar object instances
+    @param GCGnoiseInv: List of (G * Cnoise * G)^{-1} for all pulsars
+    @param ORF: Vector of pairwise overlap reduction values
+    @param gam_gwb: Power Spectral index of GBW (default = 13/3, ie SMBMBs)
+
+    @return: Opt: Optimal statistic value (A_gw^2)
+    @return: sigma: 1-sigma uncertanty on Optimal statistic
+    @return: snr: signal-to-noise ratio of cross correlations
+
+    """
+    f1yr = 1/3.16e7
+    nmodes = len(fqs)
+    
+    top = 0
+    bot = 0
+    all_top = []
+    all_bot = []
+    for ll in range(len(psr)):
+        for kk in range(ll+1, len(psr)):
+
+            phi = np.append( 1.0/12/np.pi**2 * f1yr**(gam_gwb-3) * (fqs/86400.0)**(-gam_gwb)/Tspan, np.zeros(len(fqs)) )
+
+            phi_signal = np.zeros(4*nmodes)
+            phi_signal[0::2] = phi
+            phi_signal[1::2] = phi
+            
+            # create cross covariance matrix without overall amplitude A^2
+            SIJ = ORF[ll][kk] * np.dot(F[ll], np.dot(np.diag(phi_signal), F[kk].T)) 
+            G_SIJ_G = np.dot(psr[ll].G.T, np.dot(SIJ, psr[kk].G))
+
+            # construct numerator and denominator of optimal statistic
+            tmp_bot = np.trace(np.dot(GCGnoiseInv[ll], np.dot(G_SIJ_G, np.dot(GCGnoiseInv[kk], G_SIJ_G.T))))
+            tmp_top = np.dot(psr[ll].Gres, np.dot(GCGnoiseInv[ll], np.dot(G_SIJ_G, np.dot(GCGnoiseInv[kk], psr[kk].Gres))))
+            
+            bot += tmp_bot
+            top += tmp_top
+
+            all_top.append(tmp_top / tmp_bot)
+            all_bot.append(1./np.sqrt(tmp_bot))
+            
+    # compute optimal statistic
+    Opt = top/bot
+    
+    # compute uncertainty
+    sigma = 1/np.sqrt(bot)
+
+    # compute SNR
+    snr = top/np.sqrt(bot)
+
+    # return optimal statistic and snr
+    return Opt, sigma, snr, np.array(all_top), np.array(all_bot)
+
+
 def AnisOptStat(psr, GCGnoiseInv, CorrCoeff, lmax, gam_gwb=4.33333):
     """
     Computes the generalised optimal statistic
@@ -388,10 +445,23 @@ def AnisOptStat(psr, GCGnoiseInv, CorrCoeff, lmax, gam_gwb=4.33333):
             orf_grid = np.array(CorrCoeff)[alpha,:,:]*np.array(CorrCoeff)[beta,:,:]
             fisher[alpha,beta] = np.sum(np.triu(orf_grid*weight, 1))
 
-    invFisher = sl.inv(fisher)
+    invFisher = sl.pinv(fisher)
+    '''
+    u,s,v = sl.svd(fisher)
+    print s
+    sold = s
+    try:
+        max_ind = np.where(s < 1e-4*s[0])[0][0] #will need to perform injections and recovery to justify this eigenvalue cutoff
+    except IndexError:
+        max_ind = len(s)
+    s = s[:max_ind]
+    u = u[:,:max_ind]
+    v = v[:max_ind,:]
+    invFisher = np.dot(v.T, np.dot(np.diag(1./s), u.T))
+    '''
     P = np.dot(invFisher, X)
 
-    return P, invFisher
+    return P, invFisher, np.linalg.slogdet(fisher) #, sold
 
 
   

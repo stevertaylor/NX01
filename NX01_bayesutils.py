@@ -396,7 +396,7 @@ def triplot(chain, color='k', weights=None, interpolate=False, smooth=True, \
             if jj == len(parameters)-1:
                 axarr[jj][ii].xaxis.set_major_formatter(xmajorFormatter)
                 if labels:
-                    axarr[jj][ii].set_xlabel(labels[ii], fontsize=20)
+                    axarr[jj][ii].set_xlabel(labels[ii], fontsize=12)
 
             if ii == 0:
                 if jj == 0:
@@ -405,7 +405,7 @@ def triplot(chain, color='k', weights=None, interpolate=False, smooth=True, \
                 else:
                     axarr[jj][ii].yaxis.set_major_formatter(ymajorFormatter)
                     if labels:
-                        axarr[jj][ii].set_ylabel(labels[jj], fontsize=20)
+                        axarr[jj][ii].set_ylabel(labels[jj], fontsize=12)
 
     # overall plot title
     if title:
@@ -872,7 +872,7 @@ def makeSkyMap(samples, lmax, nside=32, tex=True, psrs=None):
     if tex == True:
         plt.rcParams['text.usetex'] = True
 
-    nside=32
+    #nside=32
     npix = hp.nside2npix(nside)   # number of pixels total
 
     # initialize theta and phi map coordinantes
@@ -896,6 +896,7 @@ def makeSkyMap(samples, lmax, nside=32, tex=True, psrs=None):
     plot.healpix_heatmap(pwr[::-1])
     plt.colorbar(orientation='horizontal')
     plt.suptitle(r'$\langle P_{\mathrm{GWB}}(-\hat\Omega)\rangle$', y=0.1)
+    #plt.suptitle(r'$P_{\mathrm{GWB}}^{\mathrm{ML}}(-\hat\Omega)$', y=0.1)
 
     # add pulsars locations
     if np.all(psrs):
@@ -940,6 +941,44 @@ def OSupperLimit(psr, GCGnoiseInv, ORF, OSsmbhb, ul_list=None, far=None, drlist=
     plt.legend(loc='lower left', shadow=True, frameon=True, prop={'size':15})
     plt.show()
 
+def TF_OSupperLimit(psr, fqs, Tspan, F, GCGnoiseInv, ORF, OSsmbhb, ul_list=None, far=None, drlist=None, tex=True, nlims=70):
+    if tex == True:
+        plt.rcParams['text.usetex'] = True
+
+    gam_bkgrd = np.linspace(0.01,6.99,nlims)
+    optStatList=[]
+    ct=0
+    for indx in gam_bkgrd:
+        optStatList.append( utils.TFoptStat(psr, fqs, Tspan, F, GCGnoiseInv, ORF, gam_gwb=indx)[:3] )
+        ct+=1
+        print "Finished {0}% of optimal-statistic upper-limit calculations...".format( 100.0*ct/(1.0*nlims) )
+
+    optStatList = np.array(optStatList)
+
+    fig, ax = plt.subplots()
+    stylelist = ['solid','dashed','dotted']
+    if ul_list is not None:
+        for ii in range(len(ul_list)):
+            ax.plot(gam_bkgrd, np.sqrt( optStatList[:,0] + optStatList[:,1]*np.sqrt(2.0)*( ss.erfcinv(2.0*(1.-ul_list[ii])) ) ), linestyle=stylelist[ii], color='black', linewidth=3.0, label='{0}$\%$ upper-limit'.format(ul_list[ii]*100))
+            plt.hlines(y=np.sqrt( OSsmbhb[0] + OSsmbhb[1]*np.sqrt(2.0)*( ss.erfcinv(2.0*(1.-ul_list[ii])) ) ), xmin=gam_bkgrd.min(), xmax=13./3., linewidth=3.0, linestyle='solid', color='red')
+            plt.vlines(x=13./3., ymin=0.0, ymax=np.sqrt( OSsmbhb[0] + OSsmbhb[1]*np.sqrt(2.0)*( ss.erfcinv(2.0*(1.-ul_list[ii])) ) ), linewidth=3.0, linestyle='solid', color='red')
+    else:
+        for ii in range(len(drlist)):
+            ax.plot(gam_bkgrd, np.sqrt( optStatList[:,1]*np.sqrt(2.0)*( ss.erfcinv(2.0*far) - ss.erfcinv(2.0*drlist[ii]) ) ), linestyle=stylelist[ii], color='black', linewidth=3.0, label='$A$ ({0}$\%$ FAR, {1}$\%$ DR)'.format(far*100,drlist[ii]*100))
+            plt.hlines(y=np.sqrt( OSsmbhb*np.sqrt(2.0)*( ss.erfcinv(2.0*far) - ss.erfcinv(2.0*drlist[ii]) ) ), xmin=gam_bkgrd.min(), xmax=13./3., linewidth=3.0, linestyle='solid', color='red')
+            plt.vlines(x=13./3., ymin=0.0, ymax=np.sqrt( OSsmbhb*np.sqrt(2.0)*( ss.erfcinv(2.0*far) - ss.erfcinv(2.0*drlist[ii]) ) ), linewidth=3.0, linestyle='solid', color='red')
+
+    ax.set_yscale('log')
+    ax.set_xlabel(r'$\gamma\equiv 3-2\alpha$', fontsize=20)
+    ax.set_ylabel(r'$A$', fontsize=20)
+    ax.minorticks_on()
+    plt.tick_params(labelsize=18)
+    plt.grid(which='major')
+    plt.grid(which='minor')
+    plt.title('Optimal-statistic bounds')
+    plt.legend(loc='lower left', shadow=True, frameon=True, prop={'size':15})
+    plt.show()
+
 def OScrossPower(angSep, crossCorr, crossCorrErr, tex=True):
     if tex == True:
         plt.rcParams['text.usetex'] = True
@@ -954,15 +993,15 @@ def OScrossPower(angSep, crossCorr, crossCorrErr, tex=True):
             
     #ax.plot(seps, crossCorr, 'k', color='#1B2ACC')
     #ax.fill_between(seps, crossCorr-crossCorrErr, crossCorr-crossCorrErr, alpha=0.2, edgecolor='#1B2ACC', facecolor='#089FFF', linewidth=4, linestyle='dashdot', antialiased=True)
-    ax.errorbar(seps, crossCorr, yerr=crossCorrErr, fmt='o', color='#089FFF', ecolor='#089FFF', capsize=8, linewidth=3)
-    plt.hlines(y=0.0, xmin=0.0, xmax=np.pi, linewidth=3.0, linestyle='solid', color='black')
-    ax.set_xlabel('Pulsar angular separation [rads]', fontsize=20)
+    ax.errorbar(np.array(seps)*180.0/np.pi, crossCorr, yerr=crossCorrErr, fmt='o', color='#089FFF', ecolor='#089FFF', capsize=8, linewidth=3)
+    plt.hlines(y=0.0, xmin=0.0, xmax=180.0, linewidth=3.0, linestyle='solid', color='black')
+    ax.set_xlabel('Pulsar angular separation [degrees]', fontsize=20)
     ax.set_ylabel('Cross power', fontsize=20)
     ax.minorticks_on()
     plt.tick_params(labelsize=18)
     plt.grid(which='major')
     plt.grid(which='minor')
-    plt.xlim(0.0,np.pi)
+    plt.xlim(0.0,180.0)
     plt.title('Cross-power measurements')
     plt.show()
 

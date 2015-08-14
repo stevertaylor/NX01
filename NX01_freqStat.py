@@ -129,6 +129,9 @@ for ii in range(len(psr)):
         angSep[ii,jj] = np.dot(skyLocs[ii],skyLocs[jj])
         angSep[jj,ii] = angSep[ii,jj]
 
+Tmax = np.max([psr[p].toas.max() - psr[p].toas.min() for p in range(len(psr))])
+print Tmax
+
 ################################################################################################################################
 # FORM A LIST COMPOSED OF NP ARRAYS CONTAINING THE INDEX POSITIONS WHERE EACH UNIQUE 'sys' BACKEND IS APPLIED
 ################################################################################################################################
@@ -220,7 +223,30 @@ if args.LMAX!=0:
     print "\n The ML coefficients of an l={0} search are {1}\n".format(args.LMAX,anisOptStat[0]/np.sqrt(4.0*np.pi))
     print "\n The error-bars from the inverse Fisher matrix are {0}\n".format(np.sqrt(np.diag(anisOptStat[1]))/np.sqrt(4.0*np.pi))
 
-    psrlocs = np.loadtxt('PsrPos_SNR_{0}.txt'.format(snr_tag_ext),usecols=[1,2])
+    print "\n The Fisher information is {0}\n".format(anisOptStat[2])
 
-    bu.makeSkyMap(anisOptStat[0], lmax=args.LMAX, psrs=psrlocs)
+    print "\n The ML coefficients of an l={0} search are {1}\n".format(args.LMAX,anisOptStat[0])
+    print "\n The full covariance matrix is {0}\n".format(anisOptStat[1])
+
+    np.save('mlcoeff_lmax{0}'.format(args.LMAX),anisOptStat[0])
+    np.save('invfisher_lmax{0}'.format(args.LMAX),anisOptStat[1])
+
+    psrlocs = np.loadtxt('PsrPos_SNR_{0}.txt'.format(snr_tag_ext),usecols=[1,2])
+    Asqr = anisOptStat[0][0]/np.sqrt(4.0*np.pi)
+    final_clm = np.array(anisOptStat[0]) / Asqr
+
+    bu.makeSkyMap(final_clm, lmax=args.LMAX, psrs=psrlocs)
+    plt.show()
+
+    '''
+    print "Fisher matrix singular values are {0}".format(anisOptStat[2])
+    plt.plot(anisOptStat[2])
+    plt.yscale('log')
+    plt.ylabel("Fisher matrix singular value",fontsize=15)
+    plt.show()
+    '''
+
+    plt.plot(anisOptStat[0]/np.sqrt(np.diag(anisOptStat[1])))
+    plt.xlabel("lm mode",fontsize=15)
+    plt.ylabel("ML value / error",fontsize=15)
     plt.show()

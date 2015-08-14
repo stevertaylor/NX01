@@ -123,5 +123,8 @@ class PsrObj(object):
         proj = np.dot(u.T, np.dot(Lequad_inv, self.G.T))
         ########
         self.diag_white = s
-        self.res_prime = np.dot(proj, self.res) 
-        self.Ftot_prime = np.dot(proj, self.Ftot)
+        self.res_prime = np.dot(proj, self.res)
+        if self.Ftot is not None:
+            self.Ftot_prime = np.dot(proj, self.Ftot)
+        else:
+            self.Ftot_prime = np.dot(proj, self.Fred)
