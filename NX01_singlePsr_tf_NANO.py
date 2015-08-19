@@ -101,7 +101,7 @@ else:
     fqs = np.linspace(1/Tmax, nmode/Tmax, nmode)
 
 ################################################################################################################################
-# FORM A LIST COMPOSED OF NP ARRAYS CONTAINING THE INDEX POSITIONS WHERE EACH UNIQUE 'sys' BACKEND IS APPLIED
+# FORM A LIST COMPOSED OF NP ARRAYS CONTAINING THE INDEX POSITIONS WHERE EACH UNIQUE SYSTEM IS APPLIED
 ################################################################################################################################
 
 if args.fullN==True:
@@ -113,6 +113,10 @@ else:
 
 #print len(systems), len(psr.epflags)
 #print psr.epflags
+
+################################################################################################################################
+# PRIOR AND LIKELIHOOD
+################################################################################################################################
 
 def my_prior(cube, ndim, nparams):
     cube[0] = -20.0 + cube[0]*12.0
