@@ -69,7 +69,7 @@ class PsrObj(object):
     Initialise the libstempo object for use in nonlinear timing model modelling.
     No parameters are required, all content must already be in memory
     """
-    def grab_all_vars(self):
+    def grab_all_vars(self, jitterbin=10.): # jitterbin is in seconds
 
         # basic quantities
         self.name = self.T2psr.name
@@ -77,14 +77,8 @@ class PsrObj(object):
         self.res = self.T2psr.residuals()
         self.toaerrs = self.T2psr.toaerrs * 1e-6
         self.obs_freqs = self.T2psr.freqs
-
         self.Mmat = self.T2psr.designmatrix()
-        '''u,s,v = np.linalg.svd(self.Mmat)
-        self.G = u[:,len(s):len(u)]
-        self.Gc =  u[:,:len(s)]
-
-        self.Gres = np.dot(self.G.T, self.res)'''
-        
+              
         # get the sky position
         if 'RAJ' and 'DECJ' in self.T2psr.pars():
             self.psr_locs = [self.T2psr['RAJ'].val,self.T2psr['DECJ'].val]
@@ -93,28 +87,8 @@ class PsrObj(object):
             coords = Equatorial(Ecliptic(str(self.T2psr['ELONG'].val*fac), str(self.T2psr['ELAT'].val*fac)))
             self.psr_locs = [float(repr(coords.ra)),float(repr(coords.dec))]
 
-        '''# get the relevant system flags
-        self.systems = []
-        self.sysnames = []
-        system_flags = ['group','sys','i','f']
-        for systm in system_flags:
-            try:
-                sys_uflagvals = list(set(self.T2psr.flagvals(systm)))
-                if systm in self.T2psr.flags():
-                    self.sysnames = np.append( self.sysnames, sys_uflagvals )
-                    for kk in range(len(sys_uflagvals)):
-                        self.systems.append(np.where(self.T2psr.flagvals(systm) == sys_uflagvals[kk]))
-            except KeyError:
-                pass
-        
-        if len(self.systems)==0:
-            print "No relevant flags found"
-            print "Assuming one overall system for {0}\n".format(self.name)
-            self.sysnames = self.name
-            self.systems = np.arange(len(self.toas))'''
-
         # now order everything
-        isort, iisort = utils.argsortTOAs(self.toas, self.T2psr.flagvals('f'), which='jitterext', dt=10./86400.)
+        isort, iisort = utils.argsortTOAs(self.toas, self.T2psr.flagvals('f'), which='jitterext', dt=jitterbin/86400.)
 
         # sort data
         self.toas = self.toas[isort]
@@ -126,7 +100,7 @@ class PsrObj(object):
         detresiduals = self.res.copy()
 
         # get quantization matrix
-        avetoas, self.Umat, Ui = utils.quantize_split(self.toas, flags, dt=10./86400., calci=True)
+        avetoas, self.Umat, Ui = utils.quantize_split(self.toas, flags, dt=jitterbin/86400., calci=True)
         #print Umat.shape
 
         # get only epochs that need jitter/ecorr
@@ -137,7 +111,7 @@ class PsrObj(object):
         self.Uinds = utils.quant2ind(self.Umat)
         self.epflags = flags[self.Uinds[:, 0]]
 
-        print utils.checkTOAsort(self.toas, flags, which='jitterext', dt=10./86400.)
+        print utils.checkTOAsort(self.toas, flags, which='jitterext', dt=jitterbin/86400.)
         print utils.checkquant(self.Umat, flags)
 
         # get the relevant system flags
@@ -160,7 +134,7 @@ class PsrObj(object):
             self.sysnames = self.name
             self.systems = np.arange(len(self.toas))
 
-        #self.Mmat = self.T2psr.designmatrix()
+        # perform SVD of design matrix to stabilise    
         u,s,v = np.linalg.svd(self.Mmat)
         self.G = u[:,len(s):len(u)]
         self.Gc =  u[:,:len(s)]
