@@ -23,8 +23,9 @@ class PsrObj(object):
     res = None
     obs_freqs = None
     G = None
-    bkends = None
-    bkend_names = None
+    Mmat = None
+    systems = None
+    sysnames = None
     Fred = None
     Fdm = None
     Ftot = None
@@ -36,6 +37,7 @@ class PsrObj(object):
     name = "J0000+0000"
     Tmax = None
     Gres = None
+    epflags = None
 
     def __init__(self, t2obj):
         self.T2psr = t2obj
@@ -45,6 +47,7 @@ class PsrObj(object):
         self.res = None
         self.obs_freqs = None
         self.G = None
+        self.Mmat = None
         self.Fred = None
         self.Fdm = None
         self.Ftot = None
@@ -53,46 +56,116 @@ class PsrObj(object):
         self.Ftot_prime = None
         self.Gc = None
         self.Te = None
+        self.Umat = None
+        self.Uinds = None
         self.name = "J0000+0000"
         self.Tmax = None
-        self.bkends = None
-        self.bkend_names = None
+        self.systems = None
+        self.sysnames = None
         self.Gres = None
+        self.epflags = None
 
     """
     Initialise the libstempo object for use in nonlinear timing model modelling.
     No parameters are required, all content must already be in memory
     """
     def grab_all_vars(self):
+
+        # basic quantities
         self.name = self.T2psr.name
         self.toas = self.T2psr.toas()
         self.res = self.T2psr.residuals()
         self.toaerrs = self.T2psr.toaerrs * 1e-6
         self.obs_freqs = self.T2psr.freqs
 
-        self.des = self.T2psr.designmatrix()
-        U,S,V = np.linalg.svd(self.des)
-        self.G = U[:,len(S):len(U)]
-        self.Gc =  U[:,:len(S)]
+        self.Mmat = self.T2psr.designmatrix()
+        '''u,s,v = np.linalg.svd(self.Mmat)
+        self.G = u[:,len(s):len(u)]
+        self.Gc =  u[:,:len(s)]
 
-        self.Gres = np.dot(self.G.T, self.res)
-
-        if 'RAJ' and 'DECJ' in self.T2psr.pars:
+        self.Gres = np.dot(self.G.T, self.res)'''
+        
+        # get the sky position
+        if 'RAJ' and 'DECJ' in self.T2psr.pars():
             self.psr_locs = [self.T2psr['RAJ'].val,self.T2psr['DECJ'].val]
-        elif 'ELONG' and 'ELAT' in self.T2psr.pars:
+        elif 'ELONG' and 'ELAT' in self.T2psr.pars():
             fac = 180./np.pi
             coords = Equatorial(Ecliptic(str(self.T2psr['ELONG'].val*fac), str(self.T2psr['ELAT'].val*fac)))
             self.psr_locs = [float(repr(coords.ra)),float(repr(coords.dec))]
 
-    def get_backends(self):
-        if 'sys' in self.T2psr.flags:
-            self.bkend_names = np.unique(self.T2psr.flags['sys'])
-            self.bkends = [0.0]*len(np.unique(self.T2psr.flags['sys']))
-            for k in range(len(np.unique(self.T2psr.flags['sys']))):
-                self.bkends[k] = np.where(self.T2psr.flags['sys'] == np.unique(self.T2psr.flags['sys'])[k])[0]
-        else:
-            print "No 'sys' flags found :("
-            print "Using one overall EFAC for {0}\n".format(psr[ii].name)
+        '''# get the relevant system flags
+        self.systems = []
+        self.sysnames = []
+        system_flags = ['group','sys','i','f']
+        for systm in system_flags:
+            try:
+                sys_uflagvals = list(set(self.T2psr.flagvals(systm)))
+                if systm in self.T2psr.flags():
+                    self.sysnames = np.append( self.sysnames, sys_uflagvals )
+                    for kk in range(len(sys_uflagvals)):
+                        self.systems.append(np.where(self.T2psr.flagvals(systm) == sys_uflagvals[kk]))
+            except KeyError:
+                pass
+        
+        if len(self.systems)==0:
+            print "No relevant flags found"
+            print "Assuming one overall system for {0}\n".format(self.name)
+            self.sysnames = self.name
+            self.systems = np.arange(len(self.toas))'''
+
+        # now order everything
+        isort, iisort = utils.argsortTOAs(self.toas, self.T2psr.flagvals('f'), which='jitterext', dt=10./86400.)
+
+        # sort data
+        self.toas = self.toas[isort]
+        self.toaerrs = self.toaerrs[isort]
+        self.res = self.res[isort]
+        self.obs_freqs = self.obs_freqs[isort]
+        flags = self.T2psr.flagvals('f')[isort]
+        self.Mmat = self.Mmat[isort, :]
+        detresiduals = self.res.copy()
+
+        # get quantization matrix
+        avetoas, self.Umat, Ui = utils.quantize_split(self.toas, flags, dt=10./86400., calci=True)
+        #print Umat.shape
+
+        # get only epochs that need jitter/ecorr
+        self.Umat, avetoas, aveflags = utils.quantreduce(self.Umat, avetoas, flags)
+        #print Umat.shape
+
+        # get quantization indices
+        self.Uinds = utils.quant2ind(self.Umat)
+        self.epflags = flags[self.Uinds[:, 0]]
+
+        print utils.checkTOAsort(self.toas, flags, which='jitterext', dt=10./86400.)
+        print utils.checkquant(self.Umat, flags)
+
+        # get the relevant system flags
+        self.systems = []
+        self.sysnames = []
+        system_flags = ['group','sys','i','f']
+        for systm in system_flags:
+            try:
+                sys_uflagvals = list(set(self.T2psr.flagvals(systm)))
+                if systm in self.T2psr.flags():
+                    self.sysnames = np.append( self.sysnames, sys_uflagvals )
+                    for kk in range(len(sys_uflagvals)):
+                        self.systems.append(np.where(self.T2psr.flagvals(systm) == sys_uflagvals[kk]))
+            except KeyError:
+                pass
+        
+        if len(self.systems)==0:
+            print "No relevant flags found"
+            print "Assuming one overall system for {0}\n".format(self.name)
+            self.sysnames = self.name
+            self.systems = np.arange(len(self.toas))
+
+        #self.Mmat = self.T2psr.designmatrix()
+        u,s,v = np.linalg.svd(self.Mmat)
+        self.G = u[:,len(s):len(u)]
+        self.Gc =  u[:,:len(s)]
+
+        self.Gres = np.dot(self.G.T, self.res)
 
     def makeFred(self, nmodes, Ttot):
         self.Fred = utils.createfourierdesignmatrix_RED(self.toas, nmodes, Tspan=Ttot)
@@ -113,8 +186,8 @@ class PsrObj(object):
         self.Ftot = np.append(self.Fred, self.Fdm, axis=1)
         self.Te = np.append(self.Gc, self.Ftot, axis=1)
 
-    def two_comp_noise(self, MLerrors):
-        efac_bit = np.dot(self.G.T, np.dot( np.diag(MLerrors**2.0), self.G ) )
+    def two_comp_noise(self, mlerrors):
+        efac_bit = np.dot(self.G.T, np.dot( np.diag(mlerrors**2.0), self.G ) )
         equad_bit = np.dot(self.G.T,self.G)
         Lequad = np.linalg.cholesky(equad_bit)
         Lequad_inv = np.linalg.inv(Lequad)
