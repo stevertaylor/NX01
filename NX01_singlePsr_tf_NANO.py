@@ -51,7 +51,7 @@ parser.add_option('--parfile', dest='parfile', action='store', type=str,
                    help='Full path to parfile')
 parser.add_option('--timfile', dest='timfile', action='store', type=str,
                    help='Full path to timfile')
-parser.add_option('--full-N', dest='fullN', action='store_true', default=False,
+parser.add_option('--fullN', dest='fullN', action='store_true', default=False,
                    help='Search for EFAC/EQUAD/ECORR over all systems (True), or just apply a GEFAC (False)? (default=False)')
 parser.add_option('--sample-or-maximize', dest='sample_or_maximize', action='store', type=str, default='maximize',
                    help='Do you want sample from the posteror distribution or just find the maximum likelihood noise values? (default=\'maximize\')?')
@@ -111,36 +111,8 @@ else:
     systems = [np.arange(len(psr.toas))]
     sysnames = [psr.name]
 
-print len(systems), len(psr.epflags)
-print psr.epflags
-'''
-################################################################################################################################
-# SETTING UP PRIOR RANGES
-################################################################################################################################
-pmin = np.array([-20.0,0.0]) # red-noise
-pmin = np.append(pmin,np.array([-20.0,0.0])) # DM-variation noise
-pmin = np.append(pmin,0.1*np.ones(len(systems))) # EFACs
-if args.fullN==True:
-    pmin = np.append(pmin,-10.0*np.ones(len(systems))) #EQUADs
-
-pmax = np.array([-10.0,7.0]) # red-noise
-pmax = np.append(pmax,np.array([-10.0,7.0])) # DM-variation noise
-pmax = np.append(pmax,11.9*np.ones(len(systems))) # EFACs
-if args.fullN==True:
-    pmax = np.append(pmax,-3.0*np.ones(len(systems))) #EQUADs
-
-##################################################################################################################################
-
-def my_prior(x):
-    logp = 0.
-    
-    if np.all(x <= pmax) and np.all(x >= pmin):
-        logp = np.sum(np.log(1/(pmax-pmin)))
-    else:
-        logp = -np.inf
-
-    return logp
-'''
+#print len(systems), len(psr.epflags)
+#print psr.epflags
 
 def my_prior(cube, ndim, nparams):
     cube[0] = -20.0 + cube[0]*12.0
@@ -187,8 +159,6 @@ def ln_prob(cube, ndim, nparams):
     
     new_err = np.sqrt( scaled_err**2.0 + white_noise**2.0 )
     ########
-    # compute d    
-    #d = np.dot(psr.Te.T, psr.res/( new_err**2.0 ))
 
     # compute ( T.T * N^-1 * T ) & log determinant of N
     if args.fullN==True:
@@ -264,7 +234,7 @@ def ln_prob(cube, ndim, nparams):
 
     logLike = -0.5 * (logdet_Phi + logdet_Sigma) + 0.5 * (np.dot(d, expval2)) + loglike1 
     
-    return logLike #+ sum(np.log(EQUAD[ii] * np.log(10.0)) for ii in range(len(systems)))
+    return logLike 
 
 #########################
 #########################
@@ -283,21 +253,30 @@ n_params = len(parameters)
 
 print "\n The total number of parameters is {0}\n".format(n_params)
 
-'''
-x0 = np.array([-15.0,3.0])#,-15.0,3.0])
-x0 = np.append(x0,np.random.uniform(0.75,1.25,len(systems)))
-x0 = np.append(x0,np.random.uniform(-10.0,-3.0,len(systems)))
-
-print "\n Your initial parameters are {0}\n".format(x0)
-
-print "\n Running a quick profile on the likelihood to estimate evaluation speed...\n"
-cProfile.run('ln_prob(x0)')
-'''
 ##################################
 # Now, we sample or maximize.....
 ##################################
 
 if args.sample_or_maximize == 'maximize':
+
+    ##################################################################
+    # SETTING UP PRIOR RANGES
+    ##################################################################
+    pmin = np.array([-20.0,0.0]) # red-noise
+    pmin = np.append(pmin,np.array([-20.0,0.0])) # DM-variation noise
+    pmin = np.append(pmin,0.1*np.ones(len(psr.systems))) # EFACs
+    if args.fullN==True:
+        pmin = np.append(pmin,-10.0*np.ones(len(psr.systems))) #EQUADs
+        pmin = np.append(pmin,-10.0*np.ones(len(psr.systems))) #ECORRs
+    
+    pmax = np.array([-8.0,7.0]) # red-noise
+    pmax = np.append(pmax,np.array([-8.0,7.0])) # DM-variation noise
+    pmax = np.append(pmax,11.9*np.ones(len(psr.systems))) # EFACs
+    if args.fullN==True:
+        pmin = np.append(pmin,-3.0*np.ones(len(psr.systems))) #EQUADs
+        pmax = np.append(pmax,-3.0*np.ones(len(psr.systems))) #ECORRs
+
+    ###################################################################
 
     def swarm_prob(x):
         return -ln_prob(x)
@@ -312,15 +291,6 @@ if args.sample_or_maximize == 'maximize':
     print "\n Values saved in {0}_MLnoise_nmode{1}.txt".format(psr.name,nmode)
 
 else:
-
-    #cov_diag = np.array([0.5,0.5])#,0.5,0.5])
-    #cov_diag = np.append(cov_diag,0.2*np.ones(len(systems)))
-    #cov_diag = np.append(cov_diag,0.5*np.ones(len(systems)))
-    
-    #print "\n Now, we sample... \n"
-    #sampler = PAL.PTSampler(ndim=n_params,logl=ln_prob,logp=my_prior,cov=np.diag(cov_diag),\
-    #                        outDir='./chains_singlePsr_{0}/{0}_singlePsr_tf_nmode{1}'.format(psr.name,nmode),resume=False)
-    #sampler.sample(p0=x0,Niter=500000,thin=10)
 
     pymultinest.run(ln_prob, my_prior, n_params, importance_nested_sampling = False, resume = False, verbose = True, 
                     n_live_points=500, outputfiles_basename=u'chains_nano_{0}/{0}_'.format(psr.name), 
