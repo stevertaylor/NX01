@@ -128,7 +128,7 @@ def my_prior(cube, ndim, nparams):
     if args.fullN==True:
         for ii in range(4+len(systems),4+2*len(systems)):
             cube[ii] = -10.0 + cube[ii]*7.0
-        for ii in range(4+2*len(systems),nparams):
+        for ii in range(4+2*len(psr.sysflagdict['nano-f'].keys()),nparams):
             cube[ii] = -10.0 + cube[ii]*7.0
 
 def ln_prob(cube, ndim, nparams):
@@ -166,17 +166,26 @@ def ln_prob(cube, ndim, nparams):
 
     # compute ( T.T * N^-1 * T ) & log determinant of N
     if args.fullN==True:
+        if len(ECORR)>0:
+            Jamp = np.ones(len(psr.epflags))
+            for jj,nano_sysname in enumerate(psr.sysflagdict['nano-f'].keys()):
+                Jamp[np.where(psr.epflags==nano_sysname)] *= ECORR[jj]**2.0
 
-        Jamp = np.ones(len(psr.epflags))
-        for jj,nano_sysname in enumerate(psr.sysflagdict['nano-f'].keys()):
-            Jamp[np.where(psr.epflags==nano_sysname)] *= ECORR[jj]**2.0
-
-        Nx = jitter.cython_block_shermor_0D(psr.res.astype(np.float64), new_err**2., Jamp, psr.Uinds)
-        d = np.dot(psr.Te.T, Nx)
+            Nx = jitter.cython_block_shermor_0D(psr.res.astype(np.float64), new_err**2., Jamp, psr.Uinds)
+            d = np.dot(psr.Te.T, Nx)
+            logdet_N, TtNT = jitter.cython_block_shermor_2D(psr.Te, new_err**2., Jamp, psr.Uinds)
+            det_dummy, dtNdt = jitter.cython_block_shermor_1D(psr.res.astype(np.float64), new_err**2., Jamp, psr.Uinds)
+        else:
+            d = np.dot(psr.Te.T, psr.res/( new_err**2.0 ))
         
-        logdet_N, TtNT = jitter.cython_block_shermor_2D(psr.Te, new_err**2., Jamp, psr.Uinds)
-
-        det_dummy, dtNdt = jitter.cython_block_shermor_1D(psr.res.astype(np.float64), new_err**2., Jamp, psr.Uinds)
+            N = 1./( new_err**2.0 )
+            right = (N*psr.Te.T).T
+            TtNT = np.dot(psr.Te.T, right)
+    
+            logdet_N = np.sum(np.log( new_err**2.0 ))
+        
+            # triple product in likelihood function
+            dtNdt = np.sum(psr.res**2.0/( new_err**2.0 ))
         
     else:
 
