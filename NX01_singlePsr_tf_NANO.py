@@ -59,7 +59,7 @@ parser.add_option('--sample-or-maximize', dest='sample_or_maximize', action='sto
                    help='Do you want sample from the posteror distribution or just find the maximum likelihood noise values? (default=\'maximize\')')
 
 (args, x) = parser.parse_args()
-print args.fullN
+
 if args.nmodes:
     print "\n You've given me the number of frequencies to include in the low-rank time-frequency approximation, got it?\n"
 else:
@@ -107,17 +107,10 @@ else:
 ################################################################################################################################
 
 if args.fullN==True:
-    #systems = psr.systems
-    #sysnames = psr.sysnames
     systems = psr.sysflagdict[args.systarg]
 else:
-    #systems = [np.arange(len(psr.toas))]
-    #sysnames = [psr.name]
     systems = OrderedDict.fromkeys([psr.name])
     systems[psr.name] = np.arange(len(psr.toas))
-
-#print len(systems), len(psr.epflags)
-#print psr.epflags
 
 ################################################################################################################################
 # PRIOR AND LIKELIHOOD
@@ -276,14 +269,14 @@ if args.sample_or_maximize == 'maximize':
     pmin = np.append(pmin,0.1*np.ones(len(systems))) # EFACs
     if args.fullN==True:
         pmin = np.append(pmin,-10.0*np.ones(len(systems))) #EQUADs
-        pmin = np.append(pmin,-10.0*np.ones(len(systems))) #ECORRs
+        pmin = np.append(pmin,-10.0*np.ones(len(psr.sysflagdict['nano-f']))) #ECORRs
     
     pmax = np.array([-8.0,7.0]) # red-noise
     pmax = np.append(pmax,np.array([-8.0,7.0])) # DM-variation noise
     pmax = np.append(pmax,11.9*np.ones(len(systems))) # EFACs
     if args.fullN==True:
         pmin = np.append(pmin,-3.0*np.ones(len(systems))) #EQUADs
-        pmax = np.append(pmax,-3.0*np.ones(len(systems))) #ECORRs
+        pmax = np.append(pmax,-3.0*np.ones(len(psr.sysflagdict['nano-f']))) #ECORRs
 
     ###################################################################
 
