@@ -14,6 +14,7 @@ import libstempo as T2
 import ephem
 from ephem import *
 import NX01_utils as utils
+from collections import OrderedDict
 
 class PsrObj(object):
     T2psr = None
@@ -24,8 +25,7 @@ class PsrObj(object):
     obs_freqs = None
     G = None
     Mmat = None
-    systems = None
-    sysnames = None
+    sysflagdict = None
     Fred = None
     Fdm = None
     Ftot = None
@@ -60,14 +60,12 @@ class PsrObj(object):
         self.Uinds = None
         self.name = "J0000+0000"
         self.Tmax = None
-        self.systems = None
-        self.sysnames = None
+        self.sysflagdict = None
         self.Gres = None
         self.epflags = None
 
     """
-    Initialise the libstempo object for use in nonlinear timing model modelling.
-    No parameters are required, all content must already be in memory
+    Initialise the libstempo object.
     """
     def grab_all_vars(self, jitterbin=10.): # jitterbin is in seconds
 
@@ -86,6 +84,50 @@ class PsrObj(object):
             fac = 180./np.pi
             coords = Equatorial(Ecliptic(str(self.T2psr['ELONG'].val*fac), str(self.T2psr['ELAT'].val*fac)))
             self.psr_locs = [float(repr(coords.ra)),float(repr(coords.dec))]
+
+        # These are all the relevant system flags used by the PTAs.
+        system_flags = ['group','sys','i','f']
+        self.sysflagdict = OrderedDict.fromkeys(system_flags)
+
+        ################################################################################################
+
+        # Put the systems into a dictionary which 
+        # has the locations of their toa placements.
+        for systm in self.sysflagdict:
+            try:
+                if systm in self.T2psr.flags():
+                    sys_uflagvals = list(set(self.T2psr.flagvals(systm)))
+                    self.sysflagdict[systm] = OrderedDict.fromkeys(sys_uflagvals)
+                    for kk,subsys in enumerate(sys_uflagvals):
+                        self.sysflagdict[systm][subsys] = np.where(self.T2psr.flagvals(systm) == sys_uflagvals[kk])
+            except KeyError:
+                pass
+
+        # If we have some NANOGrav data, then separate
+        # this off for later ECORR assignment.
+        if 'pta' in self.T2psr.flags():
+            pta_names = list(set(self.T2psr.flagvals('pta')))
+            pta_mask = [self.T2psr.flagvals('pta')==ptaname for ptaname in pta_names]
+            pta_maskdict = OrderedDict.fromkeys(pta_names)
+            for ii,item in enumerate(pta_maskdict):
+                pta_maskdict[item] = pta_mask[ii]
+            if 'NANOGrav' in pta_names:
+                nanoflagdict = OrderedDict.fromkeys(['nano-f'])
+                nano_flags = list(set(self.T2psr.flagvals('f')[pta_maskdict['NANOGrav']]))
+                nanoflagdict['nano-f'] = OrderedDict.fromkeys(nano_flags)
+                for kk,subsys in enumerate(nano_flags):
+                    nanoflagdict['nano-f'][subsys] = np.where(self.T2psr.flagvals('f') == nano_flags[kk])
+                self.sysflagdict.update(nanoflagdict)
+        
+        # If there are really no relevant flags,
+        # then just make a full list of the toa indices.
+        if np.all([self.sysflagdict[sys] is None for sys in self.sysflagdict]):
+            print "No relevant flags found"
+            print "Assuming one overall system for {0}\n".format(self.T2psr.name)
+            self.sysflagdict[self.T2psr.name] = OrderedDict.fromkeys([self.T2psr.name])
+            self.sysflagdict[self.T2psr.name][self.T2psr.name] = np.arange(len(self.toas))
+
+        ##################################################################################################
 
         # now order everything
         isort, iisort = utils.argsortTOAs(self.toas, self.T2psr.flagvals('f'), which='jitterext', dt=jitterbin/86400.)
@@ -113,26 +155,6 @@ class PsrObj(object):
 
         print utils.checkTOAsort(self.toas, flags, which='jitterext', dt=jitterbin/86400.)
         print utils.checkquant(self.Umat, flags)
-
-        # get the relevant system flags
-        self.systems = []
-        self.sysnames = []
-        system_flags = ['group','sys','i','f']
-        for systm in system_flags:
-            try:
-                sys_uflagvals = list(set(self.T2psr.flagvals(systm)))
-                if systm in self.T2psr.flags():
-                    self.sysnames = np.append( self.sysnames, sys_uflagvals )
-                    for kk in range(len(sys_uflagvals)):
-                        self.systems.append(np.where(self.T2psr.flagvals(systm) == sys_uflagvals[kk]))
-            except KeyError:
-                pass
-        
-        if len(self.systems)==0:
-            print "No relevant flags found"
-            print "Assuming one overall system for {0}\n".format(self.name)
-            self.sysnames = self.name
-            self.systems = np.arange(len(self.toas))
 
         # perform SVD of design matrix to stabilise    
         u,s,v = np.linalg.svd(self.Mmat)

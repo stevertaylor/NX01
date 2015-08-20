@@ -51,10 +51,12 @@ parser.add_option('--parfile', dest='parfile', action='store', type=str,
                    help='Full path to parfile')
 parser.add_option('--timfile', dest='timfile', action='store', type=str,
                    help='Full path to timfile')
+parser.add_option('--target-sysflag', dest='systarg', action='store', type=str,
+                   help='Which system flag should the EFACs/EQUADs target? (default = \'group\')')
 parser.add_option('--fullN', dest='fullN', action='store_true', default=False,
                    help='Search for EFAC/EQUAD/ECORR over all systems (True), or just apply a GEFAC (False)? (default=False)')
 parser.add_option('--sample-or-maximize', dest='sample_or_maximize', action='store', type=str, default='maximize',
-                   help='Do you want sample from the posteror distribution or just find the maximum likelihood noise values? (default=\'maximize\')?')
+                   help='Do you want sample from the posteror distribution or just find the maximum likelihood noise values? (default=\'maximize\')')
 
 (args, x) = parser.parse_args()
 print args.fullN
@@ -105,11 +107,14 @@ else:
 ################################################################################################################################
 
 if args.fullN==True:
-    systems = psr.systems
-    sysnames = psr.sysnames
+    #systems = psr.systems
+    #sysnames = psr.sysnames
+    systems = psr.sysflagdict[args.systarg]
 else:
-    systems = [np.arange(len(psr.toas))]
-    sysnames = [psr.name]
+    #systems = [np.arange(len(psr.toas))]
+    #sysnames = [psr.name]
+    systems = OrderedDict.fromkeys([psr.name])
+    systems[psr.name] = np.arange(len(psr.toas))
 
 #print len(systems), len(psr.epflags)
 #print psr.epflags
@@ -145,21 +150,21 @@ def ln_prob(cube, ndim, nparams):
     EFAC = xx[4:4+len(systems)]
     if args.fullN==True: 
         EQUAD = 10.0**xx[4+len(systems):4+2*len(systems)]
-        ECORR = 10.0**xx[4+2*len(systems):]
+        ECORR = 10.0**xx[4+2*len(psr.sysflagdict['nano-f'].keys()):]
 
     loglike1 = 0
 
     ####################################
     ####################################
     scaled_err = (psr.toaerrs).copy()
-    for jj in range(len(systems)):
-        scaled_err[systems[jj]] *= EFAC[jj] 
+    for jj,sysname in enumerate(systems):
+        scaled_err[systems[sysname]] *= EFAC[jj] 
     ###
     white_noise = np.zeros(len(scaled_err))
     if args.fullN==True:
         white_noise = np.ones(len(scaled_err))
-        for jj in range(len(systems)):
-            white_noise[systems[jj]] *= EQUAD[jj]
+        for jj,sysname in enumerate(systems):
+            white_noise[systems[sysname]] *= EQUAD[jj]
     
     new_err = np.sqrt( scaled_err**2.0 + white_noise**2.0 )
     ########
@@ -168,8 +173,8 @@ def ln_prob(cube, ndim, nparams):
     if args.fullN==True:
 
         Jamp = np.ones(len(psr.epflags))
-        for jj in range(len(systems)):
-            Jamp[np.where(psr.epflags==psr.sysnames[jj])] *= ECORR[jj]**2.0
+        for jj,nano_sysname in enumerate(psr.sysflagdict['nano-f'].keys()):
+            Jamp[np.where(psr.epflags==nano_sysname)] *= ECORR[jj]**2.0
 
         Nx = jitter.cython_block_shermor_0D(psr.res.astype(np.float64), new_err**2., Jamp, psr.Uinds)
         d = np.dot(psr.Te.T, Nx)
@@ -245,12 +250,12 @@ def ln_prob(cube, ndim, nparams):
 
 parameters = ["log(A_red)","gam_red","log(A_dm)","gam_dm"]
 for ii in range(len(systems)):
-    parameters.append('EFAC_'+sysnames[ii])
+    parameters.append('EFAC_'+systems.keys()[ii])
 if args.fullN==True:
     for ii in range(len(systems)):
-        parameters.append('EQUAD_'+sysnames[ii])
-    for ii in range(len(systems)):
-        parameters.append('ECORR_'+sysnames[ii])
+        parameters.append('EQUAD_'+systems.keys()[ii])
+    for ii,nano_sysname in enumerate(psr.sysflagdict['nano-f'].keys()):
+        parameters.append('ECORR_'+nano_sysname)
 
 print "\n You are searching for the following single-pulsar parameters: {0}\n".format(parameters)
 n_params = len(parameters)
@@ -268,17 +273,17 @@ if args.sample_or_maximize == 'maximize':
     ##################################################################
     pmin = np.array([-20.0,0.0]) # red-noise
     pmin = np.append(pmin,np.array([-20.0,0.0])) # DM-variation noise
-    pmin = np.append(pmin,0.1*np.ones(len(psr.systems))) # EFACs
+    pmin = np.append(pmin,0.1*np.ones(len(systems))) # EFACs
     if args.fullN==True:
-        pmin = np.append(pmin,-10.0*np.ones(len(psr.systems))) #EQUADs
-        pmin = np.append(pmin,-10.0*np.ones(len(psr.systems))) #ECORRs
+        pmin = np.append(pmin,-10.0*np.ones(len(systems))) #EQUADs
+        pmin = np.append(pmin,-10.0*np.ones(len(systems))) #ECORRs
     
     pmax = np.array([-8.0,7.0]) # red-noise
     pmax = np.append(pmax,np.array([-8.0,7.0])) # DM-variation noise
-    pmax = np.append(pmax,11.9*np.ones(len(psr.systems))) # EFACs
+    pmax = np.append(pmax,11.9*np.ones(len(systems))) # EFACs
     if args.fullN==True:
-        pmin = np.append(pmin,-3.0*np.ones(len(psr.systems))) #EQUADs
-        pmax = np.append(pmax,-3.0*np.ones(len(psr.systems))) #ECORRs
+        pmin = np.append(pmin,-3.0*np.ones(len(systems))) #EQUADs
+        pmax = np.append(pmax,-3.0*np.ones(len(systems))) #ECORRs
 
     ###################################################################
 
