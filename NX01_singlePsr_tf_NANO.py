@@ -55,8 +55,8 @@ parser.add_option('--target-sysflag', dest='systarg', action='store', type=str, 
                    help='Which system flag should the EFACs/EQUADs target? (default = \'group\')')
 parser.add_option('--fullN', dest='fullN', action='store_true', default=False,
                    help='Search for EFAC/EQUAD/ECORR over all systems (True), or just apply a GEFAC (False)? (default=False)')
-parser.add_option('--sample-or-maximize', dest='sample_or_maximize', action='store', type=str, default='maximize',
-                   help='Do you want sample from the posteror distribution or just find the maximum likelihood noise values? (default=\'maximize\')')
+#parser.add_option('--sample-or-maximize', dest='sample_or_maximize', action='store', type=str, default='maximize',
+#                   help='Do you want sample from the posteror distribution or just find the maximum likelihood noise values? (default=\'maximize\')')
 
 (args, x) = parser.parse_args()
 
@@ -76,11 +76,13 @@ if np.any(np.isfinite(t2psr.residuals())==False)==True:
 psr = NX01_psr.PsrObj(t2psr)
 psr.grab_all_vars()
 
-if args.sample_or_maximize == 'maximize':
-    from pyswarm import pso
-else:    
-    if not os.path.exists('chains_nano_{0}'.format(psr.name)):
-        os.makedirs('chains_nano_{0}'.format(psr.name))
+#if args.sample_or_maximize == 'maximize':
+#    from pyswarm import pso
+#else:    
+#    if not os.path.exists('chains_nano_{0}'.format(psr.name)):
+#        os.makedirs('chains_nano_{0}'.format(psr.name))
+if not os.path.exists('chains_nano_{0}'.format(psr.name)):
+    os.makedirs('chains_nano_{0}'.format(psr.name))
 
 ################################################################################################################################
 # GETTING MAXIMUM TIME, COMPUTING FOURIER DESIGN MATRICES, AND GETTING MODES 
@@ -258,7 +260,7 @@ print "\n The total number of parameters is {0}\n".format(n_params)
 ##################################
 # Now, we sample or maximize.....
 ##################################
-
+'''
 if args.sample_or_maximize == 'maximize':
 
     ##################################################################
@@ -275,7 +277,7 @@ if args.sample_or_maximize == 'maximize':
     pmax = np.append(pmax,np.array([-8.0,7.0])) # DM-variation noise
     pmax = np.append(pmax,11.9*np.ones(len(systems))) # EFACs
     if args.fullN==True:
-        pmin = np.append(pmin,-3.0*np.ones(len(systems))) #EQUADs
+        pmax = np.append(pmax,-3.0*np.ones(len(systems))) #EQUADs
         pmax = np.append(pmax,-3.0*np.ones(len(psr.sysflagdict['nano-f']))) #ECORRs
 
     ###################################################################
@@ -293,8 +295,8 @@ if args.sample_or_maximize == 'maximize':
     print "\n Values saved in {0}_MLnoise_nmode{1}.txt".format(psr.name,nmode)
 
 else:
-
-    pymultinest.run(ln_prob, my_prior, n_params, importance_nested_sampling = False, resume = False, verbose = True, 
-                    n_live_points=500, outputfiles_basename=u'chains_nano_{0}/{0}_'.format(psr.name), 
-                    sampling_efficiency=0.8,const_efficiency_mode=False)
+'''
+pymultinest.run(ln_prob, my_prior, n_params, importance_nested_sampling = False, resume = False, verbose = True, 
+                n_live_points=500, outputfiles_basename=u'chains_nano_{0}/{0}_'.format(psr.name), 
+                sampling_efficiency=0.8,const_efficiency_mode=False)
 
