@@ -69,6 +69,8 @@ class PsrObj(object):
     """
     def grab_all_vars(self, jitterbin=10.): # jitterbin is in seconds
 
+        print "--> Processing {0}".format(self.T2psr.name)
+        
         # basic quantities
         self.name = self.T2psr.name
         self.toas = self.T2psr.toas()
@@ -85,11 +87,12 @@ class PsrObj(object):
             coords = Equatorial(Ecliptic(str(self.T2psr['ELONG'].val*fac), str(self.T2psr['ELAT'].val*fac)))
             self.psr_locs = [float(repr(coords.ra)),float(repr(coords.dec))]
 
+        print "--> Grabbed the pulsar position."
+        ################################################################################################
+            
         # These are all the relevant system flags used by the PTAs.
         system_flags = ['group','sys','i','f']
         self.sysflagdict = OrderedDict.fromkeys(system_flags)
-
-        ################################################################################################
 
         # Put the systems into a dictionary which 
         # has the locations of their toa placements.
@@ -112,12 +115,21 @@ class PsrObj(object):
             for ii,item in enumerate(pta_maskdict):
                 pta_maskdict[item] = pta_mask[ii]
             if 'NANOGrav' in pta_names:
-                nanoflagdict = OrderedDict.fromkeys(['nano-f'])
-                nano_flags = list(set(self.T2psr.flagvals('f')[pta_maskdict['NANOGrav']]))
-                nanoflagdict['nano-f'] = OrderedDict.fromkeys(nano_flags)
-                for kk,subsys in enumerate(nano_flags):
-                    nanoflagdict['nano-f'][subsys] = np.where(self.T2psr.flagvals('f') == nano_flags[kk])
-                self.sysflagdict.update(nanoflagdict)
+                try:
+                    nanoflagdict = OrderedDict.fromkeys(['nano-f'])
+                    nano_flags = list(set(self.T2psr.flagvals('group')[pta_maskdict['NANOGrav']]))
+                    nanoflagdict['nano-f'] = OrderedDict.fromkeys(nano_flags)
+                    for kk,subsys in enumerate(nano_flags):
+                        nanoflagdict['nano-f'][subsys] = np.where(self.T2psr.flagvals('group') == nano_flags[kk])
+                    self.sysflagdict.update(nanoflagdict)
+                except KeyError:
+                    nanoflagdict = OrderedDict.fromkeys(['nano-f'])
+                    nano_flags = list(set(self.T2psr.flagvals('f')[pta_maskdict['NANOGrav']]))
+                    nanoflagdict['nano-f'] = OrderedDict.fromkeys(nano_flags)
+                    for kk,subsys in enumerate(nano_flags):
+                        nanoflagdict['nano-f'][subsys] = np.where(self.T2psr.flagvals('f') == nano_flags[kk])
+                    self.sysflagdict.update(nanoflagdict)
+                    
         
         # If there are really no relevant flags,
         # then just make a full list of the toa indices.
@@ -127,41 +139,55 @@ class PsrObj(object):
             self.sysflagdict[self.T2psr.name] = OrderedDict.fromkeys([self.T2psr.name])
             self.sysflagdict[self.T2psr.name][self.T2psr.name] = np.arange(len(self.toas))
 
+        print "--> Processed all relevant flags plus associated locations."
         ##################################################################################################
 
-        # now order everything
-        isort, iisort = utils.argsortTOAs(self.toas, self.T2psr.flagvals('f'), which='jitterext', dt=jitterbin/86400.)
+        if 'NANOGrav' in pta_names:
+            # now order everything
+            try:
+                isort, iisort = utils.argsortTOAs(self.toas, self.T2psr.flagvals('group'), which='jitterext', dt=jitterbin/86400.)
+                flags = self.T2psr.flagvals('group')[isort]
+            except KeyError:
+                isort, iisort = utils.argsortTOAs(self.toas, self.T2psr.flagvals('f'), which='jitterext', dt=jitterbin/86400.)
+                flags = self.T2psr.flagvals('f')[isort]
+        
+            # sort data
+            self.toas = self.toas[isort]
+            self.toaerrs = self.toaerrs[isort]
+            self.res = self.res[isort]
+            self.obs_freqs = self.obs_freqs[isort]
+            #flags = self.T2psr.flagvals('group')[isort]
+            self.Mmat = self.Mmat[isort, :]
+            detresiduals = self.res.copy()
 
-        # sort data
-        self.toas = self.toas[isort]
-        self.toaerrs = self.toaerrs[isort]
-        self.res = self.res[isort]
-        self.obs_freqs = self.obs_freqs[isort]
-        flags = self.T2psr.flagvals('f')[isort]
-        self.Mmat = self.Mmat[isort, :]
-        detresiduals = self.res.copy()
+            print "--> Sorted data."
 
-        # get quantization matrix
-        avetoas, self.Umat, Ui = utils.quantize_split(self.toas, flags, dt=jitterbin/86400., calci=True)
-        #print Umat.shape
+            # get quantization matrix
+            avetoas, self.Umat, Ui = utils.quantize_split(self.toas, flags, dt=jitterbin/86400., calci=True)
+            print "--> Computed quantization matrix."
 
-        # get only epochs that need jitter/ecorr
-        self.Umat, avetoas, aveflags = utils.quantreduce(self.Umat, avetoas, flags)
-        #print Umat.shape
+            # get only epochs that need jitter/ecorr
+            self.Umat, avetoas, aveflags = utils.quantreduce(self.Umat, avetoas, flags)
+            print "--> Excized epochs without jitter."
 
-        # get quantization indices
-        self.Uinds = utils.quant2ind(self.Umat)
-        self.epflags = flags[self.Uinds[:, 0]]
+            # get quantization indices
+            self.Uinds = utils.quant2ind(self.Umat)
+            self.epflags = flags[self.Uinds[:, 0]]
 
-        print utils.checkTOAsort(self.toas, flags, which='jitterext', dt=jitterbin/86400.)
-        print utils.checkquant(self.Umat, flags)
+            print "--> Checking TOA sorting and quantization..."
+            print utils.checkTOAsort(self.toas, flags, which='jitterext', dt=jitterbin/86400.)
+            print utils.checkquant(self.Umat, flags)
+            print "...Finished checks."
 
-        # perform SVD of design matrix to stabilise    
+        # perform SVD of design matrix to stabilise
+        print "--> Performing SVD of design matrix for stabilization..."   
         u,s,v = np.linalg.svd(self.Mmat)
         self.G = u[:,len(s):len(u)]
         self.Gc =  u[:,:len(s)]
 
         self.Gres = np.dot(self.G.T, self.res)
+
+        print "--> Done reading in pulsar :-)"
 
     def makeFred(self, nmodes, Ttot):
         self.Fred = utils.createfourierdesignmatrix_RED(self.toas, nmodes, Tspan=Ttot)
