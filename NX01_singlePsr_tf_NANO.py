@@ -51,7 +51,7 @@ parser.add_option('--parfile', dest='parfile', action='store', type=str,
                    help='Full path to parfile')
 parser.add_option('--timfile', dest='timfile', action='store', type=str,
                    help='Full path to timfile')
-parser.add_option('--target-sysflag', dest='systarg', action='store', type=str,
+parser.add_option('--target-sysflag', dest='systarg', action='store', type=str, default='group',
                    help='Which system flag should the EFACs/EQUADs target? (default = \'group\')')
 parser.add_option('--fullN', dest='fullN', action='store_true', default=False,
                    help='Search for EFAC/EQUAD/ECORR over all systems (True), or just apply a GEFAC (False)? (default=False)')
