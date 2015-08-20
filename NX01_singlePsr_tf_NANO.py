@@ -8,26 +8,28 @@ Code contributions by Rutger van Haasteren (piccard) and Justin Ellis (PAL/PAL2)
 
 """
 
+import os, math, optparse, time, cProfile
+from time import gmtime, strftime
+from collections import OrderedDict
+
 import numpy as np
 from numpy import *
-import os
-import math
+
 from scipy import integrate
 from scipy import optimize
 from scipy import constants
 from numpy import random
 from scipy import special as ss
 from scipy import linalg as sl
+
 import numexpr as ne
-import optparse
-import cProfile
 import ephem
 from ephem import *
+
 import PALInferencePTMCMC as PAL
 import pymultinest
 import libstempo as T2
-import time
-from time import gmtime, strftime
+
 import NX01_AnisCoefficients as anis
 import NX01_utils as utils
 import NX01_psr
@@ -81,8 +83,8 @@ psr.grab_all_vars()
 #else:    
 #    if not os.path.exists('chains_nano_{0}'.format(psr.name)):
 #        os.makedirs('chains_nano_{0}'.format(psr.name))
-if not os.path.exists('chains_nano_{0}'.format(psr.name)):
-    os.makedirs('chains_nano_{0}'.format(psr.name))
+if not os.path.exists('chains_ipta_{0}'.format(psr.name)):
+    os.makedirs('chains_ipta_{0}'.format(psr.name))
 
 ################################################################################################################################
 # GETTING MAXIMUM TIME, COMPUTING FOURIER DESIGN MATRICES, AND GETTING MODES 
@@ -309,6 +311,6 @@ if args.sample_or_maximize == 'maximize':
 else:
 '''
 pymultinest.run(ln_prob, my_prior, n_params, importance_nested_sampling = False, resume = False, verbose = True, 
-                n_live_points=500, outputfiles_basename=u'chains_nano_{0}/{0}_'.format(psr.name), 
+                n_live_points=500, outputfiles_basename=u'chains_ipta_{0}/{0}_'.format(psr.name), 
                 sampling_efficiency=0.8,const_efficiency_mode=False)
 
