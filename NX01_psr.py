@@ -69,7 +69,7 @@ class PsrObj(object):
     """
     def grab_all_vars(self, jitterbin=10.): # jitterbin is in seconds
 
-        print "--> Processing {0}".format(self.T2psr.name)
+        print "\n --> Processing {0}".format(self.T2psr.name)
         
         # basic quantities
         self.name = self.T2psr.name

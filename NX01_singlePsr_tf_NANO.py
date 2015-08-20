@@ -258,8 +258,11 @@ for ii in range(len(systems)):
 if args.fullN==True:
     for ii in range(len(systems)):
         parameters.append('EQUAD_'+systems.keys()[ii])
-    for ii,nano_sysname in enumerate(psr.sysflagdict['nano-f'].keys()):
-        parameters.append('ECORR_'+nano_sysname)
+
+    if len(psr.sysflagdict['nano-f'].keys())>0:
+        print "\n You have some NANOGrav ECORR parameters..."
+        for ii,nano_sysname in enumerate(psr.sysflagdict['nano-f'].keys()):
+            parameters.append('ECORR_'+nano_sysname)
 
 print "\n You are searching for the following single-pulsar parameters: {0}\n".format(parameters)
 n_params = len(parameters)
