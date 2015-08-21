@@ -53,7 +53,7 @@ parser.add_option('--parfile', dest='parfile', action='store', type=str,
                    help='Full path to parfile')
 parser.add_option('--timfile', dest='timfile', action='store', type=str,
                    help='Full path to timfile')
-parser.add_option('--target-sysflag', dest='systarg', action='store', type=str, default='group',
+parser.add_option('--efacequad-sysflag', dest='systarg', action='store', type=str, default='group',
                    help='Which system flag should the EFACs/EQUADs target? (default = \'group\')')
 parser.add_option('--fullN', dest='fullN', action='store_true', default=False,
                    help='Search for EFAC/EQUAD/ECORR over all systems (True), or just apply a GEFAC (False)? (default=False)')
@@ -130,7 +130,7 @@ def my_prior(cube, ndim, nparams):
     if args.fullN==True:
         for ii in range(4+len(systems),4+2*len(systems)):
             cube[ii] = -10.0 + cube[ii]*7.0
-        for ii in range(4+2*len(psr.sysflagdict['nano-f'].keys()),nparams):
+        for ii in range(4+2*len(systems),nparams):
             cube[ii] = -10.0 + cube[ii]*7.0
 
 def ln_prob(cube, ndim, nparams):
@@ -147,7 +147,7 @@ def ln_prob(cube, ndim, nparams):
     EFAC = xx[4:4+len(systems)]
     if args.fullN==True: 
         EQUAD = 10.0**xx[4+len(systems):4+2*len(systems)]
-        ECORR = 10.0**xx[4+2*len(psr.sysflagdict['nano-f'].keys()):]
+        ECORR = 10.0**xx[4+2*len(systems):]
 
     loglike1 = 0
 
