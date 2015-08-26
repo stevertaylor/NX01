@@ -114,7 +114,7 @@ class PsrObj(object):
             pta_maskdict = OrderedDict.fromkeys(pta_names)
             for ii,item in enumerate(pta_maskdict):
                 pta_maskdict[item] = pta_mask[ii]
-            if 'NANOGrav' in pta_names:
+            if len(pta_names)!=0 and ('NANOGrav' in pta_names):
                 try:
                     nanoflagdict = OrderedDict.fromkeys(['nano-f'])
                     nano_flags = list(set(self.T2psr.flagvals('group')[pta_maskdict['NANOGrav']]))
@@ -142,42 +142,43 @@ class PsrObj(object):
         print "--> Processed all relevant flags plus associated locations."
         ##################################################################################################
 
-        if 'NANOGrav' in pta_names:
-            # now order everything
-            try:
-                isort, iisort = utils.argsortTOAs(self.toas, self.T2psr.flagvals('group'), which='jitterext', dt=jitterbin/86400.)
-                flags = self.T2psr.flagvals('group')[isort]
-            except KeyError:
-                isort, iisort = utils.argsortTOAs(self.toas, self.T2psr.flagvals('f'), which='jitterext', dt=jitterbin/86400.)
-                flags = self.T2psr.flagvals('f')[isort]
+        if 'pta' in self.T2psr.flags():
+            if 'NANOGrav' in pta_names:
+                # now order everything
+                try:
+                    isort, iisort = utils.argsortTOAs(self.toas, self.T2psr.flagvals('group'), which='jitterext', dt=jitterbin/86400.)
+                    flags = self.T2psr.flagvals('group')[isort]
+                except KeyError:
+                    isort, iisort = utils.argsortTOAs(self.toas, self.T2psr.flagvals('f'), which='jitterext', dt=jitterbin/86400.)
+                    flags = self.T2psr.flagvals('f')[isort]
         
-            # sort data
-            self.toas = self.toas[isort]
-            self.toaerrs = self.toaerrs[isort]
-            self.res = self.res[isort]
-            self.obs_freqs = self.obs_freqs[isort]
-            #flags = self.T2psr.flagvals('group')[isort]
-            self.Mmat = self.Mmat[isort, :]
-            detresiduals = self.res.copy()
+                # sort data
+                self.toas = self.toas[isort]
+                self.toaerrs = self.toaerrs[isort]
+                self.res = self.res[isort]
+                self.obs_freqs = self.obs_freqs[isort]
+                #flags = self.T2psr.flagvals('group')[isort]
+                self.Mmat = self.Mmat[isort, :]
+                detresiduals = self.res.copy()
 
-            print "--> Sorted data."
+                print "--> Sorted data."
+    
+                # get quantization matrix
+                avetoas, self.Umat, Ui = utils.quantize_split(self.toas, flags, dt=jitterbin/86400., calci=True)
+                print "--> Computed quantization matrix."
 
-            # get quantization matrix
-            avetoas, self.Umat, Ui = utils.quantize_split(self.toas, flags, dt=jitterbin/86400., calci=True)
-            print "--> Computed quantization matrix."
+                # get only epochs that need jitter/ecorr
+                self.Umat, avetoas, aveflags = utils.quantreduce(self.Umat, avetoas, flags)
+                print "--> Excized epochs without jitter."
 
-            # get only epochs that need jitter/ecorr
-            self.Umat, avetoas, aveflags = utils.quantreduce(self.Umat, avetoas, flags)
-            print "--> Excized epochs without jitter."
+                # get quantization indices
+                self.Uinds = utils.quant2ind(self.Umat)
+                self.epflags = flags[self.Uinds[:, 0]]
 
-            # get quantization indices
-            self.Uinds = utils.quant2ind(self.Umat)
-            self.epflags = flags[self.Uinds[:, 0]]
-
-            print "--> Checking TOA sorting and quantization..."
-            print utils.checkTOAsort(self.toas, flags, which='jitterext', dt=jitterbin/86400.)
-            print utils.checkquant(self.Umat, flags)
-            print "...Finished checks."
+                print "--> Checking TOA sorting and quantization..."
+                print utils.checkTOAsort(self.toas, flags, which='jitterext', dt=jitterbin/86400.)
+                print utils.checkquant(self.Umat, flags)
+                print "...Finished checks."
 
         # perform SVD of design matrix to stabilise
         print "--> Performing SVD of design matrix for stabilization..."   
@@ -201,11 +202,17 @@ class PsrObj(object):
 
         self.Ftot = np.append(self.Fred, self.Fdm, axis=1)
 
-    def makeTe(self, nmodes, Ttot):
-        self.Fred = utils.createfourierdesignmatrix_RED(self.toas, nmodes, Tspan=Ttot)
-        self.Fdm = utils.createfourierdesignmatrix_DM(self.toas, nmodes, self.obs_freqs, Tspan=Ttot)
+    def makeTe(self, nmodes, Ttot, makeDM=False):
 
-        self.Ftot = np.append(self.Fred, self.Fdm, axis=1)
+        self.Fred = utils.createfourierdesignmatrix_RED(self.toas, nmodes, Tspan=Ttot)
+
+        if makeDM==True:
+            self.Fdm = utils.createfourierdesignmatrix_DM(self.toas, nmodes, self.obs_freqs, Tspan=Ttot)
+            self.Ftot = np.append(self.Fred, self.Fdm, axis=1)
+
+        else:
+            self.Ftot = self.Fred
+
         self.Te = np.append(self.Gc, self.Ftot, axis=1)
 
     def two_comp_noise(self, mlerrors):
