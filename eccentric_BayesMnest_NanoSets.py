@@ -229,7 +229,7 @@ print parfiles, timfiles
 t2psr=[]
 for ii in range(len(parfiles)):
     t2psr.append(T2.tempopulsar(parfile=parfiles[ii], timfile=timfiles[ii]))
-    #t2psr[ii].fit(iters=10)
+    t2psr[ii].fit(iters=10)
     #if np.any(np.isfinite(t2psr[ii].residuals())==False)==True:
     #    t2psr[ii] = T2.tempopulsar(parfile=parfiles[ii], timfile=timfiles[ii])
 
@@ -349,7 +349,7 @@ keplersum = np.loadtxt('/Users/staylor/Research/PapersInProgress/PTA-eccentric/P
 def my_prior_mnest(cube, ndim, nparams):
     cube[0] = 7.0 + cube[0]*3.0
     cube[1] = cube[1]*4.0
-    cube[2] = -9.0 + cube[2]*3.0
+    cube[2] = -9.301 + cube[2]*3.301
     cube[3] = cube[3]*2.0*np.pi
     cube[4] = -1.0 + 2.0*cube[4]
     cube[5] = -1.0 + 2.0*cube[5]

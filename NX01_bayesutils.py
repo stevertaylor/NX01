@@ -77,40 +77,42 @@ def getsigmalevels(hist2d):
 
   return level1, level2, level3
 
-def confinterval(samples, sigma=0.68, onesided=False, weights=None, bins=40,
-                type='equalArea'):
-    """
 
+def confinterval(samples, sigma=0.68, onesided=False, weights=None, bins=40,
+                type='equalArea', kde=False):
+    """
     Given a list of samples, return the desired cofidence intervals.
     Returns the minimum and maximum confidence levels
-
     @param samples: Samples that we wish to get confidence intervals
-
     @param sigmalevel: Sigma level 1, 2, or 3 sigma, will return 
                        corresponding confidence limits
-
     @param onesided: Boolean to use onesided or twosided confidence
                      limits.
-
     """
 
-    # Create the histogram
-    hist, xedges = np.histogram(samples, bins=bins, weights=weights)
-    xedges = np.delete(xedges, -1) + 0.5*(xedges[1] - xedges[0])
+    ## Create the histogram
+    #hist, xedges = np.histogram(samples, bins=bins, weights=weights)
+    #xedges = np.delete(xedges, -1) + 0.5*(xedges[1] - xedges[0])
 
-    # CDF
-    cdf = np.cumsum(hist/hist.sum())
+    ## CDF
+    #cdf = np.cumsum(hist/hist.sum())
 
-    # interpolate
-    x = np.linspace(xedges.min(), xedges.max(), 10000)
-    ifunc = interp.interp1d(xedges, cdf, kind='linear')
-    y = ifunc(x)
-    
-    #ecdf = sm.distributions.ECDF(samples)
+    ## interpolate
+    #x = np.linspace(xedges.min(), xedges.max(), 10000)
+    #ifunc = interp.interp1d(xedges, cdf, kind='cubic')
+    #y = ifunc(x)
+
+    ecdf = sm.distributions.ECDF(samples)
 
     # Create the binning
-    #x = np.linspace(min(samples), max(samples), 1000)
-    #y = ecdf(x)
+    x = np.linspace(min(samples), max(samples), 1000)
+
+    if kde:
+        kd = gaussian_kde(samples)
+        y = np.cumsum(kd.pdf(x) / np.sum(kd.pdf(x)))
+    else:
+        ecdf = sm.distributions.ECDF(samples)
+        y = ecdf(x)
 
     # Find the intervals
     if type == 'equalArea' or onesided:
@@ -137,6 +139,9 @@ def confinterval(samples, sigma=0.68, onesided=False, weights=None, bins=40,
                 break
 
     if type == 'equalProb' and not(onesided):
+        hist, xedges = np.histogram(samples, bins=bins, weights=weights)
+        xedges = np.delete(xedges, -1) + 0.5*(xedges[1] - xedges[0])
+        x = np.linspace(xedges.min(), xedges.max(), 10000)
         ifunc = interp.interp1d(xedges, hist, kind='linear')
         sortlik = np.sort(ifunc(x))
         sortlik /= sortlik.sum()
