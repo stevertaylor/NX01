@@ -447,12 +447,9 @@ if args.fullN==True:
         for ii,nano_sysname in enumerate(psr.sysflagdict['nano-f'].keys()):
             parameters.append('ECORR_'+nano_sysname)
 
+n_params = len(parameters)
 if rank == 0:
     print "\n You are searching for the following single-pulsar parameters: {0}\n".format(parameters)
-
-n_params = len(parameters)
-
-if rank == 0:
     print "\n The total number of parameters is {0}\n".format(n_params)
 
 ##################################
@@ -461,7 +458,6 @@ if rank == 0:
 
 if rank == 0:
     os.system('say -v Victoria \'Engage N X zero 1!\' ')
-    print args.dmVar
 
 if args.ptmcmc==True:
     
@@ -487,15 +483,15 @@ if args.ptmcmc==True:
 
     
     sampler = PAL.PTSampler(ndim = n_params, logl = ln_prob1, logp = my_prior1, cov = np.diag(cov_diag),\
-                        outDir='./chains_ipta_{0}_{1}'.format(psr.name,'PTMCMC'), resume = False)
+                        outDir='./chains_{0}_{1}'.format(psr.name,'ptmcmc'), resume = False)
 
     sampler.sample(p0=x0,Niter=1e6,thin=10)
 else:
 
-    if not os.path.exists('chains_ipta_{0}_{1}'.format(psr.name,'Mnest')):
-        os.makedirs('chains_ipta_{0}_{1}'.format(psr.name,'Mnest'))
+    if not os.path.exists('chains_{0}_{1}'.format(psr.name,'mnest')):
+        os.makedirs('chains_{0}_{1}'.format(psr.name,'mnest'))
     
     pymultinest.run(ln_prob2, my_prior2, n_params, importance_nested_sampling = False, resume = False, verbose = True, 
-                    n_live_points=500, outputfiles_basename=u'chains_ipta_{0}_{1}/{0}_'.format(psr.name,'Mnest'), 
+                    n_live_points=500, outputfiles_basename=u'chains_{0}_{1}/{0}_'.format(psr.name,'Mnest'), 
                     sampling_efficiency=0.8,const_efficiency_mode=False)
 
