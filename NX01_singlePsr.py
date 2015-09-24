@@ -26,8 +26,6 @@ import numexpr as ne
 import ephem
 from ephem import *
 
-import PALInferencePTMCMC as PAL
-import pymultinest
 import libstempo as T2
 
 import NX01_AnisCoefficients as anis
@@ -41,7 +39,6 @@ pyximport.install(setup_args={"include_dirs":np.get_include()},
 import NX01_jitter as jitter
 
 from mpi4py import MPI
-
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 
@@ -64,6 +61,8 @@ parser.add_option('--dmVar', dest='dmVar', action='store_true', default=False,
                    help='Search for DM variations in the data (False)? (default=False)')
 parser.add_option('--fullN', dest='fullN', action='store_true', default=False,
                    help='Search for EFAC/EQUAD/ECORR over all systems (True), or just apply a GEFAC (False)? (default=False)')
+parser.add_option('--ptmcmc', dest='ptmcmc', action='store_true', default=False,
+                   help='Sample using PALs parallel tempering MCMC (False)? (default=False)')
 
 (args, x) = parser.parse_args()
 
@@ -71,6 +70,11 @@ if args.nmodes:
     print "\n You've given me the number of frequencies to include in the low-rank time-frequency approximation, got it?\n"
 else:
     print "\n You've given me the sampling cadence for the observations, which determines the upper frequency limit and the number of modes, got it?\n"
+
+if args.ptmcmc==True:
+    import PALInferencePTMCMC as PAL
+else:
+    import pymultinest
 
 ################################################################################################################################
 # PASSING THROUGH TEMPO2 VIA libstempo
@@ -82,9 +86,6 @@ if np.any(np.isfinite(t2psr.residuals())==False)==True:
 
 psr = NX01_psr.PsrObj(t2psr)
 psr.grab_all_vars()
-
-if not os.path.exists('chains_ipta_{0}'.format(psr.name)):
-    os.makedirs('chains_ipta_{0}'.format(psr.name))
 
 ################################################################################################################################
 # GETTING MAXIMUM TIME, COMPUTING FOURIER DESIGN MATRICES, AND GETTING MODES 
@@ -117,10 +118,38 @@ else:
     systems[psr.name] = np.arange(len(psr.toas))
 
 ################################################################################################################################
+# SETTING UP PRIOR RANGES
+################################################################################################################################
+
+pmin = np.array([-20.0,0.0])
+pmax = np.array([-12.0,6.95])
+if args.dmVar==True:
+    pmin = np.append(pmin,np.array([-20.0,0.0]))
+    pmax = np.append(pmax,np.array([-12.0,6.95]))       
+pmin = np.append(pmin,0.1*np.ones(len(systems)))
+pmax = np.append(pmax,12.0*np.ones(len(systems)))
+if args.fullN==True:
+    pmin = np.append(pmin,-10.0*np.ones(len(systems)))
+    pmax = np.append(pmax,-3.0*np.ones(len(systems)))
+    if len(psr.sysflagdict['nano-f'].keys())>0:
+        pmin = np.append(pmin, -10.0*np.ones(len(psr.sysflagdict['nano-f'].keys())))
+        pmax = np.append(pmax, -3.0*np.ones(len(psr.sysflagdict['nano-f'].keys())))
+            
+################################################################################################################################
 # PRIOR AND LIKELIHOOD
 ################################################################################################################################
 
-def my_prior(cube, ndim, nparams):
+def my_prior1(x):
+    logp = 0.
+    
+    if np.all(x <= pmax) and np.all(x >= pmin):
+        logp = np.sum(np.log(1/(pmax-pmin)))
+    else:
+        logp = -np.inf
+    
+    return logp
+
+def my_prior2(cube, ndim, nparams):
     cube[0] = -20.0 + cube[0]*12.0
     cube[1] = cube[1]*6.95
 
@@ -138,7 +167,138 @@ def my_prior(cube, ndim, nparams):
         for ii in range(ct+2*len(systems),nparams):
             cube[ii] = -10.0 + cube[ii]*7.0
 
-def ln_prob(cube, ndim, nparams):
+#######################
+#######################
+            
+def ln_prob1(xx):
+    
+    Ared = 10.0**xx[0]
+    gam_red = xx[1]
+
+    ct = 2
+    if args.dmVar==True:
+        Adm = 10.0**xx[ct]
+        gam_dm = xx[ct+1]
+
+        ct = 4
+
+    EFAC = xx[ct:ct+len(systems)]
+    if args.fullN==True: 
+        EQUAD = 10.0**xx[ct+len(systems):ct+2*len(systems)]
+        ECORR = 10.0**xx[ct+2*len(systems):]
+
+    loglike1 = 0
+
+    ####################################
+    ####################################
+    scaled_err = (psr.toaerrs).copy()
+    for jj,sysname in enumerate(systems):
+        scaled_err[systems[sysname]] *= EFAC[jj] 
+    ###
+    white_noise = np.zeros(len(scaled_err))
+    if args.fullN==True:
+        white_noise = np.ones(len(scaled_err))
+        for jj,sysname in enumerate(systems):
+            white_noise[systems[sysname]] *= EQUAD[jj]
+    
+    new_err = np.sqrt( scaled_err**2.0 + white_noise**2.0 )
+    ########
+
+    # compute ( T.T * N^-1 * T ) & log determinant of N
+    if args.fullN==True:
+        if len(ECORR)>0:
+            Jamp = np.ones(len(psr.epflags))
+            for jj,nano_sysname in enumerate(psr.sysflagdict['nano-f'].keys()):
+                Jamp[np.where(psr.epflags==nano_sysname)] *= ECORR[jj]**2.0
+
+            Nx = jitter.cython_block_shermor_0D(psr.res.astype(np.float64), new_err**2., Jamp, psr.Uinds)
+            d = np.dot(psr.Te.T, Nx)
+            logdet_N, TtNT = jitter.cython_block_shermor_2D(psr.Te, new_err**2., Jamp, psr.Uinds)
+            det_dummy, dtNdt = jitter.cython_block_shermor_1D(psr.res.astype(np.float64), new_err**2., Jamp, psr.Uinds)
+        else:
+            d = np.dot(psr.Te.T, psr.res/( new_err**2.0 ))
+        
+            N = 1./( new_err**2.0 )
+            right = (N*psr.Te.T).T
+            TtNT = np.dot(psr.Te.T, right)
+    
+            logdet_N = np.sum(np.log( new_err**2.0 ))
+        
+            # triple product in likelihood function
+            dtNdt = np.sum(psr.res**2.0/( new_err**2.0 ))
+        
+    else:
+
+        d = np.dot(psr.Te.T, psr.res/( new_err**2.0 ))
+        
+        N = 1./( new_err**2.0 )
+        right = (N*psr.Te.T).T
+        TtNT = np.dot(psr.Te.T, right)
+
+        logdet_N = np.sum(np.log( new_err**2.0 ))
+        
+        # triple product in likelihood function
+        dtNdt = np.sum(psr.res**2.0/( new_err**2.0 ))
+
+    loglike1 += -0.5 * (logdet_N + dtNdt)
+    ####################################
+    ####################################
+    
+    # parameterize intrinsic red noise as power law
+    Tspan = (1/fqs[0])*86400.0
+    f1yr = 1/3.16e7
+
+    # parameterize intrinsic red-noise and DM-variations as power law
+    if args.dmVar==True:
+        kappa = np.log10( np.append( Ared**2/12/np.pi**2 * f1yr**(gam_red-3) * (fqs/86400.0)**(-gam_red)/Tspan,
+                                    Adm**2/12/np.pi**2 * f1yr**(gam_dm-3) * (fqs/86400.0)**(-gam_dm)/Tspan ) )
+    else:
+        kappa = np.log10( Ared**2/12/np.pi**2 * f1yr**(gam_red-3) * (fqs/86400.0)**(-gam_red)/Tspan )
+
+    # construct elements of sigma array
+    if args.dmVar==True:
+        mode_count = 4*nmode
+    else:
+        mode_count = 2*nmode
+
+    diagonal = np.zeros(mode_count)
+    diagonal[0::2] =  10**kappa
+    diagonal[1::2] = 10**kappa
+
+    # compute Phi inverse 
+    red_phi = np.diag(1./diagonal)
+    logdet_Phi = np.sum(np.log( diagonal ))
+  
+    # now fill in real covariance matrix
+    Phi = np.zeros( TtNT.shape )
+    for kk in range(0,mode_count):
+        Phi[kk+psr.Gc.shape[1],kk+psr.Gc.shape[1]] = red_phi[kk,kk]
+
+    # symmeterize Phi
+    Phi = Phi + Phi.T - np.diag(np.diag(Phi))
+    
+    # compute sigma
+    Sigma = TtNT + Phi
+     
+    # cholesky decomp for second term in exponential
+    try:
+        cf = sl.cho_factor(Sigma)
+        expval2 = sl.cho_solve(cf, d)
+        logdet_Sigma = np.sum(2*np.log(np.diag(cf[0])))
+
+    except np.linalg.LinAlgError:
+        print 'Cholesky Decomposition Failed second time!! Using SVD instead'
+        u,s,v = sl.svd(Sigma)
+        expval2 = np.dot(v.T, 1/s*np.dot(u.T, d))
+        logdet_Sigma = np.sum(np.log(s))
+
+
+    logLike = -0.5 * (logdet_Phi + logdet_Sigma) + 0.5 * (np.dot(d, expval2)) + loglike1 
+    
+    return logLike
+
+
+def ln_prob2(cube, ndim, nparams):
 
     cube = np.array([cube[ii] for ii in range(nparams)])
     xx = cube
@@ -302,8 +462,40 @@ if rank == 0:
 if rank == 0:
     os.system('say -v Victoria \'Engage N X zero 1!\' ')
     print args.dmVar
+
+if args.ptmcmc==True:
     
-pymultinest.run(ln_prob, my_prior, n_params, importance_nested_sampling = False, resume = False, verbose = True, 
-                n_live_points=500, outputfiles_basename=u'chains_ipta_{0}/{0}_'.format(psr.name), 
-                sampling_efficiency=0.8,const_efficiency_mode=False)
+    x0 = np.array([-15.0,2.0])
+    cov_diag = np.array([0.5,0.5])
+    
+    if args.dmVar==True:
+        x0 = np.append(x0,np.array([-15.0,2.0]))
+        cov_diag = np.append(cov_diag,np.array([0.5,0.5]))
+
+    x0 = np.append(x0,np.random.uniform(0.75,1.25,len(systems)))
+    cov_diag = np.append(cov_diag,0.5*np.ones(len(systems)))
+
+    if args.fullN==True:
+        x0 = np.append(x0,np.random.uniform(-10.0,-3.0,len(systems)))
+        cov_diag = np.append(cov_diag,0.5*np.ones(len(systems)))
+        if len(psr.sysflagdict['nano-f'].keys())>0:
+            x0 = np.append(x0, np.random.uniform(-10.0,-3.0,len(psr.sysflagdict['nano-f'].keys())))
+            cov_diag = np.append(cov_diag,0.5*np.ones(len(psr.sysflagdict['nano-f'].keys())))
+    
+    if rank == 0:
+        print "\n Your initial parameters are {0}\n".format(x0)
+
+    
+    sampler = PAL.PTSampler(ndim = n_params, logl = ln_prob1, logp = my_prior1, cov = np.diag(cov_diag),\
+                        outDir='./chains_ipta_{0}_{1}'.format(psr.name,'PTMCMC'), resume = False)
+
+    sampler.sample(p0=x0,Niter=1e6,thin=10)
+else:
+
+    if not os.path.exists('chains_ipta_{0}_{1}'.format(psr.name,'Mnest')):
+        os.makedirs('chains_ipta_{0}_{1}'.format(psr.name,'Mnest'))
+    
+    pymultinest.run(ln_prob2, my_prior2, n_params, importance_nested_sampling = False, resume = False, verbose = True, 
+                    n_live_points=500, outputfiles_basename=u'chains_ipta_{0}_{1}/{0}_'.format(psr.name,'Mnest'), 
+                    sampling_efficiency=0.8,const_efficiency_mode=False)
 
