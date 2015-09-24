@@ -153,6 +153,45 @@ def confinterval(samples, sigma=0.68, onesided=False, weights=None, bins=40,
     return x2min, x2max
 
 
+def skylocPrecision(samples1, samples2, weights=None, smooth=True,
+                    bins=[40, 40], x_range=None, y_range=None):                                                                                                                                                                 
+    if x_range is None:
+        xmin = np.min(samples1)
+        xmax = np.max(samples1)
+    else:
+        xmin = x_range[0]
+        xmax = x_range[1]
+ 
+    if y_range is None:
+        ymin = np.min(samples2)
+        ymax = np.max(samples2)
+    else:
+        ymin = y_range[0]
+        ymax = y_range[1]
+ 
+    hist2d,xedges,yedges = np.histogram2d(samples1, samples2, weights=weights,
+                                          bins=bins, range=[[xmin,xmax],[ymin,ymax]])
+    extent = [xedges[0], xedges[-1], yedges[0], yedges[-1] ]
+ 
+    xedges = np.delete(xedges, -1) + 0.5*(xedges[1] - xedges[0])
+    yedges = np.delete(yedges, -1) + 0.5*(yedges[1] - yedges[0])
+ 
+    # gaussian smoothing
+    if smooth:
+        hist2d = filter.gaussian_filter(hist2d, sigma=0.75)
+ 
+    level1, level2, level3 = getsigmalevels(hist2d)
+    contourlevels = (level1, level2, level3)
+    locAreas=[]
+    for lev in contourlevels:
+        dummy = np.zeros(hist2d.shape)
+        dummy[hist2d>lev] = 1.0
+        locAreas.append(4.0*np.pi * np.sum(dummy)/(dummy.shape[0]*dummy.shape[1]))
+ 
+    return np.array(locAreas)
+
+
+
 def makesubplot2d(ax, samples1, samples2, cmap, color=True, weights=None, smooth=True, contourcolors=('black', 'black', 'black'), \
                   bins=[40, 40], label=None, contours=True, x_range=None, y_range=None, \
                   logx=False, logy=False, logz=False):
@@ -435,7 +474,7 @@ def pol2cart(lon, lat):
     return np.array([x,y,z])
 
 
-def greedy_bin_sky(skypos, skycarts):
+def greedy_bin_sky(skypos, skycarts, weights=None):
     """
 
     Greedy binning algorithm
@@ -444,12 +483,19 @@ def greedy_bin_sky(skypos, skycarts):
 
     N = len(skycarts) 
     skycarts = np.array(skycarts)
-    bins = np.zeros(N) 
+    bins = np.zeros(N)
+    ct = 0
     for raSample, decSample in skypos: 
         sampcart = pol2cart(raSample, decSample) 
         dx = np.dot(skycarts, sampcart)
         maxdx = np.argmax(dx)
-        bins[maxdx] += 1 
+
+        if weights is not None:
+            bins[maxdx] += weights[ct]
+        else:
+            bins[maxdx] += 1
+
+        ct += 1
 
     # fill in skymap
     histIndices = np.argsort(bins)[::-1]    # in decreasing order
@@ -465,7 +511,7 @@ def greedy_bin_sky(skypos, skycarts):
 
 
 def plotSkyMap(raSample, decSample, nside=64, contours=None, colorbar=True, \
-              inj=None, psrs=None):
+              inj=None, weights=None, psrs=None):
     """
 
     Plot Skymap of chain samples on Mollwiede projection.
@@ -479,6 +525,7 @@ def plotSkyMap(raSample, decSample, nside=64, contours=None, colorbar=True, \
     @param colorbar: Boolean option to draw colorbar [default = True]
     @param inj: list of injected values [ra, dec] in radians to plot
                 [default = None]
+    @param weights: sample weights [default = None]
     @param psrs: Stacked array of pulsar sky locations [ra, dec] in radians
                  [default=None] Will plot as white diamonds
 
@@ -499,7 +546,7 @@ def plotSkyMap(raSample, decSample, nside=64, contours=None, colorbar=True, \
         skycarts.append(np.array(hp.pix2vec(nside,ii)))
 
     # get skymap values from greedy binning algorithm
-    skymap = greedy_bin_sky(skypos, skycarts)
+    skymap = greedy_bin_sky(skypos, skycarts, weights)
 
     # smooth skymap
     skymap = hp.smoothing(skymap, 0.05)

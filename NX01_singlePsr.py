@@ -40,6 +40,11 @@ pyximport.install(setup_args={"include_dirs":np.get_include()},
 
 import NX01_jitter as jitter
 
+from mpi4py import MPI
+
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
+
 parser = optparse.OptionParser(description = 'NX01 - Precursor to the PANTHER Group ENTERPRISE project')
 
 ############################
@@ -55,10 +60,10 @@ parser.add_option('--timfile', dest='timfile', action='store', type=str,
                    help='Full path to timfile')
 parser.add_option('--efacequad-sysflag', dest='systarg', action='store', type=str, default='group',
                    help='Which system flag should the EFACs/EQUADs target? (default = \'group\')')
+parser.add_option('--dmVar', dest='dmVar', action='store_true', default=False,
+                   help='Search for DM variations in the data (False)? (default=False)')
 parser.add_option('--fullN', dest='fullN', action='store_true', default=False,
                    help='Search for EFAC/EQUAD/ECORR over all systems (True), or just apply a GEFAC (False)? (default=False)')
-#parser.add_option('--sample-or-maximize', dest='sample_or_maximize', action='store', type=str, default='maximize',
-#                   help='Do you want sample from the posteror distribution or just find the maximum likelihood noise values? (default=\'maximize\')')
 
 (args, x) = parser.parse_args()
 
@@ -78,11 +83,6 @@ if np.any(np.isfinite(t2psr.residuals())==False)==True:
 psr = NX01_psr.PsrObj(t2psr)
 psr.grab_all_vars()
 
-#if args.sample_or_maximize == 'maximize':
-#    from pyswarm import pso
-#else:    
-#    if not os.path.exists('chains_nano_{0}'.format(psr.name)):
-#        os.makedirs('chains_nano_{0}'.format(psr.name))
 if not os.path.exists('chains_ipta_{0}'.format(psr.name)):
     os.makedirs('chains_ipta_{0}'.format(psr.name))
 
@@ -94,7 +94,7 @@ Tmax = psr.toas.max() - psr.toas.min()
 
 if args.nmodes:
 
-    psr.makeTe(args.nmodes, Tmax)
+    psr.makeTe(args.nmodes, Tmax, makeDM=args.dmVar)
     # get GW frequencies
     fqs = np.linspace(1/Tmax, args.nmodes/Tmax, args.nmodes)
     nmode = args.nmodes
@@ -102,7 +102,7 @@ if args.nmodes:
 else:
 
     nmode = int(round(Tmax/args.cadence))
-    psr.makeTe(nmode, Tmax)
+    psr.makeTe(nmode, Tmax, makeDM=args.dmVar)
     # get GW frequencies
     fqs = np.linspace(1/Tmax, nmode/Tmax, nmode)
 
@@ -123,14 +123,19 @@ else:
 def my_prior(cube, ndim, nparams):
     cube[0] = -20.0 + cube[0]*12.0
     cube[1] = cube[1]*6.95
-    cube[2] = -20.0 + cube[2]*12.0
-    cube[3] = cube[3]*6.95
-    for ii in range(4,4+len(systems)):
+
+    ct = 2
+    if args.dmVar==True:
+        cube[ct] = -20.0 + cube[ct]*12.0
+        cube[ct+1] = cube[ct+1]*6.95
+        ct = 4
+
+    for ii in range(ct,ct+len(systems)):
         cube[ii] = 0.1 + cube[ii]*11.9
     if args.fullN==True:
-        for ii in range(4+len(systems),4+2*len(systems)):
+        for ii in range(ct+len(systems),ct+2*len(systems)):
             cube[ii] = -10.0 + cube[ii]*7.0
-        for ii in range(4+2*len(systems),nparams):
+        for ii in range(ct+2*len(systems),nparams):
             cube[ii] = -10.0 + cube[ii]*7.0
 
 def ln_prob(cube, ndim, nparams):
@@ -141,13 +146,17 @@ def ln_prob(cube, ndim, nparams):
     Ared = 10.0**xx[0]
     gam_red = xx[1]
 
-    Adm = 10.0**xx[2]
-    gam_dm = xx[3]
+    ct = 2
+    if args.dmVar==True:
+        Adm = 10.0**xx[ct]
+        gam_dm = xx[ct+1]
 
-    EFAC = xx[4:4+len(systems)]
+        ct = 4
+
+    EFAC = xx[ct:ct+len(systems)]
     if args.fullN==True: 
-        EQUAD = 10.0**xx[4+len(systems):4+2*len(systems)]
-        ECORR = 10.0**xx[4+2*len(systems):]
+        EQUAD = 10.0**xx[ct+len(systems):ct+2*len(systems)]
+        ECORR = 10.0**xx[ct+2*len(systems):]
 
     loglike1 = 0
 
@@ -211,11 +220,19 @@ def ln_prob(cube, ndim, nparams):
     f1yr = 1/3.16e7
 
     # parameterize intrinsic red-noise and DM-variations as power law
-    kappa = np.log10( np.append( Ared**2/12/np.pi**2 * f1yr**(gam_red-3) * (fqs/86400.0)**(-gam_red)/Tspan,
-                                 Adm**2/12/np.pi**2 * f1yr**(gam_dm-3) * (fqs/86400.0)**(-gam_dm)/Tspan ) )
+    if args.dmVar==True:
+        kappa = np.log10( np.append( Ared**2/12/np.pi**2 * f1yr**(gam_red-3) * (fqs/86400.0)**(-gam_red)/Tspan,
+                                    Adm**2/12/np.pi**2 * f1yr**(gam_dm-3) * (fqs/86400.0)**(-gam_dm)/Tspan ) )
+    else:
+        kappa = np.log10( Ared**2/12/np.pi**2 * f1yr**(gam_red-3) * (fqs/86400.0)**(-gam_red)/Tspan )
 
     # construct elements of sigma array
-    diagonal = np.zeros(4*nmode)
+    if args.dmVar==True:
+        mode_count = 4*nmode
+    else:
+        mode_count = 2*nmode
+
+    diagonal = np.zeros(mode_count)
     diagonal[0::2] =  10**kappa
     diagonal[1::2] = 10**kappa
 
@@ -224,8 +241,8 @@ def ln_prob(cube, ndim, nparams):
     logdet_Phi = np.sum(np.log( diagonal ))
   
     # now fill in real covariance matrix
-    Phi = np.zeros( TtNT.shape ) 
-    for kk in range(0,4*nmode):
+    Phi = np.zeros( TtNT.shape )
+    for kk in range(0,mode_count):
         Phi[kk+psr.Gc.shape[1],kk+psr.Gc.shape[1]] = red_phi[kk,kk]
 
     # symmeterize Phi
@@ -254,7 +271,10 @@ def ln_prob(cube, ndim, nparams):
 #########################
 #########################
 
-parameters = ["log(A_red)","gam_red","log(A_dm)","gam_dm"]
+parameters = ["log(A_red)","gam_red"]
+if args.dmVar==True:
+    parameters.append("log(A_dm)")
+    parameters.append("gam_dm")
 for ii in range(len(systems)):
     parameters.append('EFAC_'+systems.keys()[ii])
 if args.fullN==True:
@@ -262,54 +282,27 @@ if args.fullN==True:
         parameters.append('EQUAD_'+systems.keys()[ii])
 
     if len(psr.sysflagdict['nano-f'].keys())>0:
-        print "\n You have some NANOGrav ECORR parameters..."
+        if rank == 0:
+            print "\n You have some NANOGrav ECORR parameters..."
         for ii,nano_sysname in enumerate(psr.sysflagdict['nano-f'].keys()):
             parameters.append('ECORR_'+nano_sysname)
 
-print "\n You are searching for the following single-pulsar parameters: {0}\n".format(parameters)
+if rank == 0:
+    print "\n You are searching for the following single-pulsar parameters: {0}\n".format(parameters)
+
 n_params = len(parameters)
 
-print "\n The total number of parameters is {0}\n".format(n_params)
+if rank == 0:
+    print "\n The total number of parameters is {0}\n".format(n_params)
 
 ##################################
 # Now, we sample or maximize.....
 ##################################
-'''
-if args.sample_or_maximize == 'maximize':
 
-    ##################################################################
-    # SETTING UP PRIOR RANGES
-    ##################################################################
-    pmin = np.array([-20.0,0.0]) # red-noise
-    pmin = np.append(pmin,np.array([-20.0,0.0])) # DM-variation noise
-    pmin = np.append(pmin,0.1*np.ones(len(systems))) # EFACs
-    if args.fullN==True:
-        pmin = np.append(pmin,-10.0*np.ones(len(systems))) #EQUADs
-        pmin = np.append(pmin,-10.0*np.ones(len(psr.sysflagdict['nano-f']))) #ECORRs
+if rank == 0:
+    os.system('say -v Victoria \'Engage N X zero 1!\' ')
+    print args.dmVar
     
-    pmax = np.array([-8.0,7.0]) # red-noise
-    pmax = np.append(pmax,np.array([-8.0,7.0])) # DM-variation noise
-    pmax = np.append(pmax,11.9*np.ones(len(systems))) # EFACs
-    if args.fullN==True:
-        pmax = np.append(pmax,-3.0*np.ones(len(systems))) #EQUADs
-        pmax = np.append(pmax,-3.0*np.ones(len(psr.sysflagdict['nano-f']))) #ECORRs
-
-    ###################################################################
-
-    def swarm_prob(x):
-        return -ln_prob(x)
-
-    xopt, fopt = pso(swarm_prob, pmin, pmax, swarmsize=100, omega=0.5, phip=0.5, phig=0.5, maxiter=1000, debug=True)
-
-    print "\n Printing out the ML noise values for {0}...\n".format(psr.name)
-    fil = open("{0}_MLnoise_nmode{1}.txt".format(psr.name,nmode),'w')
-    for ii in range(len(xopt)):
-        print "{0} = {1}".format(parameters[ii],xopt[ii])
-        print >>fil, "{0} {1}".format(parameters[ii],xopt[ii])
-    print "\n Values saved in {0}_MLnoise_nmode{1}.txt".format(psr.name,nmode)
-
-else:
-'''
 pymultinest.run(ln_prob, my_prior, n_params, importance_nested_sampling = False, resume = False, verbose = True, 
                 n_live_points=500, outputfiles_basename=u'chains_ipta_{0}/{0}_'.format(psr.name), 
                 sampling_efficiency=0.8,const_efficiency_mode=False)
