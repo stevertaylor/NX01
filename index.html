@@ -37,35 +37,19 @@
 <p>Python code to perform isotropic, anisotropic (non-evolving/evolving)
 searches for gravitational-waves via pulsar-timing.</p>
 
+<p>Perhaps you want the <a href="http://stevertaylor.github.io/NX01/">webpage</a>?</p>
+
 <h2>
 <a id="code-list" class="anchor" href="#code-list" aria-hidden="true"><span class="octicon octicon-link"></span></a>Code list</h2>
 
 <ul>
 <li>
 <strong>NX01_master.py</strong>: performs a full evolving-anisotropy GWB and
-noise analysis on the EPTAv2 dataset.</li>
+noise analysis. Uses MultiNest or parallel-tempering sampling.</li>
 <li>
-<strong>NX01_master_auto.py</strong>: performs a full evolving-anisotropy GWB and
-noise analysis on the EPTAv2 dataset, but uses only the
-autocorrelation terms which are sufficient for upper-limits but not
-detection runs.</li>
-<li>
-<strong>NX01_FixedNoise.py</strong>: performs an evolving-anisotropy GWB analysis
-of the EPTAv2 dataset with pulsar noise values fixed at ML values
-obtained from single-pulsar analysis.</li>
-<li>
-<strong>NX01_singlePsr_tf.py</strong>: performs a PSO-maximisation or stochastic
+<strong>NX01_singlePsr.py</strong>: performs a stochastic
 search for single-pulsar noise parameters within the reduced-rank
-time-frequency approximation.</li>
-<li>
-<strong>NX01_freqStat.py</strong>: computes the time-domain optimal-statistic for
-amplitude limits, and also the generalised anisotropic
-optimal-statistic for l&gt;0.</li>
-<li>
-<strong>NX01_noiseSims.py</strong>: simulates .par and .tim files with noise
-characteristics equivalent to ML noise values obtained from
-single-pulsar analysis on real dataset. Background is injected with
-user-specified parameters.</li>
+time-frequency approximation. Uses MultiNest or parallel-tempering sampling.</li>
 <li>
 <strong>NX01_AnisCoefficients.py</strong>: utility file to create power-anisotropy
 basis-functions.</li>
@@ -77,14 +61,13 @@ basis-functions.</li>
 <strong>NX01_psr.py</strong>: utility file which defines the pulsar class for
 storing all relevant variables.</li>
 <li>
+<strong>NX01_datafile.py</strong>: creates an hdf5 container to store all the
+information in the pulsar class. Useful for storing array products.</li>
+<li>
+<strong>NX01_jitter.pxy</strong>: cython code to perform Sherman-Morrison
+block noise-matrix inversions when handling ECORR (jitter). </li>
+<li>
 <strong>NX01_bayesutils.py</strong>: utilities file for generating plotting data.</li>
-<li>
-<strong>NX01_master_EPTAsims.py</strong>: specifically designed for EPTA
-injection and calibration tests. Only searches for GWB and
-red-noise.</li>
-<li>
-<strong>NX01_singlePsr_tf_EPTAsims.py</strong>: specifically designed for EPTA
-injection and calibration tests. Only searches for red-noise.</li>
 </ul>
         </section>
 
