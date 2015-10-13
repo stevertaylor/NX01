@@ -8,36 +8,51 @@ Code contributions by Rutger van Haasteren (piccard) and Justin Ellis (PAL/PAL2)
 
 """
 
+import os, math, optparse, time, cProfile
+from time import gmtime, strftime
+from collections import OrderedDict
+
 import numpy as np
 from numpy import *
-import os
-import math
+
 from scipy import integrate
 from scipy import optimize
 from scipy import constants
 from numpy import random
 from scipy import special as ss
 from scipy import linalg as sl
+
 import numexpr as ne
-import optparse
-import cProfile
 import ephem
 from ephem import *
-import PALInferencePTMCMC as PAL
+
 import libstempo as T2
-import time
-from time import gmtime, strftime
+
 import NX01_AnisCoefficients as anis
 import NX01_utils as utils
 import NX01_psr
+
+import pyximport
+pyximport.install(setup_args={"include_dirs":np.get_include()},
+                  reload_support=True)
+
+import NX01_jitter as jitter
+
+from mpi4py import MPI
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
 
 parser = optparse.OptionParser(description = 'NX01 - Precursor to the PANTHER Group ENTERPRISE project')
 
 ############################
 ############################
 
-parser.add_option('--nmodes', dest='nmodes', action='store', type=int, default=50,
-                   help='Number of modes in low-rank time-frequency approximation (default = 50 modes)')
+parser.add_option('--nmodes', dest='nmodes', action='store', type=int,
+                   help='Number of modes in low-rank time-frequency approximation')
+parser.add_option('--dmVar', dest='dmVar', action='store_true', default=False,
+                   help='Search for DM variations in the data (False)? (default=False)')
+parser.add_option('--ptmcmc', dest='ptmcmc', action='store_true', default=False,
+                   help='Sample using PALs parallel tempering MCMC (False)? (default=False)')
 parser.add_option('--num_gwfreq_wins', dest='num_gwfreq_wins', action='store', type=int, default=1,
                    help='Number windows to split the band into (useful for evolving anisotropic searches (default = 1 windows)')
 parser.add_option('--lmax', dest='LMAX', action='store', type=int, default=0,
@@ -46,10 +61,6 @@ parser.add_option('--use-gpu', dest='use_gpu', action='store_true', default=Fals
                   help='Do you want to use the GPU for accelerated linear algebra? (default = False)')
 parser.add_option('--fix-slope', dest='fix_slope', action='store_true', default=False,
                   help='Do you want to fix the slope of the GWB spectrum? (default = False)')
-parser.add_option('--mean-or-max', dest='mean_or_max', action='store', type=str,
-                   help='Do you want to use the .par files with mean or max-likelihood white-noise parameters?')
-parser.add_option('--snr-tag', dest='snr_tag', action='store', type=float, default=0.9, 
-                   help='Do you want the 90%, 95% or 100% SNR dataset? [6, 11, and 41 pulsars respectively] (default=0.90)')
 parser.add_option('--limit-or-detect', dest='limit_or_detect', action='store', type=str, default='limit',
                    help='Do you want to use a uniform prior on log_10(Agwb) [detect] or Agwb itself [upper-limit] (default=\'limit\')?')
 parser.add_option('--anis-modefile', dest='anis_modefile', action='store', type=str, default = None,
@@ -69,67 +80,30 @@ if args.use_gpu:
 
     culinalg.init()
 
-master_path = os.getcwd()
-path = '/Users/staylor/Research/EPTAv2/UniEQ'  
+if args.nmodes:
+    print "\n You've given me the number of frequencies to include in the low-rank time-frequency approximation, got it?\n"
+else:
+    print "\n You've given me the sampling cadence for the observations, which determines the upper frequency limit and the number of modes, got it?\n"
 
-if args.snr_tag == 0.9:
-    dir = ['J1909-3744', 'J1713+0747', 'J1744-1134', 'J0613-0200', 'J1600-3053', 'J1012+5307']   #gives 90% of total SNR^2
-    snr_tag_ext = '90pct'
-elif args.snr_tag == 0.95:
-    dir = ['J1909-3744', 'J1713+0747', 'J1744-1134', 'J0613-0200', 'J1600-3053', 'J1012+5307', \
-           'J1640+2224', 'J2145-0750', 'J1857+0943', 'J1022+1001', 'J0030+0451'] # gives 95% of total SNR^2
-    snr_tag_ext = '95pct'
-elif args.snr_tag == 1.0:
-    os.chdir(path)
-    dir = os.walk('.').next()[1]
-    dir.remove('J1939+2134')
-    os.chdir(master_path)
-    snr_tag_ext = '100pct'
+if args.ptmcmc==True:
+    import PALInferencePTMCMC as PAL
+else:
+    import pymultinest
 
-if not os.path.exists('chains_Analysis'):
-    os.makedirs('chains_Analysis')
+parser = optparse.OptionParser(description = 'NX01 - Precursor to the PANTHER Group ENTERPRISE project')
 
-pulsars = [s for s in dir if "J" in s]
-pulsars.sort()
-
-print pulsars
 ################################################################################################################################
 # PASSING THROUGH TEMPO2 VIA libstempo
 ################################################################################################################################
-if args.mean_or_max == 'mean':
-    par_ext = 'Mean'
-elif args.mean_or_max == 'max':
-    par_ext = 'ML'
 
 t2psr=[]
-for ii in range(len(pulsars)):
-    os.chdir(path+'/'+pulsars[ii])
-    if os.path.isfile('{0}_NoAFB.par'.format(pulsars[ii])):
-        t2psr.append(T2.tempopulsar(parfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_TD.{0}.par'.format(par_ext),\
-                                    timfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_NoAFB.tim'))
-    else:
-        t2psr.append(T2.tempopulsar(parfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_TD.{0}.par'.format(par_ext),\
-                                    timfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_all.tim'))
-    os.chdir(path)
+for ii,p in enumerate(pulsars):
+    t2psr.append( T2.tempopulsar(parfile=args.parfile, timfile=args.timfile) )
     t2psr[ii].fit(iters=10)
-    if np.any(np.isfinite(t2psr[ii].residuals())==False)==True:
-        os.chdir(path+'/'+pulsars[ii])
-        if os.path.isfile('{0}_NoAFB.par'.format(pulsars[ii])):
-            t2psr[ii] = T2.tempopulsar(parfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_TD.{0}.par'.format(par_ext),\
-                                       timfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_NoAFB.tim')
-        else:
-            t2psr[ii] = T2.tempopulsar(parfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_TD.{0}.par'.format(par_ext),\
-                                       timfile=path+'/'+pulsars[ii]+'/'+pulsars[ii]+'_all.tim')
-        os.chdir(path)
+    if np.any(np.isfinite(t2psr.residuals())==False)==True:
+        t2psr = T2.tempopulsar(parfile=args.parfile,timfile=args.timfile)
 
-os.chdir(master_path)
-
-################################################################################################################################
-# MAKING A PULSAR OBJECT, THEN GRABBING ALL THE VARIABLES, e.g. toas, residuals, error-bars, designmatrices etc.
-################################################################################################################################
-
-psr = [NX01_psr.PsrObj(t2psr[ii]) for ii in range(len(t2psr))]
-
+psr = [psrNX01_psr.PsrObj(p) for p in enumerate(t2psr)]
 [psr[ii].grab_all_vars() for ii in range(len(psr))]
 
 psr_positions = [np.array([psr[ii].psr_locs[0], np.pi/2. - psr[ii].psr_locs[1]]) for ii in range(len(psr))]
@@ -160,132 +134,35 @@ else:
 ################################################################################################################################
 # GETTING MAXIMUM TIME, COMPUTING FOURIER DESIGN MATRICES, AND GETTING MODES 
 ################################################################################################################################
-Tmax = np.max([psr[p].toas.max() - psr[p].toas.min() for p in range(len(psr))])
 
-# initialize fourier design matrices
-[psr[ii].makeFtot(args.nmodes, Tmax) for ii in range(len(psr))]
-F = [psr[ii].Ftot for ii in range(len(psr))]
+Tmax = np.max([psr[ii].toas.max() - psr[ii].toas.min() for ii in range(len(psr))])
 
-# get GW frequencies
-fqs = np.linspace(1/Tmax, args.nmodes/Tmax, args.nmodes)
+if args.nmodes:
 
-################################################################################################################################
-# FORM A LIST COMPOSED OF NP ARRAYS CONTAINING THE INDEX POSITIONS WHERE EACH UNIQUE 'sys' BACKEND IS APPLIED
-################################################################################################################################
+    [psr[p].makeTe(args.nmodes, Tmax, makeDM=args.dmVar) for p in range(len(psr))]
+    # get GW frequencies
+    fqs = np.linspace(1/Tmax, args.nmodes/Tmax, args.nmodes)
+    nmode = args.nmodes
 
-backends = []
-[psr[ii].get_backends() for ii in range(len(psr))]
-for ii in range(len(psr)):
-    backends.append(psr[ii].bkends)
+else:
 
-################################################################################################################################
-# GETTING MAXIMUM-LIKELIHOOD VALUES OF SINGLE-PULSAR ANALYSIS FOR OUR STARTING POINT
-################################################################################################################################
-
-Adm_ML=[]
-gam_dm_ML=[]
-Ared_ML=[]
-gam_red_ML=[]
-EFAC_ML = [[0.0]*len(backends[jj]) for jj in range(len(backends))]
-EQUAD_ML = [[0.0]*len(backends[jj]) for jj in range(len(backends))]
-for ii in range(len(pulsars)):
-    with open(path+'/{0}/{0}_Taylor_TimeDomain_model1.txt'.format(psr[ii].name), 'r') as f:
-        Adm_ML.append(float(f.readline().split()[3]))
-        gam_dm_ML.append(float(f.readline().split()[3]))
-        Ared_ML.append(float(f.readline().split()[3]))
-        gam_red_ML.append(float(f.readline().split()[3]))
-        for jj in range(len(backends[ii])):
-            EFAC_ML[ii][jj] = float(f.readline().split()[3])
-        for jj in range(len(backends[ii])):
-            EQUAD_ML[ii][jj] = float(f.readline().split()[3])
+    nmode = int(round(Tmax/args.cadence))
+    [psr[p].makeTe(nmode, Tmax, makeDM=args.dmVar) for p in range(len(psr))]
+    # get GW frequencies
+    fqs = np.linspace(1/Tmax, nmode/Tmax, nmode)
 
 
 ################################################################################################################################
-# GETTING MEAN AND ERROR-BARS VALUES OF SINGLE-PULSAR ANALYSIS FOR OUR INITIAL PARAMETER COVARIANCE ESTIMATE
-################################################################################################################################
-Adm_mean=[]
-Adm_err=[]
-gam_dm_mean=[]
-gam_dm_err=[]
-Ared_mean=[]
-Ared_err=[]
-gam_red_mean=[]
-gam_red_err=[]
-EFAC_mean = [[0.0]*len(backends[jj]) for jj in range(len(backends))]
-EFAC_err = [[0.0]*len(backends[jj]) for jj in range(len(backends))]
-EQUAD_mean = [[0.0]*len(backends[jj]) for jj in range(len(backends))]
-EQUAD_err = [[0.0]*len(backends[jj]) for jj in range(len(backends))]
-for ii in range(len(pulsars)):
-    with open(path+'/{0}/{0}_Taylor_TimeDomain_model1.txt'.format(psr[ii].name), 'r') as f:
-        line = f.readline().split()
-        Adm_mean.append( 0.5 * (np.log10(float(line[5])) + np.log10(float(line[4]))) ) # the means and error bars will be in log10
-        Adm_err.append( 0.5 * (np.log10(float(line[5])) - np.log10(float(line[4]))) )
-
-        line = f.readline().split()
-        gam_dm_mean.append( 0.5 * (np.log10(float(line[5])) + np.log10(float(line[4]))) )
-        gam_dm_err.append( 0.5 * (np.log10(float(line[5])) - np.log10(float(line[4]))) )
-        
-        line = f.readline().split()
-        Ared_mean.append( 0.5 * (np.log10(float(line[5])) + np.log10(float(line[4]))) )
-        Ared_err.append( 0.5 * (np.log10(float(line[5])) - np.log10(float(line[4]))) )
-        
-        line = f.readline().split()
-        gam_red_mean.append( 0.5 * (np.log10(float(line[5])) + np.log10(float(line[4]))) )
-        gam_red_err.append( 0.5 * (np.log10(float(line[5])) - np.log10(float(line[4]))) )
-        for jj in range(len(backends[ii])):
-            line = f.readline().split()
-            EFAC_mean[ii][jj] = 0.5 * (np.log10(float(line[5])) + np.log10(float(line[4])))
-            EFAC_err[ii][jj] = 0.5 * (np.log10(float(line[5])) - np.log10(float(line[4])))
-        for jj in range(len(backends[ii])):
-            line = f.readline().split()
-            EQUAD_mean[ii][jj] = 0.5 * (np.log10(float(line[5])) + np.log10(float(line[4])))
-            EQUAD_err[ii][jj] = 0.5 * (np.log10(float(line[5])) - np.log10(float(line[4])))
-    f.close()
-
-################################################################################################################################
-# MAKE FIXED NOISE MATRICES FROM MAXIMUM-LIKELIHOOD VALUES OF SINGLE-PULSAR ANALYSIS
-################################################################################################################################
-Diag=[]
-res_prime=[]
-F_prime=[]
-for ii in range(len(psr)):   
-    psr[ii].two_comp_noise(MLerrors=psr[ii].toaerrs)
-    Diag.append( psr[ii].diag_white )
-    res_prime.append( psr[ii].res_prime )
-    F_prime.append( psr[ii].Ftot_prime )
-
-################################################################################################################################
-# SETTING UP PRIOR RANGES
+# FORM A LIST COMPOSED OF NP ARRAYS CONTAINING THE INDEX POSITIONS WHERE EACH UNIQUE SYSTEM IS APPLIED
 ################################################################################################################################
 
-pmin = np.array([-20.0])
-if args.fix_slope is False:
-    pmin = np.append(pmin,[0.0])
-pmin = np.append(pmin,-20.0*np.ones(len(psr)))
-pmin = np.append(pmin,0.0*np.ones(len(psr)))
-pmin = np.append(pmin,-20.0*np.ones(len(psr)))
-pmin = np.append(pmin,0.0*np.ones(len(psr)))
-pmin = np.append(pmin,0.1*np.ones(len(psr)))
-pmin = np.append(pmin,-20.0)
-pmin = np.append(pmin,0.0)
-pmin = np.append(pmin,-20.0)
-pmin = np.append(pmin,0.0)
-pmin = np.append(pmin,-10.0*np.ones( tmp_num_gwfreq_wins*(((args.LMAX+1)**2)-1) ))
+if args.fullN==True:
+    systems = psr.sysflagdict[args.systarg]
+else:
+    systems = OrderedDict.fromkeys([psr.name])
+    systems[psr.name] = np.arange(len(psr.toas))
 
-pmax = np.array([-10.0])
-if args.fix_slope is False:
-    pmax = np.append(pmax,[7.0])
-pmax = np.append(pmax,-10.0*np.ones(len(psr)))
-pmax = np.append(pmax,7.0*np.ones(len(psr)))
-pmax = np.append(pmax,-10.0*np.ones(len(psr)))
-pmax = np.append(pmax,7.0*np.ones(len(psr)))
-pmax = np.append(pmax,10.0*np.ones(len(psr)))
-pmax = np.append(pmax,-10.0)
-pmax = np.append(pmax,7.0)
-pmax = np.append(pmax,-10.0)
-pmax = np.append(pmax,7.0)
-pmax = np.append(pmax,10.0*np.ones( tmp_num_gwfreq_wins*(((args.LMAX+1)**2)-1) ))
-##################################################################################################################################
+################################################################################################################################
 
 def my_prior(x):
     logp = 0.
@@ -298,31 +175,43 @@ def my_prior(x):
     return logp
 
 
-def modelIndependentFullPTANoisePL(x):
+def modelIndependentFullPTANoisePL(xx):
     """
     Model Independent stochastic background likelihood function
 
     """ 
 
-    Agwb = 10.0**x[0]
-    if args.fix_slope:
-        gam_gwb = 13./3.
-        ct = 1
+    #########################
+    # Pulsar noise parameters
+    #########################
+    
+    Ared = 10.0**x[:len(psr)]
+    gam_red = x[len(psr):2*len(psr)]
+    if args.dmVar==True:
+        Adm = 10.0**x[2*len(psr):3*len(psr)]
+        gam_dm = x[3*len(psr):4*len(psr)]
+        cta = 2
     else:
-        gam_gwb = x[1]
-        ct = 2
-    #####
-    Ared = 10.0**x[ct:ct+len(psr)]
-    gam_red = x[ct+len(psr):ct+2*len(psr)]
-    Adm = 10.0**x[ct+2*len(psr):ct+3*len(psr)]
-    gam_dm = x[ct+3*len(psr):ct+4*len(psr)]
-    EFAC = x[ct+4*len(psr):ct+5*len(psr)]
-    Acm = 10.0**x[ct+5*len(psr)]
-    gam_cm = x[ct+5*len(psr) + 1]
-    Aun = 10.0**x[ct+5*len(psr) + 2]
-    gam_un = x[ct+5*len(psr) + 3]
-    ###################
-    orf_coeffs = x[ct+5*len(psr) + 4:]
+        cta = 1
+    EFAC = x[2*cta*len(psr):(2*cta+1)*len(psr)]
+
+    #########################
+    # GWB parameters
+    #########################
+
+    Agwb = 10.0**x[(2*cta+1)*len(psr)]
+    if args.fix_slope:
+        gam_gwb = 13./3
+        ctb = 1
+    else:
+        gam_gwb = x[(2*cta+1)*len(psr)+1]
+        ctb = 2
+
+    #########################
+    # Anisotropy parameters
+    #########################
+    
+    orf_coeffs = x[ctb+(2*cta+1)*len(psr):]
     orf_coeffs = orf_coeffs.reshape((tmp_num_gwfreq_wins,((args.LMAX+1)**2)-1))
     clm = np.array([[0.0]*((args.LMAX+1)**2) for ii in range(tmp_num_gwfreq_wins)])
     clm[:,0] = 2.0*np.sqrt(np.pi)
@@ -354,26 +243,47 @@ def modelIndependentFullPTANoisePL(x):
 
     loglike1 = 0
     FtNF = []
-    for p in range(len(psr)):
+    for ii,p in enumerate(psr):
 
-        # compute d
-        if p == 0:
-            d = np.dot(F_prime[p].T, res_prime[p]/( (EFAC[p]**2.0)*Diag[p] ))
-        else:
-            d = np.append(d, np.dot(F_prime[p].T, res_prime[p]/( (EFAC[p]**2.0)*Diag[p] )))
+        # compute ( T.T * N^-1 * T ) & log determinant of N
+        if args.fullN==True:
+            if len(ECORR)>0:
+                Jamp = np.ones(len(p.epflags))
+                for jj,nano_sysname in enumerate(p.sysflagdict['nano-f'].keys()):
+                    Jamp[np.where(p.epflags==nano_sysname)] *= ECORR[jj]**2.0
 
-        # compute FT N F
-        N = 1./( (EFAC[p]**2.0)*Diag[p] )
-        right = (N*F_prime[p].T).T
-        FtNF.append(np.dot(F_prime[p].T, right))
-
-        # log determinant of N
-        logdet_N = np.sum(np.log( (EFAC[p]**2.0)*Diag[p] ))
+                Nx = jitter.cython_block_shermor_0D(p.res.astype(np.float64), new_err**2., Jamp, psr.Uinds)
+                d = np.dot(p.Te.T, Nx)
+                logdet_N, TtNT = jitter.cython_block_shermor_2D(p.Te, new_err**2., Jamp, p.Uinds)
+                det_dummy, dtNdt = jitter.cython_block_shermor_1D(p.res.astype(np.float64), new_err**2., Jamp, psr.Uinds)
+            else:
+                d = np.dot(p.Te.T, psr.res/( new_err**2.0 ))
         
-        # triple product in likelihood function
-        dtNdt = np.sum(res_prime[p]**2.0/( (EFAC[p]**2.0)*Diag[p] ))
+                N = 1./( new_err**2.0 )
+                right = (N*p.Te.T).T
+                TtNT = np.dot(p.Te.T, right)
+        
+                logdet_N = np.sum(np.log( new_err**2.0 ))
+            
+                # triple product in likelihood function
+                dtNdt = np.sum(p.res**2.0/( new_err**2.0 ))
+        
+        else:
+
+            d = np.dot(p.Te.T, psr.res/( new_err**2.0 ))
+            
+            N = 1./( new_err**2.0 )
+            right = (N*p.Te.T).T
+            TtNT = np.dot(p.Te.T, right)
+    
+            logdet_N = np.sum(np.log( new_err**2.0 ))
+        
+            # triple product in likelihood function
+            dtNdt = np.sum(p.res**2.0/( new_err**2.0 ))
 
         loglike1 += -0.5 * (logdet_N + dtNdt)
+
+       
     
     
     # parameterize intrinsic red noise as power law

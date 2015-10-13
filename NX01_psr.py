@@ -35,12 +35,13 @@ class PsrObj(object):
     Gc = None
     Te = None
     name = "J0000+0000"
-    Tmax = None
     Gres = None
     epflags = None
 
     def __init__(self, t2obj):
         self.T2psr = t2obj
+        self.parfile = None
+        self.timfile = None
         self.psr_locs = None
         self.toas = None
         self.toaerrs = None
@@ -59,7 +60,6 @@ class PsrObj(object):
         self.Umat = None
         self.Uinds = None
         self.name = "J0000+0000"
-        self.Tmax = None
         self.sysflagdict = None
         self.Gres = None
         self.epflags = None
@@ -69,22 +69,27 @@ class PsrObj(object):
     """
     def grab_all_vars(self, jitterbin=10.): # jitterbin is in seconds
 
-        print "\n --> Processing {0}".format(self.T2psr.name)
+        print "--> Processing {0}".format(self.T2psr.name)
         
         # basic quantities
         self.name = self.T2psr.name
-        self.toas = self.T2psr.toas()
-        self.res = self.T2psr.residuals()
-        self.toaerrs = self.T2psr.toaerrs * 1e-6
-        self.obs_freqs = self.T2psr.freqs
-        self.Mmat = self.T2psr.designmatrix()
+        self.toas = np.double(self.T2psr.toas())
+        self.res = np.double(self.T2psr.residuals())
+        self.toaerrs = np.double(self.T2psr.toaerrs) * 1e-6
+        self.obs_freqs = np.double(self.T2psr.ssbfreqs())
+        self.Mmat = np.double(self.T2psr.designmatrix())
               
         # get the sky position
         if 'RAJ' and 'DECJ' in self.T2psr.pars():
             self.psr_locs = [self.T2psr['RAJ'].val,self.T2psr['DECJ'].val]
         elif 'ELONG' and 'ELAT' in self.T2psr.pars():
             fac = 180./np.pi
-            coords = Equatorial(Ecliptic(str(self.T2psr['ELONG'].val*fac), str(self.T2psr['ELAT'].val*fac)))
+            # check for B name
+            if 'B' in self.name:
+                epoch = '1950'
+            else:
+                epoch = '2000'
+            coords = Equatorial(Ecliptic(str(self.T2psr['ELONG'].val*fac), str(self.T2psr['ELAT'].val*fac)), epoch=epoch)
             self.psr_locs = [float(repr(coords.ra)),float(repr(coords.dec))]
 
         print "--> Grabbed the pulsar position."
@@ -157,7 +162,6 @@ class PsrObj(object):
                 self.toaerrs = self.toaerrs[isort]
                 self.res = self.res[isort]
                 self.obs_freqs = self.obs_freqs[isort]
-                #flags = self.T2psr.flagvals('group')[isort]
                 self.Mmat = self.Mmat[isort, :]
                 detresiduals = self.res.copy()
 
