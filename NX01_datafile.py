@@ -20,6 +20,7 @@ import os, sys
 import tempfile
 import ephem
 import os
+import cPickle as pickle
 
 import NX01_utils
 
@@ -268,10 +269,11 @@ class DataFile(object):
         self.writeData(psrGroup, 'parfile', parfile_content, overwrite=overwrite)
         self.writeData(psrGroup, 'timfile', timfile_content, overwrite=overwrite)
 
+        # Save the path to the parfile and timfile
         self.writeData(psrGroup, 'parfilepath', psr.parfile, overwrite=overwrite)
         self.writeData(psrGroup, 'timfilepath', psr.timfile, overwrite=overwrite)
 
-
+        # Save the basic quantities
         self.writeData(psrGroup, 'TOAs', psr.toas,
                        overwrite=overwrite)    # Days
         self.writeData(psrGroup, 'postfitRes', psr.res,
@@ -281,6 +283,7 @@ class DataFile(object):
         self.writeData(psrGroup, 'freq', psr.obs_freqs,
                        overwrite=overwrite)    # MHz
 
+        # Save some useful matrices
         self.writeData(psrGroup, 'designmatrix', psr.Mmat,
                        overwrite=overwrite)
         self.writeData(psrGroup, 'Gmatrix', psr.G,
@@ -294,33 +297,31 @@ class DataFile(object):
                        overwrite=overwrite)
         self.writeData(psrGroup, 'QuantInds', psr.Uinds,
                        overwrite=overwrite)
-        #self.writeData(psrGroup, 'SysFlagDict', psr.sysflagdict['f'],
-        #               overwrite=overwrite)
         self.writeData(psrGroup, 'EpochFlags', psr.epflags,
                        overwrite=overwrite)
 
-        self.writeData(psrGroup, 'psrlocs', psr.psr_locs,
+        # pickle and store system flag dictionary
+        storeFlagDict = pickle.dumps(psr.sysflagdict)
+        self.writeData(psrGroup, 'SysFlagDict', storeFlagDict,
                        overwrite=overwrite)
 
-
-        # Get the flag group for this pulsar. Create if not there
-        flagGroup = psrGroup.require_group('SysFlagDict')
-        flagType = flagGroup.require_group()
+        # Save the pulsar locations
+        self.writeData(psrGroup, 'psrlocs', psr.psr_locs,
+                       overwrite=overwrite)
         
-
-        '''
+        
         # get pulsar distance and uncertainty (need pulsarDistances.txt file for this)
-        fin = open(PAL2.__path__[0]+'/pulsarDistances.txt', 'r')
+        fin = open('pulsarDistances.txt', 'r')
         lines = fin.readlines()
         found = 0
         for line in lines:
             vals = line.split()
-            if t2pulsar.name in vals[0]:
+            if psr.name in vals[0]:
                 pdist, pdistErr = np.double(vals[1]), np.double(vals[2])
                 found = True
         if not(found):
             print ('WARNING: Could not find pulsar distance for PSR {0}. '
-                   'Setting value to 1 with 20% uncertainty'.format(t2pulsar.name))
+                   'Setting value to 1 with 20% uncertainty'.format(psr.name))
             pdist, pdistErr = 1.0, 0.2
 
         # close file
@@ -329,7 +330,7 @@ class DataFile(object):
         # write to file
         self.writeData(psrGroup, 'pdist', pdist, overwrite=overwrite)
         self.writeData(psrGroup, 'pdistErr', pdistErr, overwrite=overwrite)
-        '''
+        
         
         # Now obtain and write the timing model parameters
         tmpname = ['Offset'] + list(map(str,psr.T2psr.pars()))
@@ -347,98 +348,7 @@ class DataFile(object):
                        overwrite=overwrite) # TMP post-fit error
 
 
-        #nobs = len(psr.toas)
-        #pulsarname = map(str, [psr.name] * nobs)
-
-            
-        #       efacequad = map('-'.join, zip(pulsarname, flagGroup['sys']))
-
-
-
-
-
-
-
-        '''
-        # Get the flag group for this pulsar. Create if not there
-        flagGroup = psrGroup.require_group('Flags')
-
-        # Obtain the unique flags in this dataset, and write to file
-        uflags = np.unique(map(str, t2pulsar.flags()))
         
-        for flagid in uflags:
-            self.writeData(flagGroup, flagid,
-                           map(str, t2pulsar.flagvals(flagid)),
-                           overwrite=overwrite)
-        
-
-        if not "efacequad" in flagGroup:
-            # Check if the sys-flag is present in this set. If it is, add an
-            # efacequad flag with pulsarname+content of the sys-flag. If it
-            # isn't, check for a be-flag and try the same. Otherwise, add an
-            # efacequad flag with the pulsar name as it's elements.
-            efacequad = []
-            nobs = len(t2pulsar.toas())
-            pulsarname = map(str, [t2pulsar.name] * nobs)
-
-            if "sys" in flagGroup:
-                efacequad = map('-'.join, zip(pulsarname, flagGroup['sys']))
-            elif "be" in flagGroup:
-                efacequad = map('-'.join, zip(pulsarname, flagGroup['be']))
-            else:
-                efacequad = pulsarname
-
-            self.writeData(flagGroup, "efacequad", efacequad, overwrite=overwrite)
-
-        if not 'bw' in flagGroup:
-            nobs = len(t2pulsar.toas())
-            if 'bw' in flagGroup:
-                #print 'Including band width flags for PSR {0}'.format(t2pulsar.name)
-                bw = flagGroup['bw']
-            else:
-                #print 'No bandwidth flags for PSR {0}'.format(t2pulsar.name)
-                bw = np.ones(nobs) * 16
-
-            self.writeData(flagGroup, "bw", bw, overwrite=overwrite)
-        
-        if not "efacequad_freq" in flagGroup:
-            efacequad_freq = []
-            nobs = len(t2pulsar.toas())
-            pulsarname = str(t2pulsar.name)
-
-
-            for ii in range(nobs):
-
-                if 'group' in flagGroup and flagGroup['group'][ii] != '':
-                    efacequad_freq.append('-'.join((pulsarname, flagGroup['group'][ii])))
-                
-                elif 'avgroup' in flagGroup and flagGroup['avgroup'][ii] != '':
-                    efacequad_freq.append('-'.join((pulsarname, flagGroup['avgroup'][ii])))
-
-                elif 'sys' in flagGroup and flagGroup['sys'][ii] != '':
-                    efacequad_freq.append('-'.join((pulsarname, flagGroup['sys'][ii])))
-                
-                elif 'i' in flagGroup and flagGroup['i'][ii] != '':
-                    efacequad_freq.append('-'.join((pulsarname, flagGroup['i'][ii])))
-                
-                elif 'f' in flagGroup and flagGroup['f'][ii] != '':
-                    efacequad_freq.append('-'.join((pulsarname, flagGroup['f'][ii])))
-
-                elif 'fe' in flagGroup and 'be' in flagGroup and \
-                        flagGroup['fe'][ii] != '' and flagGroup['be'] != '':
-                    fflag = '-'.join((flagGroup['fe'][ii], flagGroup['be'][ii]))
-                    efacequad_freq.append('-'.join((pulsarname, fflag)))
-                
-                else:
-                    #print 'WARNING: no flagGroup found for TOA {0} \
-                    #        in pulsar {1}'.format(ii, pulsarname)
-                    efacequad_freq.append(pulsarname)
-            
-            self.writeData(flagGroup, "efacequad_freq", efacequad_freq, overwrite=overwrite)
-        
-        
-
-        '''
         # Close the HDF5 file
         self.h5file.close()
         self.h5file = None
