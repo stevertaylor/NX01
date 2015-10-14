@@ -66,8 +66,10 @@ parser.add_option('--use-gpu', dest='use_gpu', action='store_true', default=Fals
                   help='Do you want to use the GPU for accelerated linear algebra? (default = False)')
 parser.add_option('--fix-slope', dest='fix_slope', action='store_true', default=False,
                   help='Do you want to fix the slope of the GWB spectrum? (default = False)')
-parser.add_option('--limit-or-detect', dest='limit_or_detect', action='store', type=str, default='limit',
+parser.add_option('--limit-or-detect-gwb', dest='limit_or_detect_gwb', action='store', type=str, default='limit',
                    help='Do you want to use a uniform prior on log_10(Agwb) [detect] or Agwb itself [upper-limit] (default=\'limit\')?')
+parser.add_option('--limit-or-detect-red', dest='limit_or_detect_red', action='store', type=str, default='limit',
+                   help='Do you want to use a uniform prior on log_10(Ared) [detect] or Ared itself [upper-limit] (default=\'limit\')?')
 parser.add_option('--anis-modefile', dest='anis_modefile', action='store', type=str, default = None,
                    help='Do you want to provide an anisotropy modefile to split band into frequency windows?')
 parser.add_option('--fullN', dest='fullN', action='store_true', default=True,
@@ -245,12 +247,12 @@ if args.fix_slope==False:
 pmin = np.append(pmin,-10.0*np.ones( tmp_num_gwfreq_wins*(((args.LMAX+1)**2)-1) ))
 
 
-pmax = -10.0*np.ones(len(psr))
+pmax = -11.0*np.ones(len(psr))
 pmax = np.append(pmax,7.0*np.ones(len(psr)))
 if args.dmVar==True:
-    pmax = np.append(pmax,-10.0*np.ones(len(psr)))
+    pmax = np.append(pmax,-11.0*np.ones(len(psr)))
     pmax = np.append(pmax,7.0*np.ones(len(psr)))
-pmax = np.append(pmax,-10.0)
+pmax = np.append(pmax,-11.0)
 if args.fix_slope==False:
     pmax = np.append(pmax,7.0)
 pmax = np.append(pmax,10.0*np.ones( tmp_num_gwfreq_wins*(((args.LMAX+1)**2)-1) ))
@@ -486,12 +488,17 @@ def lnprob(xx):
             logLike = -0.5 * (logdet_Phi + logdet_Sigma) + 0.5 * (np.dot(d, expval2)) + loglike1 
 
 
-        if args.limit_or_detect == 'limit':
-            prior_factor = np.log(Agwb * np.log(10.0))
+        if args.limit_or_detect_gwb == 'limit':
+            priorfac_gwb = np.log(Agwb * np.log(10.0))
         else:
-            prior_factor = 0.0
+            priorfac_gwb = 0.0
 
-        return logLike + prior_factor + physicality
+        if args.limit_or_detect_red == 'limit':
+            priorfac_red = np.sum(np.log(Ared * np.log(10.0)))
+        else:
+            priorfac_red = 0.0
+
+        return logLike + priorfac_gwb + priorfac_red + physicality
 
 
 #########################
@@ -556,10 +563,10 @@ cProfile.run('lnprob(x0)')
 
 print "\n Now, we sample... \n"
 sampler = PAL.PTSampler(ndim=n_params,logl=lnprob,logp=my_prior,cov=np.diag(cov_diag),\
-                        outDir='./chains_nanoAnalysis/nanograv_{0}mode_nmodes{1}_Lmax{2}_{3}_{4}'.\
-                        format(args.limit_or_detect,args.nmodes,args.LMAX,evol_anis_tag,gamma_ext),resume=True)
+                        outDir='./chains_nanoAnalysis/nanograv_gwb{0}_red{1}_nmodes{2}_Lmax{3}_{4}_{5}'.\
+                        format(args.limit_or_detect_gwb,args.limit_or_detect_red,args.nmodes,args.LMAX,evol_anis_tag,gamma_ext),resume=False)
 if args.anis_modefile is not None:
-    os.system('cp {0} {1}'.format(args.anis_modefile,'./chains_nanoAnalysis/nanograv_{0}mode_nmodes{1}_Lmax{2}_{3}_{4}'.\
-                                  format(args.limit_or_detect,args.nmodes,args.LMAX,evol_anis_tag,gamma_ext)))
+    os.system('cp {0} {1}'.format(args.anis_modefile,'./chains_nanoAnalysis/nanograv_gwb{0}_red{1}_nmodes{2}_Lmax{3}_{4}_{5}'.\
+                                  format(args.limit_or_detect_gwb,args.limit_or_detect_red,args.nmodes,args.LMAX,evol_anis_tag,gamma_ext)))
 
 sampler.sample(p0=x0,Niter=1e6,thin=10)
