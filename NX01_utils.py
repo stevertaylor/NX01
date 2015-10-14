@@ -57,8 +57,9 @@ def makeRedTDcov(Ared, gam_red, tm):
     fL = 1/(100.0*Tspan)
     xgrid = 2.0*np.pi*fL*tm
     
-    Cred = ( (Ared**2.0)*(fL**(1.0-gam_red)) / (12.0*np.pi**2.0) ) * ((ss.gamma(1.0-gam_red)*np.sin(np.pi*gam_red/2.)*ne.evaluate("xgrid**(gam_red-1.0)"))\
-                                                                      - sumTermCovarianceMatrix_fast(tm, fL, gam_red))
+    Cred = (( (Ared**2.0)*(fL**(1.0-gam_red)) / (12.0*np.pi**2.0) ) *
+            ((ss.gamma(1.0-gam_red)*np.sin(np.pi*gam_red/2.)*ne.evaluate("xgrid**(gam_red-1.0)"))
+             - sumTermCovarianceMatrix_fast(tm, fL, gam_red)))
     Cred *= ((365.25*86400.0)**2.0)
 
     return Cred
@@ -74,8 +75,9 @@ def makeDmTDcov(psr, Adm, gam_dm, tm):
     DmA,DmB = np.meshgrid(Dm,Dm)
     DmGrid = DmA*DmB
    
-    Cdm = ( (Adm**2.0)*(fL**(1.0-gam_dm)) / (12.0*np.pi**2.0) ) * ((ss.gamma(1-gam_dm)*np.sin(np.pi*gam_dm/2)*ne.evaluate("xgrid**(gam_dm-1)")) \
-                                                                   - sumTermCovarianceMatrix_fast(tm, fL, gam_dm))
+    Cdm = (( (Adm**2.0)*(fL**(1.0-gam_dm)) / (12.0*np.pi**2.0) ) *
+           ((ss.gamma(1-gam_dm)*np.sin(np.pi*gam_dm/2)*ne.evaluate("xgrid**(gam_dm-1)"))
+             - sumTermCovarianceMatrix_fast(tm, fL, gam_dm)))
     Cdm *= ((365.25*86400.0)**2.0)
     Cdm = np.multiply(DmGrid,Cdm)
 
@@ -488,19 +490,6 @@ def PhysPrior(clm,harm_sky_vals):
     Check whether these anisotropy coefficients correspond to a physical
     angular-distribution of the metric-perturbation quadratic
     expectation-value.
-    """
-    """ngrid_phi = 20
-    ngrid_costheta = 20
-    
-    phi = np.arange(0.0,2.0*np.pi,2.0*np.pi/ngrid_phi)
-    theta = np.arccos(np.arange(-1.0,1.0,2.0/ngrid_costheta))
-
-    xx, yy = np.meshgrid(phi,theta)
-
-    harm_sky_vals = [[0.0]*(2*ll+1) for ll in range(lmax+1)]
-    for ll in range(len(harm_sky_vals)):
-        for mm in range(len(harm_sky_vals[ll])):
-            harm_sky_vals[ll][mm] = real_sph_harm(ll,mm-ll,xx,yy)
     """
 
     Pdist=0.

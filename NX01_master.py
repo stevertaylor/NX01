@@ -47,6 +47,10 @@ parser = optparse.OptionParser(description = 'NX01 - Precursor to the PANTHER Gr
 ############################
 ############################
 
+parser.add_option('--from-h5', dest='from_h5', action='store_true', default = False,
+                   help='Do you want to read in pulsars from hdf5 files instead of directly via libstempo? (default = False)')
+parser.add_option('--psrlist', dest='psrlist', action='store', type=str, default = None,
+                   help='Provide path to file containing list of pulsars and their respective par/tim paths')
 parser.add_option('--nmodes', dest='nmodes', action='store', type=int,
                    help='Number of modes in low-rank time-frequency approximation')
 parser.add_option('--dmVar', dest='dmVar', action='store_true', default=False,
@@ -68,6 +72,7 @@ parser.add_option('--anis-modefile', dest='anis_modefile', action='store', type=
 
 (args, x) = parser.parse_args()
 
+# Do you want to use GPU acceleration?
 if args.use_gpu:
     import pycuda.autoinit
     from pycuda.compiler import SourceModule
@@ -85,7 +90,7 @@ if args.nmodes:
 else:
     print "\n You've given me the sampling cadence for the observations, which determines the upper frequency limit and the number of modes, got it?\n"
 
-if args.ptmcmc==True:
+if args.ptmcmc:
     import PALInferencePTMCMC as PAL
 else:
     import pymultinest
@@ -96,17 +101,33 @@ parser = optparse.OptionParser(description = 'NX01 - Precursor to the PANTHER Gr
 # PASSING THROUGH TEMPO2 VIA libstempo
 ################################################################################################################################
 
-t2psr=[]
-for ii,p in enumerate(pulsars):
-    t2psr.append( T2.tempopulsar(parfile=args.parfile, timfile=args.timfile) )
-    t2psr[ii].fit(iters=10)
-    if np.any(np.isfinite(t2psr.residuals())==False)==True:
-        t2psr = T2.tempopulsar(parfile=args.parfile,timfile=args.timfile)
+psr_pathinfo = np.genfromtxt(args.psrlist, dtype=str, skip_header=2) # name, hdf5-path, par-path, tim-path
 
-psr = [psrNX01_psr.PsrObj(p) for p in enumerate(t2psr)]
-[psr[ii].grab_all_vars() for ii in range(len(psr))]
+if args.from_h5:
 
-psr_positions = [np.array([psr[ii].psr_locs[0], np.pi/2. - psr[ii].psr_locs[1]]) for ii in range(len(psr))]
+    tmp_psr = []
+    for ii,tmp_name in enumerate(psr_pathinfo[:,0]):
+        tmp_psr.append(h5py.File(psr_pathinfo[ii,1], 'r')[tmp_name])
+
+    psr = [NX01_psr.PsrObjFromH5(p) for p in tmp_psr]
+    
+else:
+    
+    t2psr=[]
+    for ii in range(len(psr_pathinfo)):
+        t2psr.append( T2.tempopulsar( parfile=psr_pathinfo[ii,2], timfile=psr_pathinfo[ii,3] ) )
+        t2psr[ii].fit(iters=3)
+        if np.any(np.isfinite(t2psr.residuals())==False)==True:
+            t2psr = T2.tempopulsar( parfile=psr_pathinfo[ii,2], timfile=psr_pathinfo[ii,3] )
+
+    psr = [NX01_psr.PsrObj(p) for p in t2psr]
+
+
+[p.grab_all_vars() for p in psr]
+
+psr_positions = [np.array([psr[ii].psr_locs[0],
+                           np.pi/2. - psr[ii].psr_locs[1]])
+                           for ii in range(len(psr))]
 positions = np.array(psr_positions).copy()
 
 CorrCoeff = np.array(anis.CorrBasis(positions,args.LMAX))       # computing all the correlation basis-functions for the array
@@ -175,7 +196,7 @@ def my_prior(x):
     return logp
 
 
-def modelIndependentFullPTANoisePL(xx):
+def lnprob(xx):
     """
     Model Independent stochastic background likelihood function
 
@@ -185,33 +206,34 @@ def modelIndependentFullPTANoisePL(xx):
     # Pulsar noise parameters
     #########################
     
-    Ared = 10.0**x[:len(psr)]
-    gam_red = x[len(psr):2*len(psr)]
+    Ared = 10.0**xx[:len(psr)]
+    gam_red = xx[len(psr):2*len(psr)]
     if args.dmVar==True:
-        Adm = 10.0**x[2*len(psr):3*len(psr)]
-        gam_dm = x[3*len(psr):4*len(psr)]
+        Adm = 10.0**xx[2*len(psr):3*len(psr)]
+        gam_dm = xx[3*len(psr):4*len(psr)]
         cta = 2
     else:
         cta = 1
-    EFAC = x[2*cta*len(psr):(2*cta+1)*len(psr)]
+    EFAC = xx[2*cta*len(psr):(2*cta+1)*len(psr)]
 
     #########################
     # GWB parameters
     #########################
 
-    Agwb = 10.0**x[(2*cta+1)*len(psr)]
+    Agwb = 10.0**xx[(2*cta+1)*len(psr)]
     if args.fix_slope:
         gam_gwb = 13./3
         ctb = 1
     else:
-        gam_gwb = x[(2*cta+1)*len(psr)+1]
+        gam_gwb = xx[(2*cta+1)*len(psr)+1]
         ctb = 2
 
     #########################
     # Anisotropy parameters
     #########################
     
-    orf_coeffs = x[ctb+(2*cta+1)*len(psr):]
+    orf_coeffs = xx[ctb+(2*cta+1)*len(psr):]
+
     orf_coeffs = orf_coeffs.reshape((tmp_num_gwfreq_wins,((args.LMAX+1)**2)-1))
     clm = np.array([[0.0]*((args.LMAX+1)**2) for ii in range(tmp_num_gwfreq_wins)])
     clm[:,0] = 2.0*np.sqrt(np.pi)
@@ -292,10 +314,10 @@ def modelIndependentFullPTANoisePL(xx):
     rho = np.log10(Agwb**2/12/np.pi**2 * f1yr**(gam_gwb-3) * (fqs/86400.0)**(-gam_gwb)/Tspan)
 
     # spectrum of common-mode
-    cm = np.log10(Acm**2/12/np.pi**2 * f1yr**(gam_cm-3) * (fqs/86400.0)**(-gam_cm)/Tspan)
+    #cm = np.log10(Acm**2/12/np.pi**2 * f1yr**(gam_cm-3) * (fqs/86400.0)**(-gam_cm)/Tspan)
 
     # spectrum of common uncorrelated red-noise
-    un = np.log10(Aun**2/12/np.pi**2 * f1yr**(gam_un-3) * (fqs/86400.0)**(-gam_un)/Tspan)
+    #un = np.log10(Aun**2/12/np.pi**2 * f1yr**(gam_un-3) * (fqs/86400.0)**(-gam_un)/Tspan)
 
     # parameterize intrinsic red-noise and DM-variations as power law
     kappa = [] 
@@ -306,11 +328,11 @@ def modelIndependentFullPTANoisePL(xx):
     # construct elements of sigma array
     sigdiag = []
     sigoffdiag = []
-    sigcm = []
+    #sigcm = []
     for ii in range(npsr):
         tot = np.zeros(4*args.nmodes)
         offdiag = np.zeros(4*args.nmodes)
-        commonmode = np.zeros(4*args.nmodes)
+        #commonmode = np.zeros(4*args.nmodes)
 
         # off diagonal terms
         offdiag[0::2] = np.append( 10**rho, np.zeros(len(rho)) )
@@ -321,13 +343,13 @@ def modelIndependentFullPTANoisePL(xx):
         tot[1::2] = ORF[:,ii,ii]*np.append( 10**rho, np.zeros(len(rho)) ) + np.append( 10**cm + 10**un, np.zeros(len(rho)) ) + 10**kappa[ii]
 
         # common-mode terms
-        commonmode[0::2] = np.append( 10**cm, np.zeros(len(rho)) )
-        commonmode[1::2] = np.append( 10**cm, np.zeros(len(rho)) )
+        #commonmode[0::2] = np.append( 10**cm, np.zeros(len(rho)) )
+        #commonmode[1::2] = np.append( 10**cm, np.zeros(len(rho)) )
                 
         # fill in lists of arrays
         sigdiag.append(tot)
         sigoffdiag.append(offdiag)
-        sigcm.append(commonmode)
+        #sigcm.append(commonmode)
 
 
     # compute Phi inverse from Lindley's code
@@ -338,7 +360,7 @@ def modelIndependentFullPTANoisePL(xx):
             if ii == jj:
                 smallMatrix[:,ii,jj] = sigdiag[jj] 
             else:
-                smallMatrix[:,ii,jj] = ORFtot[:,ii,jj] * sigoffdiag[jj] + sigcm[jj]
+                smallMatrix[:,ii,jj] = ORFtot[:,ii,jj] * sigoffdiag[jj] #+ sigcm[jj]
                 smallMatrix[:,jj,ii] = smallMatrix[:,ii,jj]
 
     

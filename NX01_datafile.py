@@ -274,6 +274,8 @@ class DataFile(object):
         self.writeData(psrGroup, 'timfilepath', psr.timfile, overwrite=overwrite)
 
         # Save the basic quantities
+        self.writeData(psrGroup, 'name', psr.name,
+                       overwrite=overwrite)    # Days
         self.writeData(psrGroup, 'TOAs', psr.toas,
                        overwrite=overwrite)    # Days
         self.writeData(psrGroup, 'postfitRes', psr.res,

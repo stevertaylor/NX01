@@ -15,9 +15,12 @@ import ephem
 from ephem import *
 import NX01_utils as utils
 from collections import OrderedDict
+import cPickle as pickle
 
 class PsrObj(object):
     T2psr = None
+    parfile = None
+    timfile = None
     psr_locs = None
     toas = None
     toaerrs = None
@@ -193,6 +196,156 @@ class PsrObj(object):
         self.Gres = np.dot(self.G.T, self.res)
 
         print "--> Done reading in pulsar :-)"
+
+    def makeFred(self, nmodes, Ttot):
+        self.Fred = utils.createfourierdesignmatrix_RED(self.toas, nmodes, Tspan=Ttot)
+
+    def makeFdm(self, nmodes, Ttot):
+        self.Fdm = utils.createfourierdesignmatrix_DM(self.toas, nmodes, self.obs_freqs, Tspan=Ttot)
+    
+    def makeFtot(self, nmodes, Ttot):
+        self.Fred = utils.createfourierdesignmatrix_RED(self.toas, nmodes, Tspan=Ttot)
+        self.Fdm = utils.createfourierdesignmatrix_DM(self.toas, nmodes, self.obs_freqs, Tspan=Ttot)
+
+        self.Ftot = np.append(self.Fred, self.Fdm, axis=1)
+
+    def makeTe(self, nmodes, Ttot, makeDM=False):
+
+        self.Fred = utils.createfourierdesignmatrix_RED(self.toas, nmodes, Tspan=Ttot)
+
+        if makeDM==True:
+            self.Fdm = utils.createfourierdesignmatrix_DM(self.toas, nmodes, self.obs_freqs, Tspan=Ttot)
+            self.Ftot = np.append(self.Fred, self.Fdm, axis=1)
+
+        else:
+            self.Ftot = self.Fred
+
+        self.Te = np.append(self.Gc, self.Ftot, axis=1)
+
+    def two_comp_noise(self, mlerrors):
+        efac_bit = np.dot(self.G.T, np.dot( np.diag(mlerrors**2.0), self.G ) )
+        equad_bit = np.dot(self.G.T,self.G)
+        Lequad = np.linalg.cholesky(equad_bit)
+        Lequad_inv = np.linalg.inv(Lequad)
+        sand = np.dot(Lequad_inv, np.dot(efac_bit, Lequad_inv.T))
+        u,s,v = np.linalg.svd(sand)
+        proj = np.dot(u.T, np.dot(Lequad_inv, self.G.T))
+        ########
+        self.diag_white = s
+        self.res_prime = np.dot(proj, self.res)
+        if self.Ftot is not None:
+            self.Ftot_prime = np.dot(proj, self.Ftot)
+        else:
+            self.Ftot_prime = np.dot(proj, self.Fred)
+
+
+
+######################
+######################
+
+class PsrObjFromH5(object):
+    h5Obj = None
+    psr_locs = None
+    parfile = None
+    timfile = None
+    toas = None
+    toaerrs = None
+    res = None
+    obs_freqs = None
+    G = None
+    Mmat = None
+    sysflagdict = None
+    Fred = None
+    Fdm = None
+    Ftot = None
+    diag_white = None
+    res_prime = None
+    Ftot_prime = None
+    Gc = None
+    Te = None
+    name = "J0000+0000"
+    Gres = None
+    epflags = None
+    efacs = None
+    equads = None
+    ecorrs = None
+
+    def __init__(self, h5Obj):
+        self.h5Obj = h5Obj
+        self.parfile = None
+        self.timfile = None
+        self.psr_locs = None
+        self.toas = None
+        self.toaerrs = None
+        self.res = None
+        self.obs_freqs = None
+        self.G = None
+        self.Mmat = None
+        self.Fred = None
+        self.Fdm = None
+        self.Ftot = None
+        self.diag_white = None
+        self.res_prime = None
+        self.Ftot_prime = None
+        self.Gc = None
+        self.Te = None
+        self.Umat = None
+        self.Uinds = None
+        self.name = "J0000+0000"
+        self.sysflagdict = None
+        self.Gres = None
+        self.epflags = None
+        self.efacs = None
+        self.equads = None
+        self.ecorrs = None
+
+    """
+    Read data from hdf5 file into pulsar object
+    """
+    def grab_all_vars(self): 
+
+        print "--> Extracting {0} from hdf5 file".format(self.h5Obj['name'].value)
+        
+        # basic quantities
+        self.name = self.h5Obj['name'].value
+        self.parfile = self.h5Obj['parfilepath'].value
+        self.timfile = self.h5Obj['timfilepath'].value
+        
+        self.toas = self.h5Obj['TOAs'].value
+        self.res = self.h5Obj['postfitRes'].value
+        self.toaerrs = self.h5Obj['toaErr'].value
+        self.obs_freqs = self.h5Obj['freq'].value
+
+        self.psr_locs = self.h5Obj['psrlocs'].value
+
+        self.Mmat = self.h5Obj['designmatrix'].value
+        self.G = self.h5Obj['Gmatrix'].value
+        self.Gc = self.h5Obj['GCmatrix'].value
+        self.Gres = self.h5Obj['Gres'].value
+        self.Umat = self.h5Obj['QuantMat'].value
+        self.Uinds = self.h5Obj['QuantInds'].value
+        self.epflags = self.h5Obj['EpochFlags'].value
+
+        self.sysflagdict = pickle.loads(self.h5Obj['SysFlagDict'].value)
+
+        # Let's rip out EFACS, EQUADS and ECORRS from parfile
+        parlines = self.h5Obj['parfile'].value.split('\n')
+        efacs = []
+        equads = []
+        ecorrs = []
+        for ll in parlines:
+            if 'T2EFAC' in ll:
+                efacs.append([ll.split()[2], np.double(ll.split()[3])])
+            if 'T2EQUAD' in ll:
+                equads.append([ll.split()[2], np.double(ll.split()[3])*1e-6])
+            if 'ECORR' in ll:
+                ecorrs.append([ll.split()[2], np.double(ll.split()[3])*1e-6])
+
+        self.efacs = OrderedDict(efacs)
+        self.equads = OrderedDict(equads)
+        self.ecorrs = OrderedDict(ecorrs)
+
+        print "--> Done extracting pulsar from hdf5 file :-) \n"
 
     def makeFred(self, nmodes, Ttot):
         self.Fred = utils.createfourierdesignmatrix_RED(self.toas, nmodes, Tspan=Ttot)
