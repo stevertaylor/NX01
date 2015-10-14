@@ -25,6 +25,56 @@ from ephem import *
 day = 24 * 3600
 year = 365.25 * day
 
+def masterSplitParams(xx, npsr, dmVar, fix_slope):
+    """
+    Takes in a vector of search parameters and
+    returns arrays of physical parameters.
+    e.g. Ared, gam_red, EFACS, ...
+
+    """
+
+    #########################
+    # Pulsar noise parameters
+    #########################
+    
+    Ared = 10.0**xx[:npsr]
+    gam_red = xx[npsr:2*npsr]
+
+    cta = 0
+    if dmVar==True:
+        Adm = 10.0**xx[2*npsr:3*npsr]
+        gam_dm = xx[3*npsr:4*npsr]
+        cta = 2*npsr
+
+    EFAC = xx[2*npsr+cta:3*npsr+cta]
+
+    #########################
+    # GWB parameters
+    #########################
+
+    Agwb = 10.0**xx[3*npsr+cta]
+    ctb = 0
+    if fix_slope==True:
+        gam_gwb = 13./3
+        ctb = 1
+    else:
+        gam_gwb = xx[3*npsr+cta+1]
+        ctb = 2
+
+    #########################
+    # Anisotropy parameters
+    #########################
+    
+    orf_coeffs = xx[3*npsr+cta+ctb:]
+
+    ########
+
+    if dmVar==True:
+        return Ared, gam_red, Adm, gam_dm, EFAC, Agwb, gam_gwb, orf_coeffs
+    else:
+        return Ared, gam_red, EFAC, Agwb, gam_gwb, orf_coeffs
+
+
 def sumTermCovarianceMatrix_fast(tm, fL, gam):
     """
     Calculate the power series expansion for the Hypergeometric

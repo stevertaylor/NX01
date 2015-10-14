@@ -200,56 +200,40 @@ def lnprob(xx):
     """
     Model Independent stochastic background likelihood function
 
-    """ 
+    """
 
-    #########################
-    # Pulsar noise parameters
-    #########################
-    
-    Ared = 10.0**xx[:len(psr)]
-    gam_red = xx[len(psr):2*len(psr)]
+    npsr = len(psr) 
+
     if args.dmVar==True:
-        Adm = 10.0**xx[2*len(psr):3*len(psr)]
-        gam_dm = xx[3*len(psr):4*len(psr)]
-        cta = 2
+        Ared, gam_red, Adm, gam_dm, EFAC, Agwb, gam_gwb, orf_coeffs = utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope)
+        mode_count = 4*nmode
     else:
-        cta = 1
-    EFAC = xx[2*cta*len(psr):(2*cta+1)*len(psr)]
+        Ared, gam_red, EFAC, Agwb, gam_gwb, orf_coeffs = utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope)
+        mode_count = 2*nmode
 
-    #########################
-    # GWB parameters
-    #########################
 
-    Agwb = 10.0**xx[(2*cta+1)*len(psr)]
-    if args.fix_slope:
-        gam_gwb = 13./3
-        ctb = 1
-    else:
-        gam_gwb = xx[(2*cta+1)*len(psr)+1]
-        ctb = 2
-
-    #########################
-    # Anisotropy parameters
-    #########################
-    
-    orf_coeffs = xx[ctb+(2*cta+1)*len(psr):]
+    # Reshaping freq-dependent anis coefficients,
+    # and testing for power distribution physicality.
 
     orf_coeffs = orf_coeffs.reshape((tmp_num_gwfreq_wins,((args.LMAX+1)**2)-1))
     clm = np.array([[0.0]*((args.LMAX+1)**2) for ii in range(tmp_num_gwfreq_wins)])
     clm[:,0] = 2.0*np.sqrt(np.pi)
+
     physicality = 0.
     if args.LMAX!=0:
+
         for kk in range(tmp_num_gwfreq_wins):
             for ii in range(1,((args.LMAX+1)**2)):
                 clm[kk,ii] = orf_coeffs[kk,ii-1]   
-    
+
+            # Testing for physicality of power distribution.
             if (utils.PhysPrior(clm[kk],harm_sky_vals) == 'Unphysical'):
                 physicality += -10.0**7.0
             else:
                 physicality += 0.
 
-    npsr = len(psr)
-
+    
+    # Computing frequency dependent overlap reduction functions.
     ORF=[]
     for ii in range(tmp_num_gwfreq_wins): # number of frequency windows
         for jj in range(len(anis_modefreqs[ii])): # number of frequencies in this window
@@ -259,9 +243,12 @@ def lnprob(xx):
             ORF.append( np.zeros((npsr,npsr)) )
 
     ORF = np.array(ORF)
-    ORFtot = np.zeros((4*args.nmodes,npsr,npsr)) # shouldn't be applying ORF to dmfreqs, but the projection of GW spec onto dmfreqs is defined as zero below
+    ORFtot = np.zeros((mode_count,npsr,npsr)) # shouldn't be applying ORF to dmfreqs,
+                                                 # but the projection of GW spec onto dmfreqs
+                                                 # is defined as zero below.
     ORFtot[0::2] = ORF
     ORFtot[1::2] = ORF
+    
 
     loglike1 = 0
     FtNF = []
@@ -313,61 +300,59 @@ def lnprob(xx):
     f1yr = 1/3.16e7
     rho = np.log10(Agwb**2/12/np.pi**2 * f1yr**(gam_gwb-3) * (fqs/86400.0)**(-gam_gwb)/Tspan)
 
-    # spectrum of common-mode
-    #cm = np.log10(Acm**2/12/np.pi**2 * f1yr**(gam_cm-3) * (fqs/86400.0)**(-gam_cm)/Tspan)
-
-    # spectrum of common uncorrelated red-noise
-    #un = np.log10(Aun**2/12/np.pi**2 * f1yr**(gam_un-3) * (fqs/86400.0)**(-gam_un)/Tspan)
-
     # parameterize intrinsic red-noise and DM-variations as power law
     kappa = [] 
-    for ii in range(npsr):
-        kappa.append(np.log10( np.append( Ared[ii]**2/12/np.pi**2 * f1yr**(gam_red[ii]-3) * (fqs/86400.0)**(-gam_red[ii])/Tspan,\
-                                          Adm[ii]**2/12/np.pi**2 * f1yr**(gam_dm[ii]-3) * (fqs/86400.0)**(-gam_dm[ii])/Tspan ) ))
+    if args.dmVar==True:
+        for ii in range(npsr):
+            kappa.append(np.log10( np.append( Ared[ii]**2/12/np.pi**2 * f1yr**(gam_red[ii]-3) * (fqs/86400.0)**(-gam_red[ii])/Tspan,
+                                        Adm[ii]**2/12/np.pi**2 * f1yr**(gam_dm[ii]-3) * (fqs/86400.0)**(-gam_dm[ii])/Tspan ) ))
+    else:
+        for ii in range(npsr):
+            kappa.append(np.log10( Ared[ii]**2/12/np.pi**2 * f1yr**(gam_red[ii]-3) * (fqs/86400.0)**(-gam_red[ii])/Tspan ))
+    
 
     # construct elements of sigma array
     sigdiag = []
     sigoffdiag = []
-    #sigcm = []
+    
+    if args.dmVar==True:
+        gwbspec = np.append( 10**rho, np.zeros_like(rho) )
+    else:
+        gwbspec = 10**rho
+        
     for ii in range(npsr):
-        tot = np.zeros(4*args.nmodes)
-        offdiag = np.zeros(4*args.nmodes)
-        #commonmode = np.zeros(4*args.nmodes)
+        tot = np.zeros(mode_count)
+        offdiag = np.zeros(mode_count)
 
         # off diagonal terms
-        offdiag[0::2] = np.append( 10**rho, np.zeros(len(rho)) )
-        offdiag[1::2] = np.append( 10**rho, np.zeros(len(rho)) )
+        offdiag[0::2] = gwbspec
+        offdiag[1::2] = gwbspec
 
         # diagonal terms
-        tot[0::2] = ORF[:,ii,ii]*np.append( 10**rho, np.zeros(len(rho)) ) + np.append( 10**cm + 10**un, np.zeros(len(rho)) ) + 10**kappa[ii]
-        tot[1::2] = ORF[:,ii,ii]*np.append( 10**rho, np.zeros(len(rho)) ) + np.append( 10**cm + 10**un, np.zeros(len(rho)) ) + 10**kappa[ii]
-
-        # common-mode terms
-        #commonmode[0::2] = np.append( 10**cm, np.zeros(len(rho)) )
-        #commonmode[1::2] = np.append( 10**cm, np.zeros(len(rho)) )
+        tot[0::2] = ORF[:,ii,ii]*gwbspec + 10**kappa[ii]
+        tot[1::2] = ORF[:,ii,ii]*gwbspec + 10**kappa[ii] 
                 
         # fill in lists of arrays
         sigdiag.append(tot)
         sigoffdiag.append(offdiag)
-        #sigcm.append(commonmode)
 
 
-    # compute Phi inverse from Lindley's code
-    smallMatrix = np.zeros((4*args.nmodes, npsr, npsr))
+    # compute Phi matrix
+    smallMatrix = np.zeros((mode_count, npsr, npsr))
     for ii in range(npsr):
         for jj in range(ii,npsr):
 
             if ii == jj:
                 smallMatrix[:,ii,jj] = sigdiag[jj] 
             else:
-                smallMatrix[:,ii,jj] = ORFtot[:,ii,jj] * sigoffdiag[jj] #+ sigcm[jj]
+                smallMatrix[:,ii,jj] = ORFtot[:,ii,jj] * sigoffdiag[jj] 
                 smallMatrix[:,jj,ii] = smallMatrix[:,ii,jj]
 
     
-    # invert them
+    # invert Phi matrix frequency-wise
     logdet_Phi = 0
     non_pos_def = 0
-    for ii in range(4*args.nmodes):
+    for ii in range(mode_count):
         try:
             L = sl.cho_factor(smallMatrix[ii,:,:])
             smallMatrix[ii,:,:] = sl.cho_solve(L, np.eye(npsr))
@@ -379,10 +364,9 @@ def lnprob(xx):
     if non_pos_def > 0:
         return -np.inf
     else:
-        nftot = 4*args.nmodes
-        Phi = np.zeros((npsr*nftot, npsr*nftot))
+        Phi = np.zeros((npsr*mode_count, npsr*mode_count))
         # now fill in real covariance matrix
-        ind = [np.arange(kk*nftot, kk*nftot+nftot) for kk in range(npsr)]
+        ind = [np.arange(kk*mode_count, (kk+1)*mode_count) for kk in range(npsr)]
         for ii in range(npsr):
             for jj in range(npsr):
                 Phi[ind[ii],ind[jj]] = smallMatrix[:,ii,jj]
@@ -424,6 +408,7 @@ def lnprob(xx):
             prior_factor = np.log(Agwb * np.log(10.0))
         else:
             prior_factor = 0.0
+
         return logLike + prior_factor + physicality
 
 
