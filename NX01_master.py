@@ -11,6 +11,7 @@ Code contributions by Rutger van Haasteren (piccard) and Justin Ellis (PAL/PAL2)
 import os, math, optparse, time, cProfile
 from time import gmtime, strftime
 from collections import OrderedDict
+import h5py as h5
 
 import numpy as np
 from numpy import *
@@ -69,6 +70,8 @@ parser.add_option('--limit-or-detect', dest='limit_or_detect', action='store', t
                    help='Do you want to use a uniform prior on log_10(Agwb) [detect] or Agwb itself [upper-limit] (default=\'limit\')?')
 parser.add_option('--anis-modefile', dest='anis_modefile', action='store', type=str, default = None,
                    help='Do you want to provide an anisotropy modefile to split band into frequency windows?')
+parser.add_option('--fullN', dest='fullN', action='store_true', default=True,
+                  help='Do you want to perform a full noise search? (default = True)')
 
 (args, x) = parser.parse_args()
 
@@ -107,7 +110,7 @@ if args.from_h5:
 
     tmp_psr = []
     for ii,tmp_name in enumerate(psr_pathinfo[:,0]):
-        tmp_psr.append(h5py.File(psr_pathinfo[ii,1], 'r')[tmp_name])
+        tmp_psr.append(h5.File(psr_pathinfo[ii,1], 'r')[tmp_name])
 
     psr = [NX01_psr.PsrObjFromH5(p) for p in tmp_psr]
     
@@ -156,11 +159,11 @@ else:
 # GETTING MAXIMUM TIME, COMPUTING FOURIER DESIGN MATRICES, AND GETTING MODES 
 ################################################################################################################################
 
-Tmax = np.max([psr[ii].toas.max() - psr[ii].toas.min() for ii in range(len(psr))])
+Tmax = np.max([p.toas.max() - p.toas.min() for p in psr])
 
 if args.nmodes:
 
-    [psr[p].makeTe(args.nmodes, Tmax, makeDM=args.dmVar) for p in range(len(psr))]
+    [p.makeTe(args.nmodes, Tmax, makeDM=args.dmVar) for p in psr]
     # get GW frequencies
     fqs = np.linspace(1/Tmax, args.nmodes/Tmax, args.nmodes)
     nmode = args.nmodes
@@ -168,27 +171,96 @@ if args.nmodes:
 else:
 
     nmode = int(round(Tmax/args.cadence))
-    [psr[p].makeTe(nmode, Tmax, makeDM=args.dmVar) for p in range(len(psr))]
+    [p.makeTe(nmode, Tmax, makeDM=args.dmVar) for p in psr]
     # get GW frequencies
     fqs = np.linspace(1/Tmax, nmode/Tmax, nmode)
 
 
+##############
+
+loglike1 = 0
+TtNT = []
+d = []
+for ii,p in enumerate(psr):
+
+    # compute ( T.T * N^-1 * T ) & log determinant of N
+    new_err = (p.toaerrs).copy()
+    if args.fullN==True:
+        
+        if len(p.ecorrs)>0:
+
+            Jamp = np.ones(len(p.epflags))
+            for jj,nano_sysname in enumerate(p.sysflagdict['nano-f'].keys()):
+                Jamp[np.where(p.epflags==nano_sysname)] *= p.ecorrs[nano_sysname]**2.0
+
+            Nx = jitter.cython_block_shermor_0D(p.res, new_err**2., Jamp, p.Uinds)
+            d.append(np.dot(p.Te.T, Nx))
+            logdet_N, TtNT_dummy = jitter.cython_block_shermor_2D(p.Te, new_err**2., Jamp, p.Uinds)
+            TtNT.append(TtNT_dummy)
+            det_dummy, dtNdt = jitter.cython_block_shermor_1D(p.res, new_err**2., Jamp, p.Uinds)
+
+        else:
+            
+            d.append(np.dot(p.Te.T, p.res/( new_err**2.0 )))
+        
+            N = 1./( new_err**2.0 )
+            right = (N*p.Te.T).T
+            TtNT.append(np.dot(p.Te.T, right))
+    
+            logdet_N = np.sum(np.log( new_err**2.0 ))
+        
+            # triple product in likelihood function
+            dtNdt = np.sum(p.res**2.0/( new_err**2.0 ))
+        
+    else:
+
+        d.append(np.dot(p.Te.T, p.res/( new_err**2.0 )))
+            
+        N = 1./( new_err**2.0 )
+        right = (N*p.Te.T).T
+        TtNT.append(np.dot(p.Te.T, right))
+
+        logdet_N = np.sum(np.log( new_err**2.0 ))
+        
+        # triple product in likelihood function
+        dtNdt = np.sum(p.res**2.0/( new_err**2.0 ))
+
+    loglike1 += -0.5 * (logdet_N + dtNdt)
+
+d = np.concatenate(d)
+
+
 ################################################################################################################################
-# FORM A LIST COMPOSED OF NP ARRAYS CONTAINING THE INDEX POSITIONS WHERE EACH UNIQUE SYSTEM IS APPLIED
+# SETTING UP PRIOR RANGES
 ################################################################################################################################
 
-if args.fullN==True:
-    systems = psr.sysflagdict[args.systarg]
-else:
-    systems = OrderedDict.fromkeys([psr.name])
-    systems[psr.name] = np.arange(len(psr.toas))
+pmin = -20.0*np.ones(len(psr))
+pmin = np.append(pmin,0.0*np.ones(len(psr)))
+if args.dmVar==True:
+    pmin = np.append(pmin,-20.0*np.ones(len(psr)))
+    pmin = np.append(pmin,0.0*np.ones(len(psr)))
+pmin = np.append(pmin,-20.0)
+if args.fix_slope==False:
+    pmin = np.append(pmin,0.0)
+pmin = np.append(pmin,-10.0*np.ones( tmp_num_gwfreq_wins*(((args.LMAX+1)**2)-1) ))
+
+
+pmax = -10.0*np.ones(len(psr))
+pmax = np.append(pmax,7.0*np.ones(len(psr)))
+if args.dmVar==True:
+    pmax = np.append(pmax,-10.0*np.ones(len(psr)))
+    pmax = np.append(pmax,7.0*np.ones(len(psr)))
+pmax = np.append(pmax,-10.0)
+if args.fix_slope==False:
+    pmax = np.append(pmax,7.0)
+pmax = np.append(pmax,10.0*np.ones( tmp_num_gwfreq_wins*(((args.LMAX+1)**2)-1) ))
 
 ################################################################################################################################
 
-def my_prior(x):
+def my_prior(xx):
     logp = 0.
     
-    if np.all(x <= pmax) and np.all(x >= pmin):
+    if np.all(xx <= pmax) and np.all(xx >= pmin):
         logp = np.sum(np.log(1/(pmax-pmin)))
     else:
         logp = -np.inf
@@ -205,10 +277,10 @@ def lnprob(xx):
     npsr = len(psr) 
 
     if args.dmVar==True:
-        Ared, gam_red, Adm, gam_dm, EFAC, Agwb, gam_gwb, orf_coeffs = utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope)
+        Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, orf_coeffs = utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope)
         mode_count = 4*nmode
     else:
-        Ared, gam_red, EFAC, Agwb, gam_gwb, orf_coeffs = utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope)
+        Ared, gam_red, Agwb, gam_gwb, orf_coeffs = utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope)
         mode_count = 2*nmode
 
 
@@ -238,9 +310,10 @@ def lnprob(xx):
     for ii in range(tmp_num_gwfreq_wins): # number of frequency windows
         for jj in range(len(anis_modefreqs[ii])): # number of frequencies in this window
             ORF.append( sum(clm[ii,kk]*CorrCoeff[kk] for kk in range(len(CorrCoeff))) )
-    for ii in range(tmp_num_gwfreq_wins): # number of frequency windows
-        for jj in range(len(anis_modefreqs[ii])): # number of frequencies in this window
-            ORF.append( np.zeros((npsr,npsr)) )
+    if args.dmVar==True:
+        for ii in range(tmp_num_gwfreq_wins): # number of frequency windows
+            for jj in range(len(anis_modefreqs[ii])): # number of frequencies in this window
+                ORF.append( np.zeros((npsr,npsr)) )
 
     ORF = np.array(ORF)
     ORFtot = np.zeros((mode_count,npsr,npsr)) # shouldn't be applying ORF to dmfreqs,
@@ -249,28 +322,35 @@ def lnprob(xx):
     ORFtot[0::2] = ORF
     ORFtot[1::2] = ORF
     
-
+    '''
     loglike1 = 0
-    FtNF = []
+    TtNT = []
+    d = []
     for ii,p in enumerate(psr):
 
         # compute ( T.T * N^-1 * T ) & log determinant of N
+        new_err = (p.toaerrs).copy()
         if args.fullN==True:
-            if len(ECORR)>0:
+            
+            if len(p.ecorrs)>0:
+
                 Jamp = np.ones(len(p.epflags))
                 for jj,nano_sysname in enumerate(p.sysflagdict['nano-f'].keys()):
-                    Jamp[np.where(p.epflags==nano_sysname)] *= ECORR[jj]**2.0
+                    Jamp[np.where(p.epflags==nano_sysname)] *= p.ecorrs[nano_sysname]**2.0
 
-                Nx = jitter.cython_block_shermor_0D(p.res.astype(np.float64), new_err**2., Jamp, psr.Uinds)
-                d = np.dot(p.Te.T, Nx)
-                logdet_N, TtNT = jitter.cython_block_shermor_2D(p.Te, new_err**2., Jamp, p.Uinds)
-                det_dummy, dtNdt = jitter.cython_block_shermor_1D(p.res.astype(np.float64), new_err**2., Jamp, psr.Uinds)
+                Nx = jitter.cython_block_shermor_0D(p.res, new_err**2., Jamp, p.Uinds)
+                d.append(np.dot(p.Te.T, Nx))
+                logdet_N, TtNT_dummy = jitter.cython_block_shermor_2D(p.Te, new_err**2., Jamp, p.Uinds)
+                TtNT.append(TtNT_dummy)
+                det_dummy, dtNdt = jitter.cython_block_shermor_1D(p.res, new_err**2., Jamp, p.Uinds)
+
             else:
-                d = np.dot(p.Te.T, psr.res/( new_err**2.0 ))
+
+                d.append(np.dot(p.Te.T, p.res/( new_err**2.0 )))
         
                 N = 1./( new_err**2.0 )
                 right = (N*p.Te.T).T
-                TtNT = np.dot(p.Te.T, right)
+                TtNT.append(np.dot(p.Te.T, right))
         
                 logdet_N = np.sum(np.log( new_err**2.0 ))
             
@@ -279,11 +359,11 @@ def lnprob(xx):
         
         else:
 
-            d = np.dot(p.Te.T, psr.res/( new_err**2.0 ))
+            d.append(np.dot(p.Te.T, p.res/( new_err**2.0 )))
             
             N = 1./( new_err**2.0 )
             right = (N*p.Te.T).T
-            TtNT = np.dot(p.Te.T, right)
+            TtNT.append(np.dot(p.Te.T, right))
     
             logdet_N = np.sum(np.log( new_err**2.0 ))
         
@@ -291,10 +371,8 @@ def lnprob(xx):
             dtNdt = np.sum(p.res**2.0/( new_err**2.0 ))
 
         loglike1 += -0.5 * (logdet_N + dtNdt)
-
+    '''
        
-    
-    
     # parameterize intrinsic red noise as power law
     Tspan = (1/fqs[0])*86400.0
     f1yr = 1/3.16e7
@@ -364,16 +442,20 @@ def lnprob(xx):
     if non_pos_def > 0:
         return -np.inf
     else:
-        Phi = np.zeros((npsr*mode_count, npsr*mode_count))
+        bigTtNT = sl.block_diag(*TtNT)
+        Phi = np.zeros( bigTtNT.shape )
         # now fill in real covariance matrix
-        ind = [np.arange(kk*mode_count, (kk+1)*mode_count) for kk in range(npsr)]
+        ind = [0]
+        ind = np.append(ind,np.cumsum([TtNT[ii].shape[0] for ii in range(len(psr))]))
+        ind = [np.arange(ind[ii]+psr[ii].Gc.shape[1],ind[ii]+psr[ii].Gc.shape[1]+mode_count)
+               for ii in range(len(ind)-1)]
         for ii in range(npsr):
             for jj in range(npsr):
                 Phi[ind[ii],ind[jj]] = smallMatrix[:,ii,jj]
             
         # compute sigma
-        Sigma = sl.block_diag(*FtNF) + Phi
-
+        Sigma = bigTtNT + Phi
+        #d = np.concatenate(d)
             
         # cholesky decomp for second term in exponential
         if args.use_gpu:
@@ -384,7 +466,7 @@ def lnprob(xx):
                 logdet_Sigma = np.sum(2.0*np.log(np.diag(Sigma_gpu.get())))
 
             except cula.culaDataError:
-                print 'Cholesky Decomposition Failed (GPU error!!!!!!!!!!)'
+                print 'Cholesky Decomposition Failed (GPU error!)'
                 return -np.inf
 
             logLike = -0.5 * (logdet_Phi + logdet_Sigma) + 0.5 * (np.dot(d, expval2_gpu.get() )) + loglike1
@@ -415,27 +497,22 @@ def lnprob(xx):
 #########################
 #########################
 
-parameters = ["Agwb"]
+parameters=[]
+for ii in range(len(psr)):
+    parameters.append('Ared_'+psr[ii].name)
+for ii in range(len(psr)):
+    parameters.append('gam_red_'+psr[ii].name)
+if args.dmVar==True:
+    for ii in range(len(psr)):
+        parameters.append('Adm_'+psr[ii].name)
+    for ii in range(len(psr)):
+        parameters.append('gam_dm_'+psr[ii].name)
+parameters.append("Agwb")
 if args.fix_slope is False:
     parameters.append("gam_gwb")
     gamma_ext = 'GamVary'
 else:
     gamma_ext = 'Gam4p33'
-
-for ii in range(len(psr)):
-    parameters.append('Ared_'+psr[ii].name)
-for ii in range(len(psr)):
-    parameters.append('gam_red_'+psr[ii].name)
-for ii in range(len(psr)):
-    parameters.append('Adm_'+psr[ii].name)
-for ii in range(len(psr)):
-    parameters.append('gam_dm_'+psr[ii].name)
-for ii in range(len(psr)):
-    parameters.append('EFAC_'+psr[ii].name)
-parameters.append('Acm')
-parameters.append('gam_cm')
-parameters.append('Aun')
-parameters.append('gam_un')
 for ii in range( tmp_num_gwfreq_wins*(((args.LMAX+1)**2)-1) ):
     parameters.append('clm_{0}'.format(ii+1))
 
@@ -446,46 +523,43 @@ n_params = len(parameters)
 print "\n The total number of parameters is {0}\n".format(n_params)
 
 
-x0 = np.array([-15.0])
+x0 = np.log10(np.array([p.redamp for p in psr]))
+x0 = np.append(x0,np.array([p.redind for p in psr]))
+if args.dmVar==True:
+    x0 = np.append(x0,np.log10(np.array([p.redamp for p in psr])))
+    x0 = np.append(x0,np.array([p.redind for p in psr]))
+x0 = np.append(x0,-15.0)
 if args.fix_slope is False:
-    x0 = np.append(x0,[13./3.])
-x0 = np.append(x0,np.log10(np.array(Ared_ML)))
-x0 = np.append(x0,np.array(gam_red_ML))
-x0 = np.append(x0,np.log10(np.array(Adm_ML)))
-x0 = np.append(x0,np.array(gam_dm_ML))
-x0 = np.append(x0,np.random.uniform(0.75,1.25,len(psr)))
-x0 = np.append(x0,np.array([-15.0,2.0]))
-x0 = np.append(x0,np.array([-15.0,2.0]))
+    x0 = np.append(x0,13./3.)
 x0 = np.append(x0,np.zeros( tmp_num_gwfreq_wins*(((args.LMAX+1)**2)-1) ))
 
 print "\n Your initial parameters are {0}\n".format(x0)
 
-cov_diag = np.array([0.5])
+
+cov_diag = 0.5*np.ones(len(psr))
+cov_diag = np.append(cov_diag,0.5*np.ones(len(psr)))
+if args.dmVar==True:
+    cov_diag = np.append(cov_diag,0.5*np.ones(len(psr)))
+    cov_diag = np.append(cov_diag,0.5*np.ones(len(psr)))
+cov_diag = np.append(cov_diag,0.5)
 if args.fix_slope is False:
-    cov_diag = np.append(cov_diag,[0.5])
-cov_diag = np.append(cov_diag,np.array(Ared_err)**2.0)
-cov_diag = np.append(cov_diag,np.array(gam_red_err)**2.0)
-cov_diag = np.append(cov_diag,np.array(Adm_err)**2.0)
-cov_diag = np.append(cov_diag,np.array(gam_dm_err)**2.0)
-cov_diag = np.append(cov_diag,0.2*np.ones(len(psr)))
-cov_diag = np.append(cov_diag,np.array([0.5,0.5]))
-cov_diag = np.append(cov_diag,np.array([0.5,0.5]))
+    cov_diag = np.append(cov_diag,0.5)
 cov_diag = np.append(cov_diag,0.05*np.ones( tmp_num_gwfreq_wins*(((args.LMAX+1)**2)-1) ))
 
 
 print "\n Running a quick profile on the likelihood to estimate evaluation speed...\n"
-cProfile.run('modelIndependentFullPTANoisePL(x0)')
+cProfile.run('lnprob(x0)')
 
 #####################
 # Now, we sample.....
 #####################
 
 print "\n Now, we sample... \n"
-sampler = PAL.PTSampler(ndim=n_params,logl=modelIndependentFullPTANoisePL,logp=my_prior,cov=np.diag(cov_diag),\
-                        outDir='./chains_Analysis/EPTAv2_{0}_{1}mode_SearchNoise_nmodes{2}_Lmax{3}_{4}_{5}'.\
-                        format(snr_tag_ext,args.limit_or_detect,args.nmodes,args.LMAX,evol_anis_tag,gamma_ext),resume=True)
+sampler = PAL.PTSampler(ndim=n_params,logl=lnprob,logp=my_prior,cov=np.diag(cov_diag),\
+                        outDir='./chains_nanoAnalysis/nanograv_{0}mode_nmodes{1}_Lmax{2}_{3}_{4}'.\
+                        format(args.limit_or_detect,args.nmodes,args.LMAX,evol_anis_tag,gamma_ext),resume=True)
 if args.anis_modefile is not None:
-    os.system('cp {0} {1}'.format(args.anis_modefile,'./chains_Analysis/EPTAv2_{0}_{1}mode_SearchNoise_nmodes{2}_Lmax{3}_{4}_{5}'.\
-                                  format(snr_tag_ext,args.limit_or_detect,args.nmodes,args.LMAX,evol_anis_tag,gamma_ext)))
+    os.system('cp {0} {1}'.format(args.anis_modefile,'./chains_nanoAnalysis/nanograv_{0}mode_nmodes{1}_Lmax{2}_{3}_{4}'.\
+                                  format(args.limit_or_detect,args.nmodes,args.LMAX,evol_anis_tag,gamma_ext)))
 
 sampler.sample(p0=x0,Niter=1e6,thin=10)

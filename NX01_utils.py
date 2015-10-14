@@ -46,33 +46,33 @@ def masterSplitParams(xx, npsr, dmVar, fix_slope):
         gam_dm = xx[3*npsr:4*npsr]
         cta = 2*npsr
 
-    EFAC = xx[2*npsr+cta:3*npsr+cta]
+    #EFAC = xx[2*npsr+cta:3*npsr+cta]
 
     #########################
     # GWB parameters
     #########################
 
-    Agwb = 10.0**xx[3*npsr+cta]
+    Agwb = 10.0**xx[2*npsr+cta]
     ctb = 0
     if fix_slope==True:
         gam_gwb = 13./3
         ctb = 1
     else:
-        gam_gwb = xx[3*npsr+cta+1]
+        gam_gwb = xx[2*npsr+cta+1]
         ctb = 2
 
     #########################
     # Anisotropy parameters
     #########################
     
-    orf_coeffs = xx[3*npsr+cta+ctb:]
+    orf_coeffs = xx[2*npsr+cta+ctb:]
 
     ########
 
     if dmVar==True:
-        return Ared, gam_red, Adm, gam_dm, EFAC, Agwb, gam_gwb, orf_coeffs
+        return Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, orf_coeffs
     else:
-        return Ared, gam_red, EFAC, Agwb, gam_gwb, orf_coeffs
+        return Ared, gam_red, Agwb, gam_gwb, orf_coeffs
 
 
 def sumTermCovarianceMatrix_fast(tm, fL, gam):

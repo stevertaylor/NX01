@@ -269,6 +269,8 @@ class PsrObjFromH5(object):
     efacs = None
     equads = None
     ecorrs = None
+    redamp = None
+    redind = None
 
     def __init__(self, h5Obj):
         self.h5Obj = h5Obj
@@ -298,6 +300,8 @@ class PsrObjFromH5(object):
         self.efacs = None
         self.equads = None
         self.ecorrs = None
+        self.redamp = None
+        self.redind = None
 
     """
     Read data from hdf5 file into pulsar object
@@ -344,6 +348,15 @@ class PsrObjFromH5(object):
         self.efacs = OrderedDict(efacs)
         self.equads = OrderedDict(equads)
         self.ecorrs = OrderedDict(ecorrs)
+
+        # Let's rip out the red noise properties if present
+        self.redamp = 1e-20
+        self.redind = 0.0
+        for ll in parlines:
+            if 'RNAMP' in ll:
+                self.redamp = 1e-6 * f1yr * np.sqrt(12.0*np.pi**2.0) * np.double(ll.split()[1]) 
+            if 'RNIDX' in ll:
+                self.redind = -np.double(ll.split()[1])
 
         print "--> Done extracting pulsar from hdf5 file :-) \n"
 
