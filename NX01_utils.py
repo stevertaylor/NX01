@@ -786,7 +786,67 @@ def AnisOptStat(psr, GCGnoiseInv, CorrCoeff, lmax, gam_gwb=4.33333):
     return P, invFisher, np.linalg.slogdet(fisher) #, sold
 
 
-  
+##########################################################################
+
+# MCMC jump proposals
+
+# red noise draws (from Justin Ellis' PAL2)
+'''
+def drawFromRedNoisePrior(sampler, parameters, iter, beta):
+
+    # post-jump parameters
+    q = parameters.copy()
+
+    # transition probability
+    qxy = 0
+
+    # which parameters to jump
+    #ind = np.unique(np.random.randint(0, nsigs, nsigs))
+    ind = np.unique(np.random.randint(0, nsigs, 1))
+
+    # draw params from prior
+    for ii in ind:
+
+        # get signal
+        sig = self.ptasignals[signum[ii]]
+        parind = sig['parindex']
+        npars = sig['npars']
+
+        # jump in amplitude if varying
+        if sig['bvary'][0]:
+
+            # log prior
+            if sig['prior'][0] == 'log':
+                q[parind] = np.random.uniform(
+                    self.pmin[parind], self.pmax[parind])
+                qxy += 0
+
+            elif sig['prior'][0] == 'uniform':
+                #q[parind] = np.random.uniform(
+                #    self.pmin[parind], self.pmax[parind])
+                #qxy += 0
+
+                q[parind] = np.log10(np.random.uniform(10 ** self.pmin[parind],
+                                                       10 ** self.pmax[parind]))
+                qxy += np.log(10 ** parameters[parind] / 10 ** q[parind])
+
+            else:
+                print 'Prior type not recognized for parameter'
+                q[parind] = parameters[parind]
+
+        # jump in spectral index if varying
+        if sig['bvary'][1]:
+            
+            if sig['prior'][1] == 'uniform':
+                q[parind +
+                    1] = np.random.uniform(self.pmin[parind + 1], self.pmax[parind + 1])
+                qxy += 0
+
+            else:
+                q[parind + 1] = parameters[parind + 1]
+
+    return q, qxy
+'''
     
 
    

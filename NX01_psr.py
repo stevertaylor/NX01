@@ -195,7 +195,7 @@ class PsrObj(object):
 
         self.Gres = np.dot(self.G.T, self.res)
 
-        print "--> Done reading in pulsar :-)"
+        print "--> Done reading in pulsar :-) \n"
 
     def makeFred(self, nmodes, Ttot):
         self.Fred = utils.createfourierdesignmatrix_RED(self.toas, nmodes, Tspan=Ttot)

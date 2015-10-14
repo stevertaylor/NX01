@@ -56,8 +56,8 @@ parser.add_option('--nmodes', dest='nmodes', action='store', type=int,
                    help='Number of modes in low-rank time-frequency approximation')
 parser.add_option('--dmVar', dest='dmVar', action='store_true', default=False,
                    help='Search for DM variations in the data (False)? (default=False)')
-parser.add_option('--ptmcmc', dest='ptmcmc', action='store_true', default=False,
-                   help='Sample using PALs parallel tempering MCMC (False)? (default=False)')
+parser.add_option('--ptmcmc', dest='ptmcmc', action='store_true', default=True,
+                   help='Sample using PALs parallel tempering MCMC (False)? (default=True)')
 parser.add_option('--num_gwfreq_wins', dest='num_gwfreq_wins', action='store', type=int, default=1,
                    help='Number windows to split the band into (useful for evolving anisotropic searches (default = 1 windows)')
 parser.add_option('--lmax', dest='LMAX', action='store', type=int, default=0,
@@ -128,17 +128,20 @@ else:
     psr = [NX01_psr.PsrObj(p) for p in t2psr]
 
 
+# Grab all the pulsar quantities
 [p.grab_all_vars() for p in psr]
 
+# Now, grab the positions and compute the ORF basis functions
 psr_positions = [np.array([psr[ii].psr_locs[0],
                            np.pi/2. - psr[ii].psr_locs[1]])
                            for ii in range(len(psr))]
 positions = np.array(psr_positions).copy()
 
-CorrCoeff = np.array(anis.CorrBasis(positions,args.LMAX))       # computing all the correlation basis-functions for the array
-harm_sky_vals = utils.SetupPriorSkyGrid(args.LMAX)              # computing the values of the spherical-harmonics up to order
+CorrCoeff = np.array(anis.CorrBasis(positions,args.LMAX))       # Computing all the correlation basis-functions for the array.
+harm_sky_vals = utils.SetupPriorSkyGrid(args.LMAX)              # Computing the values of the spherical-harmonics up to order
                                                                 # LMAX on a pre-specified grid
 
+                                                            
 if args.anis_modefile is None:
     gwfreqs_per_win = int(1.*args.nmodes/(1.*args.num_gwfreq_wins)) # getting the number of GW frequencies per window
     anis_modefreqs = np.arange(1,args.nmodes+1)
@@ -152,14 +155,15 @@ else:
     for ii in range(tmp_num_gwfreq_wins):
         anis_modefreqs.append(np.arange(tmp_modefreqs[ii,0],tmp_modefreqs[ii,1]+1))
 
+# Create a tag for evolving anisotropy searches
 if (args.LMAX!=0) and (tmp_num_gwfreq_wins > 1):
     evol_anis_tag = 'EvAnis'
 else:
     evol_anis_tag = ''
               
-################################################################################################################################
+#############################################################################
 # GETTING MAXIMUM TIME, COMPUTING FOURIER DESIGN MATRICES, AND GETTING MODES 
-################################################################################################################################
+#############################################################################
 
 Tmax = np.max([p.toas.max() - p.toas.min() for p in psr])
 
@@ -178,7 +182,9 @@ else:
     fqs = np.linspace(1/Tmax, nmode/Tmax, nmode)
 
 
-##############
+#######################################
+# PRE-COMPUTING WHITE NOISE PROPERTIES 
+#######################################
 
 loglike1 = 0
 TtNT = []
@@ -232,9 +238,9 @@ for ii,p in enumerate(psr):
 d = np.concatenate(d)
 
 
-################################################################################################################################
+##########################
 # SETTING UP PRIOR RANGES
-################################################################################################################################
+##########################
 
 pmin = -20.0*np.ones(len(psr))
 pmin = np.append(pmin,0.0*np.ones(len(psr)))
@@ -257,7 +263,7 @@ if args.fix_slope==False:
     pmax = np.append(pmax,7.0)
 pmax = np.append(pmax,10.0*np.ones( tmp_num_gwfreq_wins*(((args.LMAX+1)**2)-1) ))
 
-################################################################################################################################
+##################################################################################
 
 def my_prior(xx):
     logp = 0.
@@ -271,10 +277,6 @@ def my_prior(xx):
 
 
 def lnprob(xx):
-    """
-    Model Independent stochastic background likelihood function
-
-    """
 
     npsr = len(psr) 
 
@@ -324,56 +326,6 @@ def lnprob(xx):
     ORFtot[0::2] = ORF
     ORFtot[1::2] = ORF
     
-    '''
-    loglike1 = 0
-    TtNT = []
-    d = []
-    for ii,p in enumerate(psr):
-
-        # compute ( T.T * N^-1 * T ) & log determinant of N
-        new_err = (p.toaerrs).copy()
-        if args.fullN==True:
-            
-            if len(p.ecorrs)>0:
-
-                Jamp = np.ones(len(p.epflags))
-                for jj,nano_sysname in enumerate(p.sysflagdict['nano-f'].keys()):
-                    Jamp[np.where(p.epflags==nano_sysname)] *= p.ecorrs[nano_sysname]**2.0
-
-                Nx = jitter.cython_block_shermor_0D(p.res, new_err**2., Jamp, p.Uinds)
-                d.append(np.dot(p.Te.T, Nx))
-                logdet_N, TtNT_dummy = jitter.cython_block_shermor_2D(p.Te, new_err**2., Jamp, p.Uinds)
-                TtNT.append(TtNT_dummy)
-                det_dummy, dtNdt = jitter.cython_block_shermor_1D(p.res, new_err**2., Jamp, p.Uinds)
-
-            else:
-
-                d.append(np.dot(p.Te.T, p.res/( new_err**2.0 )))
-        
-                N = 1./( new_err**2.0 )
-                right = (N*p.Te.T).T
-                TtNT.append(np.dot(p.Te.T, right))
-        
-                logdet_N = np.sum(np.log( new_err**2.0 ))
-            
-                # triple product in likelihood function
-                dtNdt = np.sum(p.res**2.0/( new_err**2.0 ))
-        
-        else:
-
-            d.append(np.dot(p.Te.T, p.res/( new_err**2.0 )))
-            
-            N = 1./( new_err**2.0 )
-            right = (N*p.Te.T).T
-            TtNT.append(np.dot(p.Te.T, right))
-    
-            logdet_N = np.sum(np.log( new_err**2.0 ))
-        
-            # triple product in likelihood function
-            dtNdt = np.sum(p.res**2.0/( new_err**2.0 ))
-
-        loglike1 += -0.5 * (logdet_N + dtNdt)
-    '''
        
     # parameterize intrinsic red noise as power law
     Tspan = (1/fqs[0])*86400.0
@@ -433,19 +385,28 @@ def lnprob(xx):
     logdet_Phi = 0
     non_pos_def = 0
     for ii in range(mode_count):
+
         try:
+
             L = sl.cho_factor(smallMatrix[ii,:,:])
             smallMatrix[ii,:,:] = sl.cho_solve(L, np.eye(npsr))
             logdet_Phi += np.sum(2*np.log(np.diag(L[0])))
+
         except np.linalg.LinAlgError:
+
             print 'Cholesky Decomposition Failed!! Rejecting...'
             non_pos_def += 1
-        
+
+    # Break if we have non-positive-definiteness of Phi
     if non_pos_def > 0:
+
         return -np.inf
+
     else:
+
         bigTtNT = sl.block_diag(*TtNT)
-        Phi = np.zeros( bigTtNT.shape )
+        Phi = np.zeros_like( bigTtNT )
+
         # now fill in real covariance matrix
         ind = [0]
         ind = np.append(ind,np.cumsum([TtNT[ii].shape[0] for ii in range(len(psr))]))
@@ -457,37 +418,46 @@ def lnprob(xx):
             
         # compute sigma
         Sigma = bigTtNT + Phi
-        #d = np.concatenate(d)
             
         # cholesky decomp for second term in exponential
         if args.use_gpu:
+
             try:
+
                 Sigma_gpu = gpuarray.to_gpu( Sigma.astype(np.float64).copy() )
                 expval2_gpu = gpuarray.to_gpu( d.astype(np.float64).copy() )
-                culinalg.cho_solve( Sigma_gpu, expval2_gpu ) # in-place linear-algebra: Sigma and expval2 overwritten
+                culinalg.cho_solve( Sigma_gpu, expval2_gpu ) # in-place linear-algebra:
+                                                             # Sigma and expval2 overwritten
                 logdet_Sigma = np.sum(2.0*np.log(np.diag(Sigma_gpu.get())))
 
             except cula.culaDataError:
-                print 'Cholesky Decomposition Failed (GPU error!)'
+
+                print 'Cholesky Decomposition Failed (GPU error!!)'
                 return -np.inf
 
             logLike = -0.5 * (logdet_Phi + logdet_Sigma) + 0.5 * (np.dot(d, expval2_gpu.get() )) + loglike1
             
         else:
+
             try:
+
                 cf = sl.cho_factor(Sigma)
                 expval2 = sl.cho_solve(cf, d)
                 logdet_Sigma = np.sum(2*np.log(np.diag(cf[0])))
 
             except np.linalg.LinAlgError:
+
                 print 'Cholesky Decomposition Failed second time!! Using SVD instead'
                 u,s,v = sl.svd(Sigma)
                 expval2 = np.dot(v.T, 1/s*np.dot(u.T, d))
                 logdet_Sigma = np.sum(np.log(s))
 
+
             logLike = -0.5 * (logdet_Phi + logdet_Sigma) + 0.5 * (np.dot(d, expval2)) + loglike1 
 
 
+        # Multiplying likelihood to correct log-uniform
+        # sampling thus making a uniform prior
         if args.limit_or_detect_gwb == 'limit':
             priorfac_gwb = np.log(Agwb * np.log(10.0))
         else:
@@ -498,11 +468,14 @@ def lnprob(xx):
         else:
             priorfac_red = 0.0
 
+
         return logLike + priorfac_gwb + priorfac_red + physicality
 
 
 #########################
 #########################
+
+# Set up the parameter list
 
 parameters=[]
 for ii in range(len(psr)):
@@ -530,6 +503,7 @@ n_params = len(parameters)
 print "\n The total number of parameters is {0}\n".format(n_params)
 
 
+# Start the sampling off with some reasonable parameter choices
 x0 = np.log10(np.array([p.redamp for p in psr]))
 x0 = np.append(x0,np.array([p.redind for p in psr]))
 if args.dmVar==True:
@@ -542,7 +516,7 @@ x0 = np.append(x0,np.zeros( tmp_num_gwfreq_wins*(((args.LMAX+1)**2)-1) ))
 
 print "\n Your initial parameters are {0}\n".format(x0)
 
-
+# Make a reasonable covariance matrix to commence sampling
 cov_diag = 0.5*np.ones(len(psr))
 cov_diag = np.append(cov_diag,0.5*np.ones(len(psr)))
 if args.dmVar==True:
@@ -565,8 +539,32 @@ print "\n Now, we sample... \n"
 sampler = PAL.PTSampler(ndim=n_params,logl=lnprob,logp=my_prior,cov=np.diag(cov_diag),\
                         outDir='./chains_nanoAnalysis/nanograv_gwb{0}_red{1}_nmodes{2}_Lmax{3}_{4}_{5}'.\
                         format(args.limit_or_detect_gwb,args.limit_or_detect_red,args.nmodes,args.LMAX,evol_anis_tag,gamma_ext),resume=False)
+
+# Copy the anisotropy modefile into the results directory
 if args.anis_modefile is not None:
     os.system('cp {0} {1}'.format(args.anis_modefile,'./chains_nanoAnalysis/nanograv_gwb{0}_red{1}_nmodes{2}_Lmax{3}_{4}_{5}'.\
                                   format(args.limit_or_detect_gwb,args.limit_or_detect_red,args.nmodes,args.LMAX,evol_anis_tag,gamma_ext)))
+
+
+# add jump proposals
+'''
+if incGWB:
+    if args.gwbModel == 'powerlaw':
+        sampler.addProposalToCycle(model.drawFromGWBPrior, 10)
+    elif args.gwbModel == 'spectrum':
+        sampler.addProposalToCycle(model.drawFromGWBSpectrumPrior, 10)
+    elif args.gwbModel == 'turnover':
+        sampler.addProposalToCycle(model.drawFromGWBTurnoverPrior, 10)
+if args.incGWBAni and args.gwbModel == 'powerlaw':
+    sampler.addProposalToCycle(model.drawFromaGWBPrior, 10)
+if args.incRed and args.redModel=='powerlaw':
+    sampler.addProposalToCycle(model.drawFromRedNoisePrior, 5)
+if args.incRedBand and args.redModel=='powerlaw':
+    sampler.addProposalToCycle(model.drawFromRedNoiseBandPrior, 5)
+if args.incDMBand and args.dmModel=='powerlaw':
+    sampler.addProposalToCycle(model.drawFromDMNoiseBandPrior, 5)
+if args.incORF:
+    sampler.addProposalToCycle(model.drawFromORFPrior, 10)
+'''
 
 sampler.sample(p0=x0,Niter=1e6,thin=10)
