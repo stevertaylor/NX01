@@ -273,6 +273,14 @@ class DataFile(object):
         self.writeData(psrGroup, 'parfilepath', psr.parfile, overwrite=overwrite)
         self.writeData(psrGroup, 'timfilepath', psr.timfile, overwrite=overwrite)
 
+        # Load the entire noise-file into memory, so that we can save it in the
+        # HDF5 file
+        with open(psr.noisefile, 'r') as content_file:
+            noisefile_content = content_file.read()
+        # Save the noise-file and path to the HDF5 file
+        self.writeData(psrGroup, 'noisefilepath', psr.noisefile, overwrite=overwrite)
+        self.writeData(psrGroup, 'noisefile', noisefile_content, overwrite=overwrite)
+
         # Save the basic quantities
         self.writeData(psrGroup, 'name', psr.name,
                        overwrite=overwrite)    # Days

@@ -17,10 +17,13 @@ import NX01_utils as utils
 from collections import OrderedDict
 import cPickle as pickle
 
+f1yr = 1./(86400.0*365.25)
+
 class PsrObj(object):
     T2psr = None
     parfile = None
     timfile = None
+    noisefile = None
     psr_locs = None
     toas = None
     toaerrs = None
@@ -45,6 +48,7 @@ class PsrObj(object):
         self.T2psr = t2obj
         self.parfile = None
         self.timfile = None
+        self.noisefile = None
         self.psr_locs = None
         self.toas = None
         self.toaerrs = None
@@ -248,6 +252,7 @@ class PsrObjFromH5(object):
     psr_locs = None
     parfile = None
     timfile = None
+    noisefile = None
     toas = None
     toaerrs = None
     res = None
@@ -266,16 +271,22 @@ class PsrObjFromH5(object):
     name = "J0000+0000"
     Gres = None
     epflags = None
+    t2efacs = None
+    t2equads = None
+    t2ecorrs = None
+    parRedamp = None
+    parRedind = None
     efacs = None
     equads = None
     ecorrs = None
-    redamp = None
-    redind = None
+    Redamp = None
+    Redind = None
 
     def __init__(self, h5Obj):
         self.h5Obj = h5Obj
         self.parfile = None
         self.timfile = None
+        self.noisefile = None
         self.psr_locs = None
         self.toas = None
         self.toaerrs = None
@@ -297,16 +308,21 @@ class PsrObjFromH5(object):
         self.sysflagdict = None
         self.Gres = None
         self.epflags = None
+        self.t2efacs = None
+        self.t2equads = None
+        self.t2ecorrs = None
+        self.parRedamp = None
+        self.parRedind = None
         self.efacs = None
         self.equads = None
         self.ecorrs = None
-        self.redamp = None
-        self.redind = None
+        self.Redamp = None
+        self.Redind = None
 
     """
     Read data from hdf5 file into pulsar object
     """
-    def grab_all_vars(self): 
+    def grab_all_vars(self, rescale=True): 
 
         print "--> Extracting {0} from hdf5 file".format(self.h5Obj['name'].value)
         
@@ -314,6 +330,7 @@ class PsrObjFromH5(object):
         self.name = self.h5Obj['name'].value
         self.parfile = self.h5Obj['parfilepath'].value
         self.timfile = self.h5Obj['timfilepath'].value
+        self.noisefile = self.h5Obj['noisefilepath'].value
         
         self.toas = self.h5Obj['TOAs'].value
         self.res = self.h5Obj['postfitRes'].value
@@ -334,29 +351,75 @@ class PsrObjFromH5(object):
 
         # Let's rip out EFACS, EQUADS and ECORRS from parfile
         parlines = self.h5Obj['parfile'].value.split('\n')
+        t2efacs = []
+        t2equads = []
+        t2ecorrs = []
+        for ll in parlines:
+            if 'T2EFAC' in ll:
+                t2efacs.append([ll.split()[2], np.double(ll.split()[3])])
+            if 'T2EQUAD' in ll:
+                t2equads.append([ll.split()[2], np.double(ll.split()[3])*1e-6])
+            if 'ECORR' in ll:
+                t2ecorrs.append([ll.split()[2], np.double(ll.split()[3])*1e-6])
+
+        self.t2efacs = OrderedDict(t2efacs)
+        self.t2equads = OrderedDict(t2equads)
+        self.t2ecorrs = OrderedDict(t2ecorrs)
+
+        # Let's rip out the red noise properties if present
+        self.parRedamp = 1e-20
+        self.parRedind = 0.0
+        for ll in parlines:
+            if 'RNAMP' in ll:
+                self.parRedamp = ll.split()[1] # 1e-6 * f1yr * np.sqrt(12.0*np.pi**2.0) * np.double(ll.split()[1]) 
+            if 'RNIDX' in ll:
+                self.parRedind = -np.double(ll.split()[1])
+
+        # Let's also find single pulsar analysis EFACS, EQUADS, ECORRS
+        noiselines = self.h5Obj['noisefile'].value.split('\n')
         efacs = []
         equads = []
         ecorrs = []
-        for ll in parlines:
-            if 'T2EFAC' in ll:
-                efacs.append([ll.split()[2], np.double(ll.split()[3])])
-            if 'T2EQUAD' in ll:
-                equads.append([ll.split()[2], np.double(ll.split()[3])*1e-6])
-            if 'ECORR' in ll:
-                ecorrs.append([ll.split()[2], np.double(ll.split()[3])*1e-6])
+        for ll in noiselines:
+            if 'efac' in ll:
+                efacs.append([ll.split()[0].split('efac-')[1], np.double(ll.split()[1])])
+            if 'equad' in ll:
+                equads.append([ll.split()[0].split('equad-')[1], 10.0**np.double(ll.split()[1])])
+            if 'jitter' in ll:
+                ecorrs.append([ll.split()[0].split('jitter_q-')[1], 10.0**np.double(ll.split()[1])])
 
         self.efacs = OrderedDict(efacs)
         self.equads = OrderedDict(equads)
         self.ecorrs = OrderedDict(ecorrs)
 
-        # Let's rip out the red noise properties if present
-        self.redamp = 1e-20
-        self.redind = 0.0
-        for ll in parlines:
-            if 'RNAMP' in ll:
-                self.redamp = 1e-6 * f1yr * np.sqrt(12.0*np.pi**2.0) * np.double(ll.split()[1]) 
-            if 'RNIDX' in ll:
-                self.redind = -np.double(ll.split()[1])
+        # Let's get the red noise properties from single-pulsar analysis
+        self.Redamp = 1e-20
+        self.Redind = 0.0
+        for ll in noiselines:
+            if 'RN-Amplitude' in ll:
+                self.Redamp = 10.0**np.double(ll.split()[1]) # 1e-6 * f1yr * np.sqrt(12.0*np.pi**2.0) * np.double(ll.split()[1]) 
+            if 'RN-spectral-index' in ll:
+                self.Redind = np.double(ll.split()[1])
+
+        # Time to rescale the TOA uncertainties by single-pulsar EFACS and EQUADS
+        systems = self.sysflagdict['f']
+        if rescale==True:
+            tmp_errs = self.toaerrs.copy()
+
+            for sysname in systems:
+                tmp_errs[systems[sysname]] *= self.efacs[sysname] 
+
+            ###
+
+            t2equad_bit = np.ones(len(tmp_errs))
+            for sysname in systems:
+                t2equad_bit[systems[sysname]] *= self.equads[sysname]
+
+            ###
+
+            tmp_errs = np.sqrt( tmp_errs**2.0 + t2equad_bit**2.0 )
+            self.toaerrs = tmp_errs
+        
 
         print "--> Done extracting pulsar from hdf5 file :-) \n"
 

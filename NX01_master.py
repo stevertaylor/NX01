@@ -504,11 +504,11 @@ print "\n The total number of parameters is {0}\n".format(n_params)
 
 
 # Start the sampling off with some reasonable parameter choices
-x0 = np.log10(np.array([p.redamp for p in psr]))
-x0 = np.append(x0,np.array([p.redind for p in psr]))
+x0 = np.log10(np.array([p.Redamp for p in psr]))
+x0 = np.append(x0,np.array([p.Redind for p in psr]))
 if args.dmVar==True:
-    x0 = np.append(x0,np.log10(np.array([p.redamp for p in psr])))
-    x0 = np.append(x0,np.array([p.redind for p in psr]))
+    x0 = np.append(x0,np.log10(np.array([p.Redamp for p in psr])))
+    x0 = np.append(x0,np.array([p.Redind for p in psr]))
 x0 = np.append(x0,-15.0)
 if args.fix_slope is False:
     x0 = np.append(x0,13./3.)
