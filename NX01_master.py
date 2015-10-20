@@ -547,24 +547,18 @@ if args.anis_modefile is not None:
 
 
 # add jump proposals
-'''
-if incGWB:
-    if args.gwbModel == 'powerlaw':
-        sampler.addProposalToCycle(model.drawFromGWBPrior, 10)
-    elif args.gwbModel == 'spectrum':
-        sampler.addProposalToCycle(model.drawFromGWBSpectrumPrior, 10)
-    elif args.gwbModel == 'turnover':
-        sampler.addProposalToCycle(model.drawFromGWBTurnoverPrior, 10)
-if args.incGWBAni and args.gwbModel == 'powerlaw':
-    sampler.addProposalToCycle(model.drawFromaGWBPrior, 10)
-if args.incRed and args.redModel=='powerlaw':
-    sampler.addProposalToCycle(model.drawFromRedNoisePrior, 5)
-if args.incRedBand and args.redModel=='powerlaw':
-    sampler.addProposalToCycle(model.drawFromRedNoiseBandPrior, 5)
-if args.incDMBand and args.dmModel=='powerlaw':
-    sampler.addProposalToCycle(model.drawFromDMNoiseBandPrior, 5)
-if args.incORF:
-    sampler.addProposalToCycle(model.drawFromORFPrior, 10)
-'''
+sampler.addProposalToCycle(sampler, utils.drawFromGWBPrior, beta=10,
+                           prior = 'uniform',
+                           npsr=len(psr), dmVar=args.dmVar, fix_slope=args.fix_slope)
+#if args.incGWBAni and args.gwbModel == 'powerlaw':
+#    sampler.addProposalToCycle(model.drawFromaGWBPrior, 10)
+sampler.addProposalToCycle(utils.drawFromRedNoisePrior, beta=5,
+                           prior = 'uniform',
+                           npsr=len(psr), dmVar=args.dmVar, fix_slope=args.fix_slope)
+#if args.incDMBand and args.dmModel=='powerlaw':
+#    sampler.addProposalToCycle(model.drawFromDMNoiseBandPrior, 5)
+#if args.incORF:
+#    sampler.addProposalToCycle(model.drawFromORFPrior, 10)
+
 
 sampler.sample(p0=x0,Niter=1e6,thin=10)

@@ -791,8 +791,11 @@ def AnisOptStat(psr, GCGnoiseInv, CorrCoeff, lmax, gam_gwb=4.33333):
 # MCMC jump proposals
 
 # red noise draws (from Justin Ellis' PAL2)
-'''
-def drawFromRedNoisePrior(sampler, parameters, iter, beta):
+
+def drawFromRedNoisePrior(sampler, parameters, beta,
+                          prior = 'uniform',
+                          npsr, dmVar=False, fix_slope=False,
+                          iter):
 
     # post-jump parameters
     q = parameters.copy()
@@ -800,53 +803,85 @@ def drawFromRedNoisePrior(sampler, parameters, iter, beta):
     # transition probability
     qxy = 0
 
-    # which parameters to jump
-    #ind = np.unique(np.random.randint(0, nsigs, nsigs))
-    ind = np.unique(np.random.randint(0, nsigs, 1))
+    if dmVar==True:
+        Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, orf_coeffs = utils.masterSplitParams(q, npsr, dmVar, fix_slope)
+        Ared_ul, gam_red_ul, Adm_ul, gam_dm_ul, Agwb_ul, gam_gwb_ul, orf_coeffs_ul = utils.masterSplitParams(self.pmax, npsr, dmVar, fix_slope)
+        Ared_ll, gam_red_ll, Adm_ll, gam_dm_ll, Agwb_ll, gam_gwb_ll, orf_coeffs_ll = utils.masterSplitParams(self.pmin, npsr, dmVar, fix_slope)
+    else:
+        Ared, gam_red, Agwb, gam_gwb, orf_coeffs = utils.masterSplitParams(q, npsr, dmVar, fix_slope)
+        Ared_ul, gam_red_ul, Agwb_ul, gam_gwb_ul, orf_coeffs_ul = utils.masterSplitParams(self.pmax, npsr, dmVar, fix_slope)
+        Ared_ll, gam_red_ll, Agwb_ll, gam_gwb_ll, orf_coeffs_ll = utils.masterSplitParams(self.pmin, npsr, dmVar, fix_slope)
 
-    # draw params from prior
-    for ii in ind:
+    
+    # log prior
+    if prior == 'log':
+        Ared = np.random.uniform(Ared_ll, Ared_ul, len(Ared))
+        qxy += 0
 
-        # get signal
-        sig = self.ptasignals[signum[ii]]
-        parind = sig['parindex']
-        npars = sig['npars']
+    elif prior == 'uniform':
+        Ared = np.random.uniform(Ared_ll, Ared_ul, len(Ared))
+        qxy += 0
 
-        # jump in amplitude if varying
-        if sig['bvary'][0]:
+        #Ared = np.log10(np.random.uniform(10 ** Ared_ll, 10 ** Ared_ul, len(Ared)))
+        #qxy += np.log(10 ** parameters[parind] / 10 ** q[parind])
 
-            # log prior
-            if sig['prior'][0] == 'log':
-                q[parind] = np.random.uniform(
-                    self.pmin[parind], self.pmax[parind])
-                qxy += 0
+    gam_red = np.random.uniform(gam_red_ll, gam_red_ul, len(gam_red))
+    qxy += 0
 
-            elif sig['prior'][0] == 'uniform':
-                #q[parind] = np.random.uniform(
-                #    self.pmin[parind], self.pmax[parind])
-                #qxy += 0
-
-                q[parind] = np.log10(np.random.uniform(10 ** self.pmin[parind],
-                                                       10 ** self.pmax[parind]))
-                qxy += np.log(10 ** parameters[parind] / 10 ** q[parind])
-
-            else:
-                print 'Prior type not recognized for parameter'
-                q[parind] = parameters[parind]
-
-        # jump in spectral index if varying
-        if sig['bvary'][1]:
-            
-            if sig['prior'][1] == 'uniform':
-                q[parind +
-                    1] = np.random.uniform(self.pmin[parind + 1], self.pmax[parind + 1])
-                qxy += 0
-
-            else:
-                q[parind + 1] = parameters[parind + 1]
+    if dmVar==True:
+        q = np.concatenate([Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, orf_coeffs])
+    else:
+        q = np.concatenate([Ared, gam_red, Agwb, gam_gwb, orf_coeffs])
 
     return q, qxy
-'''
+
+# gwb draws (from Justin Ellis' PAL2)
+
+def drawFromGWBPrior(sampler, parameters, beta,
+                          prior = 'uniform',
+                          npsr, dmVar=False, fix_slope=False,
+                          iter):
+
+    # post-jump parameters
+    q = parameters.copy()
+
+    # transition probability
+    qxy = 0
+
+    if dmVar==True:
+        Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, orf_coeffs = utils.masterSplitParams(q, npsr, dmVar, fix_slope)
+        Ared_ul, gam_red_ul, Adm_ul, gam_dm_ul, Agwb_ul, gam_gwb_ul, orf_coeffs_ul = utils.masterSplitParams(self.pmax, npsr, dmVar, fix_slope)
+        Ared_ll, gam_red_ll, Adm_ll, gam_dm_ll, Agwb_ll, gam_gwb_ll, orf_coeffs_ll = utils.masterSplitParams(self.pmin, npsr, dmVar, fix_slope)
+    else:
+        Ared, gam_red, Agwb, gam_gwb, orf_coeffs = utils.masterSplitParams(q, npsr, dmVar, fix_slope)
+        Ared_ul, gam_red_ul, Agwb_ul, gam_gwb_ul, orf_coeffs_ul = utils.masterSplitParams(self.pmax, npsr, dmVar, fix_slope)
+        Ared_ll, gam_red_ll, Agwb_ll, gam_gwb_ll, orf_coeffs_ll = utils.masterSplitParams(self.pmin, npsr, dmVar, fix_slope)
+
+    
+    # log prior
+    if prior == 'log':
+        Agwb = np.random.uniform(Agwb_ll, Agwb_ul, len(Agwb))
+        qxy += 0
+
+    elif prior == 'uniform':
+        Agwb = np.random.uniform(Agwb_ll, Agwb_ul, len(Agwb))
+        qxy += 0
+
+        #Ared = np.log10(np.random.uniform(10 ** Ared_ll, 10 ** Ared_ul, len(Ared)))
+        #qxy += np.log(10 ** parameters[parind] / 10 ** q[parind])
+
+
+    if fix_slope==False:
+        gam_gwb = np.random.uniform(gam_gwb_ll, gam_gwb_ul, len(gam_gwb))
+        qxy += 0
+
+    if dmVar==True:
+        q = np.concatenate([Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, orf_coeffs])
+    else:
+        q = np.concatenate([Ared, gam_red, Agwb, gam_gwb, orf_coeffs])
+
+    return q, qxy
+
     
 
    
