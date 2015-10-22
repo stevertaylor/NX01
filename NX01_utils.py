@@ -25,7 +25,7 @@ from ephem import *
 day = 24 * 3600
 year = 365.25 * day
 
-def masterSplitParams(xx, npsr, dmVar, fix_slope):
+def masterSplitParams(xx, npsr, dmVar, fix_slope, propose=False):
     """
     Takes in a vector of search parameters and
     returns arrays of physical parameters.
@@ -70,9 +70,25 @@ def masterSplitParams(xx, npsr, dmVar, fix_slope):
     ########
 
     if dmVar==True:
-        return Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, orf_coeffs
+        
+        if propose==False:
+            return Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, orf_coeffs
+        else:
+            if fix_slope==False:
+                return Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, orf_coeffs
+            else:
+                return Ared, gam_red, Adm, gam_dm, Agwb, orf_coeffs
+                
     else:
-        return Ared, gam_red, Agwb, gam_gwb, orf_coeffs
+        
+        if propose==False:
+            return Ared, gam_red, Agwb, gam_gwb, orf_coeffs
+        else:
+            if fix_slope==False:
+                return Ared, gam_red, Agwb, gam_gwb, orf_coeffs
+            else:
+                return Ared, gam_red, Agwb, orf_coeffs
+                
 
 
 def sumTermCovarianceMatrix_fast(tm, fL, gam):
@@ -791,7 +807,7 @@ def AnisOptStat(psr, GCGnoiseInv, CorrCoeff, lmax, gam_gwb=4.33333):
 # MCMC jump proposals
 
 # red noise draws (from Justin Ellis' PAL2)
-
+'''
 def drawFromRedNoisePrior(sampler, parameters, beta,
                           prior = 'uniform',
                           npsr, dmVar=False, fix_slope=False,
@@ -881,7 +897,7 @@ def drawFromGWBPrior(sampler, parameters, beta,
         q = np.concatenate([Ared, gam_red, Agwb, gam_gwb, orf_coeffs])
 
     return q, qxy
-
+'''
     
 
    

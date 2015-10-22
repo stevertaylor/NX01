@@ -546,15 +546,249 @@ if args.anis_modefile is not None:
                                   format(args.limit_or_detect_gwb,args.limit_or_detect_red,args.nmodes,args.LMAX,evol_anis_tag,gamma_ext)))
 
 
+#####################################
+#####################################
+
+# MCMC jump proposals
+# red noise draws (from Justin Ellis' PAL2)
+
+#####################################
+#####################################
+
+def drawFromRedNoisePrior(parameters, iter, beta):
+
+    # post-jump parameters
+    q = parameters.copy()
+
+    # transition probability
+    qxy = 0
+
+    npsr = len(psr)
+
+    if args.dmVar==True:
+        
+        if args.fix_slope==False:
+        
+            (Ared_samp, gam_red_samp, 
+             Adm_samp, gam_dm_samp, 
+             Agwb_samp, gam_gwb_samp, orf_coeffs_samp) = utils.masterSplitParams(q, npsr, args.dmVar, args.fix_slope, propose=True)
+        
+            (Ared_ul, gam_red_ul, 
+             Adm_ul, gam_dm_ul, 
+             Agwb_ul, gam_gwb_ul, orf_coeffs_ul) = utils.masterSplitParams(pmax, npsr, args.dmVar, args.fix_slope, propose=True)
+        
+            (Ared_ll, gam_red_ll, 
+             Adm_ll, gam_dm_ll, 
+             Agwb_ll, gam_gwb_ll, orf_coeffs_ll) = utils.masterSplitParams(pmin, npsr, args.dmVar, args.fix_slope, propose=True)
+            
+        else:
+            
+            (Ared_samp, gam_red_samp, 
+             Adm_samp, gam_dm_samp, 
+             Agwb_samp, orf_coeffs_samp) = utils.masterSplitParams(q, npsr, args.dmVar, args.fix_slope, propose=True)
+        
+            (Ared_ul, gam_red_ul, 
+             Adm_ul, gam_dm_ul, 
+             Agwb_ul, orf_coeffs_ul) = utils.masterSplitParams(pmax, npsr, args.dmVar, args.fix_slope, propose=True)
+        
+            (Ared_ll, gam_red_ll, 
+             Adm_ll, gam_dm_ll, 
+             Agwb_ll, orf_coeffs_ll) = utils.masterSplitParams(pmin, npsr, args.dmVar, args.fix_slope, propose=True)
+        
+    else:
+        
+        if args.fix_slope==False:
+        
+            (Ared_samp, gam_red_samp, 
+             Agwb_samp, gam_gwb_samp, orf_coeffs_samp) = utils.masterSplitParams(q, npsr, args.dmVar, args.fix_slope, propose=True)
+        
+            (Ared_ul, gam_red_ul, 
+             Agwb_ul, gam_gwb_ul, orf_coeffs_ul) = utils.masterSplitParams(pmax, npsr, args.dmVar, args.fix_slope, propose=True)
+        
+            (Ared_ll, gam_red_ll, 
+             Agwb_ll, gam_gwb_ll, orf_coeffs_ll) = utils.masterSplitParams(pmin, npsr, args.dmVar, args.fix_slope, propose=True)
+            
+        else:
+            
+            (Ared_samp, gam_red_samp, 
+             Agwb_samp, orf_coeffs_samp) = utils.masterSplitParams(q, npsr, args.dmVar, args.fix_slope, propose=True)
+        
+            (Ared_ul, gam_red_ul, 
+             Agwb_ul, orf_coeffs_ul) = utils.masterSplitParams(pmax, npsr, args.dmVar, args.fix_slope, propose=True)
+        
+            (Ared_ll, gam_red_ll, 
+             Agwb_ll, orf_coeffs_ll) = utils.masterSplitParams(pmin, npsr, args.dmVar, args.fix_slope, propose=True)
+
+    
+    # log prior
+    if args.limit_or_detect_red == 'detect':
+        
+        Ared_samp = np.random.uniform(Ared_ll, Ared_ul, len(Ared_samp))
+        qxy += 0
+        
+    elif args.limit_or_detect_red == 'limit':
+        
+        Ared_samp = np.random.uniform(Ared_ll, Ared_ul, len(Ared_samp))
+        qxy += 0
+
+        #Ared = np.log10(np.random.uniform(10 ** Ared_ll, 10 ** Ared_ul, len(Ared)))
+        #qxy += np.log(10 ** parameters[parind] / 10 ** q[parind])
+
+    gam_red_samp = np.random.uniform(gam_red_ll, gam_red_ul, len(gam_red_samp))
+    qxy += 0
+    
+    
+    if args.dmVar==True:
+    
+        if args.fix_slope==False:
+        
+            q = np.concatenate([Ared_samp, gam_red_samp,
+                                Adm_samp, gam_dm_samp,
+                                np.array([Agwb_samp]), np.array([gam_gwb_samp]), orf_coeffs_samp])
+        else:
+        
+            q = np.concatenate([Ared_samp, gam_red_samp,
+                                Adm_samp, gam_dm_samp,
+                                np.array([Agwb_samp]), orf_coeffs_samp])
+        
+    else:
+    
+        if args.fix_slope==False:
+    
+            q = np.concatenate([Ared_samp, gam_red_samp,
+                                np.array([Agwb_samp]), np.array([gam_gwb_samp]), orf_coeffs_samp])
+        
+        else:
+            
+            q = np.concatenate([Ared_samp, gam_red_samp,
+                            np.array([Agwb_samp]), orf_coeffs_samp])
+    
+
+    return q, qxy
+
+# gwb draws (from Justin Ellis' PAL2)
+
+def drawFromGWBPrior(parameters, iter, beta):
+
+    # post-jump parameters
+    q = parameters.copy()
+
+    # transition probability
+    qxy = 0
+
+    npsr = len(psr)
+    
+    if args.dmVar==True:
+        
+        if args.fix_slope==False:
+        
+            (Ared_samp, gam_red_samp, 
+             Adm_samp, gam_dm_samp, 
+             Agwb_samp, gam_gwb_samp, orf_coeffs_samp) = utils.masterSplitParams(q, npsr, args.dmVar, args.fix_slope, propose=True)
+        
+            (Ared_ul, gam_red_ul, 
+             Adm_ul, gam_dm_ul, 
+             Agwb_ul, gam_gwb_ul, orf_coeffs_ul) = utils.masterSplitParams(pmax, npsr, args.dmVar, args.fix_slope, propose=True)
+        
+            (Ared_ll, gam_red_ll, 
+             Adm_ll, gam_dm_ll, 
+             Agwb_ll, gam_gwb_ll, orf_coeffs_ll) = utils.masterSplitParams(pmin, npsr, args.dmVar, args.fix_slope, propose=True)
+            
+        else:
+            
+            (Ared_samp, gam_red_samp, 
+             Adm_samp, gam_dm_samp, 
+             Agwb_samp, orf_coeffs_samp) = utils.masterSplitParams(q, npsr, args.dmVar, args.fix_slope, propose=True)
+        
+            (Ared_ul, gam_red_ul, 
+             Adm_ul, gam_dm_ul, 
+             Agwb_ul, orf_coeffs_ul) = utils.masterSplitParams(pmax, npsr, args.dmVar, args.fix_slope, propose=True)
+        
+            (Ared_ll, gam_red_ll, 
+             Adm_ll, gam_dm_ll, 
+             Agwb_ll, orf_coeffs_ll) = utils.masterSplitParams(pmin, npsr, args.dmVar, args.fix_slope, propose=True)
+        
+    else:
+        
+        if args.fix_slope==False:
+        
+            (Ared_samp, gam_red_samp, 
+             Agwb_samp, gam_gwb_samp, orf_coeffs_samp) = utils.masterSplitParams(q, npsr, args.dmVar, args.fix_slope, propose=True)
+        
+            (Ared_ul, gam_red_ul, 
+             Agwb_ul, gam_gwb_ul, orf_coeffs_ul) = utils.masterSplitParams(pmax, npsr, args.dmVar, args.fix_slope, propose=True)
+        
+            (Ared_ll, gam_red_ll, 
+             Agwb_ll, gam_gwb_ll, orf_coeffs_ll) = utils.masterSplitParams(pmin, npsr, args.dmVar, args.fix_slope, propose=True)
+            
+        else:
+            
+            (Ared_samp, gam_red_samp, 
+             Agwb_samp, orf_coeffs_samp) = utils.masterSplitParams(q, npsr, args.dmVar, args.fix_slope, propose=True)
+        
+            (Ared_ul, gam_red_ul, 
+             Agwb_ul, orf_coeffs_ul) = utils.masterSplitParams(pmax, npsr, args.dmVar, args.fix_slope, propose=True)
+        
+            (Ared_ll, gam_red_ll, 
+             Agwb_ll, orf_coeffs_ll) = utils.masterSplitParams(pmin, npsr, args.dmVar, args.fix_slope, propose=True)
+
+    
+    # log prior
+    if args.limit_or_detect_gwb == 'detect':
+        
+        Agwb_samp = np.random.uniform(Agwb_ll, Agwb_ul)
+        qxy += 0
+
+    elif args.limit_or_detect_gwb == 'limit':
+        
+        Agwb_samp = np.random.uniform(Agwb_ll, Agwb_ul)
+        qxy += 0
+
+        #Ared = np.log10(np.random.uniform(10 ** Ared_ll, 10 ** Ared_ul, len(Ared)))
+        #qxy += np.log(10 ** parameters[parind] / 10 ** q[parind])
+
+
+    if args.fix_slope==False:
+        gam_gwb_samp = np.random.uniform(gam_gwb_ll, gam_gwb_ul)
+        qxy += 0
+        
+        
+        
+    if args.dmVar==True:
+    
+        if fix_slope==False:
+        
+            q = np.concatenate([Ared_samp, gam_red_samp,
+                                Adm_samp, gam_dm_samp,
+                                np.array([Agwb_samp]), np.array([gam_gwb_samp]), orf_coeffs_samp])
+        else:
+        
+            q = np.concatenate([Ared_samp, gam_red_samp,
+                                Adm_samp, gam_dm_samp,
+                                np.array([Agwb_samp]), orf_coeffs_samp])
+        
+    else:
+    
+        if args.fix_slope==False:
+    
+            q = np.concatenate([Ared_samp, gam_red_samp,
+                                np.array([Agwb_samp]), np.array([gam_gwb_samp]), orf_coeffs_samp])
+        
+        else:
+            
+            q = np.concatenate([Ared_samp, gam_red_samp,
+                            np.array([Agwb_samp]), orf_coeffs_samp])
+
+
+    return q, qxy
+
+
+
 # add jump proposals
-sampler.addProposalToCycle(sampler, utils.drawFromGWBPrior, beta=10,
-                           prior = 'uniform',
-                           npsr=len(psr), dmVar=args.dmVar, fix_slope=args.fix_slope)
+sampler.addProposalToCycle(drawFromGWBPrior, 10)
 #if args.incGWBAni and args.gwbModel == 'powerlaw':
 #    sampler.addProposalToCycle(model.drawFromaGWBPrior, 10)
-sampler.addProposalToCycle(utils.drawFromRedNoisePrior, beta=5,
-                           prior = 'uniform',
-                           npsr=len(psr), dmVar=args.dmVar, fix_slope=args.fix_slope)
+sampler.addProposalToCycle(drawFromRedNoisePrior, 10)
 #if args.incDMBand and args.dmModel=='powerlaw':
 #    sampler.addProposalToCycle(model.drawFromDMNoiseBandPrior, 5)
 #if args.incORF:
