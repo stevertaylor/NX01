@@ -501,6 +501,85 @@ if args.ptmcmc==True:
     sampler = PAL.PTSampler(ndim = n_params, logl = ln_prob1, logp = my_prior1, cov = np.diag(cov_diag),\
                         outDir='./chains_{0}_{1}'.format(psr.name,'ptmcmc'), resume = False)
 
+    def drawFromRedNoisePrior(parameters, iter, beta):
+
+        # post-jump parameters
+        q = parameters.copy()
+
+        # transition probability
+        qxy = 0
+
+        # log prior
+        if args.redamp_prior == 'loguniform':
+            
+            q[0] = np.random.uniform(pmin[0], pmax[0])
+            qxy += 0
+
+        elif args.redamp_prior == 'uniform':
+            
+            q[0] = np.random.uniform(pmin[0], pmax[0])
+            qxy += 0
+
+            #Ared = np.log10(np.random.uniform(10 ** Ared_ll, 10 ** Ared_ul, len(Ared)))
+            #qxy += np.log(10 ** parameters[parind] / 10 ** q[parind])
+
+        q[1] = np.random.uniform(pmin[1], pmax[1])
+    
+        qxy += 0
+        
+        return q, qxy
+
+    def drawFromEquadPrior(parameters, iter, beta):
+
+        # post-jump parameters
+        q = parameters.copy()
+
+        # transition probability
+        qxy = 0
+
+        if args.dmVar==True:
+            ind = np.arange(4+len(systems),4+2*len(systems))
+        else:
+            ind = np.arange(2+len(systems),2+2*len(systems))
+        equad_jump = np.zeros(len(q))
+        equad_jump[ind] = np.random.uniform(pmin[ind[0]], pmax[ind[0]], len(systems))
+
+        q = equad_jump
+        
+        qxy += 0
+        
+        return q, qxy
+
+    def drawFromEcorrPrior(parameters, iter, beta):
+
+        # post-jump parameters
+        q = parameters.copy()
+
+        # transition probability
+        qxy = 0
+
+        if args.dmVar==True:
+            ind = np.arange(4+2*len(systems),4+3*len(systems))
+        else:
+            ind = np.arange(2+2*len(systems),2+3*len(systems))
+        ecorr_jump = np.zeros(len(q))
+        ecorr_jump[ind] = np.random.uniform(pmin[ind[0]], pmax[ind[0]], len(systems))
+
+        q = ecorr_jump
+        
+        qxy += 0
+        
+        return q, qxy
+
+
+    # add jump proposals
+    sampler.addProposalToCycle(drawFromRedNoisePrior, 10)
+    sampler.addProposalToCycle(drawFromEquadPrior, 10)
+    if (args.fullN==True) and (len(psr.sysflagdict['nano-f'].keys())>0):
+        sampler.addProposalToCycle(drawFromEcorrPrior, 10)
+    #if args.incDMBand and args.dmModel=='powerlaw':
+    #    sampler.addProposalToCycle(model.drawFromDMNoiseBandPrior, 5)
+
     sampler.sample(p0=x0,Niter=1e6,thin=10)
 else:
 
