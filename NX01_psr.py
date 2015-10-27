@@ -85,6 +85,23 @@ class PsrObj(object):
         self.toaerrs = np.double(self.T2psr.toaerrs) * 1e-6
         self.obs_freqs = np.double(self.T2psr.ssbfreqs())
         self.Mmat = np.double(self.T2psr.designmatrix())
+
+        if 'pta' in self.T2psr.flags():
+            if 'NANOGrav' in list(set(self.T2psr.flagvals('pta'))):
+                # now order everything
+                try:
+                    isort, iisort = utils.argsortTOAs(self.toas, self.T2psr.flagvals('group'), which='jitterext', dt=jitterbin/86400.)
+                except KeyError:
+                    isort, iisort = utils.argsortTOAs(self.toas, self.T2psr.flagvals('f'), which='jitterext', dt=jitterbin/86400.)
+        
+                # sort data
+                self.toas = self.toas[isort]
+                self.toaerrs = self.toaerrs[isort]
+                self.res = self.res[isort]
+                self.obs_freqs = self.obs_freqs[isort]
+                self.Mmat = self.Mmat[isort, :]
+
+                print "--> Initial sorting of data."
               
         # get the sky position
         if 'RAJ' and 'DECJ' in self.T2psr.pars():
@@ -114,7 +131,7 @@ class PsrObj(object):
                     sys_uflagvals = list(set(self.T2psr.flagvals(systm)))
                     self.sysflagdict[systm] = OrderedDict.fromkeys(sys_uflagvals)
                     for kk,subsys in enumerate(sys_uflagvals):
-                        self.sysflagdict[systm][subsys] = np.where(self.T2psr.flagvals(systm) == sys_uflagvals[kk])
+                        self.sysflagdict[systm][subsys] = np.where(self.T2psr.flagvals(systm)[isort] == sys_uflagvals[kk])
             except KeyError:
                 pass
 
@@ -122,7 +139,7 @@ class PsrObj(object):
         # this off for later ECORR assignment.
         if 'pta' in self.T2psr.flags():
             pta_names = list(set(self.T2psr.flagvals('pta')))
-            pta_mask = [self.T2psr.flagvals('pta')==ptaname for ptaname in pta_names]
+            pta_mask = [self.T2psr.flagvals('pta')[isort]==ptaname for ptaname in pta_names]
             pta_maskdict = OrderedDict.fromkeys(pta_names)
             for ii,item in enumerate(pta_maskdict):
                 pta_maskdict[item] = pta_mask[ii]
@@ -132,14 +149,14 @@ class PsrObj(object):
                     nano_flags = list(set(self.T2psr.flagvals('group')[pta_maskdict['NANOGrav']]))
                     nanoflagdict['nano-f'] = OrderedDict.fromkeys(nano_flags)
                     for kk,subsys in enumerate(nano_flags):
-                        nanoflagdict['nano-f'][subsys] = np.where(self.T2psr.flagvals('group') == nano_flags[kk])
+                        nanoflagdict['nano-f'][subsys] = np.where(self.T2psr.flagvals('group')[isort] == nano_flags[kk])
                     self.sysflagdict.update(nanoflagdict)
                 except KeyError:
                     nanoflagdict = OrderedDict.fromkeys(['nano-f'])
                     nano_flags = list(set(self.T2psr.flagvals('f')[pta_maskdict['NANOGrav']]))
                     nanoflagdict['nano-f'] = OrderedDict.fromkeys(nano_flags)
                     for kk,subsys in enumerate(nano_flags):
-                        nanoflagdict['nano-f'][subsys] = np.where(self.T2psr.flagvals('f') == nano_flags[kk])
+                        nanoflagdict['nano-f'][subsys] = np.where(self.T2psr.flagvals('f')[isort] == nano_flags[kk])
                     self.sysflagdict.update(nanoflagdict)
                     
         
@@ -158,20 +175,20 @@ class PsrObj(object):
             if 'NANOGrav' in pta_names:
                 # now order everything
                 try:
-                    isort, iisort = utils.argsortTOAs(self.toas, self.T2psr.flagvals('group'), which='jitterext', dt=jitterbin/86400.)
+                    isort_b, iisort_b = utils.argsortTOAs(self.toas, self.T2psr.flagvals('group')[isort], which='jitterext', dt=jitterbin/86400.)
                     flags = self.T2psr.flagvals('group')[isort]
                 except KeyError:
-                    isort, iisort = utils.argsortTOAs(self.toas, self.T2psr.flagvals('f'), which='jitterext', dt=jitterbin/86400.)
+                    isort_b, iisort_b = utils.argsortTOAs(self.toas, self.T2psr.flagvals('f')[isort], which='jitterext', dt=jitterbin/86400.)
                     flags = self.T2psr.flagvals('f')[isort]
         
                 # sort data
-                self.toas = self.toas[isort]
-                self.toaerrs = self.toaerrs[isort]
-                self.res = self.res[isort]
-                self.obs_freqs = self.obs_freqs[isort]
-                self.Mmat = self.Mmat[isort, :]
-                detresiduals = self.res.copy()
-
+                self.toas = self.toas[isort_b]
+                self.toaerrs = self.toaerrs[isort_b]
+                self.res = self.res[isort_b]
+                self.obs_freqs = self.obs_freqs[isort_b]
+                self.Mmat = self.Mmat[isort_b, :]
+                flags = flags[isort_b]
+                
                 print "--> Sorted data."
     
                 # get quantization matrix

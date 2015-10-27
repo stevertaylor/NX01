@@ -57,6 +57,10 @@ parser.add_option('--timfile', dest='timfile', action='store', type=str,
                    help='Full path to timfile')
 parser.add_option('--efacequad-sysflag', dest='systarg', action='store', type=str, default='group',
                    help='Which system flag should the EFACs/EQUADs target? (default = \'group\')')
+parser.add_option('--redamp-prior', dest='redamp_prior', action='store', type=str, default='loguniform',
+                   help='What kind of prior to place on the red noise amplitude? (default = \'loguniform\')')
+parser.add_option('--dmamp-prior', dest='dmamp_prior', action='store', type=str, default='loguniform',
+                   help='What kind of prior to place on the DM variation amplitude? (default = \'loguniform\')')
 parser.add_option('--dmVar', dest='dmVar', action='store_true', default=False,
                    help='Search for DM variations in the data (False)? (default=False)')
 parser.add_option('--fullN', dest='fullN', action='store_true', default=False,
@@ -122,18 +126,18 @@ else:
 ################################################################################################################################
 
 pmin = np.array([-20.0,0.0])
-pmax = np.array([-12.0,6.95])
+pmax = np.array([-11.0,7.0])
 if args.dmVar==True:
     pmin = np.append(pmin,np.array([-20.0,0.0]))
-    pmax = np.append(pmax,np.array([-12.0,6.95]))       
-pmin = np.append(pmin,0.1*np.ones(len(systems)))
-pmax = np.append(pmax,12.0*np.ones(len(systems)))
+    pmax = np.append(pmax,np.array([-8.0,7.0]))       
+pmin = np.append(pmin,0.001*np.ones(len(systems)))
+pmax = np.append(pmax,10.0*np.ones(len(systems)))
 if args.fullN==True:
-    pmin = np.append(pmin,-10.0*np.ones(len(systems)))
-    pmax = np.append(pmax,-3.0*np.ones(len(systems)))
+    pmin = np.append(pmin,-8.5*np.ones(len(systems)))
+    pmax = np.append(pmax,-5.0*np.ones(len(systems)))
     if len(psr.sysflagdict['nano-f'].keys())>0:
-        pmin = np.append(pmin, -10.0*np.ones(len(psr.sysflagdict['nano-f'].keys())))
-        pmax = np.append(pmax, -3.0*np.ones(len(psr.sysflagdict['nano-f'].keys())))
+        pmin = np.append(pmin, -8.5*np.ones(len(psr.sysflagdict['nano-f'].keys())))
+        pmax = np.append(pmax, -5.0*np.ones(len(psr.sysflagdict['nano-f'].keys())))
             
 ################################################################################################################################
 # PRIOR AND LIKELIHOOD
@@ -150,22 +154,22 @@ def my_prior1(x):
     return logp
 
 def my_prior2(cube, ndim, nparams):
-    cube[0] = -20.0 + cube[0]*12.0
-    cube[1] = cube[1]*6.95
+    cube[0] = -20.0 + cube[0]*9.0
+    cube[1] = cube[1]*7.0
 
     ct = 2
     if args.dmVar==True:
         cube[ct] = -20.0 + cube[ct]*12.0
-        cube[ct+1] = cube[ct+1]*6.95
+        cube[ct+1] = cube[ct+1]*7.0
         ct = 4
 
     for ii in range(ct,ct+len(systems)):
-        cube[ii] = 0.1 + cube[ii]*11.9
+        cube[ii] = 0.001 + cube[ii]*9.999
     if args.fullN==True:
         for ii in range(ct+len(systems),ct+2*len(systems)):
-            cube[ii] = -10.0 + cube[ii]*7.0
+            cube[ii] = -8.5 + cube[ii]*3.5
         for ii in range(ct+2*len(systems),nparams):
-            cube[ii] = -10.0 + cube[ii]*7.0
+            cube[ii] = -8.5 + cube[ii]*3.5
 
 #######################
 #######################
@@ -293,9 +297,15 @@ def ln_prob1(xx):
         logdet_Sigma = np.sum(np.log(s))
 
 
-    logLike = -0.5 * (logdet_Phi + logdet_Sigma) + 0.5 * (np.dot(d, expval2)) + loglike1 
+    logLike = -0.5 * (logdet_Phi + logdet_Sigma) + 0.5 * (np.dot(d, expval2)) + loglike1
+
+    prior_fac = 0.0
+    if args.redamp_prior == 'uniform':
+        prior_fac += np.log(Ared * np.log(10.0))
+    if (args.dmVar==True) and (args.dmamp_prior == 'uniform'):
+        prior_fac += np.log(Adm * np.log(10.0))
     
-    return logLike
+    return logLike + prior_fac
 
 
 def ln_prob2(cube, ndim, nparams):
@@ -424,9 +434,15 @@ def ln_prob2(cube, ndim, nparams):
         logdet_Sigma = np.sum(np.log(s))
 
 
-    logLike = -0.5 * (logdet_Phi + logdet_Sigma) + 0.5 * (np.dot(d, expval2)) + loglike1 
+    logLike = -0.5 * (logdet_Phi + logdet_Sigma) + 0.5 * (np.dot(d, expval2)) + loglike1
+
+    prior_fac = 0.0
+    if args.redamp_prior == 'uniform':
+        prior_fac += np.log(Ared * np.log(10.0))
+    if (args.dmVar==True) and (args.dmamp_prior == 'uniform'):
+        prior_fac += np.log(Adm * np.log(10.0))
     
-    return logLike 
+    return logLike + prior_fac
 
 #########################
 #########################
@@ -472,10 +488,10 @@ if args.ptmcmc==True:
     cov_diag = np.append(cov_diag,0.5*np.ones(len(systems)))
 
     if args.fullN==True:
-        x0 = np.append(x0,np.random.uniform(-10.0,-3.0,len(systems)))
+        x0 = np.append(x0,np.random.uniform(-8.5,-5.0,len(systems)))
         cov_diag = np.append(cov_diag,0.5*np.ones(len(systems)))
         if len(psr.sysflagdict['nano-f'].keys())>0:
-            x0 = np.append(x0, np.random.uniform(-10.0,-3.0,len(psr.sysflagdict['nano-f'].keys())))
+            x0 = np.append(x0, np.random.uniform(-8.5,-5.0,len(psr.sysflagdict['nano-f'].keys())))
             cov_diag = np.append(cov_diag,0.5*np.ones(len(psr.sysflagdict['nano-f'].keys())))
     
     if rank == 0:
