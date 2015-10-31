@@ -175,19 +175,19 @@ class PsrObj(object):
             if 'NANOGrav' in pta_names:
                 # now order everything
                 try:
-                    isort_b, iisort_b = utils.argsortTOAs(self.toas, self.T2psr.flagvals('group')[isort], which='jitterext', dt=jitterbin/86400.)
+                    #isort_b, iisort_b = utils.argsortTOAs(self.toas, self.T2psr.flagvals('group')[isort], which='jitterext', dt=jitterbin/86400.)
                     flags = self.T2psr.flagvals('group')[isort]
                 except KeyError:
-                    isort_b, iisort_b = utils.argsortTOAs(self.toas, self.T2psr.flagvals('f')[isort], which='jitterext', dt=jitterbin/86400.)
+                    #isort_b, iisort_b = utils.argsortTOAs(self.toas, self.T2psr.flagvals('f')[isort], which='jitterext', dt=jitterbin/86400.)
                     flags = self.T2psr.flagvals('f')[isort]
         
                 # sort data
-                self.toas = self.toas[isort_b]
-                self.toaerrs = self.toaerrs[isort_b]
-                self.res = self.res[isort_b]
-                self.obs_freqs = self.obs_freqs[isort_b]
-                self.Mmat = self.Mmat[isort_b, :]
-                flags = flags[isort_b]
+                #self.toas = self.toas[isort_b]
+                #self.toaerrs = self.toaerrs[isort_b]
+                #self.res = self.res[isort_b]
+                #self.obs_freqs = self.obs_freqs[isort_b]
+                #self.Mmat = self.Mmat[isort_b, :]
+                #flags = flags[isort_b]
                 
                 print "--> Sorted data."
     

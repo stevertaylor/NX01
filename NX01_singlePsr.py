@@ -65,6 +65,8 @@ parser.add_option('--dmVar', dest='dmVar', action='store_true', default=False,
                    help='Search for DM variations in the data (False)? (default=False)')
 parser.add_option('--fullN', dest='fullN', action='store_true', default=False,
                    help='Search for EFAC/EQUAD/ECORR over all systems (True), or just apply a GEFAC (False)? (default=False)')
+parser.add_option('--jitterbin', dest='jitterbin', action='store', type=float, default='1.0',
+                   help='What time duration do you want a jitter bin to be? (default = 1.0)')
 parser.add_option('--ptmcmc', dest='ptmcmc', action='store_true', default=False,
                    help='Sample using PALs parallel tempering MCMC (False)? (default=False)')
 
@@ -89,7 +91,7 @@ if np.any(np.isfinite(t2psr.residuals())==False)==True:
     t2psr = T2.tempopulsar(parfile=args.parfile,timfile=args.timfile)
 
 psr = NX01_psr.PsrObj(t2psr)
-psr.grab_all_vars()
+psr.grab_all_vars(jitterbin=args.jitterbin)
 
 ################################################################################################################################
 # GETTING MAXIMUM TIME, COMPUTING FOURIER DESIGN MATRICES, AND GETTING MODES 
@@ -133,7 +135,7 @@ if args.dmVar==True:
 pmin = np.append(pmin,0.001*np.ones(len(systems)))
 pmax = np.append(pmax,10.0*np.ones(len(systems)))
 if args.fullN==True:
-    pmin = np.append(pmin,-8.5*np.ones(len(systems)))
+    pmin = np.append(pmin,-10.0*np.ones(len(systems)))
     pmax = np.append(pmax,-5.0*np.ones(len(systems)))
     if len(psr.sysflagdict['nano-f'].keys())>0:
         pmin = np.append(pmin, -8.5*np.ones(len(psr.sysflagdict['nano-f'].keys())))
@@ -167,7 +169,7 @@ def my_prior2(cube, ndim, nparams):
         cube[ii] = 0.001 + cube[ii]*9.999
     if args.fullN==True:
         for ii in range(ct+len(systems),ct+2*len(systems)):
-            cube[ii] = -8.5 + cube[ii]*3.5
+            cube[ii] = -10.0 + cube[ii]*5.0
         for ii in range(ct+2*len(systems),nparams):
             cube[ii] = -8.5 + cube[ii]*3.5
 
@@ -488,7 +490,7 @@ if args.ptmcmc==True:
     cov_diag = np.append(cov_diag,0.5*np.ones(len(systems)))
 
     if args.fullN==True:
-        x0 = np.append(x0,np.random.uniform(-8.5,-5.0,len(systems)))
+        x0 = np.append(x0,np.random.uniform(-10.0,-5.0,len(systems)))
         cov_diag = np.append(cov_diag,0.5*np.ones(len(systems)))
         if len(psr.sysflagdict['nano-f'].keys())>0:
             x0 = np.append(x0, np.random.uniform(-8.5,-5.0,len(psr.sysflagdict['nano-f'].keys())))
@@ -497,9 +499,9 @@ if args.ptmcmc==True:
     if rank == 0:
         print "\n Your initial parameters are {0}\n".format(x0)
 
-    
+
     sampler = PAL.PTSampler(ndim = n_params, logl = ln_prob1, logp = my_prior1, cov = np.diag(cov_diag),\
-                        outDir='./chains_{0}_{1}'.format(psr.name,'ptmcmc'), resume = False)
+                        outDir='./chains_{0}_{1}_{2}'.format(psr.name,'red'+args.redamp_prior,'ptmcmc'), resume = False)
 
     def drawFromRedNoisePrior(parameters, iter, beta):
 
@@ -580,7 +582,9 @@ if args.ptmcmc==True:
     #if args.incDMBand and args.dmModel=='powerlaw':
     #    sampler.addProposalToCycle(model.drawFromDMNoiseBandPrior, 5)
 
-    sampler.sample(p0=x0,Niter=1e6,thin=10)
+    sampler.sample(p0=x0, Niter=1e6, thin=10,
+                   covUpdate=1000, AMweight=15,
+                   SCAMweight=30, DEweight=50, KDEweight=0)
 else:
 
     if not os.path.exists('chains_{0}_{1}'.format(psr.name,'mnest')):

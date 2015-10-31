@@ -295,12 +295,12 @@ def getMeanAndStd(samples, weights=None, bins=50):
     
     
 def makesubplot1d(ax, samples, weights=None, interpolate=False, smooth=True,\
-                  label=None, bins=30, range=None, color='k'):
+                  label=None, bins=30, range=None, color='k', cmap='Spectral_r'):
     """ 
     Make histogram of samples
 
     """
-    spec = cm = plt.get_cmap('Spectral_r') 
+    spec = cm = plt.get_cmap(cmap) 
     cNorm  = matplotlib.colors.Normalize(vmin=0, vmax=1)
     scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=spec)
     colorVal = scalarMap.to_rgba(0)
@@ -323,10 +323,12 @@ def makesubplot1d(ax, samples, weights=None, interpolate=False, smooth=True,\
     # make plot
     if label is not None:
         ax.plot(xedges, hist, color=color, lw=1.5, label=label)
-        ax.fill_between(xedges, hist, y2=0, where=None, color=colorVal, alpha=0.7)
+        if cmap is not None:
+            ax.fill_between(xedges, hist, y2=0, where=None, color=colorVal, alpha=0.7)
     else:
         ax.plot(xedges, hist, color=color, lw=1.5)
-        ax.fill_between(xedges, hist, y2=0, where=None, color=colorVal, alpha=0.7)
+        if cmap is not None:
+            ax.fill_between(xedges, hist, y2=0, where=None, color=colorVal, alpha=0.7)
 
 def getMax(samples, weights=None, range=None, bins=50):
     """ 
@@ -354,9 +356,9 @@ def getMax(samples, weights=None, range=None, bins=50):
         
 
 # make triangle plot of marginalized posterior distribution
-def triplot(chain, color='k', weights=None, interpolate=False, smooth=True, \
+def triplot(chain, gcf_axarr=None, color='k', weights=None, interpolate=False, smooth=True, \
            labels=None, figsize=(11,8.5), title=None, inj=None, tex=True, \
-            incMaxPost=True, cmap='Spectral_r', holdon=False):
+            incMaxPost=True, bins=[60,60], cmap='Spectral_r', holdon=False):
     """
 
     Make Triangle plot
@@ -383,7 +385,8 @@ def triplot(chain, color='k', weights=None, interpolate=False, smooth=True, \
     
     if holdon:
         f = plt.gcf()
-        fig, axarr = plt.subplots(nrows=len(parameters), ncols=len(parameters),figsize=figsize)
+        axarr = gcf_axarr
+        #fig, axarr = plt.subplots(nrows=len(parameters), ncols=len(parameters),figsize=figsize)
     else:
         f, axarr = plt.subplots(nrows=len(parameters), ncols=len(parameters),figsize=figsize)
 
@@ -413,7 +416,7 @@ def triplot(chain, color='k', weights=None, interpolate=False, smooth=True, \
                     # Make a 1D plot
                     makesubplot1d(axarr[ii][ii], chain[:,parameters[ii]], \
                                   weights=weights, interpolate=interpolate, \
-                                  smooth=smooth, color=color)
+                                  smooth=smooth, color=color, cmap=cmap)
                     axarr[ii][jj].set_ylim(ymin=0)
                     if incMaxPost:
                         mx = getMax(chain[:,parameters[ii]], weights=weights)
@@ -425,7 +428,7 @@ def triplot(chain, color='k', weights=None, interpolate=False, smooth=True, \
                     # Make a 2D plot
                     makesubplot2d(axarr[jj][ii], chain[:,parameters[ii]], \
                             chain[:,parameters[jj]], cmap=cmap, color=color, weights=weights, \
-                                  smooth=smooth, bins=[60,60])
+                                  smooth=smooth, bins=bins)
 
                     if inj is not None:
                         axarr[jj][ii].plot(inj[ii], inj[jj], 'x', color='k', markersize=12, \
@@ -458,6 +461,10 @@ def triplot(chain, color='k', weights=None, interpolate=False, smooth=True, \
     # make plots closer together 
     f.subplots_adjust(hspace=0.1)
     f.subplots_adjust(wspace=0.1)
+
+    return axarr
+
+    #plt.hold(holdon)
 
 
 def pol2cart(lon, lat): 
