@@ -111,7 +111,7 @@ psr_pathinfo = np.genfromtxt(args.psrlist, dtype=str, skip_header=2) # name, hdf
 if args.from_h5:
 
     tmp_psr = []
-    for ii,tmp_name in enumerate(psr_pathinfo[:6,0]):
+    for ii,tmp_name in enumerate(psr_pathinfo[:18,0]):
         tmp_psr.append(h5.File(psr_pathinfo[ii,1], 'r')[tmp_name])
 
     psr = [NX01_psr.PsrObjFromH5(p) for p in tmp_psr]
