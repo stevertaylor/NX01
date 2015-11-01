@@ -279,6 +279,12 @@ pmin = np.append(pmin,-18.0)
 if args.fix_slope==False:
     pmin = np.append(pmin,0.0)
 pmin = np.append(pmin,-10.0*np.ones( tmp_num_gwfreq_wins*(((args.LMAX+1)**2)-1) ))
+if args.cgw_search:
+    pmin = np.append(pmin,np.array([6.0,0.0,-9.5,0.0,-1.0,-1.0,0.0,0.0,0.0]))
+    if args.periEv:
+        pmin = np.append(pmin,0.1)
+    if args.ecc_search:
+        pmin = np.append(pmin,0.001)
 
 
 pmax = -11.0*np.ones(len(psr))
@@ -290,6 +296,12 @@ pmax = np.append(pmax,-11.0)
 if args.fix_slope==False:
     pmax = np.append(pmax,7.0)
 pmax = np.append(pmax,10.0*np.ones( tmp_num_gwfreq_wins*(((args.LMAX+1)**2)-1) ))
+if args.cgw_search:
+    pmax = np.append(pmax,np.array([10.0,4.0,-6.5,2.0*np.pi,1.0,1.0,np.pi,np.pi,2.0*np.pi]))
+    if args.periEv:
+        pmax = np.append(pmax,1.0)
+    if args.ecc_search:
+        pmax = np.append(pmax,0.9)
 
 ##################################################################################
 
