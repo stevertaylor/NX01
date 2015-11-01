@@ -78,6 +78,14 @@ parser.add_option('--fullN', dest='fullN', action='store_true', default=True,
                   help='Do you want to perform a full noise search? (default = True)')
 parser.add_option('--num_psrs', dest='num_psrs', action='store', type=int, default=18,
                   help='How many pulsars do you want to analyse? (default = 18)')
+parser.add_option('--cgw-search', dest='cgw_search', action='store_true', default=False,
+                  help='Do you want to search for a single GW source? (default = False)')
+parser.add_option('--ecc-search', dest='ecc_search', action='store_true', default=False,
+                  help='Do you want to search for an eccentric binary? (default = False)')
+parser.add_option('--psrTerm', dest='psrTerm', action='store_true', default=False,
+                  help='Do you want to include the pulsar term in the continuous wave search? (default = False)')
+parser.add_option('--periEv', dest='periEv', action='store_true', default=False,
+                  help='Do you want to model the binary periapsis evolution? (default = False)')
 
 (args, x) = parser.parse_args()
 
