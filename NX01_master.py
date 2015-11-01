@@ -54,6 +54,8 @@ parser.add_option('--psrlist', dest='psrlist', action='store', type=str, default
                    help='Provide path to file containing list of pulsars and their respective par/tim paths')
 parser.add_option('--nmodes', dest='nmodes', action='store', type=int,
                    help='Number of modes in low-rank time-frequency approximation')
+parser.add_option('--cadence', dest='cadence', action='store', type=float,
+                   help='Instead of nmodes, provide the observational cadence.')
 parser.add_option('--dmVar', dest='dmVar', action='store_true', default=False,
                    help='Search for DM variations in the data (False)? (default=False)')
 parser.add_option('--ptmcmc', dest='ptmcmc', action='store_true', default=True,
@@ -74,6 +76,8 @@ parser.add_option('--anis-modefile', dest='anis_modefile', action='store', type=
                    help='Do you want to provide an anisotropy modefile to split band into frequency windows?')
 parser.add_option('--fullN', dest='fullN', action='store_true', default=True,
                   help='Do you want to perform a full noise search? (default = True)')
+parser.add_option('--num_psrs', dest='num_psrs', action='store', type=int, default=18,
+                  help='How many pulsars do you want to analyse? (default = 18)')
 
 (args, x) = parser.parse_args()
 
@@ -111,15 +115,17 @@ psr_pathinfo = np.genfromtxt(args.psrlist, dtype=str, skip_header=2) # name, hdf
 if args.from_h5:
 
     tmp_psr = []
-    for ii,tmp_name in enumerate(psr_pathinfo[:18,0]):
+    for ii,tmp_name in enumerate(psr_pathinfo[:args.num_psrs,0]):
         tmp_psr.append(h5.File(psr_pathinfo[ii,1], 'r')[tmp_name])
 
     psr = [NX01_psr.PsrObjFromH5(p) for p in tmp_psr]
     
 else:
     
+    print 'Are you sure you do not want to use hdf5 files (recommended)?'
+    
     t2psr=[]
-    for ii in range(len(psr_pathinfo)):
+    for ii in range(args.num_psrs):
         t2psr.append( T2.tempopulsar( parfile=psr_pathinfo[ii,2], timfile=psr_pathinfo[ii,3] ) )
         t2psr[ii].fit(iters=3)
         if np.any(np.isfinite(t2psr.residuals())==False)==True:
@@ -176,7 +182,7 @@ if args.nmodes:
 
 else:
 
-    nmode = int(round(Tmax/args.cadence))
+    nmode = int(round(0.5*Tmax/args.cadence))
     [p.makeTe(nmode, Tmax, makeDM=args.dmVar) for p in psr]
     # get GW frequencies
     fqs = np.linspace(1/Tmax, nmode/Tmax, nmode)
