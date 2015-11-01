@@ -178,6 +178,8 @@ else:
     for ii in range(tmp_num_gwfreq_wins):
         anis_modefreqs.append(np.arange(tmp_modefreqs[ii,0],tmp_modefreqs[ii,1]+1))
 
+num_anis_params = tmp_num_gwfreq_wins*(((args.LMAX+1)**2)-1)
+
 # Create a tag for evolving anisotropy searches
 if (args.LMAX!=0) and (tmp_num_gwfreq_wins > 1):
     evol_anis_tag = 'EvAnis'
@@ -290,7 +292,7 @@ if args.dmVar==True:
 pmin = np.append(pmin,-18.0)
 if args.fix_slope==False:
     pmin = np.append(pmin,0.0)
-pmin = np.append(pmin,-10.0*np.ones( tmp_num_gwfreq_wins*(((args.LMAX+1)**2)-1) ))
+pmin = np.append(pmin,-10.0*np.ones(num_anis_params))
 if args.cgw_search:
     pmin = np.append(pmin,np.array([6.0,0.1,0.0,-9.5,
                                     0.0,-1.0,-1.0,0.0,0.0,0.0]))
@@ -306,7 +308,7 @@ if args.dmVar==True:
 pmax = np.append(pmax,-11.0)
 if args.fix_slope==False:
     pmax = np.append(pmax,7.0)
-pmax = np.append(pmax,10.0*np.ones( tmp_num_gwfreq_wins*(((args.LMAX+1)**2)-1) ))
+pmax = np.append(pmax,10.0*np.ones(num_anis_params))
 if args.cgw_search:
     pmax = np.append(pmax,np.array([10.0,1.0,4.0,-6.5,
                                     2.0*np.pi,1.0,1.0,np.pi,np.pi,2.0*np.pi]))
@@ -333,12 +335,12 @@ def lnprob(xx):
     if args.dmVar==True:
         (Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, orf_coeffs, param_ct =
          utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope,
-                                 tmp_num_gwfreq_wins*(((args.LMAX+1)**2)-1) ))
+                                 num_anis_params ))
         mode_count = 4*nmode
     else:
         (Ared, gam_red, Agwb, gam_gwb, orf_coeffs, param_ct =
          utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope,
-                                 tmp_num_gwfreq_wins*(((args.LMAX+1)**2)-1) ))
+                                 num_anis_params ))
         mode_count = 2*nmode
 
     ###############################
@@ -620,7 +622,7 @@ if args.fix_slope is False:
     gamma_ext = 'GamVary'
 else:
     gamma_ext = 'Gam4p33'
-for ii in range( tmp_num_gwfreq_wins*(((args.LMAX+1)**2)-1) ):
+for ii in range(num_anis_params):
     parameters.append('clm_{0}'.format(ii+1))
 if args.cgw_search:
     parameters.append(["chirpmass", "qratio", "dist", "orb-freq",
@@ -645,7 +647,7 @@ if args.dmVar==True:
 x0 = np.append(x0,-15.0)
 if args.fix_slope is False:
     x0 = np.append(x0,13./3.)
-x0 = np.append(x0,np.zeros( tmp_num_gwfreq_wins*(((args.LMAX+1)**2)-1) ))
+x0 = np.append(x0,np.zeros(num_anis_params))
 if args.cgw_search:
     x0 = np.append(x0,np.array([9.0, 0.5, 1.5, -8.0, 0.5,
                                 0.5, 0.5, 0.5, 0.5, 0.5]))
@@ -663,7 +665,7 @@ if args.dmVar==True:
 cov_diag = np.append(cov_diag,0.5)
 if args.fix_slope is False:
     cov_diag = np.append(cov_diag,0.5)
-cov_diag = np.append(cov_diag,0.05*np.ones( tmp_num_gwfreq_wins*(((args.LMAX+1)**2)-1) ))
+cov_diag = np.append(cov_diag,0.05*np.ones(num_anis_params))
 if args.cgw_search:
     cov_diag = np.append(cov_diag,0.2*np.ones(10))
     if args.ecc_search:
