@@ -103,16 +103,18 @@ if args.use_gpu:
     culinalg.init()
 
 if args.nmodes:
-    print "\n You've given me the number of frequencies to include in the low-rank time-frequency approximation, got it?\n"
+    print ("\n You've given me the number of frequencies",
+           "to include in the low-rank time-frequency approximation, got it?\n")
 else:
-    print "\n You've given me the sampling cadence for the observations, which determines the upper frequency limit and the number of modes, got it?\n"
+    print ("\n You've given me the sampling cadence for the observations,",
+           "which determines the upper frequency limit and the number of modes, got it?\n")
 
 if args.ptmcmc:
     import PALInferencePTMCMC as PAL
 else:
     import pymultinest
 
-parser = optparse.OptionParser(description = 'NX01 - Precursor to the PANTHER Group ENTERPRISE project')
+parser = optparse.OptionParser(description = "NX01 - It's been a long road, getting from there to here...")
 
 ################################################################################################################################
 # PASSING THROUGH TEMPO2 VIA libstempo
@@ -151,21 +153,28 @@ psr_positions = [np.array([psr[ii].psr_locs[0],
                            for ii in range(len(psr))]
 positions = np.array(psr_positions).copy()
 
-CorrCoeff = np.array(anis.CorrBasis(positions,args.LMAX))       # Computing all the correlation basis-functions for the array.
-harm_sky_vals = utils.SetupPriorSkyGrid(args.LMAX)              # Computing the values of the spherical-harmonics up to order
-                                                                # LMAX on a pre-specified grid
+# Computing all the correlation basis-functions for the array.
+CorrCoeff = np.array(anis.CorrBasis(positions,args.LMAX))
+# Computing the values of the spherical-harmonics up to order
+# LMAX on a pre-specified grid  
+harm_sky_vals = utils.SetupPriorSkyGrid(args.LMAX)              
 
                                                             
 if args.anis_modefile is None:
-    gwfreqs_per_win = int(1.*args.nmodes/(1.*args.num_gwfreq_wins)) # getting the number of GW frequencies per window
+
+    # getting the number of GW frequencies per window
+    gwfreqs_per_win = int(1.*args.nmodes/(1.*args.num_gwfreq_wins)) 
     anis_modefreqs = np.arange(1,args.nmodes+1)
     anis_modefreqs = np.reshape(anis_modefreqs, (args.num_gwfreq_wins,gwfreqs_per_win))
 
     tmp_num_gwfreq_wins = args.num_gwfreq_wins
+    
 else:
+
     tmp_modefreqs = np.loadtxt(args.anis_modefile)
     tmp_num_gwfreq_wins = tmp_modefreqs.shape[0]
     anis_modefreqs = []
+    
     for ii in range(tmp_num_gwfreq_wins):
         anis_modefreqs.append(np.arange(tmp_modefreqs[ii,0],tmp_modefreqs[ii,1]+1))
 
@@ -195,6 +204,11 @@ else:
     # get GW frequencies
     fqs = np.linspace(1/Tmax, nmode/Tmax, nmode)
 
+if args.cgw_search:
+
+    # find reference time for all pulsars
+    tt = [np.min(p.toas) for p in psr]
+    tref = np.min(tt)
 
 #######################################
 # PRE-COMPUTING WHITE NOISE PROPERTIES 
@@ -509,6 +523,14 @@ else:
     gamma_ext = 'Gam4p33'
 for ii in range( tmp_num_gwfreq_wins*(((args.LMAX+1)**2)-1) ):
     parameters.append('clm_{0}'.format(ii+1))
+if args.cgw_search:
+    parameters.append(["chirpmass", "dist", "orb-freq", "phi",
+                       "costheta", "cosiota", "gwpol",
+                       "gwgamma", "l0"])
+    if args.periEv:
+        parameters.append("qratio")
+    if args.ecc_search:
+        parameters.append("ecc")
 
 
 print "\n You are searching for the following parameters: {0}\n".format(parameters)
@@ -527,6 +549,13 @@ x0 = np.append(x0,-15.0)
 if args.fix_slope is False:
     x0 = np.append(x0,13./3.)
 x0 = np.append(x0,np.zeros( tmp_num_gwfreq_wins*(((args.LMAX+1)**2)-1) ))
+if args.cgw_search:
+    x0 = np.append(x0,np.array([9.0, 1.5, -8.0, 0.5,
+                                0.5, 0.5, 0.5, 0.5, 0.5]))
+    if args.periEv:
+        x0 = np.append(x0,0.5)
+    if args.ecc_search:
+        x0 = np.append(x0,0.1)
 
 print "\n Your initial parameters are {0}\n".format(x0)
 
@@ -540,6 +569,12 @@ cov_diag = np.append(cov_diag,0.5)
 if args.fix_slope is False:
     cov_diag = np.append(cov_diag,0.5)
 cov_diag = np.append(cov_diag,0.05*np.ones( tmp_num_gwfreq_wins*(((args.LMAX+1)**2)-1) ))
+if args.cgw_search:
+    cov_diag = np.append(cov_diag,0.2*np.ones(9))
+    if args.periEv:
+        cov_diag = np.append(cov_diag,0.05)
+    if args.ecc_search:
+        cov_diag = np.append(cov_diag,0.05)
 
 
 print "\n Running a quick profile on the likelihood to estimate evaluation speed...\n"
@@ -552,12 +587,15 @@ cProfile.run('lnprob(x0)')
 print "\n Now, we sample... \n"
 sampler = PAL.PTSampler(ndim=n_params,logl=lnprob,logp=my_prior,cov=np.diag(cov_diag),\
                         outDir='./chains_nanoAnalysis/nanograv_gwb{0}_red{1}_nmodes{2}_Lmax{3}_{4}_{5}'.\
-                        format(args.limit_or_detect_gwb,args.limit_or_detect_red,args.nmodes,args.LMAX,evol_anis_tag,gamma_ext),resume=False)
+                        format(args.limit_or_detect_gwb,args.limit_or_detect_red,
+                               args.nmodes,args.LMAX,evol_anis_tag,gamma_ext),
+                               resume=False)
 
 # Copy the anisotropy modefile into the results directory
 if args.anis_modefile is not None:
     os.system('cp {0} {1}'.format(args.anis_modefile,'./chains_nanoAnalysis/nanograv_gwb{0}_red{1}_nmodes{2}_Lmax{3}_{4}_{5}'.\
-                                  format(args.limit_or_detect_gwb,args.limit_or_detect_red,args.nmodes,args.LMAX,evol_anis_tag,gamma_ext)))
+                                  format(args.limit_or_detect_gwb,args.limit_or_detect_red,
+                                         args.nmodes,args.LMAX,evol_anis_tag,gamma_ext)))
 
 
 #####################################

@@ -423,7 +423,9 @@ def checkquant(U, flags, uflagvals=None):
     :param U:           quantization matrix
     :param flags:       the flags of the TOAs
     :param uflagvals:   subset of flags that are not ignored
+    
     :return:            True/False, whether or not consistent
+    
     The quantization matrix is checked for three kinds of consistency:
     - Every quantization epoch has more than one observation
     - No quantization epoch has no observations
@@ -488,6 +490,7 @@ def quant2ind(U):
     :param U:       quantization matrix
     
     :return:        Index (basic slicing) version of the quantization matrix
+    
     This function assumes that the TOAs have been properly sorted according to
     the proper function argsortTOAs above. Checks on the continuity of U are not
     performed
@@ -512,6 +515,7 @@ def quantreduce(U, eat, flags, calci=False):
     :param eat:     Epoch-averaged toas
     :param flags:   the flags of the TOAs
     :param calci:   Calculate pseudo-inverse yes/no
+    
     :return     newU, jflags (flags that need jitter)
     """
     
