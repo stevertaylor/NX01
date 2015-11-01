@@ -331,16 +331,36 @@ def lnprob(xx):
     npsr = len(psr) 
 
     if args.dmVar==True:
-        Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, orf_coeffs = utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope)
+        (Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, orf_coeffs, param_ct =
+         utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope,
+                                 tmp_num_gwfreq_wins*(((args.LMAX+1)**2)-1) ))
         mode_count = 4*nmode
     else:
-        Ared, gam_red, Agwb, gam_gwb, orf_coeffs = utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope)
+        (Ared, gam_red, Agwb, gam_gwb, orf_coeffs, param_ct =
+         utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope,
+                                 tmp_num_gwfreq_wins*(((args.LMAX+1)**2)-1) ))
         mode_count = 2*nmode
 
     ###############################
     # Creating continuous GW signal
     
     if args.cgw_search:
+
+        cgw_params = xx[param_ct:]
+
+        if args.ecc_search:
+            (logmass, qr, logdist, logorbfreq, gwphi,
+             costheta, cosinc, gwpol, gwgamma0, l0, e0 = cgw_params)
+        else:
+            (logmass, qr, logdist, logorbfreq, gwphi,
+             costheta, cosinc, gwpol, gwgamma0, l0 = cgw_params)
+
+        mc = 10.0**logmass
+        dist = 10.0**logdist
+        orbfreq = 10.0**logorbfreq
+        gwtheta = np.arccos(costheta)
+        gwinc = np.arccos(cosinc)
+            
         cgw_res = []
         detres = []
         if args.ecc_search:

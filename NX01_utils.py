@@ -32,7 +32,8 @@ SOLAR2S = sc.G / sc.c**3 * 1.98855e30
 KPC2S = sc.parsec / sc.c * 1e3
 MPC2S = sc.parsec / sc.c * 1e6
 
-def masterSplitParams(xx, npsr, dmVar, fix_slope, propose=False):
+def masterSplitParams(xx, npsr, dmVar, fix_slope,
+                      num_anis_params=0, propose=False):
     """
     Takes in a vector of search parameters and
     returns arrays of physical parameters.
@@ -72,14 +73,16 @@ def masterSplitParams(xx, npsr, dmVar, fix_slope, propose=False):
     # Anisotropy parameters
     #########################
     
-    orf_coeffs = xx[2*npsr+cta+ctb:]
+    orf_coeffs = xx[2*npsr+cta+ctb:2*npsr+cta+ctb+num_anis_params]
 
+    # Any Remaining parameters are for a CGW
+    param_ct = 2*npsr+cta+ctb+num_anis_params
     ########
 
     if dmVar==True:
         
         if propose==False:
-            return Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, orf_coeffs
+            return Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, orf_coeffs, param_ct
         else:
             if fix_slope==False:
                 return Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, orf_coeffs
@@ -89,7 +92,7 @@ def masterSplitParams(xx, npsr, dmVar, fix_slope, propose=False):
     else:
         
         if propose==False:
-            return Ared, gam_red, Agwb, gam_gwb, orf_coeffs
+            return Ared, gam_red, Agwb, gam_gwb, orf_coeffs, param_ct
         else:
             if fix_slope==False:
                 return Ared, gam_red, Agwb, gam_gwb, orf_coeffs
