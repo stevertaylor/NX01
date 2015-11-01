@@ -12,11 +12,14 @@ from numpy import *
 import os
 import math
 from scipy import integrate
+from scipy.integrate import odeint
 from scipy import optimize
 from scipy import constants
 from numpy import random
 from scipy import special as ss
 from scipy import linalg as sl
+from scipy.interpolate import interp1d
+from pkg_resources import resource_filename, Requirement
 import numexpr as ne
 import optparse
 import ephem
@@ -24,6 +27,10 @@ from ephem import *
 
 day = 24 * 3600
 year = 365.25 * day
+
+SOLAR2S = sc.G / sc.c**3 * 1.98855e30
+KPC2S = sc.parsec / sc.c * 1e3
+MPC2S = sc.parsec / sc.c * 1e6
 
 def masterSplitParams(xx, npsr, dmVar, fix_slope, propose=False):
     """
@@ -110,12 +117,14 @@ def sumTermCovarianceMatrix_fast(tm, fL, gam):
     ########
     return sum
 
+
 def makeTimeGrid(psra, psrb):
 
     ta, tb = np.meshgrid(psra.toas, psrb.toas)  
     tm = np.abs(ta-tb).astype(np.float64)/365.25
   
     return tm
+
 
 def makeRedTDcov(Ared, gam_red, tm):
 
@@ -129,6 +138,7 @@ def makeRedTDcov(Ared, gam_red, tm):
     Cred *= ((365.25*86400.0)**2.0)
 
     return Cred
+
 
 def makeDmTDcov(psr, Adm, gam_dm, tm):
 
@@ -149,7 +159,8 @@ def makeDmTDcov(psr, Adm, gam_dm, tm):
 
     return Cdm
 
-def createfourierdesignmatrix_RED(t, nmodes, freq=False, Tspan=None):
+
+def createFourierDesignmatrix_red(t, nmodes, freq=False, Tspan=None):
     """
     Construct fourier design matrix from eq 11 of Lentati et al, 2013
 
@@ -187,7 +198,7 @@ def createfourierdesignmatrix_RED(t, nmodes, freq=False, Tspan=None):
     else:
         return F
 
-def createfourierdesignmatrix_DM(t, nmodes, obs_freqs, freq=False, Tspan=None):
+def createFourierDesignmatrix_dm(t, nmodes, obs_freqs, freq=False, Tspan=None):
     """
     Construct fourier design matrix from eq 11 of Lentati et al, 2013
 
@@ -229,6 +240,7 @@ def createfourierdesignmatrix_DM(t, nmodes, obs_freqs, freq=False, Tspan=None):
         return F, fqs
     else:
         return F
+    
 
 def quantize_fast(times, dt=1.0, calci=False):
     """ Adapted from libstempo: produce the quantisation matrix fast """
@@ -257,6 +269,7 @@ def quantize_fast(times, dt=1.0, calci=False):
         rv = (t, U, Ui)
 
     return rv
+
 
 def quantize_split(times, flags, dt=1.0, calci=False):
     """
@@ -292,6 +305,7 @@ def quantize_split(times, flags, dt=1.0, calci=False):
 
     return rv
 
+
 def argsortTOAs(toas, flags, which=None, dt=1.0):
     """
     Return the sort, and the inverse sort permutations of the TOAs, for the
@@ -303,6 +317,7 @@ def argsortTOAs(toas, flags, which=None, dt=1.0):
     :param dt:      Timescale for which to limit jitter blocks, default [10 secs]
     :return:    perm, perminv       (sorting permutation, and inverse)
     """
+    
     if which is None:
         isort = slice(None, None, None)
         iisort = slice(None, None, None)
@@ -349,7 +364,9 @@ def argsortTOAs(toas, flags, which=None, dt=1.0):
 
     return isort, iisort
 
+
 def checkTOAsort(toas, flags, which=None, dt=1.0):
+    
     """
     Check whether the TOAs are indeed sorted as they should be according to the
     definition in argsortTOAs
@@ -359,6 +376,7 @@ def checkTOAsort(toas, flags, which=None, dt=1.0):
     :param dt:      Timescale for which to limit jitter blocks, default [10 secs]
     :return:    True/False
     """
+    
     rv = True
     if which is None:
         isort = slice(None, None, None)
@@ -397,7 +415,9 @@ def checkTOAsort(toas, flags, which=None, dt=1.0):
 
     return rv
 
+
 def checkquant(U, flags, uflagvals=None):
+    
     """
     Check the quantization matrix for consistency with the flags
     :param U:           quantization matrix
@@ -409,6 +429,7 @@ def checkquant(U, flags, uflagvals=None):
     - No quantization epoch has no observations
     - Only one flag is allowed per epoch
     """
+    
     if uflagvals is None:
         uflagvals = list(set(flags))
 
@@ -458,7 +479,9 @@ def checkquant(U, flags, uflagvals=None):
 
     return rv
 
+
 def quant2ind(U):
+    
     """
     Convert the quantization matrix to an indices matrix for fast use in the
     jitter likelihoods
@@ -469,6 +492,7 @@ def quant2ind(U):
     the proper function argsortTOAs above. Checks on the continuity of U are not
     performed
     """
+    
     inds = np.zeros((U.shape[1], 2), dtype=np.int)
     
     for cc, col in enumerate(U.T):
@@ -478,7 +502,9 @@ def quant2ind(U):
 
     return inds
 
+
 def quantreduce(U, eat, flags, calci=False):
+    
     """
     Reduce the quantization matrix by removing the observing epochs that do not
     require any jitter parameters.
@@ -488,6 +514,7 @@ def quantreduce(U, eat, flags, calci=False):
     :param calci:   Calculate pseudo-inverse yes/no
     :return     newU, jflags (flags that need jitter)
     """
+    
     uflagvals = list(set(flags))
     incepoch = np.zeros(U.shape[1], dtype=np.bool)
     jflags = []
@@ -512,36 +539,442 @@ def quantreduce(U, eat, flags, calci=False):
 
     return rv
 
-def exploderMatrixNoSingles(times, flags, dt=10):
-    isort = np.argsort(times)
+def make_ecc_interpolant():
     
-    bucket_ref = [[times[isort[0]], flags[isort[0]]]]
-    bucket_ind = [[isort[0]]]
+    """
+    Make interpolation function from eccentricity file to
+    determine number of harmonics to use for a given
+    eccentricity.
+
+    :returns: interpolant
+    """
+    
+    pth = resource_filename(Requirement.parse('libstempo'),
+                            'libstempo/ecc_vs_nharm.txt')
+
+    fil = np.loadtxt(pth)
+
+    return interp1d(fil[:,0], fil[:,1])
+
+
+def get_edot(F, mc, e):
+    
+    """
+    Compute eccentricity derivative from Taylor et al. (2015)
+
+    :param F: Orbital frequency [Hz]
+    :param mc: Chirp mass of binary [Solar Mass]
+    :param e: Eccentricity of binary
+
+    :returns: de/dt
+
+    """
+
+    # chirp mass
+    mc *= SOLAR2S
+
+    dedt = -304/(15*mc) * (2*np.pi*mc*F)**(8/3) * e * \
+        (1 + 121/304*e**2) / ((1-e**2)**(5/2))
+
+    return dedt
+
+def get_Fdot(F, mc, e):
+    
+    """
+    Compute frequency derivative from Taylor et al. (2015)
+
+    :param F: Orbital frequency [Hz]
+    :param mc: Chirp mass of binary [Solar Mass]
+    :param e: Eccentricity of binary
+
+    :returns: dF/dt
+
+    """
+
+    # chirp mass
+    mc *= SOLAR2S
+
+    dFdt = 48 / (5*np.pi*mc**2) * (2*np.pi*mc*F)**(11/3) * \
+        (1 + 73/24*e**2 + 37/96*e**4) / ((1-e**2)**(7/2))
+
+    return dFdt
+
+
+def get_gammadot(F, mc, q, e):
+    
+    """
+    Compute gamma dot from Barack and Cutler (2004)
+
+    :param F: Orbital frequency [Hz]
+    :param mc: Chirp mass of binary [Solar Mass]
+    :param q: Mass ratio of binary
+    :param e: Eccentricity of binary
+
+    :returns: dgamma/dt
+
+    """
+
+    # chirp mass
+    mc *= SOLAR2S
+
+    #total mass
+    m = (((1+q)**2)/q)**(3/5) * mc
+
+    dgdt = 6*np.pi*F * (2*np.pi*F*m)**(2/3) / (1-e**2) * \
+        (1 + 0.25*(2*np.pi*F*m)**(2/3)/(1-e**2)*(26-15*e**2))
+
+    return dgdt
+
+def get_coupled_ecc_eqns(y, t, mc, q):
+    
+    """
+    Computes the coupled system of differential
+    equations from Peters (1964) and Barack &
+    Cutler (2004). This is a system of three variables:
+    
+    F: Orbital frequency [Hz]
+    e: Orbital eccentricity
+    gamma: Angle of precession of periastron [rad]
+    phase0: Orbital phase [rad]
+    
+    :param y: Vector of input parameters [F, e, gamma]
+    :param t: Time [s]
+    :param mc: Chirp mass of binary [Solar Mass]
+    :param q: Mass ratio of binary
+    
+    :returns: array of derivatives [dF/dt, de/dt, dgamma/dt, dphase/dt]
+    """
+    
+    F = y[0]
+    e = y[1]
+    gamma = y[2]
+    phase = y[3]
+    
+    #total mass
+    m = (((1+q)**2)/q)**(3/5) * mc    
+    
+    dFdt = get_Fdot(F, mc, e)
+    dedt = get_edot(F, mc, e)
+    dgdt = get_gammadot(F, mc, q, e)
+    dphasedt = 2*np.pi*F
+     
+    return np.array([dFdt, dedt, dgdt, dphasedt])
+
+
+def solve_coupled_ecc_solution(F0, e0, gamma0, phase0, mc, q, t):
+    
+    """
+    Compute the solution to the coupled system of equations
+    from from Peters (1964) and Barack & Cutler (2004) at 
+    a given time.
+    
+    :param F0: Initial orbital frequency [Hz]
+    :param e0: Initial orbital eccentricity
+    :param gamma0: Initial angle of precession of periastron [rad]
+    :param mc: Chirp mass of binary [Solar Mass]
+    :param q: Mass ratio of binary
+    :param t: Time at which to evaluate solution [s]
+    
+    :returns: (F(t), e(t), gamma(t), phase(t))
+    
+    """
+    
+    y0 = np.array([F0, e0, gamma0, phase0])
+
+    y, infodict = odeint(get_coupled_ecc_eqns, y0, t, args=(mc,q), full_output=True)
+    
+    if infodict['message'] == 'Integration successful.':
+        ret = y
+    else:
+        ret = 0
+    
+    return ret
+
+def get_an(n, mc, dl, F, e):
+    
+    """
+    Compute a_n from Eq. 22 of Taylor et al. (2015).
+    
+    :param n: Harmonic number
+    :param mc: Chirp mass of binary [Solar Mass]
+    :param dl: Luminosity distance [Mpc]
+    :param F: Orbital frequency of binary [Hz]
+    :param e: Orbital Eccentricity
+    
+    :returns: a_n
+    
+    """
+    
+    # convert to seconds
+    mc *= SOLAR2S
+    dl *= MPC2S
+    
+    omega = 2 * np.pi * F
+    
+    amp = n * mc**(5/3) * omega**(2/3) / dl
+    
+    ret = -amp * (ss.jn(n-2,n*e) - 2*e*ss.jn(n-1,n*e) +
+                  (2/n)*ss.jn(n,n*e) + 2*e*ss.jn(n+1,n*e) -
+                  ss.jn(n+2,n*e))
+
+    return ret
+
+def get_bn(n, mc, dl, F, e):
+    """
+    Compute b_n from Eq. 22 of Taylor et al. (2015).
+    
+    :param n: Harmonic number
+    :param mc: Chirp mass of binary [Solar Mass]
+    :param dl: Luminosity distance [Mpc]
+    :param F: Orbital frequency of binary [Hz]
+    :param e: Orbital Eccentricity
+    
+    :returns: b_n
+    
+    """
+    
+    # convert to seconds
+    mc *= SOLAR2S
+    dl *= MPC2S 
+    
+    omega = 2 * np.pi * F
+    
+    amp = n * mc**(5/3) * omega**(2/3) / dl
         
-    for i in isort[1:]:
-        if times[i] - bucket_ref[-1][0] < dt and flags[i] == bucket_ref[-1][1]:
-            if 'ABPP-L' in flags[i]:
-                bucket_ref.append([times[i], flags[i]])
-                bucket_ind.append([i])
-            else:
-                bucket_ind[-1].append(i)
+    ret = -amp * np.sqrt(1-e**2) *(ss.jn(n-2,n*e) - 2*ss.jn(n,n*e) +
+                  ss.jn(n+2,n*e)) 
+
+    return ret
+
+def get_cn(n, mc, dl, F, e):
+    
+    """
+    Compute c_n from Eq. 22 of Taylor et al. (2015).
+    
+    :param n: Harmonic number
+    :param mc: Chirp mass of binary [Solar Mass]
+    :param dl: Luminosity distance [Mpc]
+    :param F: Orbital frequency of binary [Hz]
+    :param e: Orbital Eccentricity
+    
+    :returns: c_n
+    
+    """
+    
+    # convert to seconds
+    mc *= SOLAR2S
+    dl *= MPC2S
+    
+    omega = 2 * np.pi * F
+    
+    amp = 2 * mc**(5/3) * omega**(2/3) / dl
+     
+    ret = amp * ss.jn(n,n*e) / (n * omega)
+
+    return ret
+
+def calculate_splus_scross(nmax, mc, dl, F, e, t, l0, gamma, gammadot, inc):
+    
+    """
+    Calculate splus and scross summed over all harmonics. 
+    This waveform differs slightly from that in Taylor et al (2015) 
+    in that it includes the time dependence of the advance of periastron.
+    
+    :param nmax: Total number of harmonics to use
+    :param mc: Chirp mass of binary [Solar Mass]
+    :param dl: Luminosity distance [Mpc]
+    :param F: Orbital frequency of binary [Hz]
+    :param e: Orbital Eccentricity
+    :param t: TOAs [s]
+    :param l0: Initial eccentric anomoly [rad]
+    :param gamma: Angle of periastron advance [rad]
+    :param gammadot: Time derivative of angle of periastron advance [rad/s]
+    :param inc: Inclination angle [rad]
+
+    """ 
+    
+    n = np.arange(1, nmax)
+
+    # time dependent amplitudes
+    an = get_an(n, mc, dl, F, e)
+    bn = get_bn(n, mc, dl, F, e)
+    cn = get_cn(n, mc, dl, F, e)
+
+    # time dependent terms
+    omega = 2*np.pi*F
+    gt = gamma + gammadot * t
+    lt = l0 + omega * t
+
+    # tiled phase
+    phase1 = n * np.tile(lt, (nmax-1,1)).T
+    phase2 = np.tile(gt, (nmax-1,1)).T
+    phasep = phase1 + 2*phase2
+    phasem = phase1 - 2*phase2
+
+    # intermediate terms
+    sp = np.sin(phasem)/(n*omega-2*gammadot) + \
+            np.sin(phasep)/(n*omega+2*gammadot)
+    sm = np.sin(phasem)/(n*omega-2*gammadot) - \
+            np.sin(phasep)/(n*omega+2*gammadot)
+    cp = np.cos(phasem)/(n*omega-2*gammadot) + \
+            np.cos(phasep)/(n*omega+2*gammadot)
+    cm = np.cos(phasem)/(n*omega-2*gammadot) - \
+            np.cos(phasep)/(n*omega+2*gammadot)
+    
+
+    splus_n = -0.5 * (1+np.cos(inc)**2) * (an*sp - bn*sm) + \
+            (1-np.cos(inc)**2)*cn * np.sin(phase1)
+    scross_n = np.cos(inc) * (an*cm - bn*cp)
+        
+
+    return np.sum(splus_n, axis=1), np.sum(scross_n, axis=1)
+
+def add_ecc_cgw(psr, gwtheta, gwphi, mc, dist, F, inc, psi, gamma0,
+                e0, l0, q, nmax=100, nset=None, pd=None, periEv=True,
+                psrTerm=False, tref=0, check=True, useFile=True):
+    
+    """
+    Simulate GW from eccentric SMBHB. Waveform models from
+    Taylor et al. (2015) and Barack and Cutler (2004).
+
+    WARNING: This residual waveform is only accurate if the
+    GW frequency is not significantly evolving over the 
+    observation time of the pulsar.
+
+    :param psr: pulsar object
+    :param gwtheta: Polar angle of GW source in celestial coords [radians]
+    :param gwphi: Azimuthal angle of GW source in celestial coords [radians]
+    :param mc: Chirp mass of SMBMB [solar masses]
+    :param dist: Luminosity distance to SMBMB [Mpc]
+    :param F: Orbital frequency of SMBHB [Hz]
+    :param inc: Inclination of GW source [radians]
+    :param psi: Polarization of GW source [radians]
+    :param gamma0: Initial angle of periastron [radians]
+    :param e0: Initial eccentricity of SMBHB
+    :param l0: Initial mean anomaly [radians]
+    :param q: Mass ratio of SMBHB
+    :param nmax: Number of harmonics to use in waveform decomposition
+    :param nset: Fix the number of harmonics to be injected
+    :param pd: Pulsar distance [kpc]
+    :param periEv: Evolve the position of periapsis [boolean] 
+    :param psrTerm: Option to include pulsar term [boolean] 
+    :param tref: Fiducial time at which initial parameters are referenced [s]
+    :param check: Check if frequency evolves significantly over obs. time
+    :param useFile: Use pre-computed table of number of harmonics vs eccentricity
+
+    :returns: Vector of induced residuals
+    """
+    
+    # define variable for later use
+    cosgwtheta, cosgwphi = np.cos(gwtheta), np.cos(gwphi)
+    singwtheta, singwphi = np.sin(gwtheta), np.sin(gwphi)
+    sin2psi, cos2psi = np.sin(2*psi), np.cos(2*psi)
+
+    # unit vectors to GW source
+    m = np.array([singwphi, -cosgwphi, 0.0])
+    n = np.array([-cosgwtheta*cosgwphi, -cosgwtheta*singwphi, singwtheta])
+    omhat = np.array([-singwtheta*cosgwphi, -singwtheta*singwphi, -cosgwtheta])
+    
+    # pulsar location
+    ptheta = np.pi/2 - psr.psr_locs[1]
+    pphi = psr.psr_locs[0]
+    
+    # use definition from Sesana et al 2010 and Ellis et al 2012
+    phat = np.array([np.sin(ptheta)*np.cos(pphi), np.sin(ptheta)*np.sin(pphi),\
+            np.cos(ptheta)])
+
+    fplus = 0.5 * (np.dot(m, phat)**2 - np.dot(n, phat)**2) / (1+np.dot(omhat, phat))
+    fcross = (np.dot(m, phat)*np.dot(n, phat)) / (1 + np.dot(omhat, phat))
+    cosMu = -np.dot(omhat, phat)
+
+    # get values from pulsar object
+    toas = psr.toas.copy()*86400 - tref
+    
+    if check:
+        # check that frequency is not evolving significantly over obs. time
+        y = solve_coupled_ecc_solution(F, e0, gamma0, l0, mc, q,
+                                       np.array([0.0,toas.max()]))
+        
+        # initial and final values over observation time
+        Fc0, ec0, gc0, phic0 = y[0,:]
+        Fc1, ec1, gc1, phic1 = y[-1,:]
+
+        # observation time
+        Tobs = 1/(toas.max()-toas.min())
+
+        if np.abs(Fc0-Fc1) > 1/Tobs:
+            print('WARNING: Frequency is evolving over more than one frequency bin.')
+            print('F0 = {0}, F1 = {1}, delta f = {2}'.format(Fc0, Fc1, 1/Tobs))
+    
+    # get gammadot for earth term
+    if periEv==False:
+        gammadot = 0.0
+    else:
+        gammadot = get_gammadot(F, mc, q, e0)
+
+    if nset is not None:
+        nharm = nset
+    elif useFile:
+        if e0 > 0.001 and e0 < 0.999:
+            nharm = min(int(ecc_interp(e0)), nmax) + 1
+        elif e0 < 0.001:
+            nharm = 3
         else:
-            bucket_ref.append([times[i], flags[i]])
-            bucket_ind.append([i])
-        
-
-    # find only epochs with more than 1 TOA
-    bucket_ind2 = [ind for ind in bucket_ind if len(ind) > 2]
+            nharm = nmax
+    else:
+        nharm = nmax
     
-    avetoas = np.array([np.mean(times[l]) for l in bucket_ind2],'d')
-    aveflags = np.array([flags[l[0]] for l in bucket_ind2])
-
+    ##### earth term #####
+    splus, scross = calculate_splus_scross(nharm, mc, dist, F, e0, toas,
+                                           l0, gamma0, gammadot, inc)
     
-    U = np.zeros((len(times),len(bucket_ind2)),'d')
-    for i,l in enumerate(bucket_ind2):
-        U[l,i] = 1
+    ##### pulsar term #####
+    if psrTerm:
+
+        # convert units
+        pd *= KPC2S   # convert from kpc to seconds
+    
+        # get pulsar time
+        tp = toas - pd * (1-cosMu)
+
+        # solve coupled system of equations to get pulsar term values
+        y = solve_coupled_ecc_solution(F, e0, gamma0, l0, mc, q,
+                                       np.array([0.0, tp.min()]))
         
-    return avetoas, aveflags, U
+        # get pulsar term values
+        if np.any(y):
+            Fp, ep, gp, lp = y[-1,:]
+
+            # get gammadot at pulsar term
+            gammadotp = get_gammadot(Fp, mc, q, ep)
+
+            if useFile:
+                if ep > 0.001 and ep < 0.999:
+                    nharm = min(int(ecc_interp(ep)), nmax)
+                elif ep < 0.001:
+                    nharm = 3
+                else:
+                    nharm = nmax
+            else:
+                nharm = nmax
+
+
+            splusp, scrossp = calculate_splus_scross(nharm, mc, dist, Fp,
+                                                     ep, toas, lp, gp,
+                                                     gammadotp, inc)
+
+            rr = (fplus*cos2psi - fcross*sin2psi) * (splusp - splus) + \
+                    (fplus*sin2psi + fcross*cos2psi) * (scrossp - scross)
+
+        else:
+            rr = np.zeros(len(psr.toas))
+            
+    else:
+        rr = - (fplus*cos2psi - fcross*sin2psi) * splus - \
+                (fplus*sin2psi + fcross*cos2psi) * scross
+         
+    return rr
+
 
 def real_sph_harm(ll, mm, phi, theta):
     """
@@ -637,7 +1070,8 @@ def singlePsrLL(psr, Amp=5e-14, gam_gwb=13./3.):
     xgrid = 2.0*np.pi*fL*tgrid
     
     C = ((Amp**2.0)*(fL**(1.0-gam_gwb))/(12.0*np.pi**2.0)) *\
-    ( (ss.gamma(1.0-gam_gwb)*np.sin(np.pi*gam_gwb/2.0)*ne.evaluate("xgrid**(gam_gwb-1.)")) - sumTermCovarianceMatrix_fast(tgrid, fL, gam_gwb) )
+    ( (ss.gamma(1.0-gam_gwb)*np.sin(np.pi*gam_gwb/2.0)*ne.evaluate("xgrid**(gam_gwb-1.)"))
+       - sumTermCovarianceMatrix_fast(tgrid, fL, gam_gwb) )
     C *= ((365.25*86400.0)**2.0)
     #############################################
     # Add other white, red or DM-variation noise
@@ -649,7 +1083,9 @@ def singlePsrLL(psr, Amp=5e-14, gam_gwb=13./3.):
     
     try:
         cho = sl.cho_factor(GCG)
-        like = -0.5 * np.dot(psr.Gres, sl.cho_solve(cho, psr.Gres)) - 0.5 * len(psr.Gres) * np.log((2.0*np.pi)) - 0.5 * np.sum(np.log(np.diag(cho[0])**2.0))
+        like = -0.5 * np.dot(psr.Gres, sl.cho_solve(cho, psr.Gres))\
+           - 0.5 * len(psr.Gres) * np.log((2.0*np.pi))\
+            - 0.5 * np.sum(np.log(np.diag(cho[0])**2.0))
     except np.linalg.LinAlgError:
         print "Problem inverting matrix at A = %s, alpha = %s:" % (Amp,alpha)
 
@@ -833,103 +1269,6 @@ def AnisOptStat(psr, GCGnoiseInv, CorrCoeff, lmax, gam_gwb=4.33333):
     return P, invFisher, np.linalg.slogdet(fisher) #, sold
 
 
-##########################################################################
-
-# MCMC jump proposals
-
-# red noise draws (from Justin Ellis' PAL2)
-'''
-def drawFromRedNoisePrior(sampler, parameters, beta,
-                          prior = 'uniform',
-                          npsr, dmVar=False, fix_slope=False,
-                          iter):
-
-    # post-jump parameters
-    q = parameters.copy()
-
-    # transition probability
-    qxy = 0
-
-    if dmVar==True:
-        Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, orf_coeffs = utils.masterSplitParams(q, npsr, dmVar, fix_slope)
-        Ared_ul, gam_red_ul, Adm_ul, gam_dm_ul, Agwb_ul, gam_gwb_ul, orf_coeffs_ul = utils.masterSplitParams(self.pmax, npsr, dmVar, fix_slope)
-        Ared_ll, gam_red_ll, Adm_ll, gam_dm_ll, Agwb_ll, gam_gwb_ll, orf_coeffs_ll = utils.masterSplitParams(self.pmin, npsr, dmVar, fix_slope)
-    else:
-        Ared, gam_red, Agwb, gam_gwb, orf_coeffs = utils.masterSplitParams(q, npsr, dmVar, fix_slope)
-        Ared_ul, gam_red_ul, Agwb_ul, gam_gwb_ul, orf_coeffs_ul = utils.masterSplitParams(self.pmax, npsr, dmVar, fix_slope)
-        Ared_ll, gam_red_ll, Agwb_ll, gam_gwb_ll, orf_coeffs_ll = utils.masterSplitParams(self.pmin, npsr, dmVar, fix_slope)
-
-    
-    # log prior
-    if prior == 'log':
-        Ared = np.random.uniform(Ared_ll, Ared_ul, len(Ared))
-        qxy += 0
-
-    elif prior == 'uniform':
-        Ared = np.random.uniform(Ared_ll, Ared_ul, len(Ared))
-        qxy += 0
-
-        #Ared = np.log10(np.random.uniform(10 ** Ared_ll, 10 ** Ared_ul, len(Ared)))
-        #qxy += np.log(10 ** parameters[parind] / 10 ** q[parind])
-
-    gam_red = np.random.uniform(gam_red_ll, gam_red_ul, len(gam_red))
-    qxy += 0
-
-    if dmVar==True:
-        q = np.concatenate([Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, orf_coeffs])
-    else:
-        q = np.concatenate([Ared, gam_red, Agwb, gam_gwb, orf_coeffs])
-
-    return q, qxy
-
-# gwb draws (from Justin Ellis' PAL2)
-
-def drawFromGWBPrior(sampler, parameters, beta,
-                          prior = 'uniform',
-                          npsr, dmVar=False, fix_slope=False,
-                          iter):
-
-    # post-jump parameters
-    q = parameters.copy()
-
-    # transition probability
-    qxy = 0
-
-    if dmVar==True:
-        Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, orf_coeffs = utils.masterSplitParams(q, npsr, dmVar, fix_slope)
-        Ared_ul, gam_red_ul, Adm_ul, gam_dm_ul, Agwb_ul, gam_gwb_ul, orf_coeffs_ul = utils.masterSplitParams(self.pmax, npsr, dmVar, fix_slope)
-        Ared_ll, gam_red_ll, Adm_ll, gam_dm_ll, Agwb_ll, gam_gwb_ll, orf_coeffs_ll = utils.masterSplitParams(self.pmin, npsr, dmVar, fix_slope)
-    else:
-        Ared, gam_red, Agwb, gam_gwb, orf_coeffs = utils.masterSplitParams(q, npsr, dmVar, fix_slope)
-        Ared_ul, gam_red_ul, Agwb_ul, gam_gwb_ul, orf_coeffs_ul = utils.masterSplitParams(self.pmax, npsr, dmVar, fix_slope)
-        Ared_ll, gam_red_ll, Agwb_ll, gam_gwb_ll, orf_coeffs_ll = utils.masterSplitParams(self.pmin, npsr, dmVar, fix_slope)
-
-    
-    # log prior
-    if prior == 'log':
-        Agwb = np.random.uniform(Agwb_ll, Agwb_ul, len(Agwb))
-        qxy += 0
-
-    elif prior == 'uniform':
-        Agwb = np.random.uniform(Agwb_ll, Agwb_ul, len(Agwb))
-        qxy += 0
-
-        #Ared = np.log10(np.random.uniform(10 ** Ared_ll, 10 ** Ared_ul, len(Ared)))
-        #qxy += np.log(10 ** parameters[parind] / 10 ** q[parind])
-
-
-    if fix_slope==False:
-        gam_gwb = np.random.uniform(gam_gwb_ll, gam_gwb_ul, len(gam_gwb))
-        qxy += 0
-
-    if dmVar==True:
-        q = np.concatenate([Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, orf_coeffs])
-    else:
-        q = np.concatenate([Ared, gam_red, Agwb, gam_gwb, orf_coeffs])
-
-    return q, qxy
-'''
-    
 
    
 
