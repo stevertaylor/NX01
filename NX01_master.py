@@ -210,6 +210,16 @@ if args.cgw_search:
     tt = [np.min(p.toas) for p in psr]
     tref = np.min(tt)
 
+    # create a cgw tag for file labelling
+    if args.eccSearch:
+        cgw_tag = 'ecgw'
+    else:
+        cgw_tag = 'ccgw'
+
+else:
+
+    cgw_tag = ''
+
 #######################################
 # PRE-COMPUTING WHITE NOISE PROPERTIES 
 #######################################
@@ -282,9 +292,8 @@ if args.fix_slope==False:
     pmin = np.append(pmin,0.0)
 pmin = np.append(pmin,-10.0*np.ones( tmp_num_gwfreq_wins*(((args.LMAX+1)**2)-1) ))
 if args.cgw_search:
-    pmin = np.append(pmin,np.array([6.0,0.0,-9.5,0.0,-1.0,-1.0,0.0,0.0,0.0]))
-    if args.periEv:
-        pmin = np.append(pmin,0.1)
+    pmin = np.append(pmin,np.array([6.0,0.1,0.0,-9.5,
+                                    0.0,-1.0,-1.0,0.0,0.0,0.0]))
     if args.ecc_search:
         pmin = np.append(pmin,0.001)
 
@@ -299,9 +308,8 @@ if args.fix_slope==False:
     pmax = np.append(pmax,7.0)
 pmax = np.append(pmax,10.0*np.ones( tmp_num_gwfreq_wins*(((args.LMAX+1)**2)-1) ))
 if args.cgw_search:
-    pmax = np.append(pmax,np.array([10.0,4.0,-6.5,2.0*np.pi,1.0,1.0,np.pi,np.pi,2.0*np.pi]))
-    if args.periEv:
-        pmax = np.append(pmax,1.0)
+    pmax = np.append(pmax,np.array([10.0,1.0,4.0,-6.5,
+                                    2.0*np.pi,1.0,1.0,np.pi,np.pi,2.0*np.pi]))
     if args.ecc_search:
         pmax = np.append(pmax,0.9)
 
@@ -595,11 +603,9 @@ else:
 for ii in range( tmp_num_gwfreq_wins*(((args.LMAX+1)**2)-1) ):
     parameters.append('clm_{0}'.format(ii+1))
 if args.cgw_search:
-    parameters.append(["chirpmass", "dist", "orb-freq", "phi",
-                       "costheta", "cosiota", "gwpol",
+    parameters.append(["chirpmass", "qratio", "dist", "orb-freq",
+                       "phi", "costheta", "cosiota", "gwpol",
                        "gwgamma", "l0"])
-    if args.periEv:
-        parameters.append("qratio")
     if args.ecc_search:
         parameters.append("ecc")
 
@@ -621,10 +627,8 @@ if args.fix_slope is False:
     x0 = np.append(x0,13./3.)
 x0 = np.append(x0,np.zeros( tmp_num_gwfreq_wins*(((args.LMAX+1)**2)-1) ))
 if args.cgw_search:
-    x0 = np.append(x0,np.array([9.0, 1.5, -8.0, 0.5,
+    x0 = np.append(x0,np.array([9.0, 0.5, 1.5, -8.0, 0.5,
                                 0.5, 0.5, 0.5, 0.5, 0.5]))
-    if args.periEv:
-        x0 = np.append(x0,0.5)
     if args.ecc_search:
         x0 = np.append(x0,0.1)
 
@@ -641,9 +645,7 @@ if args.fix_slope is False:
     cov_diag = np.append(cov_diag,0.5)
 cov_diag = np.append(cov_diag,0.05*np.ones( tmp_num_gwfreq_wins*(((args.LMAX+1)**2)-1) ))
 if args.cgw_search:
-    cov_diag = np.append(cov_diag,0.2*np.ones(9))
-    if args.periEv:
-        cov_diag = np.append(cov_diag,0.05)
+    cov_diag = np.append(cov_diag,0.2*np.ones(10))
     if args.ecc_search:
         cov_diag = np.append(cov_diag,0.05)
 
@@ -657,16 +659,18 @@ cProfile.run('lnprob(x0)')
 
 print "\n Now, we sample... \n"
 sampler = PAL.PTSampler(ndim=n_params,logl=lnprob,logp=my_prior,cov=np.diag(cov_diag),\
-                        outDir='./chains_nanoAnalysis/nanograv_gwb{0}_red{1}_nmodes{2}_Lmax{3}_{4}_{5}'.\
-                        format(args.limit_or_detect_gwb,args.limit_or_detect_red,
+                        outDir='./chains_nanoAnalysis/nanograv_gwb{0}_{1}_red{2}_nmodes{3}_Lmax{4}_{5}_{6}'.\
+                        format(args.limit_or_detect_gwb,cgw_tag,args.limit_or_detect_red,
                                args.nmodes,args.LMAX,evol_anis_tag,gamma_ext),
                                resume=False)
 
 # Copy the anisotropy modefile into the results directory
 if args.anis_modefile is not None:
-    os.system('cp {0} {1}'.format(args.anis_modefile,'./chains_nanoAnalysis/nanograv_gwb{0}_red{1}_nmodes{2}_Lmax{3}_{4}_{5}'.\
-                                  format(args.limit_or_detect_gwb,args.limit_or_detect_red,
+    os.system('cp {0} {1}'.format(args.anis_modefile,'./chains_nanoAnalysis/nanograv_gwb{0}_{1}_red{2}_nmodes{3}_Lmax{4}_{5}_{6}'.\
+                                  format(args.limit_or_detect_gwb,cgw_tag,args.limit_or_detect_red,
                                          args.nmodes,args.LMAX,evol_anis_tag,gamma_ext)))
+
+
 
 
 #####################################
