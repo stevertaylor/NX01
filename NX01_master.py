@@ -69,9 +69,9 @@ parser.add_option('--use-gpu', dest='use_gpu', action='store_true', default=Fals
 parser.add_option('--fix-slope', dest='fix_slope', action='store_true', default=False,
                   help='Do you want to fix the slope of the GWB spectrum? (default = False)')
 parser.add_option('--limit-or-detect-gwb', dest='limit_or_detect_gwb', action='store', type=str, default='limit',
-                   help='Do you want to use a uniform prior on log_10(Agwb) [detect] or Agwb itself [upper-limit] (default=\'limit\')?')
+                   help='Do you want to use a uniform prior on log_10(Agwb) [detect] or Agwb itself [limit] (default=\'limit\')?')
 parser.add_option('--limit-or-detect-red', dest='limit_or_detect_red', action='store', type=str, default='limit',
-                   help='Do you want to use a uniform prior on log_10(Ared) [detect] or Ared itself [upper-limit] (default=\'limit\')?')
+                   help='Do you want to use a uniform prior on log_10(Ared) [detect] or Ared itself [limit] (default=\'limit\')?')
 parser.add_option('--anis-modefile', dest='anis_modefile', action='store', type=str, default = None,
                    help='Do you want to provide an anisotropy modefile to split band into frequency windows?')
 parser.add_option('--fullN', dest='fullN', action='store_true', default=True,
@@ -215,8 +215,10 @@ if args.cgw_search:
 #######################################
 
 loglike1 = 0
+logdet_N = 0
 TtNT = []
 d = []
+Jamp = []
 for ii,p in enumerate(psr):
 
     # compute ( T.T * N^-1 * T ) & log determinant of N
@@ -225,15 +227,15 @@ for ii,p in enumerate(psr):
         
         if len(p.ecorrs)>0:
 
-            Jamp = np.ones(len(p.epflags))
+            Jamp.append(np.ones(len(p.epflags)))
             for jj,nano_sysname in enumerate(p.sysflagdict['nano-f'].keys()):
-                Jamp[np.where(p.epflags==nano_sysname)] *= p.ecorrs[nano_sysname]**2.0
+                Jamp[ii][np.where(p.epflags==nano_sysname)] *= p.ecorrs[nano_sysname]**2.0
 
-            Nx = jitter.cython_block_shermor_0D(p.res, new_err**2., Jamp, p.Uinds)
+            Nx = jitter.cython_block_shermor_0D(p.res, new_err**2., Jamp[ii], p.Uinds)
             d.append(np.dot(p.Te.T, Nx))
-            logdet_N, TtNT_dummy = jitter.cython_block_shermor_2D(p.Te, new_err**2., Jamp, p.Uinds)
+            logdet_N, TtNT_dummy = jitter.cython_block_shermor_2D(p.Te, new_err**2., Jamp[ii], p.Uinds)
             TtNT.append(TtNT_dummy)
-            det_dummy, dtNdt = jitter.cython_block_shermor_1D(p.res, new_err**2., Jamp, p.Uinds)
+            det_dummy, dtNdt = jitter.cython_block_shermor_1D(p.res, new_err**2., Jamp[ii], p.Uinds)
 
         else:
             
@@ -327,7 +329,57 @@ def lnprob(xx):
         Ared, gam_red, Agwb, gam_gwb, orf_coeffs = utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope)
         mode_count = 2*nmode
 
+    ###############################
+    # Creating continuous GW signal
+    
+    if args.cgw_search:
+        cgw_res = []
+        detres = []
+        if args.ecc_search:
+            for ii,p in enumerate(psr):
+                cgw_res.append( utils.ecc_cgw_signal(p, gwtheta, gwphi, mc, dist,
+                                                     orbfreq, gwinc, gwpol, gwgamma0,
+                                                     e0, l0, qr, periEv=args.periEv, tref=tref) )
+                detres.append( p.res - cgw_res[ii] )
+        else:
+            for ii,p in enumerate(psr):
+                cgw_res.append( utils.ecc_cgw_signal(p, gwtheta, gwphi, mc, dist,
+                                                     orbfreq, gwinc, gwpol, gwgamma0,
+                                                     0.001, l0, qr, periEv=args.periEv, tref=tref) )
+                detres.append( p.res - cgw_res[ii] )
 
+        #############################################################
+        # Recomputing some noise quantities involving 'residuals'.
+        # Unfortunately necessary when we have a deterministic signal.
+        
+        loglike1 = 0
+        d = []
+        for ii,p in enumerate(psr):
+
+            # compute ( T.T * N^-1 * T ) & log determinant of N
+            new_err = (p.toaerrs).copy()
+            if args.fullN==True:
+        
+                if len(p.ecorrs)>0:
+                    Nx = jitter.cython_block_shermor_0D(detres[ii], new_err**2., Jamp[ii], p.Uinds)
+                    d.append(np.dot(p.Te.T, Nx))
+                    det_dummy, dtNdt = jitter.cython_block_shermor_1D(detres[ii], new_err**2., Jamp[ii], p.Uinds)
+
+                else:
+            
+                    d.append(np.dot(p.Te.T, detres[ii]/( new_err**2.0 )))
+                    dtNdt = np.sum(detres[ii]**2.0/( new_err**2.0 ))
+                
+            else:
+        
+                d.append(np.dot(p.Te.T, detres[ii]/( new_err**2.0 )))
+                dtNdt = np.sum(detres[ii]**2.0/( new_err**2.0 ))
+        
+            loglike1 += -0.5 * (logdet_N + dtNdt)
+        
+        d = np.concatenate(d)
+
+    ################################################
     # Reshaping freq-dependent anis coefficients,
     # and testing for power distribution physicality.
 
@@ -348,8 +400,9 @@ def lnprob(xx):
             else:
                 physicality += 0.
 
-    
+    ############################################################
     # Computing frequency dependent overlap reduction functions.
+    
     ORF=[]
     for ii in range(tmp_num_gwfreq_wins): # number of frequency windows
         for jj in range(len(anis_modefreqs[ii])): # number of frequencies in this window
@@ -366,8 +419,9 @@ def lnprob(xx):
     ORFtot[0::2] = ORF
     ORFtot[1::2] = ORF
     
-       
+    ################################################
     # parameterize intrinsic red noise as power law
+    
     Tspan = (1/fqs[0])*86400.0
     f1yr = 1/3.16e7
     rho = np.log10(Agwb**2/12/np.pi**2 * f1yr**(gam_gwb-3) * (fqs/86400.0)**(-gam_gwb)/Tspan)
@@ -382,8 +436,9 @@ def lnprob(xx):
         for ii in range(npsr):
             kappa.append(np.log10( Ared[ii]**2/12/np.pi**2 * f1yr**(gam_red[ii]-3) * (fqs/86400.0)**(-gam_red[ii])/Tspan ))
     
-
+    #####################################
     # construct elements of sigma array
+    
     sigdiag = []
     sigoffdiag = []
     
@@ -408,8 +463,9 @@ def lnprob(xx):
         sigdiag.append(tot)
         sigoffdiag.append(offdiag)
 
-
+    #####################
     # compute Phi matrix
+    
     smallMatrix = np.zeros((mode_count, npsr, npsr))
     for ii in range(npsr):
         for jj in range(ii,npsr):
@@ -420,8 +476,9 @@ def lnprob(xx):
                 smallMatrix[:,ii,jj] = ORFtot[:,ii,jj] * sigoffdiag[jj] 
                 smallMatrix[:,jj,ii] = smallMatrix[:,ii,jj]
 
-    
+    ###################################
     # invert Phi matrix frequency-wise
+    
     logdet_Phi = 0
     non_pos_def = 0
     for ii in range(mode_count):
@@ -437,7 +494,9 @@ def lnprob(xx):
             print 'Cholesky Decomposition Failed!! Rejecting...'
             non_pos_def += 1
 
+    ###################################################
     # Break if we have non-positive-definiteness of Phi
+    
     if non_pos_def > 0:
 
         return -np.inf

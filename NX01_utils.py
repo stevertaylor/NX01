@@ -833,9 +833,9 @@ def calculate_splus_scross(nmax, mc, dl, F, e, t, l0, gamma, gammadot, inc):
 
     return np.sum(splus_n, axis=1), np.sum(scross_n, axis=1)
 
-def add_ecc_cgw(psr, gwtheta, gwphi, mc, dist, F, inc, psi, gamma0,
-                e0, l0, q, nmax=100, nset=None, pd=None, periEv=True,
-                psrTerm=False, tref=0, check=True, useFile=True):
+def ecc_cgw_signal(psr, gwtheta, gwphi, mc, dist, F, inc, psi, gamma0,
+                   e0, l0, q, nmax=100, nset=None, pd=None, periEv=True,
+                   psrTerm=False, tref=0, check=True, useFile=True):
     
     """
     Simulate GW from eccentric SMBHB. Waveform models from
