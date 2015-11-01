@@ -182,7 +182,7 @@ num_anis_params = tmp_num_gwfreq_wins*(((args.LMAX+1)**2)-1)
 
 # Create a tag for evolving anisotropy searches
 if (args.LMAX!=0) and (tmp_num_gwfreq_wins > 1):
-    evol_anis_tag = 'EvAnis'
+    evol_anis_tag = '_evanis'
 else:
     evol_anis_tag = ''
               
@@ -214,9 +214,9 @@ if args.cgw_search:
 
     # create a cgw tag for file labelling
     if args.eccSearch:
-        cgw_tag = 'ecgw'
+        cgw_tag = '_ecgw'
     else:
-        cgw_tag = 'ccgw'
+        cgw_tag = '_ccgw'
 
 else:
 
@@ -688,7 +688,7 @@ sampler = PAL.PTSampler(ndim=n_params,logl=lnprob,logp=my_prior,cov=np.diag(cov_
 
 # Copy the anisotropy modefile into the results directory
 if args.anis_modefile is not None:
-    os.system('cp {0} {1}'.format(args.anis_modefile,'./chains_nanoAnalysis/nanograv_gwb{0}_{1}_red{2}_nmodes{3}_Lmax{4}_{5}_{6}'.\
+    os.system('cp {0} {1}'.format(args.anis_modefile,'./chains_nanoAnalysis/nanograv_gwb{0}{1}_red{2}_nmodes{3}_Lmax{4}{5}_{6}'.\
                                   format(args.limit_or_detect_gwb,cgw_tag,args.limit_or_detect_red,
                                          args.nmodes,args.LMAX,evol_anis_tag,gamma_ext)))
 
