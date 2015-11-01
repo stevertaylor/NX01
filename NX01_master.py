@@ -18,7 +18,7 @@ from numpy import *
 
 from scipy import integrate
 from scipy import optimize
-from scipy import constants
+from scipy import constants as sc
 from numpy import random
 from scipy import special as ss
 from scipy import linalg as sl
@@ -333,14 +333,12 @@ def lnprob(xx):
     npsr = len(psr) 
 
     if args.dmVar==True:
-        (Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, orf_coeffs, param_ct =
-         utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope,
-                                 num_anis_params ))
+        Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, orf_coeffs, param_ct = \
+          utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope, num_anis_params )
         mode_count = 4*nmode
     else:
-        (Ared, gam_red, Agwb, gam_gwb, orf_coeffs, param_ct =
-         utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope,
-                                 num_anis_params ))
+        Ared, gam_red, Agwb, gam_gwb, orf_coeffs, param_ct = \
+          utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope, num_anis_params )
         mode_count = 2*nmode
 
     ###############################
@@ -351,11 +349,11 @@ def lnprob(xx):
         cgw_params = xx[param_ct:]
 
         if args.ecc_search:
-            (logmass, qr, logdist, logorbfreq, gwphi,
-             costheta, cosinc, gwpol, gwgamma0, l0, e0 = cgw_params)
+            logmass, qr, logdist, logorbfreq, gwphi,\
+             costheta, cosinc, gwpol, gwgamma0, l0, e0 = cgw_params
         else:
-            (logmass, qr, logdist, logorbfreq, gwphi,
-             costheta, cosinc, gwpol, gwgamma0, l0 = cgw_params)
+            logmass, qr, logdist, logorbfreq, gwphi,\
+             costheta, cosinc, gwpol, gwgamma0, l0 = cgw_params
 
         mc = 10.0**logmass
         dist = 10.0**logdist

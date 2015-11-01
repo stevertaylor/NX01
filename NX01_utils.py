@@ -14,7 +14,7 @@ import math
 from scipy import integrate
 from scipy.integrate import odeint
 from scipy import optimize
-from scipy import constants
+from scipy import constants as sc
 from numpy import random
 from scipy import special as ss
 from scipy import linalg as sl
