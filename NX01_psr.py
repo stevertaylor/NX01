@@ -441,23 +441,23 @@ class PsrObjFromH5(object):
         print "--> Done extracting pulsar from hdf5 file :-) \n"
 
     def makeFred(self, nmodes, Ttot):
-        self.Fred = utils.createfourierdesignmatrix_RED(self.toas, nmodes, Tspan=Ttot)
+        self.Fred = utils.createFourierDesignmatrix_red(self.toas, nmodes, Tspan=Ttot)
 
     def makeFdm(self, nmodes, Ttot):
-        self.Fdm = utils.createfourierdesignmatrix_DM(self.toas, nmodes, self.obs_freqs, Tspan=Ttot)
+        self.Fdm = utils.createFourierDesignmatrix_dm(self.toas, nmodes, self.obs_freqs, Tspan=Ttot)
     
     def makeFtot(self, nmodes, Ttot):
-        self.Fred = utils.createfourierdesignmatrix_RED(self.toas, nmodes, Tspan=Ttot)
-        self.Fdm = utils.createfourierdesignmatrix_DM(self.toas, nmodes, self.obs_freqs, Tspan=Ttot)
+        self.Fred = utils.createFourierDesignmatrix_red(self.toas, nmodes, Tspan=Ttot)
+        self.Fdm = utils.createFourierDesignmatrix_dm(self.toas, nmodes, self.obs_freqs, Tspan=Ttot)
 
         self.Ftot = np.append(self.Fred, self.Fdm, axis=1)
 
     def makeTe(self, nmodes, Ttot, makeDM=False):
 
-        self.Fred = utils.createfourierdesignmatrix_RED(self.toas, nmodes, Tspan=Ttot)
+        self.Fred = utils.createFourierDesignmatrix_red(self.toas, nmodes, Tspan=Ttot)
 
         if makeDM==True:
-            self.Fdm = utils.createfourierdesignmatrix_DM(self.toas, nmodes, self.obs_freqs, Tspan=Ttot)
+            self.Fdm = utils.createFourierDesignmatrix_dm(self.toas, nmodes, self.obs_freqs, Tspan=Ttot)
             self.Ftot = np.append(self.Fred, self.Fdm, axis=1)
 
         else:

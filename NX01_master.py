@@ -213,7 +213,7 @@ if args.cgw_search:
     tref = np.min(tt)
 
     # create a cgw tag for file labelling
-    if args.eccSearch:
+    if args.ecc_search:
         cgw_tag = '_ecgw'
     else:
         cgw_tag = '_ccgw'
@@ -227,7 +227,7 @@ else:
 #######################################
 
 loglike1 = 0
-logdet_N = 0
+logdet_N = []
 TtNT = []
 d = []
 Jamp = []
@@ -245,8 +245,11 @@ for ii,p in enumerate(psr):
 
             Nx = jitter.cython_block_shermor_0D(p.res, new_err**2., Jamp[ii], p.Uinds)
             d.append(np.dot(p.Te.T, Nx))
-            logdet_N, TtNT_dummy = jitter.cython_block_shermor_2D(p.Te, new_err**2., Jamp[ii], p.Uinds)
+            
+            logdet_N_dummy, TtNT_dummy = jitter.cython_block_shermor_2D(p.Te, new_err**2., Jamp[ii], p.Uinds)
+            logdet_N.append(logdet_N_dummy)
             TtNT.append(TtNT_dummy)
+            
             det_dummy, dtNdt = jitter.cython_block_shermor_1D(p.res, new_err**2., Jamp[ii], p.Uinds)
 
         else:
@@ -257,7 +260,7 @@ for ii,p in enumerate(psr):
             right = (N*p.Te.T).T
             TtNT.append(np.dot(p.Te.T, right))
     
-            logdet_N = np.sum(np.log( new_err**2.0 ))
+            logdet_N.append(np.sum(np.log( new_err**2.0 )))
         
             # triple product in likelihood function
             dtNdt = np.sum(p.res**2.0/( new_err**2.0 ))
@@ -270,12 +273,12 @@ for ii,p in enumerate(psr):
         right = (N*p.Te.T).T
         TtNT.append(np.dot(p.Te.T, right))
 
-        logdet_N = np.sum(np.log( new_err**2.0 ))
+        logdet_N.append(np.sum(np.log( new_err**2.0 )))
         
         # triple product in likelihood function
         dtNdt = np.sum(p.res**2.0/( new_err**2.0 ))
 
-    loglike1 += -0.5 * (logdet_N + dtNdt)
+    loglike1 += -0.5 * (logdet_N[ii] + dtNdt)
 
 d = np.concatenate(d)
 
@@ -294,7 +297,7 @@ if args.fix_slope==False:
     pmin = np.append(pmin,0.0)
 pmin = np.append(pmin,-10.0*np.ones(num_anis_params))
 if args.cgw_search:
-    pmin = np.append(pmin,np.array([6.0,0.1,0.0,-9.5,
+    pmin = np.append(pmin,np.array([6.0,0.1,0.0,-9.3,
                                     0.0,-1.0,-1.0,0.0,0.0,0.0]))
     if args.ecc_search:
         pmin = np.append(pmin,0.001)
@@ -343,7 +346,7 @@ def lnprob(xx):
 
     ###############################
     # Creating continuous GW signal
-    
+
     if args.cgw_search:
 
         cgw_params = xx[param_ct:]
@@ -382,6 +385,7 @@ def lnprob(xx):
         
         loglike1 = 0
         d = []
+        dtNdt = []
         for ii,p in enumerate(psr):
 
             # compute ( T.T * N^-1 * T ) & log determinant of N
@@ -391,19 +395,20 @@ def lnprob(xx):
                 if len(p.ecorrs)>0:
                     Nx = jitter.cython_block_shermor_0D(detres[ii], new_err**2., Jamp[ii], p.Uinds)
                     d.append(np.dot(p.Te.T, Nx))
-                    det_dummy, dtNdt = jitter.cython_block_shermor_1D(detres[ii], new_err**2., Jamp[ii], p.Uinds)
+                    det_dummy, dtNdt_dummy = jitter.cython_block_shermor_1D(detres[ii], new_err**2., Jamp[ii], p.Uinds)
+                    dtNtdt.append(dtNdt_dummy)
 
                 else:
             
                     d.append(np.dot(p.Te.T, detres[ii]/( new_err**2.0 )))
-                    dtNdt = np.sum(detres[ii]**2.0/( new_err**2.0 ))
+                    dtNdt.append(np.sum(detres[ii]**2.0/( new_err**2.0 )))
                 
             else:
         
                 d.append(np.dot(p.Te.T, detres[ii]/( new_err**2.0 )))
-                dtNdt = np.sum(detres[ii]**2.0/( new_err**2.0 ))
+                dtNdt.append(np.sum(detres[ii]**2.0/( new_err**2.0 )))
         
-            loglike1 += -0.5 * (logdet_N + dtNdt)
+            loglike1 += -0.5 * (logdet_N[ii] + dtNdt[ii])
         
         d = np.concatenate(d)
 
@@ -623,9 +628,9 @@ else:
 for ii in range(num_anis_params):
     parameters.append('clm_{0}'.format(ii+1))
 if args.cgw_search:
-    parameters.append(["chirpmass", "qratio", "dist", "orb-freq",
-                       "phi", "costheta", "cosiota", "gwpol",
-                       "gwgamma", "l0"])
+    parameters += ["chirpmass", "qratio", "dist", "orb-freq",
+                   "phi", "costheta", "cosiota", "gwpol",
+                   "gwgamma", "l0"]
     if args.ecc_search:
         parameters.append("ecc")
 
@@ -679,7 +684,7 @@ cProfile.run('lnprob(x0)')
 
 print "\n Now, we sample... \n"
 sampler = PAL.PTSampler(ndim=n_params,logl=lnprob,logp=my_prior,cov=np.diag(cov_diag),\
-                        outDir='./chains_nanoAnalysis/nanograv_gwb{0}_{1}_red{2}_nmodes{3}_Lmax{4}_{5}_{6}'.\
+                        outDir='./chains_nanoAnalysis/nanograv_gwb{0}{1}_red{2}_nmodes{3}_Lmax{4}{5}_{6}'.\
                         format(args.limit_or_detect_gwb,cgw_tag,args.limit_or_detect_red,
                                args.nmodes,args.LMAX,evol_anis_tag,gamma_ext),
                                resume=False)
@@ -789,28 +794,35 @@ def drawFromRedNoisePrior(parameters, iter, beta):
     
         if args.fix_slope==False:
         
-            q = np.concatenate([Ared_samp, gam_red_samp,
+            qtmp = np.concatenate([Ared_samp, gam_red_samp,
                                 Adm_samp, gam_dm_samp,
-                                np.array([Agwb_samp]), np.array([gam_gwb_samp]), orf_coeffs_samp])
+                                np.array([Agwb_samp]),
+                                np.array([gam_gwb_samp]),
+                                orf_coeffs_samp])
+            q = np.append(qtmp,q[len(qtmp):])
         else:
         
-            q = np.concatenate([Ared_samp, gam_red_samp,
+            qtmp = np.concatenate([Ared_samp, gam_red_samp,
                                 Adm_samp, gam_dm_samp,
-                                np.array([Agwb_samp]), orf_coeffs_samp])
-        
+                                np.array([Agwb_samp]),
+                                orf_coeffs_samp])
+            q = np.append(qtmp,q[len(qtmp):])
     else:
     
         if args.fix_slope==False:
     
-            q = np.concatenate([Ared_samp, gam_red_samp,
-                                np.array([Agwb_samp]), np.array([gam_gwb_samp]), orf_coeffs_samp])
-        
+            qtmp = np.concatenate([Ared_samp, gam_red_samp,
+                                np.array([Agwb_samp]),
+                                np.array([gam_gwb_samp]),
+                                orf_coeffs_samp])
+            q = np.append(qtmp,q[len(qtmp):])
         else:
             
-            q = np.concatenate([Ared_samp, gam_red_samp,
-                            np.array([Agwb_samp]), orf_coeffs_samp])
-    
-
+            qtmp = np.concatenate([Ared_samp, gam_red_samp,
+                            np.array([Agwb_samp]),
+                            orf_coeffs_samp])
+            q = np.append(qtmp,q[len(qtmp):])
+            
     return q, qxy
 
 # gwb draws (from Justin Ellis' PAL2)
@@ -905,26 +917,36 @@ def drawFromGWBPrior(parameters, iter, beta):
     
         if fix_slope==False:
         
-            q = np.concatenate([Ared_samp, gam_red_samp,
+            qtmp = np.concatenate([Ared_samp, gam_red_samp,
                                 Adm_samp, gam_dm_samp,
-                                np.array([Agwb_samp]), np.array([gam_gwb_samp]), orf_coeffs_samp])
+                                np.array([Agwb_samp]),
+                                np.array([gam_gwb_samp]),
+                                orf_coeffs_samp])
+            q = np.append(qtmp,q[len(qtmp):])
         else:
         
-            q = np.concatenate([Ared_samp, gam_red_samp,
+            qtmp = np.concatenate([Ared_samp, gam_red_samp,
                                 Adm_samp, gam_dm_samp,
-                                np.array([Agwb_samp]), orf_coeffs_samp])
+                                np.array([Agwb_samp]),
+                                orf_coeffs_samp])
+            q = np.append(qtmp,q[len(qtmp):])
         
     else:
     
         if args.fix_slope==False:
     
-            q = np.concatenate([Ared_samp, gam_red_samp,
-                                np.array([Agwb_samp]), np.array([gam_gwb_samp]), orf_coeffs_samp])
+            qtmp = np.concatenate([Ared_samp, gam_red_samp,
+                                np.array([Agwb_samp]),
+                                np.array([gam_gwb_samp]),
+                                orf_coeffs_samp])
+            q = np.append(qtmp,q[len(qtmp):])
         
         else:
             
-            q = np.concatenate([Ared_samp, gam_red_samp,
-                            np.array([Agwb_samp]), orf_coeffs_samp])
+            qtmp = np.concatenate([Ared_samp, gam_red_samp,
+                            np.array([Agwb_samp]),
+                            orf_coeffs_samp])
+            q = np.append(qtmp,q[len(qtmp):])
 
 
     return q, qxy

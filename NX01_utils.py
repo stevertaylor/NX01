@@ -563,6 +563,8 @@ def make_ecc_interpolant():
 
     return interp1d(fil[:,0], fil[:,1])
 
+# get interpolant for eccentric binaries
+ecc_interp = make_ecc_interpolant()
 
 def get_edot(F, mc, e):
     
@@ -838,7 +840,7 @@ def calculate_splus_scross(nmax, mc, dl, F, e, t, l0, gamma, gammadot, inc):
 
 def ecc_cgw_signal(psr, gwtheta, gwphi, mc, dist, F, inc, psi, gamma0,
                    e0, l0, q, nmax=100, nset=None, pd=None, periEv=True,
-                   psrTerm=False, tref=0, check=True, useFile=True):
+                   psrTerm=False, tref=0, check=False, useFile=True):
     
     """
     Simulate GW from eccentric SMBHB. Waveform models from
