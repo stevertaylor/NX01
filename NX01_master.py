@@ -76,6 +76,8 @@ parser.add_option('--limit-or-detect-gwb', dest='limit_or_detect_gwb', action='s
                    help='Do you want to use a uniform prior on log_10(Agwb) [detect] or Agwb itself [limit] (default=\'limit\')?')
 parser.add_option('--limit-or-detect-red', dest='limit_or_detect_red', action='store', type=str, default='limit',
                    help='Do you want to use a uniform prior on log_10(Ared) [detect] or Ared itself [limit] (default=\'limit\')?')
+parser.add_option('--limit-or-detect-dm', dest='limit_or_detect_dm', action='store', type=str, default='limit',
+                   help='Do you want to use a uniform prior on log_10(Adm) [detect] or Adm itself [limit] (default=\'limit\')?')
 parser.add_option('--anis-modefile', dest='anis_modefile', action='store', type=str, default = None,
                    help='Do you want to provide an anisotropy modefile to split band into frequency windows?')
 parser.add_option('--fullN', dest='fullN', action='store_true', default=True,
@@ -721,13 +723,25 @@ def lnprob(xx):
     else:
         priorfac_red = 0.0
 
+    if args.dmVar:
+        if args.limit_or_detect_dm == 'limit':
+        priorfac_dm = np.sum(np.log(Adm * np.log(10.0)))
+    else:
+        priorfac_dm = 0.0
+
     #####################################
     # Finally, return the log-likelihood
     
     if args.incGWB:
-        return logLike + priorfac_gwb + priorfac_red 
+        if args.dmVar:
+            return logLike + priorfac_gwb + priorfac_red + priorfac_dm
+        else:
+             return logLike + priorfac_gwb + priorfac_red
     else:
-        return logLike + priorfac_red
+        if args.dmVar:
+            return logLike + priorfac_red + priorfac_dm
+        else:
+            return logLike + priorfac_red
 
 
 #########################
@@ -880,6 +894,36 @@ def drawFromRedNoisePrior(parameters, iter, beta):
 
     return q, qxy
 
+# dm var draws 
+def drawFromDMNoisePrior(parameters, iter, beta):
+
+    # post-jump parameters
+    q = parameters.copy()
+
+    # transition probability
+    qxy = 0
+
+    npsr = len(psr)
+
+    # log prior
+    if args.limit_or_detect_dm == 'detect':
+        
+        q[2*npsr:3*npsr] = np.random.uniform(pmin[2*npsr], pmax[2*npsr], npsr)
+        qxy += 0
+        
+    elif args.limit_or_detect_dm == 'limit':
+        
+        q[2*npsr:3*npsr] = np.random.uniform(pmin[2*npsr], pmax[2*npsr], npsr)
+        qxy += 0
+
+        #Ared = np.log10(np.random.uniform(10 ** Ared_ll, 10 ** Ared_ul, len(Ared)))
+        #qxy += np.log(10 ** parameters[parind] / 10 ** q[parind])
+    
+    q[3*npsr:4*npsr] = np.random.uniform(pmin[3*npsr], pmax[3*npsr], npsr)
+    qxy += 0
+
+    return q, qxy
+
 
 # gwb draws (from Justin Ellis' PAL2)
 def drawFromGWBPrior(parameters, iter, beta):
@@ -921,9 +965,11 @@ def drawFromGWBPrior(parameters, iter, beta):
 
 
 # add jump proposals
+sampler.addProposalToCycle(drawFromRedNoisePrior, 10)
 if args.incGWB:
     sampler.addProposalToCycle(drawFromGWBPrior, 10)
-sampler.addProposalToCycle(drawFromRedNoisePrior, 10)
+if args.cgw_search:
+    sampler.addProposalToCycle(drawFromCWPrior, 10)
 #if args.incDMBand and args.dmModel=='powerlaw':
 #    sampler.addProposalToCycle(model.drawFromDMNoiseBandPrior, 5)
 #if args.incORF:
