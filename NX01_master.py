@@ -60,6 +60,8 @@ parser.add_option('--dmVar', dest='dmVar', action='store_true', default=False,
                    help='Search for DM variations in the data (False)? (default=False)')
 parser.add_option('--ptmcmc', dest='ptmcmc', action='store_true', default=True,
                    help='Sample using PALs parallel tempering MCMC (False)? (default=True)')
+parser.add_option('--incGWB', dest='incGWB', action='store_true', default=False,
+                  help='Do you want to search for a GWB? (default = False)')
 parser.add_option('--num_gwfreq_wins', dest='num_gwfreq_wins', action='store', type=int, default=1,
                    help='Number windows to split the band into (useful for evolving anisotropic searches (default = 1 windows)')
 parser.add_option('--lmax', dest='LMAX', action='store', type=int, default=0,
@@ -153,38 +155,39 @@ psr_positions = [np.array([psr[ii].psr_locs[0],
                            for ii in range(len(psr))]
 positions = np.array(psr_positions).copy()
 
-# Computing all the correlation basis-functions for the array.
-CorrCoeff = np.array(anis.CorrBasis(positions,args.LMAX))
-# Computing the values of the spherical-harmonics up to order
-# LMAX on a pre-specified grid  
-harm_sky_vals = utils.SetupPriorSkyGrid(args.LMAX)              
+if args.incGWB:
+    # Computing all the correlation basis-functions for the array.
+    CorrCoeff = np.array(anis.CorrBasis(positions,args.LMAX))
+    # Computing the values of the spherical-harmonics up to order
+    # LMAX on a pre-specified grid  
+    harm_sky_vals = utils.SetupPriorSkyGrid(args.LMAX)              
 
                                                             
-if args.anis_modefile is None:
-
-    # getting the number of GW frequencies per window
-    gwfreqs_per_win = int(1.*args.nmodes/(1.*args.num_gwfreq_wins)) 
-    anis_modefreqs = np.arange(1,args.nmodes+1)
-    anis_modefreqs = np.reshape(anis_modefreqs, (args.num_gwfreq_wins,gwfreqs_per_win))
-
-    tmp_num_gwfreq_wins = args.num_gwfreq_wins
+    if args.anis_modefile is None:
     
-else:
+        # getting the number of GW frequencies per window
+        gwfreqs_per_win = int(1.*args.nmodes/(1.*args.num_gwfreq_wins)) 
+        anis_modefreqs = np.arange(1,args.nmodes+1)
+        anis_modefreqs = np.reshape(anis_modefreqs, (args.num_gwfreq_wins,gwfreqs_per_win))
 
-    tmp_modefreqs = np.loadtxt(args.anis_modefile)
-    tmp_num_gwfreq_wins = tmp_modefreqs.shape[0]
-    anis_modefreqs = []
+        tmp_num_gwfreq_wins = args.num_gwfreq_wins
     
-    for ii in range(tmp_num_gwfreq_wins):
-        anis_modefreqs.append(np.arange(tmp_modefreqs[ii,0],tmp_modefreqs[ii,1]+1))
+    else:
 
-num_anis_params = tmp_num_gwfreq_wins*(((args.LMAX+1)**2)-1)
+        tmp_modefreqs = np.loadtxt(args.anis_modefile)
+        tmp_num_gwfreq_wins = tmp_modefreqs.shape[0]
+        anis_modefreqs = []
+    
+        for ii in range(tmp_num_gwfreq_wins):
+            anis_modefreqs.append(np.arange(tmp_modefreqs[ii,0],tmp_modefreqs[ii,1]+1))
 
-# Create a tag for evolving anisotropy searches
-if (args.LMAX!=0) and (tmp_num_gwfreq_wins > 1):
-    evol_anis_tag = '_evanis'
-else:
-    evol_anis_tag = ''
+    num_anis_params = tmp_num_gwfreq_wins*(((args.LMAX+1)**2)-1)
+
+    # Create a tag for evolving anisotropy searches
+    if (args.LMAX!=0) and (tmp_num_gwfreq_wins > 1):
+        evol_anis_tag = '_evanis'
+    else:
+        evol_anis_tag = ''
               
 #############################################################################
 # GETTING MAXIMUM TIME, COMPUTING FOURIER DESIGN MATRICES, AND GETTING MODES 
@@ -292,10 +295,11 @@ pmin = np.append(pmin,0.0*np.ones(len(psr)))
 if args.dmVar==True:
     pmin = np.append(pmin,-20.0*np.ones(len(psr)))
     pmin = np.append(pmin,0.0*np.ones(len(psr)))
-pmin = np.append(pmin,-18.0)
-if args.fix_slope==False:
-    pmin = np.append(pmin,0.0)
-pmin = np.append(pmin,-10.0*np.ones(num_anis_params))
+if args.incGWB:
+    pmin = np.append(pmin,-18.0)
+    if args.fix_slope==False:
+        pmin = np.append(pmin,0.0)
+    pmin = np.append(pmin,-10.0*np.ones(num_anis_params))
 if args.cgw_search:
     pmin = np.append(pmin,np.array([6.0,0.1,0.0,-9.3,
                                     0.0,-1.0,-1.0,0.0,0.0,0.0]))
@@ -308,10 +312,11 @@ pmax = np.append(pmax,7.0*np.ones(len(psr)))
 if args.dmVar==True:
     pmax = np.append(pmax,-11.0*np.ones(len(psr)))
     pmax = np.append(pmax,7.0*np.ones(len(psr)))
-pmax = np.append(pmax,-11.0)
-if args.fix_slope==False:
-    pmax = np.append(pmax,7.0)
-pmax = np.append(pmax,10.0*np.ones(num_anis_params))
+if args.incGWB:
+    pmax = np.append(pmax,-11.0)
+    if args.fix_slope==False:
+        pmax = np.append(pmax,7.0)
+    pmax = np.append(pmax,10.0*np.ones(num_anis_params))
 if args.cgw_search:
     pmax = np.append(pmax,np.array([10.0,1.0,4.0,-6.5,
                                     2.0*np.pi,1.0,1.0,np.pi,np.pi,2.0*np.pi]))
@@ -416,48 +421,49 @@ def lnprob(xx):
     # Reshaping freq-dependent anis coefficients,
     # and testing for power distribution physicality.
 
-    orf_coeffs = orf_coeffs.reshape((tmp_num_gwfreq_wins,((args.LMAX+1)**2)-1))
-    clm = np.array([[0.0]*((args.LMAX+1)**2) for ii in range(tmp_num_gwfreq_wins)])
-    clm[:,0] = 2.0*np.sqrt(np.pi)
-
     physicality = 0.
-    if args.LMAX!=0:
+    if args.incGWB:
+        orf_coeffs = orf_coeffs.reshape((tmp_num_gwfreq_wins,((args.LMAX+1)**2)-1))
+        clm = np.array([[0.0]*((args.LMAX+1)**2) for ii in range(tmp_num_gwfreq_wins)])
+        clm[:,0] = 2.0*np.sqrt(np.pi)
 
-        for kk in range(tmp_num_gwfreq_wins):
-            for ii in range(1,((args.LMAX+1)**2)):
-                clm[kk,ii] = orf_coeffs[kk,ii-1]   
+        physicality = 0.
+        if args.LMAX!=0:
 
-            # Testing for physicality of power distribution.
-            if (utils.PhysPrior(clm[kk],harm_sky_vals) == 'Unphysical'):
-                physicality += -10.0**7.0
-            else:
-                physicality += 0.
+            for kk in range(tmp_num_gwfreq_wins):
+                for ii in range(1,((args.LMAX+1)**2)):
+                    clm[kk,ii] = orf_coeffs[kk,ii-1]   
 
-    ############################################################
-    # Computing frequency dependent overlap reduction functions.
-    
-    ORF=[]
-    for ii in range(tmp_num_gwfreq_wins): # number of frequency windows
-        for jj in range(len(anis_modefreqs[ii])): # number of frequencies in this window
-            ORF.append( sum(clm[ii,kk]*CorrCoeff[kk] for kk in range(len(CorrCoeff))) )
-    if args.dmVar==True:
+                # Testing for physicality of power distribution.
+                if (utils.PhysPrior(clm[kk],harm_sky_vals) == 'Unphysical'):
+                    physicality += -10.0**7.0
+                else:
+                    physicality += 0.
+
+        ############################################################
+        # Computing frequency dependent overlap reduction functions.
+        
+        ORF=[]
         for ii in range(tmp_num_gwfreq_wins): # number of frequency windows
             for jj in range(len(anis_modefreqs[ii])): # number of frequencies in this window
-                ORF.append( np.zeros((npsr,npsr)) )
+                ORF.append( sum(clm[ii,kk]*CorrCoeff[kk] for kk in range(len(CorrCoeff))) )
+        if args.dmVar==True:
+            for ii in range(tmp_num_gwfreq_wins): # number of frequency windows
+                for jj in range(len(anis_modefreqs[ii])): # number of frequencies in this window
+                    ORF.append( np.zeros((npsr,npsr)) )
 
-    ORF = np.array(ORF)
-    ORFtot = np.zeros((mode_count,npsr,npsr)) # shouldn't be applying ORF to dmfreqs,
-                                                 # but the projection of GW spec onto dmfreqs
-                                                 # is defined as zero below.
-    ORFtot[0::2] = ORF
-    ORFtot[1::2] = ORF
+        ORF = np.array(ORF)
+        ORFtot = np.zeros((mode_count,npsr,npsr)) # shouldn't be applying ORF to dmfreqs,
+                                                  # but the projection of GW spec onto dmfreqs
+                                                  # is defined as zero below.
+        ORFtot[0::2] = ORF
+        ORFtot[1::2] = ORF
     
     ################################################
     # parameterize intrinsic red noise as power law
     
     Tspan = (1/fqs[0])*86400.0
     f1yr = 1/3.16e7
-    rho = np.log10(Agwb**2/12/np.pi**2 * f1yr**(gam_gwb-3) * (fqs/86400.0)**(-gam_gwb)/Tspan)
 
     # parameterize intrinsic red-noise and DM-variations as power law
     kappa = [] 
@@ -473,28 +479,41 @@ def lnprob(xx):
     # construct elements of sigma array
     
     sigdiag = []
-    sigoffdiag = []
-    
-    if args.dmVar==True:
-        gwbspec = np.append( 10**rho, np.zeros_like(rho) )
-    else:
-        gwbspec = 10**rho
+
+    if args.incGWB:
+
+        rho = np.log10(Agwb**2/12/np.pi**2 * f1yr**(gam_gwb-3) * (fqs/86400.0)**(-gam_gwb)/Tspan)
         
+        sigoffdiag = []
+
+        if args.dmVar==True:
+            gwbspec = np.append( 10**rho, np.zeros_like(rho) )
+        else:
+            gwbspec = 10**rho
+        
+
     for ii in range(npsr):
         tot = np.zeros(mode_count)
-        offdiag = np.zeros(mode_count)
-
-        # off diagonal terms
-        offdiag[0::2] = gwbspec
-        offdiag[1::2] = gwbspec
 
         # diagonal terms
-        tot[0::2] = ORF[:,ii,ii]*gwbspec + 10**kappa[ii]
-        tot[1::2] = ORF[:,ii,ii]*gwbspec + 10**kappa[ii] 
+        tot[0::2] = 10**kappa[ii]
+        tot[1::2] = 10**kappa[ii] 
+
+        if args.incGWB:
+            offdiag = np.zeros(mode_count)
+
+            # off diagonal terms
+            offdiag[0::2] = gwbspec
+            offdiag[1::2] = gwbspec
+
+            # diagonal terms
+            tot[0::2] += ORF[:,ii,ii]*gwbspec
+            tot[1::2] += ORF[:,ii,ii]*gwbspec
+
+            sigoffdiag.append(offdiag)
                 
         # fill in lists of arrays
         sigdiag.append(tot)
-        sigoffdiag.append(offdiag)
 
     #####################
     # compute Phi matrix
@@ -523,9 +542,10 @@ def lnprob(xx):
             logdet_Phi += np.sum(2*np.log(np.diag(L[0])))
 
         except np.linalg.LinAlgError:
-
+            
             print 'Cholesky Decomposition Failed!! Rejecting...'
-            non_pos_def += 1
+            return -np.inf
+            #non_pos_def += 1
 
     ###################################################
     # Break if we have non-positive-definiteness of Phi
@@ -567,7 +587,9 @@ def lnprob(xx):
                 print 'Cholesky Decomposition Failed (GPU error!!)'
                 return -np.inf
 
-            logLike = -0.5 * (logdet_Phi + logdet_Sigma) + 0.5 * (np.dot(d, expval2_gpu.get() )) + loglike1
+            logLike = -0.5 * (logdet_Phi + logdet_Sigma) + \
+              0.5 * (np.dot(d, expval2_gpu.get() )) + \
+              loglike1
             
         else:
 
@@ -578,30 +600,37 @@ def lnprob(xx):
                 logdet_Sigma = np.sum(2*np.log(np.diag(cf[0])))
 
             except np.linalg.LinAlgError:
+                
+                print 'Cholesky Decomposition Failed second time!! Breaking...'
+                return -np.inf
+                #print 'Cholesky Decomposition Failed second time!! Using SVD instead'
+                #u,s,v = sl.svd(Sigma)
+                #expval2 = np.dot(v.T, 1/s*np.dot(u.T, d))
+                #logdet_Sigma = np.sum(np.log(s))
 
-                print 'Cholesky Decomposition Failed second time!! Using SVD instead'
-                u,s,v = sl.svd(Sigma)
-                expval2 = np.dot(v.T, 1/s*np.dot(u.T, d))
-                logdet_Sigma = np.sum(np.log(s))
 
-
-            logLike = -0.5 * (logdet_Phi + logdet_Sigma) + 0.5 * (np.dot(d, expval2)) + loglike1 
+            logLike = -0.5 * (logdet_Phi + logdet_Sigma) + \
+              0.5 * (np.dot(d, expval2)) + \
+              loglike1 
 
 
         # Multiplying likelihood to correct log-uniform
         # sampling thus making a uniform prior
-        if args.limit_or_detect_gwb == 'limit':
-            priorfac_gwb = np.log(Agwb * np.log(10.0))
-        else:
-            priorfac_gwb = 0.0
+        if args.incGWB:
+            if args.limit_or_detect_gwb == 'limit':
+                priorfac_gwb = np.log(Agwb * np.log(10.0))
+            else:
+                priorfac_gwb = 0.0
 
         if args.limit_or_detect_red == 'limit':
             priorfac_red = np.sum(np.log(Ared * np.log(10.0)))
         else:
             priorfac_red = 0.0
 
-
-        return logLike + priorfac_gwb + priorfac_red + physicality
+        if args.incGWB:
+            return logLike + priorfac_gwb + priorfac_red + physicality
+        else:
+            return logLike + priorfac_red
 
 
 #########################
@@ -619,14 +648,15 @@ if args.dmVar==True:
         parameters.append('Adm_'+psr[ii].name)
     for ii in range(len(psr)):
         parameters.append('gam_dm_'+psr[ii].name)
-parameters.append("Agwb")
-if args.fix_slope is False:
-    parameters.append("gam_gwb")
-    gamma_ext = 'GamVary'
-else:
-    gamma_ext = 'Gam4p33'
-for ii in range(num_anis_params):
-    parameters.append('clm_{0}'.format(ii+1))
+if args.incGWB:
+    parameters.append("Agwb")
+    if args.fix_slope is False:
+        parameters.append("gam_gwb")
+        gamma_ext = 'GamVary'
+    else:
+        gamma_ext = 'Gam4p33'
+    for ii in range(num_anis_params):
+        parameters.append('clm_{0}'.format(ii+1))
 if args.cgw_search:
     parameters += ["chirpmass", "qratio", "dist", "orb-freq",
                    "phi", "costheta", "cosiota", "gwpol",
@@ -647,10 +677,11 @@ x0 = np.append(x0,np.array([p.Redind for p in psr]))
 if args.dmVar==True:
     x0 = np.append(x0,np.log10(np.array([p.Redamp for p in psr])))
     x0 = np.append(x0,np.array([p.Redind for p in psr]))
-x0 = np.append(x0,-15.0)
-if args.fix_slope is False:
-    x0 = np.append(x0,13./3.)
-x0 = np.append(x0,np.zeros(num_anis_params))
+if args.incGWB:
+    x0 = np.append(x0,-15.0)
+    if args.fix_slope is False:
+        x0 = np.append(x0,13./3.)
+    x0 = np.append(x0,np.zeros(num_anis_params))
 if args.cgw_search:
     x0 = np.append(x0,np.array([9.0, 0.5, 1.5, -8.0, 0.5,
                                 0.5, 0.5, 0.5, 0.5, 0.5]))
@@ -665,10 +696,11 @@ cov_diag = np.append(cov_diag,0.5*np.ones(len(psr)))
 if args.dmVar==True:
     cov_diag = np.append(cov_diag,0.5*np.ones(len(psr)))
     cov_diag = np.append(cov_diag,0.5*np.ones(len(psr)))
-cov_diag = np.append(cov_diag,0.5)
-if args.fix_slope is False:
+if args.incGWB:
     cov_diag = np.append(cov_diag,0.5)
-cov_diag = np.append(cov_diag,0.05*np.ones(num_anis_params))
+    if args.fix_slope is False:
+        cov_diag = np.append(cov_diag,0.5)
+    cov_diag = np.append(cov_diag,0.05*np.ones(num_anis_params))
 if args.cgw_search:
     cov_diag = np.append(cov_diag,0.2*np.ones(10))
     if args.ecc_search:
@@ -954,7 +986,8 @@ def drawFromGWBPrior(parameters, iter, beta):
 
 
 # add jump proposals
-sampler.addProposalToCycle(drawFromGWBPrior, 10)
+if args.incGWB:
+    sampler.addProposalToCycle(drawFromGWBPrior, 10)
 #if args.incGWBAni and args.gwbModel == 'powerlaw':
 #    sampler.addProposalToCycle(model.drawFromaGWBPrior, 10)
 sampler.addProposalToCycle(drawFromRedNoisePrior, 10)
