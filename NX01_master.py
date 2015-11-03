@@ -287,7 +287,7 @@ for ii,p in enumerate(psr):
 
     loglike1 += -0.5 * (logdet_N[ii] + dtNdt)
 
-d = np.concatenate(d)
+#d = np.concatenate(d)
 
 
 ##########################
@@ -342,7 +342,8 @@ def my_prior(xx):
 
 def lnprob(xx):
 
-    npsr = len(psr) 
+    npsr = len(psr)
+    logLike = 0
 
     if args.dmVar:
         Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, orf_coeffs, param_ct = \
@@ -419,15 +420,17 @@ def lnprob(xx):
         
             loglike1 += -0.5 * (logdet_N[ii] + dtNdt[ii])
         
-        d = np.concatenate(d)
+        #d = np.concatenate(d)
 
     ################################################
     # Reshaping freq-dependent anis coefficients,
     # and testing for power distribution physicality.
 
     if args.incGWB:
-        orf_coeffs = orf_coeffs.reshape((tmp_num_gwfreq_wins,((args.LMAX+1)**2)-1))
-        clm = np.array([[0.0]*((args.LMAX+1)**2) for ii in range(tmp_num_gwfreq_wins)])
+        orf_coeffs = orf_coeffs.reshape((tmp_num_gwfreq_wins,
+                                         ((args.LMAX+1)**2)-1))
+        clm = np.array([[0.0]*((args.LMAX+1)**2)
+                        for ii in range(tmp_num_gwfreq_wins)])
         clm[:,0] = 2.0*np.sqrt(np.pi)
 
         physicality = 0.
@@ -447,7 +450,8 @@ def lnprob(xx):
         ORF=[]
         for ii in range(tmp_num_gwfreq_wins): # number of frequency windows
             for jj in range(len(anis_modefreqs[ii])): # number of frequencies in this window
-                ORF.append( sum(clm[ii,kk]*CorrCoeff[kk] for kk in range(len(CorrCoeff))) )
+                ORF.append( sum(clm[ii,kk]*CorrCoeff[kk]
+                                for kk in range(len(CorrCoeff))) )
         if args.dmVar==True:
             for ii in range(tmp_num_gwfreq_wins): # number of frequency windows
                 for jj in range(len(anis_modefreqs[ii])): # number of frequencies in this window
@@ -470,11 +474,17 @@ def lnprob(xx):
     kappa = [] 
     if args.dmVar:
         for ii in range(npsr):
-            kappa.append(np.log10( np.append( Ared[ii]**2/12/np.pi**2 * f1yr**(gam_red[ii]-3) * (fqs/86400.0)**(-gam_red[ii])/Tspan,
-                                        Adm[ii]**2/12/np.pi**2 * f1yr**(gam_dm[ii]-3) * (fqs/86400.0)**(-gam_dm[ii])/Tspan ) ))
+            kappa.append(np.log10( np.append( Ared[ii]**2/12/np.pi**2 * \
+                                              f1yr**(gam_red[ii]-3) * \
+                                              (fqs/86400.0)**(-gam_red[ii])/Tspan,
+                                        Adm[ii]**2/12/np.pi**2 * \
+                                         f1yr**(gam_dm[ii]-3) * \
+                                         (fqs/86400.0)**(-gam_dm[ii])/Tspan ) ))
     else:
         for ii in range(npsr):
-            kappa.append(np.log10( Ared[ii]**2/12/np.pi**2 * f1yr**(gam_red[ii]-3) * (fqs/86400.0)**(-gam_red[ii])/Tspan ))
+            kappa.append(np.log10( Ared[ii]**2/12/np.pi**2 * \
+                                   f1yr**(gam_red[ii]-3) * \
+                                   (fqs/86400.0)**(-gam_red[ii])/Tspan ))
     
     #####################################
     # construct elements of sigma array
@@ -483,7 +493,9 @@ def lnprob(xx):
 
     if args.incGWB:
 
-        rho = np.log10(Agwb**2/12/np.pi**2 * f1yr**(gam_gwb-3) * (fqs/86400.0)**(-gam_gwb)/Tspan)
+        rho = np.log10(Agwb**2/12/np.pi**2 * \
+                       f1yr**(gam_gwb-3) * \
+                       (fqs/86400.0)**(-gam_gwb)/Tspan)
         
         sigoffdiag = []
 
@@ -516,97 +528,144 @@ def lnprob(xx):
         # fill in lists of arrays
         sigdiag.append(tot)
 
-    #####################
-    # compute Phi matrix
+
+    ###############################################
+    # Computing Phi and Sigma matrices without GWB
     
-    smallMatrix = np.zeros((mode_count, npsr, npsr))
-    for ii in range(npsr):
-        for jj in range(ii,npsr):
+    if not args.incGWB:
 
-            if ii == jj:
-                smallMatrix[:,ii,jj] = sigdiag[jj] 
-            else:
-                smallMatrix[:,ii,jj] = ORFtot[:,ii,jj] * sigoffdiag[jj] 
-                smallMatrix[:,jj,ii] = smallMatrix[:,ii,jj]
+        for ii,p in enumerate(psr):
+            
+            # compute Phi inverse 
+            red_phi = np.diag(1./sig_diag[ii])
+            logdet_Phi = np.sum(np.log(sig_diag[ii]))
 
-    ###################################
-    # invert Phi matrix frequency-wise
+            # now fill in real covariance matrix
+            Phi = np.zeros( TtNT[ii].shape ) 
+            for kk in range(0,mode_count):
+                Phi[kk+p.Gc.shape[1],kk+p.Gc.shape[1]] = red_phi[kk,kk]
+
+            # symmeterize Phi
+            Phi = Phi + Phi.T - np.diag(np.diag(Phi))
     
-    logdet_Phi = 0
-    for ii in range(mode_count):
+            # compute sigma
+            Sigma = TtNT[ii] + Phi
 
-        try:
-
-            L = sl.cho_factor(smallMatrix[ii,:,:])
-            smallMatrix[ii,:,:] = sl.cho_solve(L, np.eye(npsr))
-            logdet_Phi += np.sum(2*np.log(np.diag(L[0])))
-
-        except np.linalg.LinAlgError:
-
-            ###################################################
-            # Break if we have non-positive-definiteness of Phi
-            
-            print 'Cholesky Decomposition Failed!! Rejecting...'
-            return -np.inf
-
-
-    bigTtNT = sl.block_diag(*TtNT)
-    Phi = np.zeros_like( bigTtNT )
-    
-    # now fill in real covariance matrix
-    ind = [0]
-    ind = np.append(ind,np.cumsum([TtNT[ii].shape[0] for ii in range(len(psr))]))
-    ind = [np.arange(ind[ii]+psr[ii].Gc.shape[1],
-                     ind[ii]+psr[ii].Gc.shape[1]+mode_count)
-                     for ii in range(len(ind)-1)]
-    for ii in range(npsr):
-        for jj in range(npsr):
-            Phi[ind[ii],ind[jj]] = smallMatrix[:,ii,jj]
-            
-    # compute sigma
-    Sigma = bigTtNT + Phi
-            
-    # cholesky decomp for second term in exponential
-    if args.use_gpu:
-
-        try:
-
-            Sigma_gpu = gpuarray.to_gpu( Sigma.astype(np.float64).copy() )
-            expval2_gpu = gpuarray.to_gpu( d.astype(np.float64).copy() )
-            culinalg.cho_solve( Sigma_gpu, expval2_gpu ) # in-place linear-algebra:
-                                                             # Sigma and expval2 overwritten
-            logdet_Sigma = np.sum(2.0*np.log(np.diag(Sigma_gpu.get())))
-
-        except cula.culaDataError:
-
-            print 'Cholesky Decomposition Failed (GPU error!!)'
-            return -np.inf
-
-        logLike = -0.5 * (logdet_Phi + logdet_Sigma) + \
-          0.5 * (np.dot(d, expval2_gpu.get() )) + \
-          loglike1
-            
-    else:
-
-        try:
-
-            cf = sl.cho_factor(Sigma)
-            expval2 = sl.cho_solve(cf, d)
-            logdet_Sigma = np.sum(2*np.log(np.diag(cf[0])))
-
-        except np.linalg.LinAlgError:
+            # cholesky decomp 
+            try:
                 
-            print 'Cholesky Decomposition Failed second time!! Breaking...'
-            return -np.inf
-            #print 'Cholesky Decomposition Failed second time!! Using SVD instead'
-            #u,s,v = sl.svd(Sigma)
-            #expval2 = np.dot(v.T, 1/s*np.dot(u.T, d))
-            #logdet_Sigma = np.sum(np.log(s))
+                cf = sl.cho_factor(Sigma)
+                expval2 = sl.cho_solve(cf, d[ii])
+                logdet_Sigma = np.sum(2*np.log(np.diag(cf[0])))
+
+            except np.linalg.LinAlgError:
+                
+                print 'Cholesky Decomposition Failed!!'
+                return -np.inf
+                
+            logLike += -0.5 * (logdet_Phi + logdet_Sigma) + 0.5 * (np.dot(d[ii], expval2))
+
+        logLike += loglike1
+        
+
+    if args.incGWB:
+        
+        #####################
+        # compute Phi matrix
+
+        smallMatrix = np.zeros((mode_count, npsr, npsr))
+        for ii in range(npsr):
+            for jj in range(ii,npsr):
+
+                if ii == jj:
+                    smallMatrix[:,ii,jj] = sigdiag[jj] 
+                else:
+                    smallMatrix[:,ii,jj] = ORFtot[:,ii,jj] * sigoffdiag[jj] 
+                    smallMatrix[:,jj,ii] = smallMatrix[:,ii,jj]
+
+        ###################################
+        # invert Phi matrix frequency-wise
+    
+        logdet_Phi = 0
+        for ii in range(mode_count):
+
+            try:
+    
+                L = sl.cho_factor(smallMatrix[ii,:,:])
+                smallMatrix[ii,:,:] = sl.cho_solve(L, np.eye(npsr))
+                logdet_Phi += np.sum(2*np.log(np.diag(L[0])))
+
+            except np.linalg.LinAlgError:
+    
+                ###################################################
+                # Break if we have non-positive-definiteness of Phi
+            
+                print 'Cholesky Decomposition Failed!! Rejecting...'
+                return -np.inf
 
 
-        logLike = -0.5 * (logdet_Phi + logdet_Sigma) + \
-          0.5 * (np.dot(d, expval2)) + \
-          loglike1 
+        bigTtNT = sl.block_diag(*TtNT)
+        Phi = np.zeros_like( bigTtNT )
+    
+        # now fill in real covariance matrix
+        ind = [0]
+        ind = np.append(ind,np.cumsum([TtNT[ii].shape[0]
+                                    for ii in range(len(psr))]))
+        ind = [np.arange(ind[ii]+psr[ii].Gc.shape[1],
+                        ind[ii]+psr[ii].Gc.shape[1]+mode_count)
+                        for ii in range(len(ind)-1)]
+        for ii in range(npsr):
+            for jj in range(npsr):
+                Phi[ind[ii],ind[jj]] = smallMatrix[:,ii,jj]
+            
+        # compute sigma
+        Sigma = bigTtNT + Phi
+            
+        # cholesky decomp for second term in exponential
+        if args.use_gpu:
+
+            try:
+                
+                dtmp = np.concatenate(d)
+                Sigma_gpu = gpuarray.to_gpu( Sigma.astype(np.float64).copy() )
+                expval2_gpu = gpuarray.to_gpu( dtmp.astype(np.float64).copy() )
+                culinalg.cho_solve( Sigma_gpu, expval2_gpu ) # in-place linear-algebra:
+                                                             # Sigma and expval2 overwritten
+                logdet_Sigma = np.sum(2.0*np.log(np.diag(Sigma_gpu.get())))
+
+            except cula.culaDataError:
+
+                print 'Cholesky Decomposition Failed (GPU error!!)'
+                return -np.inf
+
+            logLike = -0.5 * (logdet_Phi + logdet_Sigma) + \
+              0.5 * (np.dot(dtmp, expval2_gpu.get() )) + \
+              loglike1
+            
+        else:
+    
+            try:
+
+                dtmp = np.concatenate(d)
+                cf = sl.cho_factor(Sigma)
+                expval2 = sl.cho_solve(cf, dtmp)
+                logdet_Sigma = np.sum(2*np.log(np.diag(cf[0])))
+
+            except np.linalg.LinAlgError:
+                
+                print 'Cholesky Decomposition Failed second time!! Breaking...'
+                return -np.inf
+                #print 'Cholesky Decomposition Failed second time!! Using SVD instead'
+                #u,s,v = sl.svd(Sigma)
+                #expval2 = np.dot(v.T, 1/s*np.dot(u.T, d))
+                #logdet_Sigma = np.sum(np.log(s))
+
+
+            logLike = -0.5 * (logdet_Phi + logdet_Sigma) + \
+              0.5 * (np.dot(dtmp, expval2)) + \
+              loglike1
+
+    
 
     ################################################
     # Multiplying likelihood to correct log-uniform
