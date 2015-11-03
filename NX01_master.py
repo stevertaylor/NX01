@@ -421,7 +421,7 @@ def lnprob(xx):
     # Reshaping freq-dependent anis coefficients,
     # and testing for power distribution physicality.
 
-    physicality = 0.
+    #physicality = 0.
     if args.incGWB:
         orf_coeffs = orf_coeffs.reshape((tmp_num_gwfreq_wins,((args.LMAX+1)**2)-1))
         clm = np.array([[0.0]*((args.LMAX+1)**2) for ii in range(tmp_num_gwfreq_wins)])
@@ -436,9 +436,10 @@ def lnprob(xx):
 
                 # Testing for physicality of power distribution.
                 if (utils.PhysPrior(clm[kk],harm_sky_vals) == 'Unphysical'):
-                    physicality += -10.0**7.0
-                else:
-                    physicality += 0.
+                    return -np.inf
+                    #physicality += -10.0**7.0
+                #else:
+                    #physicality += 0.
 
         ############################################################
         # Computing frequency dependent overlap reduction functions.
@@ -532,7 +533,7 @@ def lnprob(xx):
     # invert Phi matrix frequency-wise
     
     logdet_Phi = 0
-    non_pos_def = 0
+    #non_pos_def = 0
     for ii in range(mode_count):
 
         try:
@@ -542,95 +543,97 @@ def lnprob(xx):
             logdet_Phi += np.sum(2*np.log(np.diag(L[0])))
 
         except np.linalg.LinAlgError:
+
+            ###################################################
+            # Break if we have non-positive-definiteness of Phi
             
             print 'Cholesky Decomposition Failed!! Rejecting...'
             return -np.inf
             #non_pos_def += 1
 
-    ###################################################
-    # Break if we have non-positive-definiteness of Phi
     
-    if non_pos_def > 0:
+    
+    #if non_pos_def > 0:
+    #
+    #    return -np.inf
+    #
+    #else:
 
-        return -np.inf
+    bigTtNT = sl.block_diag(*TtNT)
+    Phi = np.zeros_like( bigTtNT )
+    
+    # now fill in real covariance matrix
+    ind = [0]
+    ind = np.append(ind,np.cumsum([TtNT[ii].shape[0] for ii in range(len(psr))]))
+    ind = [np.arange(ind[ii]+psr[ii].Gc.shape[1],ind[ii]+psr[ii].Gc.shape[1]+mode_count)
+           for ii in range(len(ind)-1)]
+    for ii in range(npsr):
+        for jj in range(npsr):
+            Phi[ind[ii],ind[jj]] = smallMatrix[:,ii,jj]
+            
+    # compute sigma
+    Sigma = bigTtNT + Phi
+            
+    # cholesky decomp for second term in exponential
+    if args.use_gpu:
 
+        try:
+
+            Sigma_gpu = gpuarray.to_gpu( Sigma.astype(np.float64).copy() )
+            expval2_gpu = gpuarray.to_gpu( d.astype(np.float64).copy() )
+            culinalg.cho_solve( Sigma_gpu, expval2_gpu ) # in-place linear-algebra:
+                                                             # Sigma and expval2 overwritten
+            logdet_Sigma = np.sum(2.0*np.log(np.diag(Sigma_gpu.get())))
+
+        except cula.culaDataError:
+
+            print 'Cholesky Decomposition Failed (GPU error!!)'
+            return -np.inf
+
+        logLike = -0.5 * (logdet_Phi + logdet_Sigma) + \
+          0.5 * (np.dot(d, expval2_gpu.get() )) + \
+          loglike1
+            
     else:
 
-        bigTtNT = sl.block_diag(*TtNT)
-        Phi = np.zeros_like( bigTtNT )
+        try:
 
-        # now fill in real covariance matrix
-        ind = [0]
-        ind = np.append(ind,np.cumsum([TtNT[ii].shape[0] for ii in range(len(psr))]))
-        ind = [np.arange(ind[ii]+psr[ii].Gc.shape[1],ind[ii]+psr[ii].Gc.shape[1]+mode_count)
-               for ii in range(len(ind)-1)]
-        for ii in range(npsr):
-            for jj in range(npsr):
-                Phi[ind[ii],ind[jj]] = smallMatrix[:,ii,jj]
-            
-        # compute sigma
-        Sigma = bigTtNT + Phi
-            
-        # cholesky decomp for second term in exponential
-        if args.use_gpu:
+            cf = sl.cho_factor(Sigma)
+            expval2 = sl.cho_solve(cf, d)
+            logdet_Sigma = np.sum(2*np.log(np.diag(cf[0])))
 
-            try:
-
-                Sigma_gpu = gpuarray.to_gpu( Sigma.astype(np.float64).copy() )
-                expval2_gpu = gpuarray.to_gpu( d.astype(np.float64).copy() )
-                culinalg.cho_solve( Sigma_gpu, expval2_gpu ) # in-place linear-algebra:
-                                                             # Sigma and expval2 overwritten
-                logdet_Sigma = np.sum(2.0*np.log(np.diag(Sigma_gpu.get())))
-
-            except cula.culaDataError:
-
-                print 'Cholesky Decomposition Failed (GPU error!!)'
-                return -np.inf
-
-            logLike = -0.5 * (logdet_Phi + logdet_Sigma) + \
-              0.5 * (np.dot(d, expval2_gpu.get() )) + \
-              loglike1
-            
-        else:
-
-            try:
-
-                cf = sl.cho_factor(Sigma)
-                expval2 = sl.cho_solve(cf, d)
-                logdet_Sigma = np.sum(2*np.log(np.diag(cf[0])))
-
-            except np.linalg.LinAlgError:
+        except np.linalg.LinAlgError:
                 
-                print 'Cholesky Decomposition Failed second time!! Breaking...'
-                return -np.inf
-                #print 'Cholesky Decomposition Failed second time!! Using SVD instead'
-                #u,s,v = sl.svd(Sigma)
-                #expval2 = np.dot(v.T, 1/s*np.dot(u.T, d))
-                #logdet_Sigma = np.sum(np.log(s))
+            print 'Cholesky Decomposition Failed second time!! Breaking...'
+            return -np.inf
+            #print 'Cholesky Decomposition Failed second time!! Using SVD instead'
+            #u,s,v = sl.svd(Sigma)
+            #expval2 = np.dot(v.T, 1/s*np.dot(u.T, d))
+            #logdet_Sigma = np.sum(np.log(s))
 
 
-            logLike = -0.5 * (logdet_Phi + logdet_Sigma) + \
-              0.5 * (np.dot(d, expval2)) + \
-              loglike1 
+        logLike = -0.5 * (logdet_Phi + logdet_Sigma) + \
+          0.5 * (np.dot(d, expval2)) + \
+          loglike1 
 
 
-        # Multiplying likelihood to correct log-uniform
-        # sampling thus making a uniform prior
-        if args.incGWB:
-            if args.limit_or_detect_gwb == 'limit':
-                priorfac_gwb = np.log(Agwb * np.log(10.0))
-            else:
-                priorfac_gwb = 0.0
-
-        if args.limit_or_detect_red == 'limit':
-            priorfac_red = np.sum(np.log(Ared * np.log(10.0)))
+    # Multiplying likelihood to correct log-uniform
+    # sampling, thus making a uniform prior
+    if args.incGWB:
+        if args.limit_or_detect_gwb == 'limit':
+            priorfac_gwb = np.log(Agwb * np.log(10.0))
         else:
-            priorfac_red = 0.0
+            priorfac_gwb = 0.0
 
-        if args.incGWB:
-            return logLike + priorfac_gwb + priorfac_red + physicality
-        else:
-            return logLike + priorfac_red
+    if args.limit_or_detect_red == 'limit':
+        priorfac_red = np.sum(np.log(Ared * np.log(10.0)))
+    else:
+        priorfac_red = 0.0
+
+    if args.incGWB:
+        return logLike + priorfac_gwb + priorfac_red #+ physicality
+    else:
+        return logLike + priorfac_red
 
 
 #########################
