@@ -773,10 +773,10 @@ if args.cgw_search:
         parameters.append("ecc")
 
 
-print "\n You are searching for the following parameters: {0}\n".format(parameters)
 n_params = len(parameters)
-
-print "\n The total number of parameters is {0}\n".format(n_params)
+if rank==0:
+    print "\n You are searching for the following parameters: {0}\n".format(parameters)
+    print "\n The total number of parameters is {0}\n".format(n_params)
 
 
 # Start the sampling off with some reasonable parameter choices
@@ -796,7 +796,8 @@ if args.cgw_search:
     if args.ecc_search:
         x0 = np.append(x0,0.1)
 
-print "\n Your initial parameters are {0}\n".format(x0)
+if rank==0:
+    print "\n Your initial parameters are {0}\n".format(x0)
 
 # Make a reasonable covariance matrix to commence sampling
 cov_diag = 0.5*np.ones(len(psr))
@@ -814,9 +815,9 @@ if args.cgw_search:
     if args.ecc_search:
         cov_diag = np.append(cov_diag,0.05)
 
-
-print "\n Running a quick profile on the likelihood to estimate evaluation speed...\n"
-cProfile.run('lnprob(x0)')
+if rank==0:
+    print "\n Running a quick profile on the likelihood to estimate evaluation speed...\n"
+    cProfile.run('lnprob(x0)')
 
 #####################
 # Now, we sample.....
@@ -836,29 +837,34 @@ if args.cgw_search:
         file_tag += '_ccgw'
 file_tag += '_red{0}_nmodes{1}'.format(args.limit_or_detect_red,args.nmodes)
 
-print "\n Now, we sample... \n"
-print """\
- _______ .__   __.   _______      ___       _______  _______  __  
-|   ____||  \ |  |  /  _____|    /   \     /  _____||   ____||  | 
-|  |__   |   \|  | |  |  __     /  ^  \   |  |  __  |  |__   |  | 
-|   __|  |  . `  | |  | |_ |   /  /_\  \  |  | |_ | |   __|  |  | 
-|  |____ |  |\   | |  |__| |  /  _____  \ |  |__| | |  |____ |__| 
-|_______||__| \__|  \______| /__/     \__\ \______| |_______|(__) 
 
-"""
 
+if rank == 0:
+    print "\n Now, we sample... \n"
+    print """\
+    _______ .__   __.   _______      ___       _______  _______  __  
+    |   ____||  \ |  |  /  _____|    /   \     /  _____||   ____||  | 
+    |  |__   |   \|  | |  |  __     /  ^  \   |  |  __  |  |__   |  | 
+    |   __|  |  . `  | |  | |_ |   /  /_\  \  |  | |_ | |   __|  |  | 
+    |  |____ |  |\   | |  |__| |  /  _____  \ |  |__| | |  |____ |__| 
+    |_______||__| \__|  \______| /__/     \__\ \______| |_______|(__) 
+    
+    """
+
+    
 sampler = PAL.PTSampler(ndim=n_params,logl=lnprob,logp=my_prior,cov=np.diag(cov_diag),\
                         outDir='./chains_nanoAnalysis/'+file_tag, resume=False)
 
-# Copy the anisotropy modefile into the results directory
-if args.anis_modefile is not None:
-    os.system('cp {0} {1}'.format(args.anis_modefile,'./chains_nanoAnalysis/'+file_tag))
+if rank == 0:
+    # Copy the anisotropy modefile into the results directory
+    if args.anis_modefile is not None:
+        os.system('cp {0} {1}'.format(args.anis_modefile,'./chains_nanoAnalysis/'+file_tag))
 
-# Printing out the list of searched parameters
-fil = open('./chains_nanoAnalysis/parameter_list.txt','w')
-for parm in parameters:
-    print >>fil, parm
-fil.close()
+    # Printing out the list of searched parameters
+    fil = open('./chains_nanoAnalysis/parameter_list.txt','w')
+    for parm in parameters:
+        print >>fil, parm
+    fil.close()
 
 #####################################
 # MCMC jump proposals
