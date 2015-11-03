@@ -364,6 +364,9 @@ def lnprob(xx):
     npsr = len(psr)
     logLike = 0
 
+    ###############################
+    # Splitting up parameter vector
+
     if args.dmVar:
         mode_count = 4*nmode
         if args.incGWB:
@@ -837,6 +840,11 @@ sampler = PAL.PTSampler(ndim=n_params,logl=lnprob,logp=my_prior,cov=np.diag(cov_
 if args.anis_modefile is not None:
     os.system('cp {0} {1}'.format(args.anis_modefile,'./chains_nanoAnalysis/'+file_tag))
 
+# Printing out the list of searched parameters
+fil = open('./chains_nanoAnalysis/parameter_list.txt','w')
+for parm in parameters:
+    print >>fil, parm
+fil.close()
 
 #####################################
 # MCMC jump proposals
@@ -903,7 +911,7 @@ def drawFromGWBPrior(parameters, iter, beta):
         #qxy += np.log(10 ** parameters[parind] / 10 ** q[parind])
 
 
-    if args.fix_slope==False:
+    if not args.fix_slope:
         q[pct+1] = np.random.uniform(pmin[pct+1], pmax[pct+1])
         qxy += 0
         
