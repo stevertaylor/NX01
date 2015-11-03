@@ -32,7 +32,7 @@ SOLAR2S = sc.G / sc.c**3 * 1.98855e30
 KPC2S = sc.parsec / sc.c * 1e3
 MPC2S = sc.parsec / sc.c * 1e6
 
-def masterSplitParams(xx, npsr, dmVar, fix_slope,
+def masterSplitParams(xx, npsr, dmVar, fix_slope, incGWB,
                       num_anis_params=0, propose=False):
     """
     Takes in a vector of search parameters and
@@ -41,6 +41,7 @@ def masterSplitParams(xx, npsr, dmVar, fix_slope,
 
     """
 
+    param_ct = 0
     #########################
     # Pulsar noise parameters
     #########################
@@ -48,56 +49,70 @@ def masterSplitParams(xx, npsr, dmVar, fix_slope,
     Ared = 10.0**xx[:npsr]
     gam_red = xx[npsr:2*npsr]
 
-    cta = 0
+    param_ct += 2*npsr
+
     if dmVar==True:
         Adm = 10.0**xx[2*npsr:3*npsr]
         gam_dm = xx[3*npsr:4*npsr]
-        cta = 2*npsr
+        param_ct += 2*npsr
 
-    #EFAC = xx[2*npsr+cta:3*npsr+cta]
 
-    #########################
-    # GWB parameters
-    #########################
+    if incGWB==True:
 
-    Agwb = 10.0**xx[2*npsr+cta]
-    ctb = 0
-    if fix_slope==True:
-        gam_gwb = 13./3
-        ctb = 1
-    else:
-        gam_gwb = xx[2*npsr+cta+1]
-        ctb = 2
+        #########################
+        # GWB parameters
+        #########################
 
-    #########################
-    # Anisotropy parameters
-    #########################
+        Agwb = 10.0**xx[param_ct]
+        param_ct += 1
+        if fix_slope==True:
+            gam_gwb = 13./3
+        else:
+            gam_gwb = xx[param_ct]
+            param_ct += 1
+
+        #########################
+        # Anisotropy parameters
+        #########################
     
-    orf_coeffs = xx[2*npsr+cta+ctb:2*npsr+cta+ctb+num_anis_params]
+        orf_coeffs = xx[param_ct:param_ct+num_anis_params]
 
-    # Any Remaining parameters are for a CGW
-    param_ct = 2*npsr+cta+ctb+num_anis_params
-    ########
+    #####################################
+    # Remaining parameters are for a CGW
+    param_ct += num_anis_params
+    #####################################
 
     if dmVar==True:
         
         if propose==False:
-            return Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, orf_coeffs, param_ct
-        else:
-            if fix_slope==False:
-                return Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, orf_coeffs
+            if incGWB==True:
+                return Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, orf_coeffs, param_ct
             else:
-                return Ared, gam_red, Adm, gam_dm, Agwb, orf_coeffs
+                return Ared, gam_red, Adm, gam_dm, param_ct
+        else:
+            if incGWB==True:
+                if fix_slope==False:
+                    return Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, orf_coeffs
+                else:
+                    return Ared, gam_red, Adm, gam_dm, Agwb, orf_coeffs
+            else:
+                return Ared, gam_red, Adm, gam_dm
                 
     else:
         
         if propose==False:
-            return Ared, gam_red, Agwb, gam_gwb, orf_coeffs, param_ct
-        else:
-            if fix_slope==False:
-                return Ared, gam_red, Agwb, gam_gwb, orf_coeffs
+            if incGWB==True:
+                return Ared, gam_red, Agwb, gam_gwb, orf_coeffs, param_ct
             else:
-                return Ared, gam_red, Agwb, orf_coeffs
+                return Ared, gam_red, param_ct
+        else:
+            if incGWB:
+                if fix_slope==False:
+                    return Ared, gam_red, Agwb, gam_gwb, orf_coeffs
+                else:
+                    return Ared, gam_red, Agwb, orf_coeffs
+            else:
+                return Ared, gam_red
                 
 
 

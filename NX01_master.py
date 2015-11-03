@@ -287,8 +287,6 @@ for ii,p in enumerate(psr):
 
     loglike1 += -0.5 * (logdet_N[ii] + dtNdt)
 
-#d = np.concatenate(d)
-
 
 ##########################
 # SETTING UP PRIOR RANGES
@@ -346,12 +344,16 @@ def lnprob(xx):
     logLike = 0
 
     if args.dmVar:
-        Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, orf_coeffs, param_ct = \
-          utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope, num_anis_params )
         mode_count = 4*nmode
+        if not args.incGWB:
+            Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, orf_coeffs, param_ct = \
+              utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope,
+                                      args.incGWB, num_anis_params )
+            
     else:
         Ared, gam_red, Agwb, gam_gwb, orf_coeffs, param_ct = \
-          utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope, num_anis_params )
+          utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope,
+                                  args.incGWB, num_anis_params )
         mode_count = 2*nmode
 
     ###############################
@@ -398,14 +400,17 @@ def lnprob(xx):
         dtNdt = []
         for ii,p in enumerate(psr):
 
-            # compute ( T.T * N^-1 * T ) & log determinant of N
+            # compute ( T.T * N^-1 * T )
+            # & log determinant of N
             new_err = (p.toaerrs).copy()
             if args.fullN==True:
         
                 if len(p.ecorrs)>0:
-                    Nx = jitter.cython_block_shermor_0D(detres[ii], new_err**2., Jamp[ii], p.Uinds)
+                    Nx = jitter.cython_block_shermor_0D(detres[ii],
+                                                        new_err**2., Jamp[ii], p.Uinds)
                     d.append(np.dot(p.Te.T, Nx))
-                    det_dummy, dtNdt_dummy = jitter.cython_block_shermor_1D(detres[ii], new_err**2., Jamp[ii], p.Uinds)
+                    det_dummy, dtNdt_dummy = jitter.cython_block_shermor_1D(detres[ii],
+                                                                            new_err**2., Jamp[ii], p.Uinds)
                     dtNtdt.append(dtNdt_dummy)
 
                 else:
@@ -420,7 +425,6 @@ def lnprob(xx):
         
             loglike1 += -0.5 * (logdet_N[ii] + dtNdt[ii])
         
-        #d = np.concatenate(d)
 
     ################################################
     # Reshaping freq-dependent anis coefficients,
@@ -563,7 +567,8 @@ def lnprob(xx):
                 print 'Cholesky Decomposition Failed!!'
                 return -np.inf
                 
-            logLike += -0.5 * (logdet_Phi + logdet_Sigma) + 0.5 * (np.dot(d[ii], expval2))
+            logLike += -0.5 * (logdet_Phi + logdet_Sigma) + \
+              0.5 * (np.dot(d[ii], expval2))
 
         logLike += loglike1
         
@@ -710,9 +715,6 @@ if args.incGWB:
     parameters.append("Agwb")
     if args.fix_slope is False:
         parameters.append("gam_gwb")
-        gamma_ext = 'GamVary'
-    else:
-        gamma_ext = 'Gam4p33'
     for ii in range(num_anis_params):
         parameters.append('clm_{0}'.format(ii+1))
 if args.cgw_search:
@@ -772,20 +774,22 @@ cProfile.run('lnprob(x0)')
 # Now, we sample.....
 #####################
 
+file_tag = 'nanograv'
+if args.incGWB:    
+    if args.fix_slope:
+        gamma_tag = '_Gam4p33'
+    else:
+        gamma_tag = '_GamVary'
+    file_tag += '_gwb{0}_Lmax{1}{2}{3}'.format(args.limit_or_detect_gwb,args.LMAX,evol_anis_tag,gamma_tag)
+file_tag += '_red{0}_nmodes{1}'.format(args.limit_or_detect_red,args.nmodes)
+
 print "\n Now, we sample... \n"
 sampler = PAL.PTSampler(ndim=n_params,logl=lnprob,logp=my_prior,cov=np.diag(cov_diag),\
-                        outDir='./chains_nanoAnalysis/nanograv_gwb{0}{1}_red{2}_nmodes{3}_Lmax{4}{5}_{6}'.\
-                        format(args.limit_or_detect_gwb,cgw_tag,args.limit_or_detect_red,
-                               args.nmodes,args.LMAX,evol_anis_tag,gamma_ext),
-                               resume=False)
+                        outDir='./chains_nanoAnalysis/'+file_tag, resume=False)
 
 # Copy the anisotropy modefile into the results directory
 if args.anis_modefile is not None:
-    os.system('cp {0} {1}'.format(args.anis_modefile,'./chains_nanoAnalysis/nanograv_gwb{0}{1}_red{2}_nmodes{3}_Lmax{4}{5}_{6}'.\
-                                  format(args.limit_or_detect_gwb,cgw_tag,args.limit_or_detect_red,
-                                         args.nmodes,args.LMAX,evol_anis_tag,gamma_ext)))
-
-
+    os.system('cp {0} {1}'.format(args.anis_modefile,'./chains_nanoAnalysis/'+file_tag)
 
 
 #####################################
