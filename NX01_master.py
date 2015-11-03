@@ -62,6 +62,8 @@ parser.add_option('--ptmcmc', dest='ptmcmc', action='store_true', default=True,
                    help='Sample using PALs parallel tempering MCMC (False)? (default=True)')
 parser.add_option('--incGWB', dest='incGWB', action='store_true', default=False,
                   help='Do you want to search for a GWB? (default = False)')
+parser.add_option('--incCorr', dest='incCorr', action='store_true', default=False,
+                  help='Do you want to include cross-correlations in the GWB model? (default = False)')
 parser.add_option('--num_gwfreq_wins', dest='num_gwfreq_wins', action='store', type=int, default=1,
                    help='Number windows to split the band into (useful for evolving anisotropic searches (default = 1 windows)')
 parser.add_option('--lmax', dest='LMAX', action='store', type=int, default=0,
@@ -340,7 +342,7 @@ def lnprob(xx):
 
     npsr = len(psr) 
 
-    if args.dmVar==True:
+    if args.dmVar:
         Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, orf_coeffs, param_ct = \
           utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope, num_anis_params )
         mode_count = 4*nmode
@@ -468,7 +470,7 @@ def lnprob(xx):
 
     # parameterize intrinsic red-noise and DM-variations as power law
     kappa = [] 
-    if args.dmVar==True:
+    if args.dmVar:
         for ii in range(npsr):
             kappa.append(np.log10( np.append( Ared[ii]**2/12/np.pi**2 * f1yr**(gam_red[ii]-3) * (fqs/86400.0)**(-gam_red[ii])/Tspan,
                                         Adm[ii]**2/12/np.pi**2 * f1yr**(gam_dm[ii]-3) * (fqs/86400.0)**(-gam_dm[ii])/Tspan ) ))
@@ -487,7 +489,7 @@ def lnprob(xx):
         
         sigoffdiag = []
 
-        if args.dmVar==True:
+        if args.dmVar:
             gwbspec = np.append( 10**rho, np.zeros_like(rho) )
         else:
             gwbspec = 10**rho
@@ -646,7 +648,7 @@ for ii in range(len(psr)):
     parameters.append('Ared_'+psr[ii].name)
 for ii in range(len(psr)):
     parameters.append('gam_red_'+psr[ii].name)
-if args.dmVar==True:
+if args.dmVar:
     for ii in range(len(psr)):
         parameters.append('Adm_'+psr[ii].name)
     for ii in range(len(psr)):
@@ -677,7 +679,7 @@ print "\n The total number of parameters is {0}\n".format(n_params)
 # Start the sampling off with some reasonable parameter choices
 x0 = np.log10(np.array([p.Redamp for p in psr]))
 x0 = np.append(x0,np.array([p.Redind for p in psr]))
-if args.dmVar==True:
+if args.dmVar:
     x0 = np.append(x0,np.log10(np.array([p.Redamp for p in psr])))
     x0 = np.append(x0,np.array([p.Redind for p in psr]))
 if args.incGWB:
@@ -696,7 +698,7 @@ print "\n Your initial parameters are {0}\n".format(x0)
 # Make a reasonable covariance matrix to commence sampling
 cov_diag = 0.5*np.ones(len(psr))
 cov_diag = np.append(cov_diag,0.5*np.ones(len(psr)))
-if args.dmVar==True:
+if args.dmVar:
     cov_diag = np.append(cov_diag,0.5*np.ones(len(psr)))
     cov_diag = np.append(cov_diag,0.5*np.ones(len(psr)))
 if args.incGWB:
@@ -991,8 +993,6 @@ def drawFromGWBPrior(parameters, iter, beta):
 # add jump proposals
 if args.incGWB:
     sampler.addProposalToCycle(drawFromGWBPrior, 10)
-#if args.incGWBAni and args.gwbModel == 'powerlaw':
-#    sampler.addProposalToCycle(model.drawFromaGWBPrior, 10)
 sampler.addProposalToCycle(drawFromRedNoisePrior, 10)
 #if args.incDMBand and args.dmModel=='powerlaw':
 #    sampler.addProposalToCycle(model.drawFromDMNoiseBandPrior, 5)
