@@ -43,7 +43,7 @@ from mpi4py import MPI
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 
-parser = optparse.OptionParser(description = 'NX01 - Precursor to the PANTHER Group ENTERPRISE project')
+parser = optparse.OptionParser(description = "NX01 - It's been a long road, getting from there to here...")
 
 ############################
 ############################
@@ -118,8 +118,6 @@ if args.ptmcmc:
 else:
     import pymultinest
 
-parser = optparse.OptionParser(description = "NX01 - It's been a long road, getting from there to here...")
-
 ################################################################################################################################
 # PASSING THROUGH TEMPO2 VIA libstempo
 ################################################################################################################################
@@ -140,10 +138,12 @@ else:
     
     t2psr=[]
     for ii in range(args.num_psrs):
-        t2psr.append( T2.tempopulsar( parfile=psr_pathinfo[ii,2], timfile=psr_pathinfo[ii,3] ) )
+        t2psr.append( T2.tempopulsar( parfile=psr_pathinfo[ii,2],
+                                      timfile=psr_pathinfo[ii,3] ) )
         t2psr[ii].fit(iters=3)
         if np.any(np.isfinite(t2psr.residuals())==False)==True:
-            t2psr = T2.tempopulsar( parfile=psr_pathinfo[ii,2], timfile=psr_pathinfo[ii,3] )
+            t2psr = T2.tempopulsar( parfile=psr_pathinfo[ii,2],
+                                    timfile=psr_pathinfo[ii,3] )
 
     psr = [NX01_psr.PsrObj(p) for p in t2psr]
 
@@ -170,7 +170,8 @@ if args.incGWB:
         # getting the number of GW frequencies per window
         gwfreqs_per_win = int(1.*args.nmodes/(1.*args.num_gwfreq_wins)) 
         anis_modefreqs = np.arange(1,args.nmodes+1)
-        anis_modefreqs = np.reshape(anis_modefreqs, (args.num_gwfreq_wins,gwfreqs_per_win))
+        anis_modefreqs = np.reshape(anis_modefreqs,
+                                    (args.num_gwfreq_wins,gwfreqs_per_win))
 
         tmp_num_gwfreq_wins = args.num_gwfreq_wins
     
@@ -181,7 +182,8 @@ if args.incGWB:
         anis_modefreqs = []
     
         for ii in range(tmp_num_gwfreq_wins):
-            anis_modefreqs.append(np.arange(tmp_modefreqs[ii,0],tmp_modefreqs[ii,1]+1))
+            anis_modefreqs.append(np.arange(tmp_modefreqs[ii,0],
+                                            tmp_modefreqs[ii,1]+1))
 
     num_anis_params = tmp_num_gwfreq_wins*(((args.LMAX+1)**2)-1)
 
@@ -423,7 +425,6 @@ def lnprob(xx):
     # Reshaping freq-dependent anis coefficients,
     # and testing for power distribution physicality.
 
-    #physicality = 0.
     if args.incGWB:
         orf_coeffs = orf_coeffs.reshape((tmp_num_gwfreq_wins,((args.LMAX+1)**2)-1))
         clm = np.array([[0.0]*((args.LMAX+1)**2) for ii in range(tmp_num_gwfreq_wins)])
@@ -439,9 +440,6 @@ def lnprob(xx):
                 # Testing for physicality of power distribution.
                 if (utils.PhysPrior(clm[kk],harm_sky_vals) == 'Unphysical'):
                     return -np.inf
-                    #physicality += -10.0**7.0
-                #else:
-                    #physicality += 0.
 
         ############################################################
         # Computing frequency dependent overlap reduction functions.
@@ -535,7 +533,6 @@ def lnprob(xx):
     # invert Phi matrix frequency-wise
     
     logdet_Phi = 0
-    #non_pos_def = 0
     for ii in range(mode_count):
 
         try:
@@ -551,15 +548,7 @@ def lnprob(xx):
             
             print 'Cholesky Decomposition Failed!! Rejecting...'
             return -np.inf
-            #non_pos_def += 1
 
-    
-    
-    #if non_pos_def > 0:
-    #
-    #    return -np.inf
-    #
-    #else:
 
     bigTtNT = sl.block_diag(*TtNT)
     Phi = np.zeros_like( bigTtNT )
@@ -567,8 +556,9 @@ def lnprob(xx):
     # now fill in real covariance matrix
     ind = [0]
     ind = np.append(ind,np.cumsum([TtNT[ii].shape[0] for ii in range(len(psr))]))
-    ind = [np.arange(ind[ii]+psr[ii].Gc.shape[1],ind[ii]+psr[ii].Gc.shape[1]+mode_count)
-           for ii in range(len(ind)-1)]
+    ind = [np.arange(ind[ii]+psr[ii].Gc.shape[1],
+                     ind[ii]+psr[ii].Gc.shape[1]+mode_count)
+                     for ii in range(len(ind)-1)]
     for ii in range(npsr):
         for jj in range(npsr):
             Phi[ind[ii],ind[jj]] = smallMatrix[:,ii,jj]
@@ -618,9 +608,10 @@ def lnprob(xx):
           0.5 * (np.dot(d, expval2)) + \
           loglike1 
 
-
+    ################################################
     # Multiplying likelihood to correct log-uniform
     # sampling, thus making a uniform prior
+    
     if args.incGWB:
         if args.limit_or_detect_gwb == 'limit':
             priorfac_gwb = np.log(Agwb * np.log(10.0))
@@ -632,8 +623,11 @@ def lnprob(xx):
     else:
         priorfac_red = 0.0
 
+    #####################################
+    # Finally, return the log-likelihood
+    
     if args.incGWB:
-        return logLike + priorfac_gwb + priorfac_red #+ physicality
+        return logLike + priorfac_gwb + priorfac_red 
     else:
         return logLike + priorfac_red
 
