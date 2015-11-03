@@ -157,6 +157,7 @@ psr_positions = [np.array([psr[ii].psr_locs[0],
                            for ii in range(len(psr))]
 positions = np.array(psr_positions).copy()
 
+num_anis_params = 0
 if args.incGWB:
     # Computing all the correlation basis-functions for the array.
     CorrCoeff = np.array(anis.CorrBasis(positions,args.LMAX))
@@ -345,16 +346,26 @@ def lnprob(xx):
 
     if args.dmVar:
         mode_count = 4*nmode
-        if not args.incGWB:
+        if args.incGWB:
             Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, orf_coeffs, param_ct = \
+              utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope,
+                                      args.incGWB, num_anis_params )
+        else:
+            Ared, gam_red, Adm, gam_dm, param_ct = \
               utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope,
                                       args.incGWB, num_anis_params )
             
     else:
-        Ared, gam_red, Agwb, gam_gwb, orf_coeffs, param_ct = \
-          utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope,
-                                  args.incGWB, num_anis_params )
         mode_count = 2*nmode
+        if args.incGWB:
+            Ared, gam_red, Agwb, gam_gwb, orf_coeffs, param_ct = \
+              utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope,
+                                      args.incGWB, num_anis_params )
+        else:
+            Ared, gam_red, param_ct = \
+              utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope,
+                                      args.incGWB, num_anis_params )
+        
 
     ###############################
     # Creating continuous GW signal
@@ -789,7 +800,7 @@ sampler = PAL.PTSampler(ndim=n_params,logl=lnprob,logp=my_prior,cov=np.diag(cov_
 
 # Copy the anisotropy modefile into the results directory
 if args.anis_modefile is not None:
-    os.system('cp {0} {1}'.format(args.anis_modefile,'./chains_nanoAnalysis/'+file_tag)
+    os.system('cp {0} {1}'.format(args.anis_modefile,'./chains_nanoAnalysis/'+file_tag))
 
 
 #####################################
