@@ -370,8 +370,10 @@ def my_prior(xx):
 def lnprob(xx):
 
     npsr = len(psr)
-    logLike = 0
 
+    logLike = 0
+    loglike1_tmp = loglike1
+    dtmp = list(d)
     ###############################
     # Splitting up parameter vector
 
@@ -410,7 +412,7 @@ def lnprob(xx):
 
     ###############################
     # Creating continuous GW signal
-
+    
     if args.cgw_search:
 
         cgw_params = xx[param_ct:]
@@ -447,8 +449,8 @@ def lnprob(xx):
         # Recomputing some noise quantities involving 'residuals'.
         # Unfortunately necessary when we have a deterministic signal.
         
-        loglike1 = 0
-        d = []
+        loglike1_tmp = 0
+        #d = []
         dtNdt = []
         for ii,p in enumerate(psr):
 
@@ -460,7 +462,8 @@ def lnprob(xx):
                 if len(p.ecorrs)>0:
                     Nx = jitter.cython_block_shermor_0D(detres[ii], new_err**2.,
                                                         Jamp[ii], p.Uinds)
-                    d.append(np.dot(p.Te.T, Nx))
+                    #d.append(np.dot(p.Te.T, Nx))
+                    dtmp[ii] = np.dot(p.Te.T, Nx)
                     det_dummy, dtNdt_dummy = \
                       jitter.cython_block_shermor_1D(detres[ii], new_err**2.,
                                                      Jamp[ii], p.Uinds)
@@ -468,17 +471,19 @@ def lnprob(xx):
 
                 else:
             
-                    d.append(np.dot(p.Te.T, detres[ii]/( new_err**2.0 )))
+                    #d.append(np.dot(p.Te.T, detres[ii]/( new_err**2.0 )))
+                    dtmp[ii] = np.dot(p.Te.T, detres[ii]/( new_err**2.0 ))
                     dtNdt.append(np.sum(detres[ii]**2.0/( new_err**2.0 )))
                 
             else:
         
-                d.append(np.dot(p.Te.T, detres[ii]/( new_err**2.0 )))
+                #d.append(np.dot(p.Te.T, detres[ii]/( new_err**2.0 )))
+                dtmp[ii] = np.dot(p.Te.T, detres[ii]/( new_err**2.0 ))
                 dtNdt.append(np.sum(detres[ii]**2.0/( new_err**2.0 )))
         
-            loglike1 += -0.5 * (logdet_N[ii] + dtNdt[ii])
+            loglike1_tmp += -0.5 * (logdet_N[ii] + dtNdt[ii])
         
-
+    
     if args.incGWB and args.incCorr:
         ################################################
         # Reshaping freq-dependent anis coefficients,
@@ -620,7 +625,7 @@ def lnprob(xx):
             try:
                 
                 cf = sl.cho_factor(Sigma)
-                expval2 = sl.cho_solve(cf, d[ii])
+                expval2 = sl.cho_solve(cf, dtmp[ii])
                 logdet_Sigma = np.sum(2*np.log(np.diag(cf[0])))
 
             except np.linalg.LinAlgError:
@@ -629,9 +634,9 @@ def lnprob(xx):
                 return -np.inf
                 
             logLike += -0.5 * (logdet_Phi + logdet_Sigma) + \
-              0.5 * (np.dot(d[ii], expval2))
+              0.5 * (np.dot(dtmp[ii], expval2))
 
-        logLike += loglike1
+        logLike += loglike1_tmp
         
 
     if args.incGWB:
@@ -659,7 +664,7 @@ def lnprob(xx):
                 try:
                     
                     cf = sl.cho_factor(Sigma)
-                    expval2 = sl.cho_solve(cf, d[ii])
+                    expval2 = sl.cho_solve(cf, dtmp[ii])
                     logdet_Sigma = np.sum(2*np.log(np.diag(cf[0])))
 
                 except np.linalg.LinAlgError:
@@ -668,9 +673,9 @@ def lnprob(xx):
                     return -np.inf
                 
                 logLike += -0.5 * (logdet_Phi + logdet_Sigma) + \
-                  0.5 * (np.dot(d[ii], expval2))
+                  0.5 * (np.dot(dtmp[ii], expval2))
 
-            logLike += loglike1
+            logLike += loglike1_tmp
 
         if args.incCorr:
         
@@ -730,7 +735,7 @@ def lnprob(xx):
 
                 try:
                 
-                    dtmp = np.concatenate(d)
+                    dtmp = np.concatenate(dtmp)
                     Sigma_gpu = gpuarray.to_gpu( Sigma.astype(np.float64).copy() )
                     expval2_gpu = gpuarray.to_gpu( dtmp.astype(np.float64).copy() )
                     culinalg.cho_solve( Sigma_gpu, expval2_gpu ) # in-place linear-algebra:
@@ -744,13 +749,13 @@ def lnprob(xx):
 
                 logLike = -0.5 * (logdet_Phi + logdet_Sigma) + \
                   0.5 * (np.dot(dtmp, expval2_gpu.get() )) + \
-                  loglike1
+                  loglike1_tmp
             
             else:
     
                 try:
 
-                    dtmp = np.concatenate(d)
+                    dtmp = np.concatenate(dtmp)
                     cf = sl.cho_factor(Sigma)
                     expval2 = sl.cho_solve(cf, dtmp)
                     logdet_Sigma = np.sum(2*np.log(np.diag(cf[0])))
@@ -763,7 +768,7 @@ def lnprob(xx):
 
                 logLike = -0.5 * (logdet_Phi + logdet_Sigma) + \
                   0.5 * (np.dot(dtmp, expval2)) + \
-                  loglike1
+                  loglike1_tmp
 
     
 
@@ -948,22 +953,29 @@ def drawFromRedNoisePrior(parameters, iter, beta):
 
     npsr = len(psr)
 
-    # log prior
-    if args.limit_or_detect_red == 'detect':
-        
-        q[:npsr] = np.random.uniform(pmin[0], pmax[0], npsr)
-        qxy += 0
-        
-    elif args.limit_or_detect_red == 'limit':
-        
-        q[:npsr] = np.random.uniform(pmin[0], pmax[0], npsr)
-        qxy += 0
+    #ind = np.unique(np.random.randint(0, npsr, npsr))
+    ind = np.unique(np.random.randint(0, npsr, 1))
 
-        #Ared = np.log10(np.random.uniform(10 ** Ared_ll, 10 ** Ared_ul, len(Ared)))
-        #qxy += np.log(10 ** parameters[parind] / 10 ** q[parind])
+    for ii in ind:
+        # log prior
+        if args.limit_or_detect_red == 'detect':
+        
+            #q[:npsr] = np.random.uniform(pmin[0], pmax[0], npsr)
+            q[ii] = np.random.uniform(pmin[ii], pmax[ii])
+            qxy += 0
+        
+        elif args.limit_or_detect_red == 'limit':
+        
+            #q[:npsr] = np.random.uniform(pmin[0], pmax[0], npsr)
+            q[ii] = np.random.uniform(pmin[ii], pmax[ii])
+            qxy += 0
+
+            #Ared = np.log10(np.random.uniform(10 ** Ared_ll, 10 ** Ared_ul, len(Ared)))
+            #qxy += np.log(10 ** parameters[parind] / 10 ** q[parind])
     
-    q[npsr:2*npsr] = np.random.uniform(pmin[npsr], pmax[npsr], npsr)
-    qxy += 0
+        #q[npsr:2*npsr] = np.random.uniform(pmin[npsr], pmax[npsr], npsr)
+        q[npsr+ii] = np.random.uniform(pmin[npsr+ii], pmax[npsr+ii])
+        qxy += 0
 
     return q, qxy
 
@@ -978,22 +990,29 @@ def drawFromDMNoisePrior(parameters, iter, beta):
 
     npsr = len(psr)
 
-    # log prior
-    if args.limit_or_detect_dm == 'detect':
-        
-        q[2*npsr:3*npsr] = np.random.uniform(pmin[2*npsr], pmax[2*npsr], npsr)
-        qxy += 0
-        
-    elif args.limit_or_detect_dm == 'limit':
-        
-        q[2*npsr:3*npsr] = np.random.uniform(pmin[2*npsr], pmax[2*npsr], npsr)
-        qxy += 0
+    #ind = np.unique(np.random.randint(0, npsr, npsr))
+    ind = np.unique(np.random.randint(0, npsr, 1))
 
-        #Ared = np.log10(np.random.uniform(10 ** Ared_ll, 10 ** Ared_ul, len(Ared)))
-        #qxy += np.log(10 ** parameters[parind] / 10 ** q[parind])
+    for ii in ind:
+        # log prior
+        if args.limit_or_detect_dm == 'detect':
+        
+            #q[2*npsr:3*npsr] = np.random.uniform(pmin[2*npsr], pmax[2*npsr], npsr)
+            q[2*npsr+ii] = np.random.uniform(pmin[2*npsr+ii], pmax[2*npsr+ii])
+            qxy += 0
+        
+        elif args.limit_or_detect_dm == 'limit':
+            
+            #q[2*npsr:3*npsr] = np.random.uniform(pmin[2*npsr], pmax[2*npsr], npsr)
+            q[2*npsr+ii] = np.random.uniform(pmin[2*npsr+ii], pmax[2*npsr+ii])
+            qxy += 0
+
+            #Ared = np.log10(np.random.uniform(10 ** Ared_ll, 10 ** Ared_ul, len(Ared)))
+            #qxy += np.log(10 ** parameters[parind] / 10 ** q[parind])
     
-    q[3*npsr:4*npsr] = np.random.uniform(pmin[3*npsr], pmax[3*npsr], npsr)
-    qxy += 0
+        #q[3*npsr:4*npsr] = np.random.uniform(pmin[3*npsr], pmax[3*npsr], npsr)
+        q[3*npsr+ii] = np.random.uniform(pmin[3*npsr+ii], pmax[3*npsr+ii])
+        qxy += 0
 
     return q, qxy
 
