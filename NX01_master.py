@@ -1064,11 +1064,13 @@ def drawFromCWPrior(parameters, iter, beta):
     if args.dmVar:
         pct += 2*npsr
 
-    if not args.fix_slope:
+    if args.incGWB:
         pct += 1
+        if not args.fix_slope:
+            pct += 1
 
-    if args.incCorr:
-        pct += num_anis_params
+        if args.incCorr:
+            pct += num_anis_params
 
     #logmass, qr, logdist, logorbfreq, gwphi,
     # costheta, cosinc, gwpol, gwgamma0, l0
