@@ -1012,7 +1012,7 @@ def drawFromDMNoisePrior(parameters, iter, beta):
     return q, qxy
 
 
-# gwb draws (from Justin Ellis' PAL2)
+# gwb draws 
 def drawFromGWBPrior(parameters, iter, beta):
 
     # post-jump parameters
@@ -1024,7 +1024,7 @@ def drawFromGWBPrior(parameters, iter, beta):
     npsr = len(psr)
     pct = 2*npsr
     
-    if args.dmVar==True:
+    if args.dmVar:
         pct += 2*npsr
 
     # log prior
@@ -1048,6 +1048,41 @@ def drawFromGWBPrior(parameters, iter, beta):
         
     return q, qxy
 
+
+# cgw draws 
+def drawFromCWPrior(parameters, iter, beta):
+
+    # post-jump parameters
+    q = parameters.copy()
+
+    # transition probability
+    qxy = 0
+
+    npsr = len(psr)
+    pct = 2*npsr
+    
+    if args.dmVar:
+        pct += 2*npsr
+
+    if not args.fix_slope:
+        pct += 1
+
+    if args.incCorr:
+        pct += num_anis_params
+
+    #logmass, qr, logdist, logorbfreq, gwphi,
+    # costheta, cosinc, gwpol, gwgamma0, l0
+    if args.ecc_search:
+        ind = np.unique(np.random.randint(0, 11, 1))
+    else:
+        ind = np.unique(np.random.randint(0, 10, 1))
+
+    for ii in ind:
+        q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
+        qxy += 0
+        
+    return q, qxy
+
   
 
 # add jump proposals
@@ -1056,8 +1091,8 @@ if args.dmVar:
     sampler.addProposalToCycle(drawFromDMNoisePrior, 10)
 if args.incGWB:
     sampler.addProposalToCycle(drawFromGWBPrior, 10)
-#if args.cgw_search:
-#    sampler.addProposalToCycle(drawFromCWPrior, 10)
+if args.cgw_search:
+    sampler.addProposalToCycle(drawFromCWPrior, 10)
 
 
 sampler.sample(p0=x0,Niter=1e6,thin=10)

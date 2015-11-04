@@ -961,7 +961,7 @@ def ecc_cgw_signal(psr, gwtheta, gwphi, mc, dist, F, inc, psi, gamma0,
     elif useFile:
         if e0 > 0.001 and e0 < 0.999:
             nharm = min(int(ecc_interp(e0)), nmax) + 1
-        elif e0 < 0.001:
+        elif e0 <= 0.001:
             nharm = 3
         else:
             nharm = nmax
