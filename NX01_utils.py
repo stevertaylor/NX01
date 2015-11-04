@@ -932,7 +932,7 @@ def ecc_cgw_signal(psr, gwtheta, gwphi, mc, dist, F, inc, psi, gamma0,
     cosMu = -np.dot(omhat, phat)
 
     # get values from pulsar object
-    toas = psr.toas.copy()*86400 - tref
+    toas = (psr.toas.copy() - tref)*86400.0
     
     if check:
         # check that frequency is not evolving significantly over obs. time
@@ -1020,28 +1020,29 @@ def ecc_cgw_signal(psr, gwtheta, gwphi, mc, dist, F, inc, psi, gamma0,
     return rr
 
 
-def QuadrupoleAntennaPattern(rajp, decjp, raj, decj, pol):
+def AntennaPattern(rajp, decjp, raj, decj, pol):
     """Return the antenna pattern for a given source position and
     pulsar position
-
     :param rajp:    Right ascension pulsar (rad) [0,2pi]
     :param decj:    Declination pulsar (rad) [-pi/2,pi/2]
     :param raj:     Right ascension source (rad) [0,2pi]
     :param dec:     Declination source (rad) [-pi/2,pi/2]
     :param pol:     Polarization angle (rad) [0,pi]
     """
+
     Omega = np.array([-np.cos(decj)*np.cos(raj), \
                       -np.cos(decj)*np.sin(raj), \
-                        -np.sin(decj)])
+                      -np.sin(decj)]).flatten()
 
-    mhat = np.array([-np.sin(raj), np.cos(raj), 0])
+    mhat = np.array([-np.sin(raj), np.cos(raj), 0]).flatten()
     nhat = np.array([-np.cos(raj)*np.sin(decj), \
                      -np.sin(decj)*np.sin(raj), \
-                        np.cos(decj)])
+                     np.cos(decj)]).flatten()
 
     p = np.array([np.cos(rajp)*np.cos(decjp), \
                   np.sin(rajp)*np.cos(decjp), \
-                    np.sin(decjp)])
+                  np.sin(decjp)]).flatten()
+
 
 
     Fp = 0.5 * (np.dot(nhat, p)**2 - np.dot(mhat, p)**2) / (1 + np.dot(Omega, p))
@@ -1050,47 +1051,39 @@ def QuadrupoleAntennaPattern(rajp, decjp, raj, decj, pol):
     return np.cos(2*pol)*Fp + np.sin(2*pol)*Fc
 
 
-
-def bwmsignal(parameters, raj, decj, t):
+def bwmsignal(parameters, psr):
     """
     Function that calculates the earth-term gravitational-wave burst-with-memory
     signal, as described in:
     Seto et al, van haasteren and Levin, phsirkov et al, Cordes and Jenet.
-
     This version uses the F+/Fx polarization modes, as verified with the
     Continuous Wave and Anisotropy papers. The rotation matrices were not very
     insightful anyway.
-
-    parameter[0] = TOA time (sec) the burst hits the earth
+    parameter[0] = TOA time (MJD) the burst hits the earth
     parameter[1] = amplitude of the burst (strain h)
     parameter[2] = azimuthal angle (rad)    [0, 2pi]
     parameter[3] = polar angle (rad)        [0, pi]
     parameter[4] = polarisation angle (rad) [0, pi]
-
     raj = Right Ascension of the pulsar (rad)
     decj = Declination of the pulsar (rad)
     t = timestamps where the waveform should be returned
-
     returns the waveform as induced timing residuals (seconds)
-
     """
-    psrpos_phi = np.array([raj])
-    psrpos_theta = np.array([0.5*np.pi-decj])
     gwphi = np.array([parameters[2]])
-    gwtheta = np.array([parameters[3]])
+    gwdec = np.array([np.pi/2-parameters[3]])
+    gwpol = np.array([parameters[4]])
 
-    pol = QuadrupoleAntennaPattern(raj, decj, gwphi,
-                                   0.5*np.pi-gwtheta, parameters[4])
+    pol = AntennaPattern(psr.psr_locs[0].flatten(), psr.psr_locs[1].flatten(),
+                         gwphi, gwdec, gwpol)
 
     # Define the heaviside function
     heaviside = lambda x: 0.5 * (np.sign(x) + 1)
 
-    amp = 10**parameters[1]
-    epoch = (parameters[0] - pic_T0) * pic_spd
+    # Return the time-series for the pulsar
+    bwm = pol * (10**parameters[1]) * heaviside(psr.toas - parameters[0]) * \
+            (psr.toas - parameters[0]) * 86400
 
-    # Return the time-series for teh pulsar
-    return pol * amp * heaviside(t - epoch) * (t - epoch)
-
+    return bwm
 
 
 def bwmsignal_psr(parameters, t):
