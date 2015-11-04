@@ -42,6 +42,7 @@ import NX01_jitter as jitter
 from mpi4py import MPI
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
+f1yr = 1.0/(365.25*86400.0)
 
 parser = optparse.OptionParser(description = "NX01 - It's been a long road, getting from there to here...")
 
@@ -190,7 +191,8 @@ psr_positions = [np.array([psr[ii].psr_locs[0],
 positions = np.array(psr_positions).copy()
 
 num_anis_params = 0
-if args.incGWB:
+evol_anis_tag = ''
+if args.incGWB and args.incCorr:
     # Computing all the correlation basis-functions for the array.
     CorrCoeff = np.array(anis.CorrBasis(positions,args.LMAX))
     # Computing the values of the spherical-harmonics up to order
@@ -263,7 +265,8 @@ d = []
 Jamp = []
 for ii,p in enumerate(psr):
 
-    # compute ( T.T * N^-1 * T ) & log determinant of N
+    # compute ( T.T * N^-1 * T )
+    # & log determinant of N
     new_err = (p.toaerrs).copy()
     if args.fullN==True:
         
@@ -322,9 +325,10 @@ if args.dmVar==True:
     pmin = np.append(pmin,0.0*np.ones(len(psr)))
 if args.incGWB:
     pmin = np.append(pmin,-18.0)
-    if args.fix_slope==False:
+    if not args.fix_slope:
         pmin = np.append(pmin,0.0)
-    pmin = np.append(pmin,-10.0*np.ones(num_anis_params))
+    if args.incCorr:
+        pmin = np.append(pmin,-10.0*np.ones(num_anis_params))
 if args.cgw_search:
     pmin = np.append(pmin,np.array([6.0,0.1,0.0,-9.3,
                                     0.0,-1.0,-1.0,0.0,0.0,0.0]))
@@ -339,9 +343,10 @@ if args.dmVar==True:
     pmax = np.append(pmax,7.0*np.ones(len(psr)))
 if args.incGWB:
     pmax = np.append(pmax,-11.0)
-    if args.fix_slope==False:
+    if not args.fix_slope:
         pmax = np.append(pmax,7.0)
-    pmax = np.append(pmax,10.0*np.ones(num_anis_params))
+    if args.incCorr:
+        pmax = np.append(pmax,10.0*np.ones(num_anis_params))
 if args.cgw_search:
     pmax = np.append(pmax,np.array([10.0,1.0,4.0,-6.5,
                                     2.0*np.pi,1.0,1.0,np.pi,np.pi,2.0*np.pi]))
@@ -462,18 +467,17 @@ def lnprob(xx):
             loglike1 += -0.5 * (logdet_N[ii] + dtNdt[ii])
         
 
-    ################################################
-    # Reshaping freq-dependent anis coefficients,
-    # and testing for power distribution physicality.
-
-    if args.incGWB:
+    if args.incGWB and args.incCorr:
+        ################################################
+        # Reshaping freq-dependent anis coefficients,
+        # and testing for power distribution physicality.
+        
         orf_coeffs = orf_coeffs.reshape((tmp_num_gwfreq_wins,
-                                         ((args.LMAX+1)**2)-1))
+                                        ((args.LMAX+1)**2)-1))
         clm = np.array([[0.0]*((args.LMAX+1)**2)
                         for ii in range(tmp_num_gwfreq_wins)])
         clm[:,0] = 2.0*np.sqrt(np.pi)
 
-        physicality = 0.
         if args.LMAX!=0:
 
             for kk in range(tmp_num_gwfreq_wins):
@@ -508,7 +512,6 @@ def lnprob(xx):
     # parameterize intrinsic red noise as power law
     
     Tspan = (1/fqs[0])*86400.0
-    f1yr = 1/3.16e7
 
     # parameterize intrinsic red-noise and DM-variations as power law
     kappa = [] 
@@ -526,7 +529,7 @@ def lnprob(xx):
                                    f1yr**(gam_red[ii]-3) * \
                                    (fqs/86400.0)**(-gam_red[ii])/Tspan ))
     
-    #####################################
+    ###################################
     # construct elements of sigma array
     
     sigdiag = []
@@ -536,13 +539,14 @@ def lnprob(xx):
         rho = np.log10(Agwb**2/12/np.pi**2 * \
                        f1yr**(gam_gwb-3) * \
                        (fqs/86400.0)**(-gam_gwb)/Tspan)
-        
-        sigoffdiag = []
 
         if args.dmVar:
             gwbspec = np.append( 10**rho, np.zeros_like(rho) )
         else:
             gwbspec = 10**rho
+
+        if args.incCorr:
+            sigoffdiag = []
         
 
     for ii in range(npsr):
@@ -553,17 +557,26 @@ def lnprob(xx):
         tot[1::2] = 10**kappa[ii] 
 
         if args.incGWB:
-            offdiag = np.zeros(mode_count)
+            
+            if args.incCorr:
+                
+                offdiag = np.zeros(mode_count)
 
-            # off diagonal terms
-            offdiag[0::2] = gwbspec
-            offdiag[1::2] = gwbspec
+                # off diagonal terms
+                offdiag[0::2] = gwbspec
+                offdiag[1::2] = gwbspec
 
-            # diagonal terms
-            tot[0::2] += ORF[:,ii,ii]*gwbspec
-            tot[1::2] += ORF[:,ii,ii]*gwbspec
+                # diagonal terms
+                tot[0::2] += ORF[:,ii,ii]*gwbspec
+                tot[1::2] += ORF[:,ii,ii]*gwbspec
 
-            sigoffdiag.append(offdiag)
+                sigoffdiag.append(offdiag)
+                
+            if not args.incCorr:
+                
+                # diagonal terms
+                tot[0::2] += gwbspec
+                tot[1::2] += gwbspec
                 
         # fill in lists of arrays
         sigdiag.append(tot)
@@ -610,101 +623,135 @@ def lnprob(xx):
         
 
     if args.incGWB:
+
+        if not args.incCorr:
+            
+            for ii,p in enumerate(psr):
+            
+                # compute Phi inverse 
+                red_phi = np.diag(1./sigdiag[ii])
+                logdet_Phi = np.sum(np.log(sigdiag[ii]))
+
+                # now fill in real covariance matrix
+                Phi = np.zeros( TtNT[ii].shape ) 
+                for kk in range(0,mode_count):
+                    Phi[kk+p.Gc.shape[1],kk+p.Gc.shape[1]] = red_phi[kk,kk]
+
+                # symmeterize Phi
+                Phi = Phi + Phi.T - np.diag(np.diag(Phi))
+    
+                # compute sigma
+                Sigma = TtNT[ii] + Phi
+
+                # cholesky decomp 
+                try:
+                    
+                    cf = sl.cho_factor(Sigma)
+                    expval2 = sl.cho_solve(cf, d[ii])
+                    logdet_Sigma = np.sum(2*np.log(np.diag(cf[0])))
+
+                except np.linalg.LinAlgError:
+                    
+                    print 'Cholesky Decomposition Failed!!'
+                    return -np.inf
+                
+                logLike += -0.5 * (logdet_Phi + logdet_Sigma) + \
+                  0.5 * (np.dot(d[ii], expval2))
+
+            logLike += loglike1
+
+        if args.incCorr:
         
-        #####################
-        # compute Phi matrix
+            #####################
+            # compute Phi matrix
 
-        smallMatrix = np.zeros((mode_count, npsr, npsr))
-        for ii in range(npsr):
-            for jj in range(ii,npsr):
+            smallMatrix = np.zeros((mode_count, npsr, npsr))
+            for ii in range(npsr):
+                for jj in range(ii,npsr):
 
-                if ii == jj:
-                    smallMatrix[:,ii,jj] = sigdiag[jj] 
-                else:
-                    smallMatrix[:,ii,jj] = ORFtot[:,ii,jj] * sigoffdiag[jj] 
-                    smallMatrix[:,jj,ii] = smallMatrix[:,ii,jj]
+                    if ii == jj:
+                        smallMatrix[:,ii,jj] = sigdiag[jj] 
+                    else:
+                        smallMatrix[:,ii,jj] = ORFtot[:,ii,jj] * sigoffdiag[jj] 
+                        smallMatrix[:,jj,ii] = smallMatrix[:,ii,jj]
 
-        ###################################
-        # invert Phi matrix frequency-wise
+            ###################################
+            # invert Phi matrix frequency-wise
     
-        logdet_Phi = 0
-        for ii in range(mode_count):
+            logdet_Phi = 0
+            for ii in range(mode_count):
 
-            try:
+                try:
     
-                L = sl.cho_factor(smallMatrix[ii,:,:])
-                smallMatrix[ii,:,:] = sl.cho_solve(L, np.eye(npsr))
-                logdet_Phi += np.sum(2*np.log(np.diag(L[0])))
+                    L = sl.cho_factor(smallMatrix[ii,:,:])
+                    smallMatrix[ii,:,:] = sl.cho_solve(L, np.eye(npsr))
+                    logdet_Phi += np.sum(2*np.log(np.diag(L[0])))
 
-            except np.linalg.LinAlgError:
+                except np.linalg.LinAlgError:
     
-                ###################################################
-                # Break if we have non-positive-definiteness of Phi
+                    ###################################################
+                    # Break if we have non-positive-definiteness of Phi
             
-                print 'Cholesky Decomposition Failed!! Rejecting...'
-                return -np.inf
+                    print 'Cholesky Decomposition Failed!! Rejecting...'
+                    return -np.inf
 
 
-        bigTtNT = sl.block_diag(*TtNT)
-        Phi = np.zeros_like( bigTtNT )
+            bigTtNT = sl.block_diag(*TtNT)
+            Phi = np.zeros_like( bigTtNT )
     
-        # now fill in real covariance matrix
-        ind = [0]
-        ind = np.append(ind,np.cumsum([TtNT[ii].shape[0]
-                                    for ii in range(len(psr))]))
-        ind = [np.arange(ind[ii]+psr[ii].Gc.shape[1],
-                        ind[ii]+psr[ii].Gc.shape[1]+mode_count)
-                        for ii in range(len(ind)-1)]
-        for ii in range(npsr):
-            for jj in range(npsr):
-                Phi[ind[ii],ind[jj]] = smallMatrix[:,ii,jj]
+            # now fill in real covariance matrix
+            ind = [0]
+            ind = np.append(ind,np.cumsum([TtNT[ii].shape[0]
+                                        for ii in range(len(psr))]))
+            ind = [np.arange(ind[ii]+psr[ii].Gc.shape[1],
+                            ind[ii]+psr[ii].Gc.shape[1]+mode_count)
+                            for ii in range(len(ind)-1)]
+            for ii in range(npsr):
+                for jj in range(npsr):
+                    Phi[ind[ii],ind[jj]] = smallMatrix[:,ii,jj]
             
-        # compute sigma
-        Sigma = bigTtNT + Phi
+            # compute sigma
+            Sigma = bigTtNT + Phi
             
-        # cholesky decomp for second term in exponential
-        if args.use_gpu:
+            # cholesky decomp for second term in exponential
+            if args.use_gpu:
 
-            try:
+                try:
                 
-                dtmp = np.concatenate(d)
-                Sigma_gpu = gpuarray.to_gpu( Sigma.astype(np.float64).copy() )
-                expval2_gpu = gpuarray.to_gpu( dtmp.astype(np.float64).copy() )
-                culinalg.cho_solve( Sigma_gpu, expval2_gpu ) # in-place linear-algebra:
-                                                             # Sigma and expval2 overwritten
-                logdet_Sigma = np.sum(2.0*np.log(np.diag(Sigma_gpu.get())))
+                    dtmp = np.concatenate(d)
+                    Sigma_gpu = gpuarray.to_gpu( Sigma.astype(np.float64).copy() )
+                    expval2_gpu = gpuarray.to_gpu( dtmp.astype(np.float64).copy() )
+                    culinalg.cho_solve( Sigma_gpu, expval2_gpu ) # in-place linear-algebra:
+                                                                 # Sigma and expval2 overwritten
+                    logdet_Sigma = np.sum(2.0*np.log(np.diag(Sigma_gpu.get())))
 
-            except cula.culaDataError:
-
-                print 'Cholesky Decomposition Failed (GPU error!!)'
-                return -np.inf
-
-            logLike = -0.5 * (logdet_Phi + logdet_Sigma) + \
-              0.5 * (np.dot(dtmp, expval2_gpu.get() )) + \
-              loglike1
-            
-        else:
+                except cula.culaDataError:
     
-            try:
+                    print 'Cholesky Decomposition Failed (GPU error!!)'
+                    return -np.inf
 
-                dtmp = np.concatenate(d)
-                cf = sl.cho_factor(Sigma)
-                expval2 = sl.cho_solve(cf, dtmp)
-                logdet_Sigma = np.sum(2*np.log(np.diag(cf[0])))
+                logLike = -0.5 * (logdet_Phi + logdet_Sigma) + \
+                  0.5 * (np.dot(dtmp, expval2_gpu.get() )) + \
+                  loglike1
+            
+            else:
+    
+                try:
 
-            except np.linalg.LinAlgError:
+                    dtmp = np.concatenate(d)
+                    cf = sl.cho_factor(Sigma)
+                    expval2 = sl.cho_solve(cf, dtmp)
+                    logdet_Sigma = np.sum(2*np.log(np.diag(cf[0])))
+
+                except np.linalg.LinAlgError:
                 
-                print 'Cholesky Decomposition Failed second time!! Breaking...'
-                return -np.inf
-                #print 'Cholesky Decomposition Failed second time!! Using SVD instead'
-                #u,s,v = sl.svd(Sigma)
-                #expval2 = np.dot(v.T, 1/s*np.dot(u.T, d))
-                #logdet_Sigma = np.sum(np.log(s))
+                    print 'Cholesky Decomposition Failed second time!! Breaking...'
+                    return -np.inf
 
 
-            logLike = -0.5 * (logdet_Phi + logdet_Sigma) + \
-              0.5 * (np.dot(dtmp, expval2)) + \
-              loglike1
+                logLike = -0.5 * (logdet_Phi + logdet_Sigma) + \
+                  0.5 * (np.dot(dtmp, expval2)) + \
+                  loglike1
 
     
 
@@ -763,8 +810,9 @@ if args.incGWB:
     parameters.append("Agwb")
     if args.fix_slope is False:
         parameters.append("gam_gwb")
-    for ii in range(num_anis_params):
-        parameters.append('clm_{0}'.format(ii+1))
+    if args.incCorr:
+        for ii in range(num_anis_params):
+            parameters.append('clm_{0}'.format(ii+1))
 if args.cgw_search:
     parameters += ["chirpmass", "qratio", "dist", "orb-freq",
                    "phi", "costheta", "cosiota", "gwpol",
@@ -789,7 +837,8 @@ if args.incGWB:
     x0 = np.append(x0,-15.0)
     if args.fix_slope is False:
         x0 = np.append(x0,13./3.)
-    x0 = np.append(x0,np.zeros(num_anis_params))
+    if args.incCorr:
+        x0 = np.append(x0,np.zeros(num_anis_params))
 if args.cgw_search:
     x0 = np.append(x0,np.array([9.0, 0.5, 1.5, -8.0, 0.5,
                                 0.5, 0.5, 0.5, 0.5, 0.5]))
@@ -809,7 +858,8 @@ if args.incGWB:
     cov_diag = np.append(cov_diag,0.5)
     if args.fix_slope is False:
         cov_diag = np.append(cov_diag,0.5)
-    cov_diag = np.append(cov_diag,0.05*np.ones(num_anis_params))
+    if args.incCorr:
+        cov_diag = np.append(cov_diag,0.05*np.ones(num_anis_params))
 if args.cgw_search:
     cov_diag = np.append(cov_diag,0.2*np.ones(10))
     if args.ecc_search:
@@ -829,7 +879,11 @@ if args.incGWB:
         gamma_tag = '_Gam4p33'
     else:
         gamma_tag = '_GamVary'
-    file_tag += '_gwb{0}_Lmax{1}{2}{3}'.format(args.limit_or_detect_gwb,args.LMAX,evol_anis_tag,gamma_tag)
+
+    if args.incCorr:
+        file_tag += '_gwb{0}_Lmax{1}{2}{3}'.format(args.limit_or_detect_gwb,args.LMAX,evol_anis_tag,gamma_tag)
+    else:
+        file_tag += '_gwb{0}_noCorr{1}'.format(args.limit_or_detect_gwb,gamma_tag)
 if args.cgw_search:
     if args.ecc_search:
         file_tag += '_ecgw'
@@ -842,7 +896,7 @@ file_tag += '_red{0}_nmodes{1}'.format(args.limit_or_detect_red,args.nmodes)
 if rank == 0:
     print "\n Now, we sample... \n"
     print """\
-    _______ .__   __.   _______      ___       _______  _______  __  
+     _______ .__   __.   _______      ___       _______  _______  __  
     |   ____||  \ |  |  /  _____|    /   \     /  _____||   ____||  | 
     |  |__   |   \|  | |  |  __     /  ^  \   |  |  __  |  |__   |  | 
     |   __|  |  . `  | |  | |_ |   /  /_\  \  |  | |_ | |   __|  |  | 
@@ -856,9 +910,10 @@ sampler = PAL.PTSampler(ndim=n_params,logl=lnprob,logp=my_prior,cov=np.diag(cov_
                         outDir='./chains_nanoAnalysis/'+file_tag, resume=False)
 
 if rank == 0:
-    # Copy the anisotropy modefile into the results directory
-    if args.anis_modefile is not None:
-        os.system('cp {0} {1}'.format(args.anis_modefile,'./chains_nanoAnalysis/'+file_tag))
+    if args.incCorr:
+        # Copy the anisotropy modefile into the results directory
+        if args.anis_modefile is not None:
+            os.system('cp {0} {1}'.format(args.anis_modefile,'./chains_nanoAnalysis/'+file_tag))
 
     # Printing out the list of searched parameters
     fil = open('./chains_nanoAnalysis/parameter_list.txt','w')
@@ -972,14 +1027,12 @@ def drawFromGWBPrior(parameters, iter, beta):
 
 # add jump proposals
 sampler.addProposalToCycle(drawFromRedNoisePrior, 10)
+if args.dmVar:
+    sampler.addProposalToCycle(drawFromDMNoisePrior, 10)
 if args.incGWB:
     sampler.addProposalToCycle(drawFromGWBPrior, 10)
 if args.cgw_search:
     sampler.addProposalToCycle(drawFromCWPrior, 10)
-#if args.incDMBand and args.dmModel=='powerlaw':
-#    sampler.addProposalToCycle(model.drawFromDMNoiseBandPrior, 5)
-#if args.incORF:
-#    sampler.addProposalToCycle(model.drawFromORFPrior, 10)
 
 
 sampler.sample(p0=x0,Niter=1e6,thin=10)
