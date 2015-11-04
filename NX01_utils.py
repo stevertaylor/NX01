@@ -32,7 +32,8 @@ SOLAR2S = sc.G / sc.c**3 * 1.98855e30
 KPC2S = sc.parsec / sc.c * 1e3
 MPC2S = sc.parsec / sc.c * 1e6
 
-def masterSplitParams(xx, npsr, dmVar, fix_slope, incGWB,
+def masterSplitParams(xx, npsr, dmVar, fix_slope,
+                      incGWB, incCorr,
                       num_anis_params=0, propose=False):
     """
     Takes in a vector of search parameters and
@@ -71,11 +72,12 @@ def masterSplitParams(xx, npsr, dmVar, fix_slope, incGWB,
             gam_gwb = xx[param_ct]
             param_ct += 1
 
-        #########################
-        # Anisotropy parameters
-        #########################
+        if incCorr==True:
+            #########################
+            # Anisotropy parameters
+            #########################
     
-        orf_coeffs = xx[param_ct:param_ct+num_anis_params]
+            orf_coeffs = xx[param_ct:param_ct+num_anis_params]
 
     #####################################
     # Remaining parameters are for a CGW
@@ -86,15 +88,24 @@ def masterSplitParams(xx, npsr, dmVar, fix_slope, incGWB,
         
         if propose==False:
             if incGWB==True:
-                return Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, orf_coeffs, param_ct
+                if incCorr==True:
+                    return Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, orf_coeffs, param_ct
+                else:
+                    return Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, param_ct
             else:
                 return Ared, gam_red, Adm, gam_dm, param_ct
         else:
             if incGWB==True:
-                if fix_slope==False:
-                    return Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, orf_coeffs
+                if incCorr==True:
+                    if fix_slope==False:
+                        return Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, orf_coeffs
+                    else:
+                        return Ared, gam_red, Adm, gam_dm, Agwb, orf_coeffs
                 else:
-                    return Ared, gam_red, Adm, gam_dm, Agwb, orf_coeffs
+                    if fix_slope==False:
+                        return Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb
+                    else:
+                        return Ared, gam_red, Adm, gam_dm, Agwb
             else:
                 return Ared, gam_red, Adm, gam_dm
                 
@@ -102,15 +113,24 @@ def masterSplitParams(xx, npsr, dmVar, fix_slope, incGWB,
         
         if propose==False:
             if incGWB==True:
-                return Ared, gam_red, Agwb, gam_gwb, orf_coeffs, param_ct
+                if incCorr==True:
+                    return Ared, gam_red, Agwb, gam_gwb, orf_coeffs, param_ct
+                else:
+                    return Ared, gam_red, Agwb, gam_gwb, param_ct
             else:
                 return Ared, gam_red, param_ct
         else:
-            if incGWB:
-                if fix_slope==False:
-                    return Ared, gam_red, Agwb, gam_gwb, orf_coeffs
+            if incGWB==True:
+                if incCorr==True:
+                    if fix_slope==False:
+                        return Ared, gam_red, Agwb, gam_gwb, orf_coeffs
+                    else:
+                        return Ared, gam_red, Agwb, orf_coeffs
                 else:
-                    return Ared, gam_red, Agwb, orf_coeffs
+                    if fix_slope==False:
+                        return Ared, gam_red, Agwb, gam_gwb
+                    else:
+                        return Ared, gam_red, Agwb
             else:
                 return Ared, gam_red
                 

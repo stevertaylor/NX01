@@ -155,7 +155,8 @@ else:
 # PASSING THROUGH TEMPO2 VIA libstempo
 ################################################################################################################################
 
-psr_pathinfo = np.genfromtxt(args.psrlist, dtype=str, skip_header=2) # name, hdf5-path, par-path, tim-path
+# name, hdf5-path, par-path, tim-path
+psr_pathinfo = np.genfromtxt(args.psrlist, dtype=str, skip_header=2) 
 
 if args.from_h5:
 
@@ -377,24 +378,34 @@ def lnprob(xx):
     if args.dmVar:
         mode_count = 4*nmode
         if args.incGWB:
-            Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, orf_coeffs, param_ct = \
-              utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope,
-                                      args.incGWB, num_anis_params )
+            if args.incCorr:
+                Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, orf_coeffs, param_ct = \
+                  utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope,
+                                          args.incGWB, args.incCorr, num_anis_params )
+            else:
+                Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, param_ct = \
+                  utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope,
+                                          args.incGWB, args.incCorr, num_anis_params )
         else:
             Ared, gam_red, Adm, gam_dm, param_ct = \
               utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope,
-                                      args.incGWB, num_anis_params )
+                                      args.incGWB, args.incCorr, num_anis_params )
             
     else:
         mode_count = 2*nmode
         if args.incGWB:
-            Ared, gam_red, Agwb, gam_gwb, orf_coeffs, param_ct = \
-              utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope,
-                                      args.incGWB, num_anis_params )
+            if args.incCorr:
+                Ared, gam_red, Agwb, gam_gwb, orf_coeffs, param_ct = \
+                  utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope,
+                                          args.incGWB, args.incCorr, num_anis_params )
+            else:
+                Ared, gam_red, Agwb, gam_gwb, param_ct = \
+                  utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope,
+                                          args.incGWB, args.incCorr, num_anis_params )
         else:
             Ared, gam_red, param_ct = \
               utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope,
-                                      args.incGWB, num_anis_params )
+                                      args.incGWB, args.incCorr, num_anis_params )
         
 
     ###############################
@@ -447,11 +458,12 @@ def lnprob(xx):
             if args.fullN==True:
         
                 if len(p.ecorrs)>0:
-                    Nx = jitter.cython_block_shermor_0D(detres[ii],
-                                                        new_err**2., Jamp[ii], p.Uinds)
+                    Nx = jitter.cython_block_shermor_0D(detres[ii], new_err**2.,
+                                                        Jamp[ii], p.Uinds)
                     d.append(np.dot(p.Te.T, Nx))
-                    det_dummy, dtNdt_dummy = jitter.cython_block_shermor_1D(detres[ii],
-                                                                            new_err**2., Jamp[ii], p.Uinds)
+                    det_dummy, dtNdt_dummy = \
+                      jitter.cython_block_shermor_1D(detres[ii], new_err**2.,
+                                                     Jamp[ii], p.Uinds)
                     dtNdt.append(dtNdt_dummy)
 
                 else:
@@ -772,9 +784,9 @@ def lnprob(xx):
 
     if args.dmVar:
         if args.limit_or_detect_dm == 'limit':
-        priorfac_dm = np.sum(np.log(Adm * np.log(10.0)))
-    else:
-        priorfac_dm = 0.0
+            priorfac_dm = np.sum(np.log(Adm * np.log(10.0)))
+        else:
+            priorfac_dm = 0.0
 
     #####################################
     # Finally, return the log-likelihood
@@ -808,7 +820,7 @@ if args.dmVar:
         parameters.append('gam_dm_'+psr[ii].name)
 if args.incGWB:
     parameters.append("Agwb")
-    if args.fix_slope is False:
+    if not args.fix_slope:
         parameters.append("gam_gwb")
     if args.incCorr:
         for ii in range(num_anis_params):
@@ -835,7 +847,7 @@ if args.dmVar:
     x0 = np.append(x0,np.array([p.Redind for p in psr]))
 if args.incGWB:
     x0 = np.append(x0,-15.0)
-    if args.fix_slope is False:
+    if not args.fix_slope:
         x0 = np.append(x0,13./3.)
     if args.incCorr:
         x0 = np.append(x0,np.zeros(num_anis_params))
@@ -856,7 +868,7 @@ if args.dmVar:
     cov_diag = np.append(cov_diag,0.5*np.ones(len(psr)))
 if args.incGWB:
     cov_diag = np.append(cov_diag,0.5)
-    if args.fix_slope is False:
+    if not args.fix_slope:
         cov_diag = np.append(cov_diag,0.5)
     if args.incCorr:
         cov_diag = np.append(cov_diag,0.05*np.ones(num_anis_params))
@@ -876,9 +888,9 @@ if rank==0:
 file_tag = 'nanograv'
 if args.incGWB:    
     if args.fix_slope:
-        gamma_tag = '_Gam4p33'
+        gamma_tag = '_gam4p33'
     else:
-        gamma_tag = '_GamVary'
+        gamma_tag = '_gamVary'
 
     if args.incCorr:
         file_tag += '_gwb{0}_Lmax{1}{2}{3}'.format(args.limit_or_detect_gwb,args.LMAX,evol_anis_tag,gamma_tag)
@@ -1024,15 +1036,14 @@ def drawFromGWBPrior(parameters, iter, beta):
 
   
 
-
 # add jump proposals
 sampler.addProposalToCycle(drawFromRedNoisePrior, 10)
 if args.dmVar:
     sampler.addProposalToCycle(drawFromDMNoisePrior, 10)
 if args.incGWB:
     sampler.addProposalToCycle(drawFromGWBPrior, 10)
-if args.cgw_search:
-    sampler.addProposalToCycle(drawFromCWPrior, 10)
+#if args.cgw_search:
+#    sampler.addProposalToCycle(drawFromCWPrior, 10)
 
 
 sampler.sample(p0=x0,Niter=1e6,thin=10)
