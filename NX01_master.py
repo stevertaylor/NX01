@@ -961,20 +961,17 @@ def drawFromRedNoisePrior(parameters, iter, beta):
         # log prior
         if args.limit_or_detect_red == 'detect':
         
-            #q[:npsr] = np.random.uniform(pmin[0], pmax[0], npsr)
             q[ii] = np.random.uniform(pmin[ii], pmax[ii])
             qxy += 0
         
         elif args.limit_or_detect_red == 'limit':
         
-            #q[:npsr] = np.random.uniform(pmin[0], pmax[0], npsr)
             q[ii] = np.random.uniform(pmin[ii], pmax[ii])
             qxy += 0
 
             #Ared = np.log10(np.random.uniform(10 ** Ared_ll, 10 ** Ared_ul, len(Ared)))
             #qxy += np.log(10 ** parameters[parind] / 10 ** q[parind])
     
-        #q[npsr:2*npsr] = np.random.uniform(pmin[npsr], pmax[npsr], npsr)
         q[npsr+ii] = np.random.uniform(pmin[npsr+ii], pmax[npsr+ii])
         qxy += 0
 
@@ -998,20 +995,17 @@ def drawFromDMNoisePrior(parameters, iter, beta):
         # log prior
         if args.limit_or_detect_dm == 'detect':
         
-            #q[2*npsr:3*npsr] = np.random.uniform(pmin[2*npsr], pmax[2*npsr], npsr)
             q[2*npsr+ii] = np.random.uniform(pmin[2*npsr+ii], pmax[2*npsr+ii])
             qxy += 0
         
         elif args.limit_or_detect_dm == 'limit':
             
-            #q[2*npsr:3*npsr] = np.random.uniform(pmin[2*npsr], pmax[2*npsr], npsr)
             q[2*npsr+ii] = np.random.uniform(pmin[2*npsr+ii], pmax[2*npsr+ii])
             qxy += 0
 
             #Ared = np.log10(np.random.uniform(10 ** Ared_ll, 10 ** Ared_ul, len(Ared)))
             #qxy += np.log(10 ** parameters[parind] / 10 ** q[parind])
     
-        #q[3*npsr:4*npsr] = np.random.uniform(pmin[3*npsr], pmax[3*npsr], npsr)
         q[3*npsr+ii] = np.random.uniform(pmin[3*npsr+ii], pmax[3*npsr+ii])
         qxy += 0
 

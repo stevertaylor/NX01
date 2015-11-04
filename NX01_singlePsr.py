@@ -68,7 +68,7 @@ parser.add_option('--fullN', dest='fullN', action='store_true', default=False,
 parser.add_option('--jitterbin', dest='jitterbin', action='store', type=float, default=1.0,
                    help='What time duration do you want a jitter bin to be? (default = 1.0)')
 parser.add_option('--ptmcmc', dest='ptmcmc', action='store_true', default=False,
-                   help='Sample using PALs parallel tempering MCMC (False)? (default=False)')
+                   help='Sample using PAL2 parallel tempering MCMC ? (default=False)')
 
 (args, x) = parser.parse_args()
 
