@@ -27,6 +27,10 @@ information in the pulsar class. Useful for storing array products.
 
 ## Preliminaries
 
+One important first thing to note is to make sure you have
+correctly updated your tempo2 clock files with the corresponding files packaged with
+the NANOGrav data download.
+
 It is recommended that you initially open and follow the steps in the
 `nanograv-pulsar-store.ipynb` notebook, and produce your own
 `PsrListings_GWB.txt` and `PsrListings_CW.txt`. These latter files are
@@ -47,16 +51,9 @@ previous single-pulsar analyses.
 ## Single-pulsar noise analysis
 
 It should be straightforward to perform a single-pulsar noise analysis
-out of the box. One thing to note is to make sure you have
-correctly updated your tempo2 clock files with files packaged with
-the NANOGrav data download.
+out of the box. 
 
-Run the following:
-```
-python NX01_singlePsr.py --help
-```
-
-for a list of all options.
+Run `python NX01_singlePsr.py --help` for a list of all options.
 
 An example run command would be:
 ```
@@ -65,3 +62,38 @@ python NX01_singlePsr.py
 --timfile=./NANOGrav_9y/tim/J1713+0747_NANOGrav_9yv1.tim
 --efacequad-sysflag=f --fullN --ptmcmc
 ```
+
+Without the `--ptmcmc` option, the sampler will default to MultiNest.
+
+If you have MPI installed you can parallelise by running the
+following:
+```
+mpirun -np 4 NX01_singlePsr.py
+--parfile=./NANOGrav_9y/par/J1713+0747_NANOGrav_9yv1.t2.gls.strip.par
+--timfile=./NANOGrav_9y/tim/J1713+0747_NANOGrav_9yv1.tim
+--efacequad-sysflag=f --fullN --ptmcmc
+```
+where 4 cores will produce 4 temperature chains in the
+parallel-tempering MCMC sampling process. Without the `--ptmcmc`
+command, 4 cores would have been used to update the live points in MultiNest.
+
+
+## Gravitational-wave searches
+
+It is recommended to read in pulsars from their respective hdf5 files,
+which you should have previously produced from the
+`nanograv-pulsar-store.ipynb` notebook.
+
+Run `python NX01_master.py --help` for a list of all options.
+
+An example run command would be:
+```
+python NX01_master.py --from-h5
+--psrlist=./PsrListings_GWB.txt --nmodes=15
+--incGWB --fix-slope --num_psrs=18 --fullN
+```
+which will perform a GW background upper-limit analysis (without
+correlations...to include correlations add `--incCorr`) on the 18 pulsars analyzed in the 9-year NANOGrav limit paper.
+
+As in the single-pulsar analysis case, you can use MPI for the PTMCMC,
+however MultiNest functionality is not yet ready.
