@@ -31,3 +31,10 @@ It should be straightforward to perform a single-pulsar noise analysis
 out of the box. One thing to note is to make sure you have
 correctly updated your tempo2 clock files with files packaged with
 the NANOGrav data download.
+
+Run the following:
+```
+python NX01_singlePsr.py --help
+```
+
+for a list of all options.
