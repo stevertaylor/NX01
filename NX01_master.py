@@ -123,8 +123,8 @@ ____    ____  ______    __    __      __    __       ___   ____    ____  _______
     |__|     |__|  |__| |_______|    \______| \______/  |__| \__| |__| \__|         
                                                                                     
 """
-
-print header                                
+if rank == 0:
+    print header                                
 
 # Do you want to use GPU acceleration?
 if args.use_gpu:
@@ -139,12 +139,13 @@ if args.use_gpu:
 
     culinalg.init()
 
-if args.nmodes:
-    print ("\n You've given me the number of frequencies",
-           "to include in the low-rank time-frequency approximation, got it?\n")
-else:
-    print ("\n You've given me the sampling cadence for the observations,",
-           "which determines the upper frequency limit and the number of modes, got it?\n")
+if rank == 0:
+    if args.nmodes:
+        print ("\n You've given me the number of frequencies",
+            "to include in the low-rank time-frequency approximation, got it?\n")
+    else:
+        print ("\n You've given me the sampling cadence for the observations,",
+            "which determines the upper frequency limit and the number of modes, got it?\n")
 
 if args.ptmcmc:
     import PALInferencePTMCMC as PAL
@@ -933,9 +934,9 @@ if rank == 0:
             os.system('cp {0} {1}'.format(args.anis_modefile,'./chains_nanoAnalysis/'+file_tag))
 
     # Printing out the list of searched parameters
-    fil = open('./chains_nanoAnalysis/parameter_list.txt','w')
-    for parm in parameters:
-        print >>fil, parm
+    fil = open('./chains_nanoAnalysis/'+file_tag+'/parameter_list.txt','w')
+    for ii,parm in enumerate(parameters):
+        print >>fil, ii, parm
     fil.close()
 
 #####################################

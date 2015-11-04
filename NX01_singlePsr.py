@@ -49,7 +49,7 @@ parser = optparse.OptionParser(description = 'NX01 - Precursor to the PANTHER Gr
 
 parser.add_option('--nmodes', dest='nmodes', action='store', type=int,
                    help='Number of modes in low-rank time-frequency approximation')
-parser.add_option('--cadence', dest='cadence', action='store', type=float, default=14,
+parser.add_option('--cadence', dest='cadence', action='store', type=float, default=14.0,
                    help='Number days between successive observations (default = 14 days)')
 parser.add_option('--parfile', dest='parfile', action='store', type=str,
                    help='Full path to parfile')
@@ -65,7 +65,7 @@ parser.add_option('--dmVar', dest='dmVar', action='store_true', default=False,
                    help='Search for DM variations in the data (False)? (default=False)')
 parser.add_option('--fullN', dest='fullN', action='store_true', default=False,
                    help='Search for EFAC/EQUAD/ECORR over all systems (True), or just apply a GEFAC (False)? (default=False)')
-parser.add_option('--jitterbin', dest='jitterbin', action='store', type=float, default='1.0',
+parser.add_option('--jitterbin', dest='jitterbin', action='store', type=float, default=1.0,
                    help='What time duration do you want a jitter bin to be? (default = 1.0)')
 parser.add_option('--ptmcmc', dest='ptmcmc', action='store_true', default=False,
                    help='Sample using PALs parallel tempering MCMC (False)? (default=False)')
@@ -73,9 +73,11 @@ parser.add_option('--ptmcmc', dest='ptmcmc', action='store_true', default=False,
 (args, x) = parser.parse_args()
 
 if args.nmodes:
-    print "\n You've given me the number of frequencies to include in the low-rank time-frequency approximation, got it?\n"
+    print ("\n You've given me the number of frequencies",
+           "to include in the low-rank time-frequency approximation, got it?\n")
 else:
-    print "\n You've given me the sampling cadence for the observations, which determines the upper frequency limit and the number of modes, got it?\n"
+    print ("\n You've given me the sampling cadence for the observations,",
+           "which determines the upper frequency limit and the number of modes, got it?\n")
 
 if args.ptmcmc==True:
     import PALInferencePTMCMC as PAL
@@ -117,7 +119,7 @@ else:
 # FORM A LIST COMPOSED OF NP ARRAYS CONTAINING THE INDEX POSITIONS WHERE EACH UNIQUE SYSTEM IS APPLIED
 ################################################################################################################################
 
-if args.fullN==True:
+if args.fullN:
     systems = psr.sysflagdict[args.systarg]
 else:
     systems = OrderedDict.fromkeys([psr.name])
@@ -129,12 +131,12 @@ else:
 
 pmin = np.array([-20.0,0.0])
 pmax = np.array([-11.0,7.0])
-if args.dmVar==True:
+if args.dmVar:
     pmin = np.append(pmin,np.array([-20.0,0.0]))
     pmax = np.append(pmax,np.array([-8.0,7.0]))       
 pmin = np.append(pmin,0.001*np.ones(len(systems)))
 pmax = np.append(pmax,10.0*np.ones(len(systems)))
-if args.fullN==True:
+if args.fullN:
     pmin = np.append(pmin,-10.0*np.ones(len(systems)))
     pmax = np.append(pmax,-5.0*np.ones(len(systems)))
     if len(psr.sysflagdict['nano-f'].keys())>0:
@@ -160,14 +162,14 @@ def my_prior2(cube, ndim, nparams):
     cube[1] = cube[1]*7.0
 
     ct = 2
-    if args.dmVar==True:
+    if args.dmVar:
         cube[ct] = -20.0 + cube[ct]*12.0
         cube[ct+1] = cube[ct+1]*7.0
         ct = 4
 
     for ii in range(ct,ct+len(systems)):
         cube[ii] = 0.001 + cube[ii]*9.999
-    if args.fullN==True:
+    if args.fullN:
         for ii in range(ct+len(systems),ct+2*len(systems)):
             cube[ii] = -10.0 + cube[ii]*5.0
         for ii in range(ct+2*len(systems),nparams):
@@ -182,14 +184,14 @@ def ln_prob1(xx):
     gam_red = xx[1]
 
     ct = 2
-    if args.dmVar==True:
+    if args.dmVar:
         Adm = 10.0**xx[ct]
         gam_dm = xx[ct+1]
 
         ct = 4
 
     EFAC = xx[ct:ct+len(systems)]
-    if args.fullN==True: 
+    if args.fullN: 
         EQUAD = 10.0**xx[ct+len(systems):ct+2*len(systems)]
         ECORR = 10.0**xx[ct+2*len(systems):]
 
@@ -202,7 +204,7 @@ def ln_prob1(xx):
         scaled_err[systems[sysname]] *= EFAC[jj] 
     ###
     white_noise = np.zeros(len(scaled_err))
-    if args.fullN==True:
+    if args.fullN:
         white_noise = np.ones(len(scaled_err))
         for jj,sysname in enumerate(systems):
             white_noise[systems[sysname]] *= EQUAD[jj]
@@ -210,17 +212,23 @@ def ln_prob1(xx):
     new_err = np.sqrt( scaled_err**2.0 + white_noise**2.0 )
     ########
 
-    # compute ( T.T * N^-1 * T ) & log determinant of N
-    if args.fullN==True:
+    # compute ( T.T * N^-1 * T )
+    # & log determinant of N
+    if args.fullN:
         if len(ECORR)>0:
             Jamp = np.ones(len(psr.epflags))
             for jj,nano_sysname in enumerate(psr.sysflagdict['nano-f'].keys()):
                 Jamp[np.where(psr.epflags==nano_sysname)] *= ECORR[jj]**2.0
 
-            Nx = jitter.cython_block_shermor_0D(psr.res.astype(np.float64), new_err**2., Jamp, psr.Uinds)
+            Nx = jitter.cython_block_shermor_0D(psr.res, new_err**2.,
+                                                Jamp, psr.Uinds)
             d = np.dot(psr.Te.T, Nx)
-            logdet_N, TtNT = jitter.cython_block_shermor_2D(psr.Te, new_err**2., Jamp, psr.Uinds)
-            det_dummy, dtNdt = jitter.cython_block_shermor_1D(psr.res.astype(np.float64), new_err**2., Jamp, psr.Uinds)
+            logdet_N, TtNT = \
+              jitter.cython_block_shermor_2D(psr.Te, new_err**2.,
+                                             Jamp, psr.Uinds)
+            det_dummy, dtNdt = \
+              jitter.cython_block_shermor_1D(psr.res, new_err**2.,
+                                             Jamp, psr.Uinds)
         else:
             d = np.dot(psr.Te.T, psr.res/( new_err**2.0 ))
         
@@ -255,14 +263,20 @@ def ln_prob1(xx):
     f1yr = 1/3.16e7
 
     # parameterize intrinsic red-noise and DM-variations as power law
-    if args.dmVar==True:
-        kappa = np.log10( np.append( Ared**2/12/np.pi**2 * f1yr**(gam_red-3) * (fqs/86400.0)**(-gam_red)/Tspan,
-                                    Adm**2/12/np.pi**2 * f1yr**(gam_dm-3) * (fqs/86400.0)**(-gam_dm)/Tspan ) )
+    if args.dmVar:
+        kappa = np.log10( np.append( Ared**2/12/np.pi**2 * \
+                                     f1yr**(gam_red-3) * \
+                                     (fqs/86400.0)**(-gam_red)/Tspan,
+                                    Adm**2/12/np.pi**2 * \
+                                    f1yr**(gam_dm-3) * \
+                                    (fqs/86400.0)**(-gam_dm)/Tspan ) )
     else:
-        kappa = np.log10( Ared**2/12/np.pi**2 * f1yr**(gam_red-3) * (fqs/86400.0)**(-gam_red)/Tspan )
+        kappa = np.log10( Ared**2/12/np.pi**2 * \
+                          f1yr**(gam_red-3) * \
+                          (fqs/86400.0)**(-gam_red)/Tspan )
 
     # construct elements of sigma array
-    if args.dmVar==True:
+    if args.dmVar:
         mode_count = 4*nmode
     else:
         mode_count = 2*nmode
@@ -299,7 +313,8 @@ def ln_prob1(xx):
         logdet_Sigma = np.sum(np.log(s))
 
 
-    logLike = -0.5 * (logdet_Phi + logdet_Sigma) + 0.5 * (np.dot(d, expval2)) + loglike1
+    logLike = -0.5 * (logdet_Phi + logdet_Sigma) + \
+      0.5 * (np.dot(d, expval2)) + loglike1
 
     prior_fac = 0.0
     if args.redamp_prior == 'uniform':
@@ -326,7 +341,7 @@ def ln_prob2(cube, ndim, nparams):
         ct = 4
 
     EFAC = xx[ct:ct+len(systems)]
-    if args.fullN==True: 
+    if args.fullN: 
         EQUAD = 10.0**xx[ct+len(systems):ct+2*len(systems)]
         ECORR = 10.0**xx[ct+2*len(systems):]
 
@@ -339,7 +354,7 @@ def ln_prob2(cube, ndim, nparams):
         scaled_err[systems[sysname]] *= EFAC[jj] 
     ###
     white_noise = np.zeros(len(scaled_err))
-    if args.fullN==True:
+    if args.fullN:
         white_noise = np.ones(len(scaled_err))
         for jj,sysname in enumerate(systems):
             white_noise[systems[sysname]] *= EQUAD[jj]
@@ -348,16 +363,21 @@ def ln_prob2(cube, ndim, nparams):
     ########
 
     # compute ( T.T * N^-1 * T ) & log determinant of N
-    if args.fullN==True:
+    if args.fullN:
         if len(ECORR)>0:
             Jamp = np.ones(len(psr.epflags))
             for jj,nano_sysname in enumerate(psr.sysflagdict['nano-f'].keys()):
                 Jamp[np.where(psr.epflags==nano_sysname)] *= ECORR[jj]**2.0
 
-            Nx = jitter.cython_block_shermor_0D(psr.res.astype(np.float64), new_err**2., Jamp, psr.Uinds)
+            Nx = jitter.cython_block_shermor_0D(psr.res, new_err**2.,
+                                                Jamp, psr.Uinds)
             d = np.dot(psr.Te.T, Nx)
-            logdet_N, TtNT = jitter.cython_block_shermor_2D(psr.Te, new_err**2., Jamp, psr.Uinds)
-            det_dummy, dtNdt = jitter.cython_block_shermor_1D(psr.res.astype(np.float64), new_err**2., Jamp, psr.Uinds)
+            logdet_N, TtNT = \
+              jitter.cython_block_shermor_2D(psr.Te, new_err**2.,
+                                             Jamp, psr.Uinds)
+            det_dummy, dtNdt = \
+              jitter.cython_block_shermor_1D(psr.res, new_err**2.,
+                                             Jamp, psr.Uinds)
         else:
             d = np.dot(psr.Te.T, psr.res/( new_err**2.0 ))
         
@@ -392,14 +412,20 @@ def ln_prob2(cube, ndim, nparams):
     f1yr = 1/3.16e7
 
     # parameterize intrinsic red-noise and DM-variations as power law
-    if args.dmVar==True:
-        kappa = np.log10( np.append( Ared**2/12/np.pi**2 * f1yr**(gam_red-3) * (fqs/86400.0)**(-gam_red)/Tspan,
-                                    Adm**2/12/np.pi**2 * f1yr**(gam_dm-3) * (fqs/86400.0)**(-gam_dm)/Tspan ) )
+    if args.dmVar:
+        kappa = np.log10( np.append( Ared**2/12/np.pi**2 * \
+                                     f1yr**(gam_red-3) *\
+                                      (fqs/86400.0)**(-gam_red)/Tspan,
+                                    Adm**2/12/np.pi**2 * \
+                                    f1yr**(gam_dm-3) * \
+                                    (fqs/86400.0)**(-gam_dm)/Tspan ) )
     else:
-        kappa = np.log10( Ared**2/12/np.pi**2 * f1yr**(gam_red-3) * (fqs/86400.0)**(-gam_red)/Tspan )
+        kappa = np.log10( Ared**2/12/np.pi**2 * \
+                          f1yr**(gam_red-3) * \
+                          (fqs/86400.0)**(-gam_red)/Tspan )
 
     # construct elements of sigma array
-    if args.dmVar==True:
+    if args.dmVar:
         mode_count = 4*nmode
     else:
         mode_count = 2*nmode
@@ -436,7 +462,8 @@ def ln_prob2(cube, ndim, nparams):
         logdet_Sigma = np.sum(np.log(s))
 
 
-    logLike = -0.5 * (logdet_Phi + logdet_Sigma) + 0.5 * (np.dot(d, expval2)) + loglike1
+    logLike = -0.5 * (logdet_Phi + logdet_Sigma) + \
+      0.5 * (np.dot(d, expval2)) + loglike1
 
     prior_fac = 0.0
     if args.redamp_prior == 'uniform':
@@ -450,12 +477,12 @@ def ln_prob2(cube, ndim, nparams):
 #########################
 
 parameters = ["log(A_red)","gam_red"]
-if args.dmVar==True:
+if args.dmVar:
     parameters.append("log(A_dm)")
     parameters.append("gam_dm")
 for ii in range(len(systems)):
     parameters.append('EFAC_'+systems.keys()[ii])
-if args.fullN==True:
+if args.fullN:
     for ii in range(len(systems)):
         parameters.append('EQUAD_'+systems.keys()[ii])
 
@@ -477,19 +504,19 @@ if rank == 0:
 if rank == 0:
     os.system('say -v Victoria \'Engage N X zero 1!\' ')
 
-if args.ptmcmc==True:
+if args.ptmcmc:
     
     x0 = np.array([-15.0,2.0])
     cov_diag = np.array([0.5,0.5])
     
-    if args.dmVar==True:
+    if args.dmVar:
         x0 = np.append(x0,np.array([-15.0,2.0]))
         cov_diag = np.append(cov_diag,np.array([0.5,0.5]))
 
     x0 = np.append(x0,np.random.uniform(0.75,1.25,len(systems)))
     cov_diag = np.append(cov_diag,0.5*np.ones(len(systems)))
 
-    if args.fullN==True:
+    if args.fullN:
         x0 = np.append(x0,np.random.uniform(-10.0,-5.0,len(systems)))
         cov_diag = np.append(cov_diag,0.5*np.ones(len(systems)))
         if len(psr.sysflagdict['nano-f'].keys())>0:
@@ -500,8 +527,10 @@ if args.ptmcmc==True:
         print "\n Your initial parameters are {0}\n".format(x0)
 
 
-    sampler = PAL.PTSampler(ndim = n_params, logl = ln_prob1, logp = my_prior1, cov = np.diag(cov_diag),\
-                        outDir='./chains_{0}_{1}_{2}'.format(psr.name,'red'+args.redamp_prior,'ptmcmc'), resume = False)
+    sampler = PAL.PTSampler(ndim = n_params, logl = ln_prob1,
+                            logp = my_prior1, cov = np.diag(cov_diag),
+                            outDir='./chains_{0}_{1}_{2}'.format(psr.name,'red'+args.redamp_prior,'ptmcmc'),
+                            resume = False)
 
     def drawFromRedNoisePrior(parameters, iter, beta):
 
@@ -590,7 +619,11 @@ else:
     if not os.path.exists('chains_{0}_{1}'.format(psr.name,'mnest')):
         os.makedirs('chains_{0}_{1}'.format(psr.name,'mnest'))
     
-    pymultinest.run(ln_prob2, my_prior2, n_params, importance_nested_sampling = False, resume = False, verbose = True, 
-                    n_live_points=500, outputfiles_basename=u'chains_{0}_{1}/{0}_'.format(psr.name,'Mnest'), 
-                    sampling_efficiency=0.8,const_efficiency_mode=False)
+    pymultinest.run(ln_prob2, my_prior2, n_params,
+                    importance_nested_sampling = False,
+                    resume = False, verbose = True, 
+                    n_live_points=500,
+                    outputfiles_basename=u'chains_{0}_{1}/{0}_'.format(psr.name,'Mnest'), 
+                    sampling_efficiency=0.8,
+                    const_efficiency_mode=False)
 

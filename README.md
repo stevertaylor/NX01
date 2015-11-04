@@ -24,3 +24,10 @@ information in the pulsar class. Useful for storing array products.
 * **NX01_jitter.pxy**: cython code to perform Sherman-Morrison
   block noise-matrix inversions when handling ECORR (jitter). 
 * **NX01_bayesutils.py**: utilities file for generating plotting data.
+
+## Single-pulsar noise analysis
+
+It should be straightforward to perform a single-pulsar noise analysis
+out of the box. One thing to note is to make sure you have
+correctly updated your tempo2 clock files with files packaged with
+the NANOGrav data download.
