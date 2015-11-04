@@ -25,6 +25,12 @@ information in the pulsar class. Useful for storing array products.
   block noise-matrix inversions when handling ECORR (jitter). 
 * **NX01_bayesutils.py**: utilities file for generating plotting data.
 
+## Preliminaries
+
+It is recommended that you initially open and follow the steps in the
+`nanograv_pulsar_store.ipynb` notebook, and produce your own
+`PsrListings_GWB.txt` and `PsrListings_CW.txt`.
+
 ## Single-pulsar noise analysis
 
 It should be straightforward to perform a single-pulsar noise analysis
@@ -38,3 +44,11 @@ python NX01_singlePsr.py --help
 ```
 
 for a list of all options.
+
+An example run command would be:
+```
+python NX01_singlePsr.py
+--parfile=./NANOGrav_9y/par/J1713+0747_NANOGrav_9yv1.t2.gls.strip.par
+--timfile=./NANOGrav_9y/tim/J1713+0747_NANOGrav_9yv1.tim
+--efacequad-sysflag=f --fullN --ptmcmc
+```
