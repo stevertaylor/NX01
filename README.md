@@ -28,8 +28,21 @@ information in the pulsar class. Useful for storing array products.
 ## Preliminaries
 
 It is recommended that you initially open and follow the steps in the
-`nanograv_pulsar_store.ipynb` notebook, and produce your own
-`PsrListings_GWB.txt` and `PsrListings_CW.txt`.
+`nanograv-pulsar-store.ipynb` notebook, and produce your own
+`PsrListings_GWB.txt` and `PsrListings_CW.txt`. These latter files are
+lists of pulsars in the order with which they contribute to the
+stochastic background upper limit (`_GWB.txt`) and the single-source
+SNR (`_CW.txt`). Each pulsar is associated with a path to an hdf5 file
+(storing all pulsar properties), parfile, and timfile.
+
+By following the steps in the notebook (only up until the
+cross-validation plotting between NX01 and PAL2) you will produce your
+own hdf5 files, which you should put in a directory of your
+choice. These hdf5 files will store everything you need for subsequent
+GW searches. Another important step in the notebook is to produce par
+files which are stripped of tempo2 EFAC, EQUAD, ECORR, RedAmp, and
+RedInd values. These values are replaced by mean values from Justin's
+previous single-pulsar analyses.
 
 ## Single-pulsar noise analysis
 
