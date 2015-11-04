@@ -79,10 +79,10 @@ def masterSplitParams(xx, npsr, dmVar, fix_slope,
     
             orf_coeffs = xx[param_ct:param_ct+num_anis_params]
 
-    #####################################
-    # Remaining parameters are for a CGW
+    #####################################################
+    # Remaining parameters are for a deterministic signal
     param_ct += num_anis_params
-    #####################################
+    #####################################################
 
     if dmVar==True:
         
