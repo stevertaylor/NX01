@@ -350,7 +350,7 @@ if args.incGWB:
     if args.incCorr:
         pmax = np.append(pmax,10.0*np.ones(num_anis_params))
 if args.cgw_search:
-    pmax = np.append(pmax,np.array([10.0,1.0,4.0,-6.5,
+    pmax = np.append(pmax,np.array([10.0,1.0,4.0,-7.0,
                                     2.0*np.pi,1.0,1.0,np.pi,np.pi,2.0*np.pi]))
     if args.ecc_search:
         pmax = np.append(pmax,0.9)
