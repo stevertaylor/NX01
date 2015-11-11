@@ -451,6 +451,18 @@ if not args.mnest:
     dir_name = './chains_nanoAnalysis/nano_singlePsr/'+file_tag+'_ptmcmc'
     if not os.path.exists(dir_name):
         os.makedirs(dir_name)
+
+    if rank == 0:
+
+        # Printing out the list of searched parameters
+        fil = open(dir_name+'/parameter_list.txt','w')
+        for ii,parm in enumerate(parameters):
+            print >>fil, ii, parm
+        fil.close()
+
+        # Saving command-line arguments to file
+        with open(dir_name+'/run_args.json', 'w') as fp:
+            json.dump(vars(args), fp)
     
     sampler = PAL.PTSampler(ndim = n_params, logl = ln_prob,
                             logp = my_prior, cov = np.diag(cov_diag),
