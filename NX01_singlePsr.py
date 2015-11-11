@@ -485,6 +485,34 @@ if not args.mnest:
         
         return q, qxy
 
+    def drawFromDMNoisePrior(parameters, iter, beta):
+
+        # post-jump parameters
+        q = parameters.copy()
+
+        # transition probability
+        qxy = 0
+
+        # log prior
+        if args.dmamp_prior == 'loguniform':
+            
+            q[2] = np.random.uniform(pmin[2], pmax[2])
+            qxy += 0
+
+        elif args.dmamp_prior == 'uniform':
+            
+            q[2] = np.random.uniform(pmin[2], pmax[2])
+            qxy += 0
+
+            #Ared = np.log10(np.random.uniform(10 ** Ared_ll, 10 ** Ared_ul, len(Ared)))
+            #qxy += np.log(10 ** parameters[parind] / 10 ** q[parind])
+
+        q[3] = np.random.uniform(pmin[3], pmax[3])
+    
+        qxy += 0
+        
+        return q, qxy
+
     def drawFromEquadPrior(parameters, iter, beta):
 
         # post-jump parameters
