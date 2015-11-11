@@ -1078,6 +1078,8 @@ def bwmsignal(parameters, psr, antennaPattern='quad'):
     if antennaPattern == 'quad':
         pol = BWMantennaPattern(psr.psr_locs[0].flatten(), psr.psr_locs[1].flatten(),
                             gwphi, gwdec, gwpol)
+    elif antennaPattern == 'mono'
+        pol = 1.0
 
     # Define the heaviside function
     heaviside = lambda x: 0.5 * (np.sign(x) + 1)
