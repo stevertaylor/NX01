@@ -1071,15 +1071,19 @@ def bwmsignal(parameters, psr, antennaPattern='quad'):
     t = timestamps where the waveform should be returned
     returns the waveform as induced timing residuals (seconds)
     """
+    
     gwphi = np.array([parameters[2]])
     gwdec = np.array([np.pi/2-np.arccos(parameters[3])])
     gwpol = np.array([parameters[4]])
 
     if antennaPattern == 'quad':
         pol = BWMantennaPattern(psr.psr_locs[0].flatten(), psr.psr_locs[1].flatten(),
-                            gwphi, gwdec, gwpol)
+                                gwphi, gwdec, gwpol)
     elif antennaPattern == 'mono'
         pol = 1.0
+    elif antennaPattern == 'absQuad'
+        pol = np.absolute(BWMantennaPattern(psr.psr_locs[0].flatten(), psr.psr_locs[1].flatten(),
+                                       gwphi, gwdec, gwpol))
 
     # Define the heaviside function
     heaviside = lambda x: 0.5 * (np.sign(x) + 1)

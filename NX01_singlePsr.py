@@ -43,7 +43,7 @@ from mpi4py import MPI
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 
-parser = optparse.OptionParser(description = 'NX01 - Precursor to the PANTHER Group ENTERPRISE project')
+parser = optparse.OptionParser(description = "NX01 - It's been a long road, getting from there to here")
 
 ############################
 ############################
@@ -68,10 +68,42 @@ parser.add_option('--fullN', dest='fullN', action='store_true', default=False,
                    help='Search for EFAC/EQUAD/ECORR over all systems (True), or just apply a GEFAC (False)? (default=False)')
 parser.add_option('--jitterbin', dest='jitterbin', action='store', type=float, default=1.0,
                    help='What time duration do you want a jitter bin to be? (default = 1.0)')
-parser.add_option('--ptmcmc', dest='ptmcmc', action='store_true', default=False,
-                   help='Sample using PAL2 parallel tempering MCMC ? (default=False)')
+parser.add_option('--mnest', dest='mnest', action='store_true', default=False,
+                   help='Do you want to sample using MultiNest? (default=False)')
 
 (args, x) = parser.parse_args()
+
+header = """\
+
+        
+ /$$   /$$ /$$   /$$  /$$$$$$    /$$  
+| $$$ | $$| $$  / $$ /$$$_  $$ /$$$$      ________________        _
+| $$$$| $$|  $$/ $$/| $$$$\ $$|_  $$      \__(=======/_=_/____.--'-`--.___
+| $$ $$ $$ \  $$$$/ | $$ $$ $$  | $$                \ \   `,--,-.___.----'
+| $$  $$$$  >$$  $$ | $$\ $$$$  | $$              .--`\\--'../
+| $$\  $$$ /$$/\  $$| $$ \ $$$  | $$             '---._____.|]
+| $$ \  $$| $$  \ $$|  $$$$$$/ /$$$$$$
+|__/  \__/|__/  |__/ \______/ |______/
+
+____    ____  ______    __    __      __    __       ___   ____    ____  _______    
+\   \  /   / /  __  \  |  |  |  |    |  |  |  |     /   \  \   \  /   / |   ____|   
+ \   \/   / |  |  |  | |  |  |  |    |  |__|  |    /  ^  \  \   \/   /  |  |__      
+  \_    _/  |  |  |  | |  |  |  |    |   __   |   /  /_\  \  \      /   |   __|     
+    |  |    |  `--'  | |  `--'  |    |  |  |  |  /  _____  \  \    /    |  |____    
+    |__|     \______/   \______/     |__|  |__| /__/     \__\  \__/     |_______|   
+                                                                                    
+.___________. __    __   _______      ______   ______   .__   __. .__   __.         
+|           ||  |  |  | |   ____|    /      | /  __  \  |  \ |  | |  \ |  |         
+`---|  |----`|  |__|  | |  |__      |  ,----'|  |  |  | |   \|  | |   \|  |         
+    |  |     |   __   | |   __|     |  |     |  |  |  | |  . `  | |  . `  |         
+    |  |     |  |  |  | |  |____    |  `----.|  `--'  | |  |\   | |  |\   |         
+    |__|     |__|  |__| |_______|    \______| \______/  |__| \__| |__| \__|         
+                                                                                    
+    """
+if rank == 0:
+    print header
+
+    
 
 if args.nmodes:
     print ("\n You've given me the number of frequencies",
@@ -80,14 +112,15 @@ else:
     print ("\n You've given me the sampling cadence for the observations,",
            "which determines the upper frequency limit and the number of modes, got it?\n")
 
-if args.ptmcmc==True:
-    import PALInferencePTMCMC as PAL
-else:
-    import pymultinest
 
-################################################################################################################################
+if args.mnest:
+    import pymultinest
+else:
+    import PALInferencePTMCMC as PAL
+    
+#####################################################################
 # PASSING THROUGH TEMPO2 VIA libstempo
-################################################################################################################################
+#####################################################################
 t2psr = T2.tempopulsar(parfile=args.parfile, timfile=args.timfile)
 t2psr.fit(iters=10)
 if np.any(np.isfinite(t2psr.residuals())==False)==True:
@@ -96,9 +129,9 @@ if np.any(np.isfinite(t2psr.residuals())==False)==True:
 psr = NX01_psr.PsrObj(t2psr)
 psr.grab_all_vars(jitterbin=args.jitterbin)
 
-################################################################################################################################
+#############################################################################
 # GETTING MAXIMUM TIME, COMPUTING FOURIER DESIGN MATRICES, AND GETTING MODES 
-################################################################################################################################
+#############################################################################
 
 Tmax = psr.toas.max() - psr.toas.min()
 
@@ -148,38 +181,18 @@ if args.fullN:
 # PRIOR AND LIKELIHOOD
 ################################################################################################################################
 
-def my_prior1(x):
+def my_prior(xx):
+    
     logp = 0.
     
-    if np.all(x <= pmax) and np.all(x >= pmin):
+    if np.all(xx <= pmax) and np.all(xx >= pmin):
         logp = np.sum(np.log(1/(pmax-pmin)))
     else:
         logp = -np.inf
     
     return logp
-
-def my_prior2(cube, ndim, nparams):
-    cube[0] = -20.0 + cube[0]*9.0
-    cube[1] = cube[1]*7.0
-
-    ct = 2
-    if args.dmVar:
-        cube[ct] = -20.0 + cube[ct]*12.0
-        cube[ct+1] = cube[ct+1]*7.0
-        ct = 4
-
-    for ii in range(ct,ct+len(systems)):
-        cube[ii] = 0.001 + cube[ii]*9.999
-    if args.fullN:
-        for ii in range(ct+len(systems),ct+2*len(systems)):
-            cube[ii] = -10.0 + cube[ii]*5.0
-        for ii in range(ct+2*len(systems),nparams):
-            cube[ii] = -8.5 + cube[ii]*3.5
-
-#######################
-#######################
-            
-def ln_prob1(xx):
+          
+def ln_prob(xx):
     
     Ared = 10.0**xx[0]
     gam_red = xx[1]
@@ -326,154 +339,6 @@ def ln_prob1(xx):
     return logLike + prior_fac
 
 
-def ln_prob2(cube, ndim, nparams):
-
-    cube = np.array([cube[ii] for ii in range(nparams)])
-    xx = cube
-
-    Ared = 10.0**xx[0]
-    gam_red = xx[1]
-
-    ct = 2
-    if args.dmVar==True:
-        Adm = 10.0**xx[ct]
-        gam_dm = xx[ct+1]
-
-        ct = 4
-
-    EFAC = xx[ct:ct+len(systems)]
-    if args.fullN: 
-        EQUAD = 10.0**xx[ct+len(systems):ct+2*len(systems)]
-        ECORR = 10.0**xx[ct+2*len(systems):]
-
-    loglike1 = 0
-
-    ####################################
-    ####################################
-    scaled_err = (psr.toaerrs).copy()
-    for jj,sysname in enumerate(systems):
-        scaled_err[systems[sysname]] *= EFAC[jj] 
-    ###
-    white_noise = np.zeros(len(scaled_err))
-    if args.fullN:
-        white_noise = np.ones(len(scaled_err))
-        for jj,sysname in enumerate(systems):
-            white_noise[systems[sysname]] *= EQUAD[jj]
-    
-    new_err = np.sqrt( scaled_err**2.0 + white_noise**2.0 )
-    ########
-
-    # compute ( T.T * N^-1 * T ) & log determinant of N
-    if args.fullN:
-        if len(ECORR)>0:
-            Jamp = np.ones(len(psr.epflags))
-            for jj,nano_sysname in enumerate(psr.sysflagdict['nano-f'].keys()):
-                Jamp[np.where(psr.epflags==nano_sysname)] *= ECORR[jj]**2.0
-
-            Nx = jitter.cython_block_shermor_0D(psr.res, new_err**2.,
-                                                Jamp, psr.Uinds)
-            d = np.dot(psr.Te.T, Nx)
-            logdet_N, TtNT = \
-              jitter.cython_block_shermor_2D(psr.Te, new_err**2.,
-                                             Jamp, psr.Uinds)
-            det_dummy, dtNdt = \
-              jitter.cython_block_shermor_1D(psr.res, new_err**2.,
-                                             Jamp, psr.Uinds)
-        else:
-            d = np.dot(psr.Te.T, psr.res/( new_err**2.0 ))
-        
-            N = 1./( new_err**2.0 )
-            right = (N*psr.Te.T).T
-            TtNT = np.dot(psr.Te.T, right)
-    
-            logdet_N = np.sum(np.log( new_err**2.0 ))
-        
-            # triple product in likelihood function
-            dtNdt = np.sum(psr.res**2.0/( new_err**2.0 ))
-        
-    else:
-
-        d = np.dot(psr.Te.T, psr.res/( new_err**2.0 ))
-        
-        N = 1./( new_err**2.0 )
-        right = (N*psr.Te.T).T
-        TtNT = np.dot(psr.Te.T, right)
-
-        logdet_N = np.sum(np.log( new_err**2.0 ))
-        
-        # triple product in likelihood function
-        dtNdt = np.sum(psr.res**2.0/( new_err**2.0 ))
-
-    loglike1 += -0.5 * (logdet_N + dtNdt)
-    ####################################
-    ####################################
-    
-    # parameterize intrinsic red noise as power law
-    Tspan = (1/fqs[0])*86400.0
-    f1yr = 1/3.16e7
-
-    # parameterize intrinsic red-noise and DM-variations as power law
-    if args.dmVar:
-        kappa = np.log10( np.append( Ared**2/12/np.pi**2 * \
-                                     f1yr**(gam_red-3) *\
-                                      (fqs/86400.0)**(-gam_red)/Tspan,
-                                    Adm**2/12/np.pi**2 * \
-                                    f1yr**(gam_dm-3) * \
-                                    (fqs/86400.0)**(-gam_dm)/Tspan ) )
-    else:
-        kappa = np.log10( Ared**2/12/np.pi**2 * \
-                          f1yr**(gam_red-3) * \
-                          (fqs/86400.0)**(-gam_red)/Tspan )
-
-    # construct elements of sigma array
-    if args.dmVar:
-        mode_count = 4*nmode
-    else:
-        mode_count = 2*nmode
-
-    diagonal = np.zeros(mode_count)
-    diagonal[0::2] =  10**kappa
-    diagonal[1::2] = 10**kappa
-
-    # compute Phi inverse 
-    red_phi = np.diag(1./diagonal)
-    logdet_Phi = np.sum(np.log( diagonal ))
-  
-    # now fill in real covariance matrix
-    Phi = np.zeros( TtNT.shape )
-    for kk in range(0,mode_count):
-        Phi[kk+psr.Gc.shape[1],kk+psr.Gc.shape[1]] = red_phi[kk,kk]
-
-    # symmeterize Phi
-    Phi = Phi + Phi.T - np.diag(np.diag(Phi))
-    
-    # compute sigma
-    Sigma = TtNT + Phi
-     
-    # cholesky decomp for second term in exponential
-    try:
-        cf = sl.cho_factor(Sigma)
-        expval2 = sl.cho_solve(cf, d)
-        logdet_Sigma = np.sum(2*np.log(np.diag(cf[0])))
-
-    except np.linalg.LinAlgError:
-        print 'Cholesky Decomposition Failed second time!! Using SVD instead'
-        u,s,v = sl.svd(Sigma)
-        expval2 = np.dot(v.T, 1/s*np.dot(u.T, d))
-        logdet_Sigma = np.sum(np.log(s))
-
-
-    logLike = -0.5 * (logdet_Phi + logdet_Sigma) + \
-      0.5 * (np.dot(d, expval2)) + loglike1
-
-    prior_fac = 0.0
-    if args.redamp_prior == 'uniform':
-        prior_fac += np.log(Ared * np.log(10.0))
-    if (args.dmVar==True) and (args.dmamp_prior == 'uniform'):
-        prior_fac += np.log(Adm * np.log(10.0))
-    
-    return logLike + prior_fac
-
 #########################
 #########################
 
@@ -498,14 +363,70 @@ if rank == 0:
     print "\n You are searching for the following single-pulsar parameters: {0}\n".format(parameters)
     print "\n The total number of parameters is {0}\n".format(n_params)
 
-##################################
-# Now, we sample or maximize.....
-##################################
+
+# Define a unique file tag
+
+file_tag = 'nanograv_'+psr.name
+file_tag += '_red{0}'.format(args.redamp_prior)
+if args.dmVar:
+    file_tag += '_dm{0}'.format(args.dmamp_prior)
+file_tag += '_nmodes{1}'.format(args.nmodes)
+
+#####################
+# Now, we sample....
+#####################
 
 if rank == 0:
-    os.system('say -v Victoria \'Engage N X zero 1!\' ')
+    print "\n Now, we sample... \n"
+    print """\
+     _______ .__   __.   _______      ___       _______  _______  __  
+    |   ____||  \ |  |  /  _____|    /   \     /  _____||   ____||  | 
+    |  |__   |   \|  | |  |  __     /  ^  \   |  |  __  |  |__   |  | 
+    |   __|  |  . `  | |  | |_ |   /  /_\  \  |  | |_ | |   __|  |  | 
+    |  |____ |  |\   | |  |__| |  /  _____  \ |  |__| | |  |____ |__| 
+    |_______||__| \__|  \______| /__/     \__\ \______| |_______|(__) 
+    
+    """
 
-if args.ptmcmc:
+###########################
+# Define function wrappers
+###########################
+
+if args.mnest:
+
+    dir_name = './chains_nanoAnalysis/nano_singlePsr/'+file_tag+'_mnest'
+    if not os.path.exists(dir_name):
+        os.makedirs(dir_name)
+
+    if rank == 0:
+
+        # Printing out the list of searched parameters
+        fil = open(dir_name+'/parameter_list.txt','w')
+        for ii,parm in enumerate(parameters):
+            print >>fil, ii, parm
+        fil.close()
+
+        # Saving command-line arguments to file
+        with open(dir_name+'/run_args.json', 'w') as fp:
+            json.dump(vars(args), fp)
+
+    def prior_func(xx,ndim,nparams):
+        for ii in range(nparams):
+            xx[ii] = pmin[ii] + xx[ii]*(pmax[ii]-pmin[ii])
+            
+    def like_func(xx,ndim,nparams):
+        xx = np.array([xx[ii] for ii in range(nparams)])
+        return lnprob(xx)        
+    
+    pymultinest.run(like_func, prior_func, n_params,
+                    importance_nested_sampling = False,
+                    resume = False, verbose = True, 
+                    n_live_points=500,
+                    outputfiles_basename=u'{0}/mnest_'.format(dir_name), 
+                    sampling_efficiency=0.3,
+                    const_efficiency_mode=False)
+
+if not args.mnest:
     
     x0 = np.array([-15.0,2.0])
     cov_diag = np.array([0.5,0.5])
@@ -527,10 +448,13 @@ if args.ptmcmc:
     if rank == 0:
         print "\n Your initial parameters are {0}\n".format(x0)
 
-
-    sampler = PAL.PTSampler(ndim = n_params, logl = ln_prob1,
-                            logp = my_prior1, cov = np.diag(cov_diag),
-                            outDir='./chains_{0}_{1}_{2}'.format(psr.name,'red'+args.redamp_prior,'ptmcmc'),
+    dir_name = './chains_nanoAnalysis/nano_singlePsr/'+file_tag+'_ptmcmc'
+    if not os.path.exists(dir_name):
+        os.makedirs(dir_name)
+    
+    sampler = PAL.PTSampler(ndim = n_params, logl = ln_prob,
+                            logp = my_prior, cov = np.diag(cov_diag),
+                            outDir='./{0}'.format(dir_name),
                             resume = False)
 
     def drawFromRedNoisePrior(parameters, iter, beta):
@@ -615,16 +539,3 @@ if args.ptmcmc:
     sampler.sample(p0=x0, Niter=1e6, thin=10,
                    covUpdate=1000, AMweight=15,
                    SCAMweight=30, DEweight=50, KDEweight=0)
-else:
-
-    if not os.path.exists('chains_{0}_{1}'.format(psr.name,'mnest')):
-        os.makedirs('chains_{0}_{1}'.format(psr.name,'mnest'))
-    
-    pymultinest.run(ln_prob2, my_prior2, n_params,
-                    importance_nested_sampling = False,
-                    resume = False, verbose = True, 
-                    n_live_points=500,
-                    outputfiles_basename=u'chains_{0}_{1}/{0}_'.format(psr.name,'Mnest'), 
-                    sampling_efficiency=0.8,
-                    const_efficiency_mode=False)
-
