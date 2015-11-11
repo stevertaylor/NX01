@@ -1033,6 +1033,7 @@ if args.mnest:
             print >>fil, ii, parm
         fil.close()
 
+        # Saving command-line arguments to file
         with open(dir_name+'/run_args.json', 'w') as fp:
             json.dump(vars(args), fp)
 
@@ -1128,6 +1129,7 @@ if not args.mnest:
             print >>fil, ii, parm
         fil.close()
 
+        # Saving command-line arguments to file
         with open('./chains_nanoAnalysis/'+file_tag+'/run_args.json', 'w') as fp:
             json.dump(vars(args), fp)
 
