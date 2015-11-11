@@ -558,12 +558,12 @@ if not args.mnest:
 
     # add jump proposals
     sampler.addProposalToCycle(drawFromRedNoisePrior, 10)
+    if args.dmVar:
+        sampler.addProposalToCycle(drawFromDMNoisePrior, 10)
     sampler.addProposalToCycle(drawFromEquadPrior, 10)
     if (args.fullN==True) and (len(psr.sysflagdict['nano-f'].keys())>0):
         sampler.addProposalToCycle(drawFromEcorrPrior, 10)
-    #if args.incDMBand and args.dmModel=='powerlaw':
-    #    sampler.addProposalToCycle(model.drawFromDMNoiseBandPrior, 5)
-
+    
     sampler.sample(p0=x0, Niter=1e6, thin=10,
                    covUpdate=1000, AMweight=15,
                    SCAMweight=30, DEweight=50, KDEweight=0)

@@ -1079,7 +1079,7 @@ def bwmsignal(parameters, psr, antennaPattern='quad'):
     if antennaPattern == 'quad':
         pol = BWMantennaPattern(psr.psr_locs[0].flatten(), psr.psr_locs[1].flatten(),
                                 gwphi, gwdec, gwpol)
-    elif antennaPattern == 'mono'
+    elif antennaPattern == 'mono':
         pol = 1.0
     elif antennaPattern == 'absQuad'
         pol = np.absolute(BWMantennaPattern(psr.psr_locs[0].flatten(), psr.psr_locs[1].flatten(),
