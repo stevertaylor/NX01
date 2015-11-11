@@ -1022,7 +1022,7 @@ def ecc_cgw_signal(psr, gwtheta, gwphi, mc, dist, F, inc, psi, gamma0,
     return rr
 
 
-def AntennaPattern(rajp, decjp, raj, decj, pol):
+def BWMantennaPattern(rajp, decjp, raj, decj, pol):
     """Return the antenna pattern for a given source position and
     pulsar position
     :param rajp:    Right ascension pulsar (rad) [0,2pi]
@@ -1053,7 +1053,7 @@ def AntennaPattern(rajp, decjp, raj, decj, pol):
     return np.cos(2*pol)*Fp + np.sin(2*pol)*Fc
 
 
-def bwmsignal(parameters, psr):
+def bwmsignal(parameters, psr, antennaPattern='quad'):
     """
     Function that calculates the earth-term gravitational-wave burst-with-memory
     signal, as described in:
@@ -1075,8 +1075,9 @@ def bwmsignal(parameters, psr):
     gwdec = np.array([np.pi/2-np.arccos(parameters[3])])
     gwpol = np.array([parameters[4]])
 
-    pol = AntennaPattern(psr.psr_locs[0].flatten(), psr.psr_locs[1].flatten(),
-                         gwphi, gwdec, gwpol)
+    if antennaPattern == 'quad':
+        pol = BWMantennaPattern(psr.psr_locs[0].flatten(), psr.psr_locs[1].flatten(),
+                            gwphi, gwdec, gwpol)
 
     # Define the heaviside function
     heaviside = lambda x: 0.5 * (np.sign(x) + 1)
