@@ -34,7 +34,7 @@ MPC2S = sc.parsec / sc.c * 1e6
 
 def masterSplitParams(xx, npsr, dmVar, fix_slope,
                       incGWB, incCorr,
-                      num_anis_params=0, propose=False):
+                      num_corr_params=0, propose=False):
     """
     Takes in a vector of search parameters and
     returns arrays of physical parameters.
@@ -58,7 +58,7 @@ def masterSplitParams(xx, npsr, dmVar, fix_slope,
         param_ct += 2*npsr
 
 
-    if incGWB==True:
+    if incGWB:
 
         #########################
         # GWB parameters
@@ -66,43 +66,43 @@ def masterSplitParams(xx, npsr, dmVar, fix_slope,
 
         Agwb = 10.0**xx[param_ct]
         param_ct += 1
-        if fix_slope==True:
+        if fix_slope:
             gam_gwb = 13./3
         else:
             gam_gwb = xx[param_ct]
             param_ct += 1
 
-        if incCorr==True:
+        if incCorr:
             #########################
             # Anisotropy parameters
             #########################
     
-            orf_coeffs = xx[param_ct:param_ct+num_anis_params]
+            orf_coeffs = xx[param_ct:param_ct+num_corr_params]
 
     #####################################################
     # Remaining parameters are for a deterministic signal
-    param_ct += num_anis_params
+    param_ct += num_corr_params
     #####################################################
 
-    if dmVar==True:
+    if dmVar:
         
-        if propose==False:
-            if incGWB==True:
-                if incCorr==True:
+        if not propose:
+            if incGWB:
+                if incCorr:
                     return Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, orf_coeffs, param_ct
                 else:
                     return Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, param_ct
             else:
                 return Ared, gam_red, Adm, gam_dm, param_ct
         else:
-            if incGWB==True:
-                if incCorr==True:
-                    if fix_slope==False:
+            if incGWB:
+                if incCorr:
+                    if not fix_slope:
                         return Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, orf_coeffs
                     else:
                         return Ared, gam_red, Adm, gam_dm, Agwb, orf_coeffs
                 else:
-                    if fix_slope==False:
+                    if not fix_slope:
                         return Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb
                     else:
                         return Ared, gam_red, Adm, gam_dm, Agwb
@@ -111,23 +111,23 @@ def masterSplitParams(xx, npsr, dmVar, fix_slope,
                 
     else:
         
-        if propose==False:
-            if incGWB==True:
-                if incCorr==True:
+        if not propose:
+            if incGWB:
+                if incCorr:
                     return Ared, gam_red, Agwb, gam_gwb, orf_coeffs, param_ct
                 else:
                     return Ared, gam_red, Agwb, gam_gwb, param_ct
             else:
                 return Ared, gam_red, param_ct
         else:
-            if incGWB==True:
-                if incCorr==True:
-                    if fix_slope==False:
+            if incGWB:
+                if incCorr:
+                    if not fix_slope:
                         return Ared, gam_red, Agwb, gam_gwb, orf_coeffs
                     else:
                         return Ared, gam_red, Agwb, orf_coeffs
                 else:
-                    if fix_slope==False:
+                    if not fix_slope:
                         return Ared, gam_red, Agwb, gam_gwb
                     else:
                         return Ared, gam_red, Agwb
@@ -148,11 +148,11 @@ def sumTermCovarianceMatrix_fast(tm, fL, gam):
     @param fL: Low frequency cutoff
     @param gam: Power Law spectral index
     """
-    ########
+    
     x = 2*np.pi*fL*tm
-    ########
+
     sum = ne.evaluate("1/(1-gam) - x**2/(2*(3-gam)) + x**4/(24*(5-gam))")
-    ########
+
     return sum
 
 
@@ -170,9 +170,10 @@ def makeRedTDcov(Ared, gam_red, tm):
     fL = 1/(100.0*Tspan)
     xgrid = 2.0*np.pi*fL*tm
     
-    Cred = (( (Ared**2.0)*(fL**(1.0-gam_red)) / (12.0*np.pi**2.0) ) *
-            ((ss.gamma(1.0-gam_red)*np.sin(np.pi*gam_red/2.)*ne.evaluate("xgrid**(gam_red-1.0)"))
-             - sumTermCovarianceMatrix_fast(tm, fL, gam_red)))
+    Cred = ( (Ared**2.0)*(fL**(1.0-gam_red)) / (12.0*np.pi**2.0) ) * \
+      ((ss.gamma(1.0-gam_red)*np.sin(np.pi*gam_red/2.)*ne.evaluate("xgrid**(gam_red-1.0)"))
+       - sumTermCovarianceMatrix_fast(tm, fL, gam_red))
+
     Cred *= ((365.25*86400.0)**2.0)
 
     return Cred
@@ -189,9 +190,10 @@ def makeDmTDcov(psr, Adm, gam_dm, tm):
     DmA,DmB = np.meshgrid(Dm,Dm)
     DmGrid = DmA*DmB
    
-    Cdm = (( (Adm**2.0)*(fL**(1.0-gam_dm)) / (12.0*np.pi**2.0) ) *
-           ((ss.gamma(1-gam_dm)*np.sin(np.pi*gam_dm/2)*ne.evaluate("xgrid**(gam_dm-1)"))
-             - sumTermCovarianceMatrix_fast(tm, fL, gam_dm)))
+    Cdm = ( (Adm**2.0)*(fL**(1.0-gam_dm)) / (12.0*np.pi**2.0) ) * \
+      ((ss.gamma(1-gam_dm)*np.sin(np.pi*gam_dm/2)*ne.evaluate("xgrid**(gam_dm-1)"))
+       - sumTermCovarianceMatrix_fast(tm, fL, gam_dm))
+
     Cdm *= ((365.25*86400.0)**2.0)
     Cdm = np.multiply(DmGrid,Cdm)
 
@@ -1062,7 +1064,7 @@ def bwmsignal(parameters, psr):
     parameter[0] = TOA time (MJD) the burst hits the earth
     parameter[1] = amplitude of the burst (strain h)
     parameter[2] = azimuthal angle (rad)    [0, 2pi]
-    parameter[3] = polar angle (rad)        [0, pi]
+    parameter[3] = cosine polar angle (rad) [-1, 1]
     parameter[4] = polarisation angle (rad) [0, pi]
     raj = Right Ascension of the pulsar (rad)
     decj = Declination of the pulsar (rad)
@@ -1070,7 +1072,7 @@ def bwmsignal(parameters, psr):
     returns the waveform as induced timing residuals (seconds)
     """
     gwphi = np.array([parameters[2]])
-    gwdec = np.array([np.pi/2-parameters[3]])
+    gwdec = np.array([np.pi/2-np.arccos(parameters[3])])
     gwpol = np.array([parameters[4]])
 
     pol = AntennaPattern(psr.psr_locs[0].flatten(), psr.psr_locs[1].flatten(),
@@ -1118,8 +1120,9 @@ def bwmsignal_psr(parameters, t):
 def real_sph_harm(ll, mm, phi, theta):
     """
     The real-valued spherical harmonics
-    ADAPTED FROM vH piccard CODE
+    (adapted from van Haasteren's piccard code)
     """
+    
     if mm>0:
         ans = (1./math.sqrt(2)) * \
                 (ss.sph_harm(mm, ll, phi, theta) + \
@@ -1140,6 +1143,7 @@ def SetupPriorSkyGrid(lmax):
     angular-distribution of the metric-perturbation quadratic
     expectation-value.
     """
+    
     ngrid_phi = 40
     ngrid_costheta = 40
     
@@ -1183,7 +1187,8 @@ def SetupSkymapPlottingGrid(lmax,skypos):
     harmvals = [[0.0]*(2*ll+1) for ll in range(lmax+1)]
     for ll in range(len(harmvals)):
         for mm in range(len(harmvals[ll])):
-            harmvals[ll][mm] = real_sph_harm(ll,mm-ll,skypos[:,1],skypos[:,0])
+            harmvals[ll][mm] = real_sph_harm(ll,mm-ll,
+                                             skypos[:,1],skypos[:,0])
 
     return harmvals
 
@@ -1234,16 +1239,17 @@ def singlePsrLL(psr, Amp=5e-14, gam_gwb=13./3.):
     return like
 
 def sigma_gwRMS(psr):
-    '''
+    """
      Formula by van Haasteren & Levin (2013, equation 24)
      sigma_gwb = 1.37e-9 * (Ah / 1e-15) * (T / yr) ^ (5/3)
      At the minute only applicable for gamma=13/3
-    '''
+    """
     
     gwbvar = np.absolute(np.var(psr.res)-psr.toaerrs[0]*psr.toaerrs[0])
     gwbstd = np.sqrt(gwbvar)
 
     Tspan = np.max((psr.toas).max() - (psr.toas).min()) * day
+    
     return (gwbstd / 1.37e-9) * 1e-15 / ((Tspan / year) ** (5.0/3.0))
 
 def optStat(psr, GCGnoiseInv, ORF, gam_gwb=4.33333):
@@ -1275,8 +1281,12 @@ def optStat(psr, GCGnoiseInv, ORF, gam_gwb=4.33333):
             G_SIJ_G = np.dot(psr[ll].G.T, np.dot(SIJ, psr[kk].G))
 
             # construct numerator and denominator of optimal statistic
-            tmp_bot = np.trace(np.dot(GCGnoiseInv[ll], np.dot(G_SIJ_G, np.dot(GCGnoiseInv[kk], G_SIJ_G.T))))
-            tmp_top = np.dot(psr[ll].Gres, np.dot(GCGnoiseInv[ll], np.dot(G_SIJ_G, np.dot(GCGnoiseInv[kk], psr[kk].Gres))))
+            tmp_bot = np.trace(np.dot(GCGnoiseInv[ll],
+                                      np.dot(G_SIJ_G, np.dot(GCGnoiseInv[kk],
+                                                             G_SIJ_G.T))))
+            tmp_top = np.dot(psr[ll].Gres, np.dot(GCGnoiseInv[ll],
+                                                  np.dot(G_SIJ_G, np.dot(GCGnoiseInv[kk],
+                                                                         psr[kk].Gres))))
             
             bot += tmp_bot
             top += tmp_top
@@ -1321,7 +1331,8 @@ def TFoptStat(psr, fqs, Tspan, F, GCGnoiseInv, ORF, gam_gwb=4.33333):
     for ll in range(len(psr)):
         for kk in range(ll+1, len(psr)):
 
-            phi = np.append( 1.0/12/np.pi**2 * f1yr**(gam_gwb-3) * (fqs/86400.0)**(-gam_gwb)/Tspan, np.zeros(len(fqs)) )
+            phi = np.append( 1.0/12/np.pi**2 * f1yr**(gam_gwb-3) * \
+                             (fqs/86400.0)**(-gam_gwb)/Tspan, np.zeros(len(fqs)) )
 
             phi_signal = np.zeros(4*nmodes)
             phi_signal[0::2] = phi
@@ -1332,8 +1343,13 @@ def TFoptStat(psr, fqs, Tspan, F, GCGnoiseInv, ORF, gam_gwb=4.33333):
             G_SIJ_G = np.dot(psr[ll].G.T, np.dot(SIJ, psr[kk].G))
 
             # construct numerator and denominator of optimal statistic
-            tmp_bot = np.trace(np.dot(GCGnoiseInv[ll], np.dot(G_SIJ_G, np.dot(GCGnoiseInv[kk], G_SIJ_G.T))))
-            tmp_top = np.dot(psr[ll].Gres, np.dot(GCGnoiseInv[ll], np.dot(G_SIJ_G, np.dot(GCGnoiseInv[kk], psr[kk].Gres))))
+            tmp_bot = np.trace(np.dot(GCGnoiseInv[ll],
+                                      np.dot(G_SIJ_G, np.dot(GCGnoiseInv[kk],
+                                                             G_SIJ_G.T))))
+            tmp_top = np.dot(psr[ll].Gres,
+                             np.dot(GCGnoiseInv[ll],
+                                    np.dot(G_SIJ_G, np.dot(GCGnoiseInv[kk],
+                                                           psr[kk].Gres))))
             
             bot += tmp_bot
             top += tmp_top
@@ -1377,8 +1393,12 @@ def AnisOptStat(psr, GCGnoiseInv, CorrCoeff, lmax, gam_gwb=4.33333):
             G_SIJ_G = np.dot(psr[ll].G.T, np.dot(SIJ, psr[kk].G))
 
             # construct numerator and denominator of optimal statistic
-            weight[ll,kk] = np.trace(np.dot(GCGnoiseInv[ll], np.dot(G_SIJ_G, np.dot(GCGnoiseInv[kk], G_SIJ_G.T)))) 
-            amp[ll,kk] = np.dot(psr[ll].Gres, np.dot(GCGnoiseInv[ll], np.dot(G_SIJ_G, np.dot(GCGnoiseInv[kk], psr[kk].Gres))))   
+            weight[ll,kk] = np.trace(np.dot(GCGnoiseInv[ll],
+                                            np.dot(G_SIJ_G, np.dot(GCGnoiseInv[kk],
+                                                                   G_SIJ_G.T)))) 
+            amp[ll,kk] = np.dot(psr[ll].Gres,
+                                np.dot(GCGnoiseInv[ll], np.dot(G_SIJ_G,
+                                                               np.dot(GCGnoiseInv[kk], psr[kk].Gres))))   
 
     
     X = np.array([np.multiply(CorrCoeff[ii],amp) for ii in range(len(CorrCoeff))])

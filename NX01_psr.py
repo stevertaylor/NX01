@@ -90,9 +90,11 @@ class PsrObj(object):
             if 'NANOGrav' in list(set(self.T2psr.flagvals('pta'))):
                 # now order everything
                 try:
-                    isort, iisort = utils.argsortTOAs(self.toas, self.T2psr.flagvals('group'), which='jitterext', dt=jitterbin/86400.)
+                    isort, iisort = utils.argsortTOAs(self.toas, self.T2psr.flagvals('group'),
+                                                      which='jitterext', dt=jitterbin/86400.)
                 except KeyError:
-                    isort, iisort = utils.argsortTOAs(self.toas, self.T2psr.flagvals('f'), which='jitterext', dt=jitterbin/86400.)
+                    isort, iisort = utils.argsortTOAs(self.toas, self.T2psr.flagvals('f'),
+                                                      which='jitterext', dt=jitterbin/86400.)
         
                 # sort data
                 self.toas = self.toas[isort]
@@ -113,7 +115,8 @@ class PsrObj(object):
                 epoch = '1950'
             else:
                 epoch = '2000'
-            coords = Equatorial(Ecliptic(str(self.T2psr['ELONG'].val*fac), str(self.T2psr['ELAT'].val*fac)), epoch=epoch)
+            coords = Equatorial(Ecliptic(str(self.T2psr['ELONG'].val*fac),
+                                         str(self.T2psr['ELAT'].val*fac)), epoch=epoch)
             self.psr_locs = [float(repr(coords.ra)),float(repr(coords.dec))]
 
         print "--> Grabbed the pulsar position."
@@ -131,7 +134,8 @@ class PsrObj(object):
                     sys_uflagvals = list(set(self.T2psr.flagvals(systm)))
                     self.sysflagdict[systm] = OrderedDict.fromkeys(sys_uflagvals)
                     for kk,subsys in enumerate(sys_uflagvals):
-                        self.sysflagdict[systm][subsys] = np.where(self.T2psr.flagvals(systm)[isort] == sys_uflagvals[kk])
+                        self.sysflagdict[systm][subsys] = \
+                          np.where(self.T2psr.flagvals(systm)[isort] == sys_uflagvals[kk])
             except KeyError:
                 pass
 
@@ -149,14 +153,16 @@ class PsrObj(object):
                     nano_flags = list(set(self.T2psr.flagvals('group')[pta_maskdict['NANOGrav']]))
                     nanoflagdict['nano-f'] = OrderedDict.fromkeys(nano_flags)
                     for kk,subsys in enumerate(nano_flags):
-                        nanoflagdict['nano-f'][subsys] = np.where(self.T2psr.flagvals('group')[isort] == nano_flags[kk])
+                        nanoflagdict['nano-f'][subsys] = \
+                          np.where(self.T2psr.flagvals('group')[isort] == nano_flags[kk])
                     self.sysflagdict.update(nanoflagdict)
                 except KeyError:
                     nanoflagdict = OrderedDict.fromkeys(['nano-f'])
                     nano_flags = list(set(self.T2psr.flagvals('f')[pta_maskdict['NANOGrav']]))
                     nanoflagdict['nano-f'] = OrderedDict.fromkeys(nano_flags)
                     for kk,subsys in enumerate(nano_flags):
-                        nanoflagdict['nano-f'][subsys] = np.where(self.T2psr.flagvals('f')[isort] == nano_flags[kk])
+                        nanoflagdict['nano-f'][subsys] = \
+                          np.where(self.T2psr.flagvals('f')[isort] == nano_flags[kk])
                     self.sysflagdict.update(nanoflagdict)
                     
         
@@ -175,10 +181,12 @@ class PsrObj(object):
             if 'NANOGrav' in pta_names:
                 # now order everything
                 try:
-                    #isort_b, iisort_b = utils.argsortTOAs(self.toas, self.T2psr.flagvals('group')[isort], which='jitterext', dt=jitterbin/86400.)
+                    #isort_b, iisort_b = utils.argsortTOAs(self.toas, self.T2psr.flagvals('group')[isort],
+                    #which='jitterext', dt=jitterbin/86400.)
                     flags = self.T2psr.flagvals('group')[isort]
                 except KeyError:
-                    #isort_b, iisort_b = utils.argsortTOAs(self.toas, self.T2psr.flagvals('f')[isort], which='jitterext', dt=jitterbin/86400.)
+                    #isort_b, iisort_b = utils.argsortTOAs(self.toas, self.T2psr.flagvals('f')[isort],
+                    #which='jitterext', dt=jitterbin/86400.)
                     flags = self.T2psr.flagvals('f')[isort]
         
                 # sort data
@@ -219,12 +227,15 @@ class PsrObj(object):
         print "--> Done reading in pulsar :-) \n"
 
     def makeFred(self, nmodes, Ttot):
+        
         self.Fred = utils.createfourierdesignmatrix_RED(self.toas, nmodes, Tspan=Ttot)
 
     def makeFdm(self, nmodes, Ttot):
+        
         self.Fdm = utils.createfourierdesignmatrix_DM(self.toas, nmodes, self.obs_freqs, Tspan=Ttot)
     
     def makeFtot(self, nmodes, Ttot):
+        
         self.Fred = utils.createfourierdesignmatrix_RED(self.toas, nmodes, Tspan=Ttot)
         self.Fdm = utils.createfourierdesignmatrix_DM(self.toas, nmodes, self.obs_freqs, Tspan=Ttot)
 
@@ -244,6 +255,7 @@ class PsrObj(object):
         self.Te = np.append(self.Gc, self.Ftot, axis=1)
 
     def two_comp_noise(self, mlerrors):
+        
         efac_bit = np.dot(self.G.T, np.dot( np.diag(mlerrors**2.0), self.G ) )
         equad_bit = np.dot(self.G.T,self.G)
         Lequad = np.linalg.cholesky(equad_bit)
@@ -441,12 +453,15 @@ class PsrObjFromH5(object):
         print "--> Done extracting pulsar from hdf5 file :-) \n"
 
     def makeFred(self, nmodes, Ttot):
+        
         self.Fred = utils.createFourierDesignmatrix_red(self.toas, nmodes, Tspan=Ttot)
 
     def makeFdm(self, nmodes, Ttot):
+        
         self.Fdm = utils.createFourierDesignmatrix_dm(self.toas, nmodes, self.obs_freqs, Tspan=Ttot)
     
     def makeFtot(self, nmodes, Ttot):
+        
         self.Fred = utils.createFourierDesignmatrix_red(self.toas, nmodes, Tspan=Ttot)
         self.Fdm = utils.createFourierDesignmatrix_dm(self.toas, nmodes, self.obs_freqs, Tspan=Ttot)
 
@@ -466,6 +481,7 @@ class PsrObjFromH5(object):
         self.Te = np.append(self.Gc, self.Ftot, axis=1)
 
     def two_comp_noise(self, mlerrors):
+        
         efac_bit = np.dot(self.G.T, np.dot( np.diag(mlerrors**2.0), self.G ) )
         equad_bit = np.dot(self.G.T,self.G)
         Lequad = np.linalg.cholesky(equad_bit)

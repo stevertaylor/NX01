@@ -8,6 +8,7 @@ Code contributions by Rutger van Haasteren (piccard) and Justin Ellis (PAL/PAL2)
 
 """
 
+from __future__ import division
 import os, math, optparse, time, cProfile
 from time import gmtime, strftime
 from collections import OrderedDict

@@ -7,10 +7,8 @@ Copyright (c) 2014 Stephen R. Taylor
 Code contributions by Rutger van Haasteren (piccard) and Justin Ellis (PAL/PAL2).
 
 """
-
 from __future__ import division
 import os, math, optparse, time, cProfile
-import json
 from time import gmtime, strftime
 from collections import OrderedDict
 import h5py as h5
@@ -61,18 +59,16 @@ parser.add_option('--cadence', dest='cadence', action='store', type=float,
                    help='Instead of nmodes, provide the observational cadence.')
 parser.add_option('--dmVar', dest='dmVar', action='store_true', default=False,
                    help='Search for DM variations in the data (False)? (default=False)')
-parser.add_option('--mnest', dest='mnest', action='store_true', default=False,
-                   help='Sample using MultiNest? (default=False)')
+parser.add_option('--ptmcmc', dest='ptmcmc', action='store_true', default=True,
+                   help='Sample using PALs parallel tempering MCMC (False)? (default=True)')
 parser.add_option('--incGWB', dest='incGWB', action='store_true', default=False,
                   help='Do you want to search for a GWB? (default = False)')
 parser.add_option('--incCorr', dest='incCorr', action='store_true', default=False,
                   help='Do you want to include cross-correlations in the GWB model? (default = False)')
 parser.add_option('--num_gwfreq_wins', dest='num_gwfreq_wins', action='store', type=int, default=1,
-                   help='Number windows to split the band into (useful for evolving anisotropy searches (default = 1 windows)')
+                   help='Number windows to split the band into (useful for evolving anisotropic searches (default = 1 windows)')
 parser.add_option('--lmax', dest='LMAX', action='store', type=int, default=0,
                    help='Maximum multipole in anisotropic search (default = 0, i.e. isotropic-search)')
-parser.add_option('--miCorr', dest='miCorr', action='store_true', default=False,
-                   help='Do you want to search for the cross-correlation values directly? (default = False)')
 parser.add_option('--use-gpu', dest='use_gpu', action='store_true', default=False,
                   help='Do you want to use the GPU for accelerated linear algebra? (default = False)')
 parser.add_option('--fix-slope', dest='fix_slope', action='store_true', default=False,
@@ -89,14 +85,8 @@ parser.add_option('--fullN', dest='fullN', action='store_true', default=True,
                   help='Do you want to perform a full noise search? (default = True)')
 parser.add_option('--num_psrs', dest='num_psrs', action='store', type=int, default=18,
                   help='How many pulsars do you want to analyse? (default = 18)')
-parser.add_option('--det-signal', dest='det_signal', action='store_true', default=False,
-                  help='Do you want to search for a deterministic GW signal? (default = False)')
-parser.add_option('--bwm-search', dest='bwm_search', action='store_true', default=False,
-                  help='Do you want to search for GW burst with memory (BWM)? (default = False)')
-parser.add_option('--bwm-model-select', dest='bwm_model_select', action='store_true', default=False,
-                  help='Do you want to compute the Bayes Factor for BWM+noise verus noise-only? (default = False)')
 parser.add_option('--cgw-search', dest='cgw_search', action='store_true', default=False,
-                  help='Do you want to search for a single continuous GW signal? (default = False)')
+                  help='Do you want to search for a single GW source? (default = False)')
 parser.add_option('--ecc-search', dest='ecc_search', action='store_true', default=False,
                   help='Do you want to search for an eccentric binary? (default = False)')
 parser.add_option('--psrTerm', dest='psrTerm', action='store_true', default=False,
@@ -157,14 +147,14 @@ if rank == 0:
         print ("\n You've given me the sampling cadence for the observations,",
             "which determines the upper frequency limit and the number of modes, got it?\n")
 
-if args.mnest:
-    import pymultinest
-else:
+if args.ptmcmc:
     import PALInferencePTMCMC as PAL
+else:
+    import pymultinest
 
-#########################################################################
+################################################################################################################################
 # PASSING THROUGH TEMPO2 VIA libstempo
-#########################################################################
+################################################################################################################################
 
 # name, hdf5-path, par-path, tim-path
 psr_pathinfo = np.genfromtxt(args.psrlist, dtype=str, skip_header=2) 
@@ -202,56 +192,43 @@ psr_positions = [np.array([psr[ii].psr_locs[0],
                            for ii in range(len(psr))]
 positions = np.array(psr_positions).copy()
 
-num_corr_params = 0
-evol_corr_tag = ''
+num_anis_params = 0
+evol_anis_tag = ''
 if args.incGWB and args.incCorr:
-    
-    if args.miCorr:
+    # Computing all the correlation basis-functions for the array.
+    CorrCoeff = np.array(anis.CorrBasis(positions,args.LMAX))
+    # Computing the values of the spherical-harmonics up to order
+    # LMAX on a pre-specified grid  
+    harm_sky_vals = utils.SetupPriorSkyGrid(args.LMAX)              
 
+                                                            
+    if args.anis_modefile is None:
+    
+        # getting the number of GW frequencies per window
         gwfreqs_per_win = int(1.*args.nmodes/(1.*args.num_gwfreq_wins)) 
-        corr_modefreqs = np.arange(1,args.nmodes+1)
-        corr_modefreqs = np.reshape(corr_modefreqs,
+        anis_modefreqs = np.arange(1,args.nmodes+1)
+        anis_modefreqs = np.reshape(anis_modefreqs,
                                     (args.num_gwfreq_wins,gwfreqs_per_win))
 
         tmp_num_gwfreq_wins = args.num_gwfreq_wins
-
-        num_corr_params = tmp_num_gwfreq_wins*(len(psr)*(len(psr)-1)/2)
-
-    if not args.miCorr:
-        
-        # Computing all the correlation basis-functions for the array.
-        CorrCoeff = np.array(anis.CorrBasis(positions,args.LMAX))
-        # Computing the values of the spherical-harmonics up to order
-        # LMAX on a pre-specified grid  
-        harm_sky_vals = utils.SetupPriorSkyGrid(args.LMAX)              
-                                                            
-        if args.anis_modefile is None:
-        
-            # getting the number of GW frequencies per window
-            gwfreqs_per_win = int(1.*args.nmodes/(1.*args.num_gwfreq_wins)) 
-            corr_modefreqs = np.arange(1,args.nmodes+1)
-            corr_modefreqs = np.reshape(corr_modefreqs,
-                                        (args.num_gwfreq_wins,gwfreqs_per_win))
-
-            tmp_num_gwfreq_wins = args.num_gwfreq_wins
     
-        else:
+    else:
 
-            tmp_modefreqs = np.loadtxt(args.anis_modefile, skiprows=2)
-            tmp_num_gwfreq_wins = tmp_modefreqs.shape[0]
-            corr_modefreqs = []
+        tmp_modefreqs = np.loadtxt(args.anis_modefile)
+        tmp_num_gwfreq_wins = tmp_modefreqs.shape[0]
+        anis_modefreqs = []
     
-            for ii in range(tmp_num_gwfreq_wins):
-                corr_modefreqs.append(np.arange(tmp_modefreqs[ii,0],
-                                                tmp_modefreqs[ii,1]+1))
+        for ii in range(tmp_num_gwfreq_wins):
+            anis_modefreqs.append(np.arange(tmp_modefreqs[ii,0],
+                                            tmp_modefreqs[ii,1]+1))
 
-        num_corr_params = tmp_num_gwfreq_wins*(((args.LMAX+1)**2)-1)
+    num_anis_params = tmp_num_gwfreq_wins*(((args.LMAX+1)**2)-1)
 
-        # Create a tag for evolving anisotropy searches
-        if (args.LMAX!=0) and (tmp_num_gwfreq_wins > 1):
-            evol_corr_tag = '_evanis'
-        else:
-            evol_corr_tag = ''
+    # Create a tag for evolving anisotropy searches
+    if (args.LMAX!=0) and (tmp_num_gwfreq_wins > 1):
+        evol_anis_tag = '_evanis'
+    else:
+        evol_anis_tag = ''
               
 #############################################################################
 # GETTING MAXIMUM TIME, COMPUTING FOURIER DESIGN MATRICES, AND GETTING MODES 
@@ -273,7 +250,7 @@ else:
     # get GW frequencies
     fqs = np.linspace(1/Tmax, nmode/Tmax, nmode)
 
-if args.det_signal:
+if args.cgw_search:
 
     # find reference time for all pulsars
     tt = [np.min(p.toas) for p in psr]
@@ -299,22 +276,16 @@ for ii,p in enumerate(psr):
 
             Jamp.append(np.ones(len(p.epflags)))
             for jj,nano_sysname in enumerate(p.sysflagdict['nano-f'].keys()):
-                Jamp[ii][np.where(p.epflags==nano_sysname)] *= \
-                  p.ecorrs[nano_sysname]**2.0
+                Jamp[ii][np.where(p.epflags==nano_sysname)] *= p.ecorrs[nano_sysname]**2.0
 
-            Nx = jitter.cython_block_shermor_0D(p.res, new_err**2.,
-                                                Jamp[ii], p.Uinds)
+            Nx = jitter.cython_block_shermor_0D(p.res, new_err**2., Jamp[ii], p.Uinds)
             d.append(np.dot(p.Te.T, Nx))
             
-            logdet_N_dummy, TtNT_dummy = \
-              jitter.cython_block_shermor_2D(p.Te, new_err**2.,
-                                             Jamp[ii], p.Uinds)
+            logdet_N_dummy, TtNT_dummy = jitter.cython_block_shermor_2D(p.Te, new_err**2., Jamp[ii], p.Uinds)
             logdet_N.append(logdet_N_dummy)
             TtNT.append(TtNT_dummy)
             
-            det_dummy, dtNdt = \
-              jitter.cython_block_shermor_1D(p.res, new_err**2.,
-                                             Jamp[ii], p.Uinds)
+            det_dummy, dtNdt = jitter.cython_block_shermor_1D(p.res, new_err**2., Jamp[ii], p.Uinds)
 
         else:
             
@@ -351,7 +322,7 @@ for ii,p in enumerate(psr):
 
 pmin = -20.0*np.ones(len(psr))
 pmin = np.append(pmin,0.0*np.ones(len(psr)))
-if args.dmVar:
+if args.dmVar==True:
     pmin = np.append(pmin,-20.0*np.ones(len(psr)))
     pmin = np.append(pmin,0.0*np.ones(len(psr)))
 if args.incGWB:
@@ -359,26 +330,17 @@ if args.incGWB:
     if not args.fix_slope:
         pmin = np.append(pmin,0.0)
     if args.incCorr:
-        if args.miCorr:
-            pmin = np.append(pmin,np.zeros(num_corr_params))
-        else:
-            pmin = np.append(pmin,-10.0*np.ones(num_corr_params))
-if args.det_signal:
-    if args.cgw_search:
-        pmin = np.append(pmin,np.array([6.0,0.1,0.0,-9.3,
-                                        0.0,-1.0,-1.0,0.0,0.0,0.0]))
-        if args.ecc_search:
-            pmin = np.append(pmin,0.001)
-    if args.bwm_search:
-        pmin = np.append(pmin,[np.min([np.min(p.toas) for p in psr]),
-                               -18.0,0.0,-1.0,0.0])
-        if args.bwm_model_select:
-            pmin = np.append(pmin,-0.5)
+        pmin = np.append(pmin,-10.0*np.ones(num_anis_params))
+if args.cgw_search:
+    pmin = np.append(pmin,np.array([6.0,0.1,0.0,-9.3,
+                                    0.0,-1.0,-1.0,0.0,0.0,0.0]))
+    if args.ecc_search:
+        pmin = np.append(pmin,0.001)
 
 
 pmax = -11.0*np.ones(len(psr))
 pmax = np.append(pmax,7.0*np.ones(len(psr)))
-if args.dmVar:
+if args.dmVar==True:
     pmax = np.append(pmax,-11.0*np.ones(len(psr)))
     pmax = np.append(pmax,7.0*np.ones(len(psr)))
 if args.incGWB:
@@ -386,27 +348,16 @@ if args.incGWB:
     if not args.fix_slope:
         pmax = np.append(pmax,7.0)
     if args.incCorr:
-        if args.miCorr:
-            pmax = np.append(pmax,np.pi*np.ones(num_corr_params))
-        else:
-            pmax = np.append(pmax,10.0*np.ones(num_corr_params))
-if args.det_signal:
-    if args.cgw_search:
-        pmax = np.append(pmax,np.array([10.0,1.0,4.0,-7.0,
-                                        2.0*np.pi,1.0,1.0,np.pi,np.pi,2.0*np.pi]))
-        if args.ecc_search:
-            pmax = np.append(pmax,0.9)
-    if args.bwm_search:
-        pmax = np.append(pmax,[np.max([np.max(p.toas) for p in psr]),
-                               -11.0,2.0*np.pi,1.0,np.pi])
-        if args.bwm_model_select:
-            pmax = np.append(pmax,1.5)
+        pmax = np.append(pmax,10.0*np.ones(num_anis_params))
+if args.cgw_search:
+    pmax = np.append(pmax,np.array([10.0,1.0,4.0,-7.0,
+                                    2.0*np.pi,1.0,1.0,np.pi,np.pi,2.0*np.pi]))
+    if args.ecc_search:
+        pmax = np.append(pmax,0.9)
 
 ##################################################################################
 
-
 def my_prior(xx):
-           
     logp = 0.
     
     if np.all(xx <= pmax) and np.all(xx >= pmin):
@@ -415,8 +366,8 @@ def my_prior(xx):
         logp = -np.inf
     
     return logp
-    
-    
+
+
 def lnprob(xx):
 
     npsr = len(psr)
@@ -424,7 +375,6 @@ def lnprob(xx):
     logLike = 0
     loglike1_tmp = loglike1
     dtmp = list(d)
-    
     ###############################
     # Splitting up parameter vector
 
@@ -434,15 +384,15 @@ def lnprob(xx):
             if args.incCorr:
                 Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, orf_coeffs, param_ct = \
                   utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope,
-                                          args.incGWB, args.incCorr, num_corr_params )
+                                          args.incGWB, args.incCorr, num_anis_params )
             else:
                 Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, param_ct = \
                   utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope,
-                                          args.incGWB, args.incCorr, num_corr_params )
+                                          args.incGWB, args.incCorr, num_anis_params )
         else:
             Ared, gam_red, Adm, gam_dm, param_ct = \
               utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope,
-                                      args.incGWB, args.incCorr, num_corr_params )
+                                      args.incGWB, args.incCorr, num_anis_params )
             
     else:
         mode_count = 2*nmode
@@ -450,79 +400,58 @@ def lnprob(xx):
             if args.incCorr:
                 Ared, gam_red, Agwb, gam_gwb, orf_coeffs, param_ct = \
                   utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope,
-                                          args.incGWB, args.incCorr, num_corr_params )
+                                          args.incGWB, args.incCorr, num_anis_params )
             else:
                 Ared, gam_red, Agwb, gam_gwb, param_ct = \
                   utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope,
-                                          args.incGWB, args.incCorr, num_corr_params )
+                                          args.incGWB, args.incCorr, num_anis_params )
         else:
             Ared, gam_red, param_ct = \
               utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope,
-                                      args.incGWB, args.incCorr, num_corr_params )
+                                      args.incGWB, args.incCorr, num_anis_params )
         
 
     ###############################
     # Creating continuous GW signal
     
-    if args.det_signal:
-        if args.cgw_search:
+    if args.cgw_search:
 
-            cgw_params = xx[param_ct:]
-    
-            if args.ecc_search:
-                logmass, qr, logdist, logorbfreq, gwphi,\
-                costheta, cosinc, gwpol, gwgamma0, l0, e0 = cgw_params
-            else:
-                logmass, qr, logdist, logorbfreq, gwphi,\
-                costheta, cosinc, gwpol, gwgamma0, l0 = cgw_params
+        cgw_params = xx[param_ct:]
 
-            mc = 10.0**logmass
-            dist = 10.0**logdist
-            orbfreq = 10.0**logorbfreq
-            gwtheta = np.arccos(costheta)
-            gwinc = np.arccos(cosinc)
+        if args.ecc_search:
+            logmass, qr, logdist, logorbfreq, gwphi,\
+             costheta, cosinc, gwpol, gwgamma0, l0, e0 = cgw_params
+        else:
+            logmass, qr, logdist, logorbfreq, gwphi,\
+             costheta, cosinc, gwpol, gwgamma0, l0 = cgw_params
+
+        mc = 10.0**logmass
+        dist = 10.0**logdist
+        orbfreq = 10.0**logorbfreq
+        gwtheta = np.arccos(costheta)
+        gwinc = np.arccos(cosinc)
             
-            cgw_res = []
-            detres = []
-            if args.ecc_search:
-                for ii,p in enumerate(psr):
-                    cgw_res.append( utils.ecc_cgw_signal(p, gwtheta, gwphi, mc, dist,
-                                                        orbfreq, gwinc, gwpol, gwgamma0,
-                                                        e0, l0, qr, periEv=args.periEv, tref=tref) )
-                    detres.append( p.res - cgw_res[ii] )
-            else:
-                for ii,p in enumerate(psr):
-                    cgw_res.append( utils.ecc_cgw_signal(p, gwtheta, gwphi, mc, dist,
-                                                        orbfreq, gwinc, gwpol, gwgamma0,
-                                                        0.001, l0, qr, periEv=args.periEv, tref=tref) )
-                    detres.append( p.res - cgw_res[ii] )
-
-        if args.bwm_search:
-            if args.bwm_model_select:
-                bwm_params = xx[param_ct:-1]
-                # '0' is noise-only, '1' is BWM
-                nmodel = int(np.rint(xx[-1]))
-            else:
-                bwm_params = xx[param_ct:]
-
-            bwm_res = []
-            detres = []
+        cgw_res = []
+        detres = []
+        if args.ecc_search:
             for ii,p in enumerate(psr):
-                if args.bwm_model_select:
-                    if nmodel==0:
-                        bwm_res.append( np.zeros(len(p.toas)) )
-                    elif nmodel==1:
-                        bwm_res.append( utils.bwmsignal(bwm_params,p) )
-                else:
-                    bwm_res.append( utils.bwmsignal(bwm_params,p) )
-                detres.append( p.res - bwm_res[ii] )
-            
+                cgw_res.append( utils.ecc_cgw_signal(p, gwtheta, gwphi, mc, dist,
+                                                     orbfreq, gwinc, gwpol, gwgamma0,
+                                                     e0, l0, qr, periEv=args.periEv, tref=tref) )
+                detres.append( p.res - cgw_res[ii] )
+        else:
+            for ii,p in enumerate(psr):
+                cgw_res.append( utils.ecc_cgw_signal(p, gwtheta, gwphi, mc, dist,
+                                                     orbfreq, gwinc, gwpol, gwgamma0,
+                                                     0.001, l0, qr, periEv=args.periEv, tref=tref) )
+                detres.append( p.res - cgw_res[ii] )
 
         #############################################################
         # Recomputing some noise quantities involving 'residuals'.
         # Unfortunately necessary when we have a deterministic signal.
         
         loglike1_tmp = 0
+        #d = []
         dtNdt = []
         for ii,p in enumerate(psr):
 
@@ -534,6 +463,7 @@ def lnprob(xx):
                 if len(p.ecorrs)>0:
                     Nx = jitter.cython_block_shermor_0D(detres[ii], new_err**2.,
                                                         Jamp[ii], p.Uinds)
+                    #d.append(np.dot(p.Te.T, Nx))
                     dtmp[ii] = np.dot(p.Te.T, Nx)
                     det_dummy, dtNdt_dummy = \
                       jitter.cython_block_shermor_1D(detres[ii], new_err**2.,
@@ -542,106 +472,60 @@ def lnprob(xx):
 
                 else:
             
+                    #d.append(np.dot(p.Te.T, detres[ii]/( new_err**2.0 )))
                     dtmp[ii] = np.dot(p.Te.T, detres[ii]/( new_err**2.0 ))
                     dtNdt.append(np.sum(detres[ii]**2.0/( new_err**2.0 )))
                 
             else:
         
+                #d.append(np.dot(p.Te.T, detres[ii]/( new_err**2.0 )))
                 dtmp[ii] = np.dot(p.Te.T, detres[ii]/( new_err**2.0 ))
                 dtNdt.append(np.sum(detres[ii]**2.0/( new_err**2.0 )))
         
             loglike1_tmp += -0.5 * (logdet_N[ii] + dtNdt[ii])
         
-        
-
-            
+    
     if args.incGWB and args.incCorr:
+        ################################################
+        # Reshaping freq-dependent anis coefficients,
+        # and testing for power distribution physicality.
         
-        if args.miCorr:
+        orf_coeffs = orf_coeffs.reshape((tmp_num_gwfreq_wins,
+                                        ((args.LMAX+1)**2)-1))
+        clm = np.array([[0.0]*((args.LMAX+1)**2)
+                        for ii in range(tmp_num_gwfreq_wins)])
+        clm[:,0] = 2.0*np.sqrt(np.pi)
 
-            npairs = npsr*(npsr-1)/2
-            phi_corr = orf_coeffs.reshape((tmp_num_gwfreq_wins,npairs))
+        if args.LMAX!=0:
 
-            ############################################################
-            # Computing frequency-dependent overlap reduction functions.
+            for kk in range(tmp_num_gwfreq_wins):
+                for ii in range(1,((args.LMAX+1)**2)):
+                    clm[kk,ii] = orf_coeffs[kk,ii-1]   
 
-            ORF=[]
-            for ii in range(tmp_num_gwfreq_wins): # number of frequency windows
-                for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
-                    upper_triang = np.zeros((npsr,npsr))
-                    phi_els = np.array([[0.0]*ii for ii in range(1,npsr)])
-                    ct=0
-                    for ii in range(len(phi_els)):
-                        for jj in range(len(phi_els[ii])):
-                            phi_els[ii,jj] = phi_corr[ct]
-                            ct += 1
+                # Testing for physicality of power distribution.
+                if (utils.PhysPrior(clm[kk],harm_sky_vals) == 'Unphysical'):
+                    return -np.inf
 
-                    upper_triang[0,0] = 1.
-                    for jj in range(1,upper_triang.shape[1]):
-                        upper_triang[0,jj] = np.cos(phi_els[jj-1][0])
-                    for ii in range(1,upper_triang.shape[1]):
-                        upper_triang[ii,ii] = np.prod( np.sin(phi_els[ii-1]) )
-                    for ii in range(1,upper_triang.shape[1]):
-                        for jj in range(ii+1,upper_triang.shape[1]):
-                            upper_triang[ii,jj] = np.cos(phi_els[jj-1][ii]) * \
-                            np.prod( np.sin(np.array(phi_els[jj-1])[0:ii]) )   
-
-                    ORF.append(np.dot( upper_triang.T, upper_triang ))
-       
-            if args.dmVar==True:
-                for ii in range(tmp_num_gwfreq_wins): # number of frequency windows
-                    for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
-                        ORF.append( np.zeros((npsr,npsr)) )
-
-            ORF = np.array(ORF)
-            ORFtot = np.zeros((mode_count,npsr,npsr)) # shouldn't be applying ORF to dmfreqs,
-                                                      # but the projection of GW spec onto dmfreqs
-                                                      # is defined as zero below.
-            ORFtot[0::2] = ORF
-            ORFtot[1::2] = ORF
-            
-        else:
-            
-            ################################################
-            # Reshaping freq-dependent anis coefficients,
-            # and testing for power distribution physicality.
-            
-            orf_coeffs = orf_coeffs.reshape((tmp_num_gwfreq_wins,
-                                            ((args.LMAX+1)**2)-1))
-            clm = np.array([[0.0]*((args.LMAX+1)**2)
-                            for ii in range(tmp_num_gwfreq_wins)])
-            clm[:,0] = 2.0*np.sqrt(np.pi)
-
-            if args.LMAX!=0:
-
-                for kk in range(tmp_num_gwfreq_wins):
-                    for ii in range(1,((args.LMAX+1)**2)):
-                        clm[kk,ii] = orf_coeffs[kk,ii-1]   
-
-                    # Testing for physicality of power distribution.
-                    if (utils.PhysPrior(clm[kk],harm_sky_vals) == 'Unphysical'):
-                        return -np.inf
-
-            ############################################################
-            # Computing frequency-dependent overlap reduction functions.
+        ############################################################
+        # Computing frequency dependent overlap reduction functions.
         
-            ORF=[]
+        ORF=[]
+        for ii in range(tmp_num_gwfreq_wins): # number of frequency windows
+            for jj in range(len(anis_modefreqs[ii])): # number of frequencies in this window
+                ORF.append( sum(clm[ii,kk]*CorrCoeff[kk]
+                                for kk in range(len(CorrCoeff))) )
+        if args.dmVar==True:
             for ii in range(tmp_num_gwfreq_wins): # number of frequency windows
-                for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
-                    ORF.append( sum(clm[ii,kk]*CorrCoeff[kk]
-                                    for kk in range(len(CorrCoeff))) )
-            if args.dmVar==True:
-                for ii in range(tmp_num_gwfreq_wins): # number of frequency windows
-                    for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
-                        ORF.append( np.zeros((npsr,npsr)) )
+                for jj in range(len(anis_modefreqs[ii])): # number of frequencies in this window
+                    ORF.append( np.zeros((npsr,npsr)) )
 
-            ORF = np.array(ORF)
-            ORFtot = np.zeros((mode_count,npsr,npsr)) # shouldn't be applying ORF to dmfreqs,
-                                                      # but the projection of GW spec onto dmfreqs
-                                                      # is defined as zero below.
-            ORFtot[0::2] = ORF
-            ORFtot[1::2] = ORF
-
+        ORF = np.array(ORF)
+        ORFtot = np.zeros((mode_count,npsr,npsr)) # shouldn't be applying ORF to dmfreqs,
+                                                  # but the projection of GW spec onto dmfreqs
+                                                  # is defined as zero below.
+        ORFtot[0::2] = ORF
+        ORFtot[1::2] = ORF
+    
     ################################################
     # parameterize intrinsic red noise as power law
     
@@ -945,23 +829,14 @@ if args.incGWB:
     if not args.fix_slope:
         parameters.append("gam_gwb")
     if args.incCorr:
-        if args.miCorr:
-            for ii in range(num_corr_params):
-                parameters.append('phi_corr_{0}'.format(ii+1))
-        else:
-            for ii in range(num_corr_params):
-                parameters.append('clm_{0}'.format(ii+1))
-if args.det_signal:
-    if args.cgw_search:
-        parameters += ["chirpmass", "qratio", "dist", "orb-freq",
-                    "phi", "costheta", "cosiota", "gwpol",
-                    "gwgamma", "l0"]
-        if args.ecc_search:
-            parameters.append("ecc")
-    if args.bwm_search:
-        parameters += ["burst_mjd", "burst_strain", "phi", "costheta", "gwpol"]
-        if args.bwm_model_select:
-            parameters.append("nmodel")
+        for ii in range(num_anis_params):
+            parameters.append('clm_{0}'.format(ii+1))
+if args.cgw_search:
+    parameters += ["chirpmass", "qratio", "dist", "orb-freq",
+                   "phi", "costheta", "cosiota", "gwpol",
+                   "gwgamma", "l0"]
+    if args.ecc_search:
+        parameters.append("ecc")
 
 
 n_params = len(parameters)
@@ -970,7 +845,51 @@ if rank==0:
     print "\n The total number of parameters is {0}\n".format(n_params)
 
 
-# Define a unique file tag
+# Start the sampling off with some reasonable parameter choices
+x0 = np.log10(np.array([p.Redamp for p in psr]))
+x0 = np.append(x0,np.array([p.Redind for p in psr]))
+if args.dmVar:
+    x0 = np.append(x0,np.log10(np.array([p.Redamp for p in psr])))
+    x0 = np.append(x0,np.array([p.Redind for p in psr]))
+if args.incGWB:
+    x0 = np.append(x0,-15.0)
+    if not args.fix_slope:
+        x0 = np.append(x0,13./3.)
+    if args.incCorr:
+        x0 = np.append(x0,np.zeros(num_anis_params))
+if args.cgw_search:
+    x0 = np.append(x0,np.array([9.0, 0.5, 1.5, -8.0, 0.5,
+                                0.5, 0.5, 0.5, 0.5, 0.5]))
+    if args.ecc_search:
+        x0 = np.append(x0,0.1)
+
+if rank==0:
+    print "\n Your initial parameters are {0}\n".format(x0)
+
+# Make a reasonable covariance matrix to commence sampling
+cov_diag = 0.5*np.ones(len(psr))
+cov_diag = np.append(cov_diag,0.5*np.ones(len(psr)))
+if args.dmVar:
+    cov_diag = np.append(cov_diag,0.5*np.ones(len(psr)))
+    cov_diag = np.append(cov_diag,0.5*np.ones(len(psr)))
+if args.incGWB:
+    cov_diag = np.append(cov_diag,0.5)
+    if not args.fix_slope:
+        cov_diag = np.append(cov_diag,0.5)
+    if args.incCorr:
+        cov_diag = np.append(cov_diag,0.05*np.ones(num_anis_params))
+if args.cgw_search:
+    cov_diag = np.append(cov_diag,0.2*np.ones(10))
+    if args.ecc_search:
+        cov_diag = np.append(cov_diag,0.05)
+
+if rank==0:
+    print "\n Running a quick profile on the likelihood to estimate evaluation speed...\n"
+    cProfile.run('lnprob(x0)')
+
+#####################
+# Now, we sample.....
+#####################
 
 file_tag = 'nanograv'
 if args.incGWB:    
@@ -978,25 +897,18 @@ if args.incGWB:
         gamma_tag = '_gam4p33'
     else:
         gamma_tag = '_gamVary'
+
     if args.incCorr:
-        if args.miCorr:
-            file_tag += '_gwb{0}_miCorr{1}{2}'.format(args.limit_or_detect_gwb,evol_corr_tag,gamma_tag)
-        else:
-            file_tag += '_gwb{0}_Lmax{1}{2}{3}'.format(args.limit_or_detect_gwb,
-                                                       args.LMAX,evol_corr_tag,gamma_tag)
+        file_tag += '_gwb{0}_Lmax{1}{2}{3}'.format(args.limit_or_detect_gwb,args.LMAX,evol_anis_tag,gamma_tag)
     else:
         file_tag += '_gwb{0}_noCorr{1}'.format(args.limit_or_detect_gwb,gamma_tag)
-if args.det_signal:
-    if args.cgw_search:
-        if args.ecc_search:
-            file_tag += '_ecgw'
-        else:
-            file_tag += '_ccgw'
-    if args.bwm_search:
-        file_tag += '_bwm'
-        if args.bwm_model_select:
-            file_tag += 'ModelSelect'
+if args.cgw_search:
+    if args.ecc_search:
+        file_tag += '_ecgw'
+    else:
+        file_tag += '_ccgw'
 file_tag += '_red{0}_nmodes{1}'.format(args.limit_or_detect_red,args.nmodes)
+
 
 
 if rank == 0:
@@ -1011,350 +923,178 @@ if rank == 0:
     
     """
 
-##########################
-# Define function wrappers
-##########################
-
-if args.mnest:
-
-    dir_name = './chains_nanoAnalysis/'+file_tag+'_mnest'
-    if not os.path.exists(dir_name):
-        os.makedirs(dir_name)
-
-    if rank == 0:
-        if args.incCorr:
-            # Copy the anisotropy modefile into the results directory
-            if args.anis_modefile is not None:
-                os.system('cp {0} {1}'.format(args.anis_modefile,dir_name))
-
-        # Printing out the list of searched parameters
-        fil = open(dir_name+'/parameter_list.txt','w')
-        for ii,parm in enumerate(parameters):
-            print >>fil, ii, parm
-        fil.close()
-
-        with open(dir_name+'/run_args.json', 'w') as fp:
-            json.dump(vars(args), fp)
-
-    def prior_func(xx,ndim,nparams):
-        for ii in range(nparams):
-            xx[ii] = pmin[ii] + xx[ii]*(pmax[ii]-pmin[ii])
-            
-    def like_func(xx,ndim,nparams):
-        xx = np.array([xx[ii] for ii in range(nparams)])
-        return lnprob(xx)        
     
-    pymultinest.run(like_func, prior_func, n_params,
-                    importance_nested_sampling = False,
-                    resume = False, verbose = True, 
-                    n_live_points=500,
-                    outputfiles_basename=u'{0}/mnest_'.format(dir_name), 
-                    sampling_efficiency=0.3,
-                    const_efficiency_mode=False)
+sampler = PAL.PTSampler(ndim=n_params,logl=lnprob,logp=my_prior,cov=np.diag(cov_diag),\
+                        outDir='./chains_nanoAnalysis/'+file_tag, resume=False)
 
-if not args.mnest:
-    
-    # Start the sampling off with some reasonable parameter choices
-    x0 = np.log10(np.array([p.Redamp for p in psr]))
-    x0 = np.append(x0,np.array([p.Redind for p in psr]))
-    if args.dmVar:
-        x0 = np.append(x0,np.log10(np.array([p.Redamp for p in psr])))
-        x0 = np.append(x0,np.array([p.Redind for p in psr]))
-    if args.incGWB:
-        x0 = np.append(x0,-15.0)
-        if not args.fix_slope:
-            x0 = np.append(x0,13./3.)
-        if args.incCorr:
-            if args.miCorr:
-                x0 = np.append(x0,np.random.uniform(0.0,np.pi,num_corr_params))
-            else:
-                x0 = np.append(x0,np.zeros(num_corr_params))
-    if args.det_signal:
-        if args.cgw_search:
-            x0 = np.append(x0,np.array([9.0, 0.5, 1.5, -8.0, 0.5,
-                                        0.5, 0.5, 0.5, 0.5, 0.5]))
-            if args.ecc_search:
-                x0 = np.append(x0,0.1)
-        if args.bwm_search:
-            x0 = np.append(x0,np.array([55100.0,-14.0,0.3,0.5,0.7]))
-            if args.bwm_model_select:
-                x0 = np.append(x0,0.4)
+if rank == 0:
+    if args.incCorr:
+        # Copy the anisotropy modefile into the results directory
+        if args.anis_modefile is not None:
+            os.system('cp {0} {1}'.format(args.anis_modefile,'./chains_nanoAnalysis/'+file_tag))
 
-    if rank==0:
-        print "\n Your initial parameters are {0}\n".format(x0)
+    # Printing out the list of searched parameters
+    fil = open('./chains_nanoAnalysis/'+file_tag+'/parameter_list.txt','w')
+    for ii,parm in enumerate(parameters):
+        print >>fil, ii, parm
+    fil.close()
 
-    # Make a reasonable covariance matrix to commence sampling
-    cov_diag = 0.5*np.ones(len(psr))
-    cov_diag = np.append(cov_diag,0.5*np.ones(len(psr)))
-    if args.dmVar:
-        cov_diag = np.append(cov_diag,0.5*np.ones(len(psr)))
-        cov_diag = np.append(cov_diag,0.5*np.ones(len(psr)))
-    if args.incGWB:
-        cov_diag = np.append(cov_diag,0.5)
-        if not args.fix_slope:
-            cov_diag = np.append(cov_diag,0.5)
-        if args.incCorr:
-            cov_diag = np.append(cov_diag,0.05*np.ones(num_corr_params))
-    if args.det_signal:
-        if args.cgw_search:
-            cov_diag = np.append(cov_diag,0.2*np.ones(10))
-            if args.ecc_search:
-                cov_diag = np.append(cov_diag,0.05)
-        if args.bwm_search:
-            cov_diag = np.append(cov_diag,np.array([10.0,0.1,0.1,0.1,0.1]))
-            if args.bwm_model_select:
-                cov_diag = np.append(cov_diag,0.1)
+#####################################
+# MCMC jump proposals
+#####################################
 
-    if rank==0:
-        print "\n Running a quick profile on the likelihood to estimate evaluation speed...\n"
-        cProfile.run('lnprob(x0)')
-    
-    
-    sampler = PAL.PTSampler(ndim=n_params,logl=lnprob,logp=my_prior,
-                            cov=np.diag(cov_diag),
-                            outDir='./chains_nanoAnalysis/'+file_tag,
-                            resume=True)
+# red noise draws (from Justin Ellis' PAL2)
+def drawFromRedNoisePrior(parameters, iter, beta):
 
-    if rank == 0:
-        if args.incCorr:
-            # Copy the anisotropy modefile into the results directory
-            if args.anis_modefile is not None:
-                os.system('cp {0} {1}'.format(args.anis_modefile,
-                                              './chains_nanoAnalysis/'+file_tag))
+    # post-jump parameters
+    q = parameters.copy()
 
-        # Printing out the list of searched parameters
-        fil = open('./chains_nanoAnalysis/'+file_tag+'/parameter_list.txt','w')
-        for ii,parm in enumerate(parameters):
-            print >>fil, ii, parm
-        fil.close()
+    # transition probability
+    qxy = 0
 
-        with open('./chains_nanoAnalysis/'+file_tag+'/run_args.json', 'w') as fp:
-            json.dump(vars(args), fp)
+    npsr = len(psr)
 
-    #####################################
-    # MCMC jump proposals
-    #####################################
+    #ind = np.unique(np.random.randint(0, npsr, npsr))
+    ind = np.unique(np.random.randint(0, npsr, 1))
 
-    # red noise draws (from Justin Ellis' PAL2)
-    def drawFromRedNoisePrior(parameters, iter, beta):
-    
-        # post-jump parameters
-        q = parameters.copy()
-
-        # transition probability
-        qxy = 0
-
-        npsr = len(psr)
-
-        #ind = np.unique(np.random.randint(0, npsr, npsr))
-        ind = np.unique(np.random.randint(0, npsr, 1))
-
-        for ii in ind:
-            # log prior
-            if args.limit_or_detect_red == 'detect':
-        
-                q[ii] = np.random.uniform(pmin[ii], pmax[ii])
-                qxy += 0
-        
-            elif args.limit_or_detect_red == 'limit':
-        
-                q[ii] = np.random.uniform(pmin[ii], pmax[ii])
-                qxy += 0
-
-                #Ared = np.log10(np.random.uniform(10 ** Ared_ll, 10 ** Ared_ul, len(Ared)))
-                #qxy += np.log(10 ** parameters[parind] / 10 ** q[parind])
-    
-            q[npsr+ii] = np.random.uniform(pmin[npsr+ii], pmax[npsr+ii])
-            qxy += 0
-
-        return q, qxy
-
-    # dm var draws 
-    def drawFromDMNoisePrior(parameters, iter, beta):
-
-        # post-jump parameters
-        q = parameters.copy()
-
-        # transition probability
-        qxy = 0
-
-        npsr = len(psr)
-
-        #ind = np.unique(np.random.randint(0, npsr, npsr))
-        ind = np.unique(np.random.randint(0, npsr, 1))
-
-        for ii in ind:
-            # log prior
-            if args.limit_or_detect_dm == 'detect':
-        
-                q[2*npsr+ii] = np.random.uniform(pmin[2*npsr+ii], pmax[2*npsr+ii])
-                qxy += 0
-        
-            elif args.limit_or_detect_dm == 'limit':
-            
-                q[2*npsr+ii] = np.random.uniform(pmin[2*npsr+ii], pmax[2*npsr+ii])
-                qxy += 0
-
-                #Ared = np.log10(np.random.uniform(10 ** Ared_ll, 10 ** Ared_ul, len(Ared)))
-                #qxy += np.log(10 ** parameters[parind] / 10 ** q[parind])
-    
-            q[3*npsr+ii] = np.random.uniform(pmin[3*npsr+ii], pmax[3*npsr+ii])
-            qxy += 0
-
-        return q, qxy
-
-
-    # gwb draws 
-    def drawFromGWBPrior(parameters, iter, beta):
-
-        # post-jump parameters
-        q = parameters.copy()
-
-        # transition probability
-        qxy = 0
-
-        npsr = len(psr)
-        pct = 2*npsr
-    
-        if args.dmVar:
-            pct += 2*npsr
-
+    for ii in ind:
         # log prior
-        if args.limit_or_detect_gwb == 'detect':
+        if args.limit_or_detect_red == 'detect':
         
-            Agwb_samp = np.random.uniform(pmin[pct], pmax[pct])
+            q[ii] = np.random.uniform(pmin[ii], pmax[ii])
             qxy += 0
-
-        elif args.limit_or_detect_gwb == 'limit':
-            
-            q[pct] = np.random.uniform(pmin[pct], pmax[pct])
+        
+        elif args.limit_or_detect_red == 'limit':
+        
+            q[ii] = np.random.uniform(pmin[ii], pmax[ii])
             qxy += 0
 
             #Ared = np.log10(np.random.uniform(10 ** Ared_ll, 10 ** Ared_ul, len(Ared)))
             #qxy += np.log(10 ** parameters[parind] / 10 ** q[parind])
+    
+        q[npsr+ii] = np.random.uniform(pmin[npsr+ii], pmax[npsr+ii])
+        qxy += 0
+
+    return q, qxy
+
+# dm var draws 
+def drawFromDMNoisePrior(parameters, iter, beta):
+
+    # post-jump parameters
+    q = parameters.copy()
+
+    # transition probability
+    qxy = 0
+
+    npsr = len(psr)
+
+    #ind = np.unique(np.random.randint(0, npsr, npsr))
+    ind = np.unique(np.random.randint(0, npsr, 1))
+
+    for ii in ind:
+        # log prior
+        if args.limit_or_detect_dm == 'detect':
+        
+            q[2*npsr+ii] = np.random.uniform(pmin[2*npsr+ii], pmax[2*npsr+ii])
+            qxy += 0
+        
+        elif args.limit_or_detect_dm == 'limit':
+            
+            q[2*npsr+ii] = np.random.uniform(pmin[2*npsr+ii], pmax[2*npsr+ii])
+            qxy += 0
+
+            #Ared = np.log10(np.random.uniform(10 ** Ared_ll, 10 ** Ared_ul, len(Ared)))
+            #qxy += np.log(10 ** parameters[parind] / 10 ** q[parind])
+    
+        q[3*npsr+ii] = np.random.uniform(pmin[3*npsr+ii], pmax[3*npsr+ii])
+        qxy += 0
+
+    return q, qxy
 
 
+# gwb draws 
+def drawFromGWBPrior(parameters, iter, beta):
+
+    # post-jump parameters
+    q = parameters.copy()
+
+    # transition probability
+    qxy = 0
+
+    npsr = len(psr)
+    pct = 2*npsr
+    
+    if args.dmVar:
+        pct += 2*npsr
+
+    # log prior
+    if args.limit_or_detect_gwb == 'detect':
+        
+        Agwb_samp = np.random.uniform(pmin[pct], pmax[pct])
+        qxy += 0
+
+    elif args.limit_or_detect_gwb == 'limit':
+        
+        q[pct] = np.random.uniform(pmin[pct], pmax[pct])
+        qxy += 0
+
+        #Ared = np.log10(np.random.uniform(10 ** Ared_ll, 10 ** Ared_ul, len(Ared)))
+        #qxy += np.log(10 ** parameters[parind] / 10 ** q[parind])
+
+
+    if not args.fix_slope:
+        q[pct+1] = np.random.uniform(pmin[pct+1], pmax[pct+1])
+        qxy += 0
+        
+    return q, qxy
+
+
+# cgw draws 
+def drawFromCWPrior(parameters, iter, beta):
+
+    # post-jump parameters
+    q = parameters.copy()
+
+    # transition probability
+    qxy = 0
+
+    npsr = len(psr)
+    pct = 2*npsr
+    
+    if args.dmVar:
+        pct += 2*npsr
+
+    if args.incGWB:
+        pct += 1
         if not args.fix_slope:
-            q[pct+1] = np.random.uniform(pmin[pct+1], pmax[pct+1])
-            qxy += 0
-        
-        return q, qxy
-
-
-    # cgw draws 
-    def drawFromCWPrior(parameters, iter, beta):
-
-        # post-jump parameters
-        q = parameters.copy()
-
-        # transition probability
-        qxy = 0
-
-        npsr = len(psr)
-        pct = 2*npsr
-    
-        if args.dmVar:
-            pct += 2*npsr
-
-        if args.incGWB:
             pct += 1
-            if not args.fix_slope:
-                pct += 1
 
-            if args.incCorr:
-                pct += num_corr_params
+        if args.incCorr:
+            pct += num_anis_params
 
-        # logmass, qr, logdist, logorbfreq, gwphi,
-        # costheta, cosinc, gwpol, gwgamma0, l0
-        if args.ecc_search:
-            ind = np.unique(np.random.randint(0, 11, 1))
-        else:
-            ind = np.unique(np.random.randint(0, 10, 1))
+    #logmass, qr, logdist, logorbfreq, gwphi,
+    # costheta, cosinc, gwpol, gwgamma0, l0
+    if args.ecc_search:
+        ind = np.unique(np.random.randint(0, 11, 1))
+    else:
+        ind = np.unique(np.random.randint(0, 10, 1))
 
-        for ii in ind:
-            q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
-            qxy += 0
+    for ii in ind:
+        q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
+        qxy += 0
         
-        return q, qxy
-
-    # bwm draws 
-    def drawFromBWMPrior(parameters, iter, beta):
-    
-        # post-jump parameters
-        q = parameters.copy()
-
-        # transition probability
-        qxy = 0
-
-        npsr = len(psr)
-        pct = 2*npsr
-    
-        if args.dmVar:
-            pct += 2*npsr
-
-        if args.incGWB:
-            pct += 1
-            if not args.fix_slope:
-                pct += 1
-
-            if args.incCorr:
-                pct += num_corr_params
-
-        # burst_mjd, burst_amp, phi, costheta, gwpol
-        ind = np.unique(np.random.randint(0, 5, 1))
-
-        for ii in ind:
-            q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
-            qxy += 0
-        
-        return q, qxy
-
-    # bwm model index draws 
-    def drawFromModelIndexPrior(parameters, iter, beta):
-
-        # post-jump parameters
-        q = parameters.copy()
-
-        # transition probability
-        qxy = 0
-
-        npsr = len(psr)
-        pct = 2*npsr
-    
-        if args.dmVar:
-            pct += 2*npsr
-
-        if args.incGWB:
-            pct += 1
-            if not args.fix_slope:
-                pct += 1
-
-            if args.incCorr:
-                pct += num_corr_params
-
-        if args.det_signal and args.bwm_search:
-            pct += 5
-            # indexing parameter is at end of list
-            q[pct] = np.random.uniform(pmin[pct], pmax[pct])
-            qxy += 0
-        
-        return q, qxy
+    return q, qxy
 
   
 
-    # add jump proposals
-    sampler.addProposalToCycle(drawFromRedNoisePrior, 10)
-    if args.dmVar:
-        sampler.addProposalToCycle(drawFromDMNoisePrior, 10)
-    if args.incGWB:
-        sampler.addProposalToCycle(drawFromGWBPrior, 10)
-    if args.det_signal and args.cgw_search:
-        sampler.addProposalToCycle(drawFromCWPrior, 10)
-    if args.det_signal and args.bwm_search:
-        sampler.addProposalToCycle(drawFromBWMPrior, 10)
-        if args.bwm_model_select:
-            sampler.addProposalToCycle(drawFromModelIndexPrior, 5)
+# add jump proposals
+sampler.addProposalToCycle(drawFromRedNoisePrior, 10)
+if args.dmVar:
+    sampler.addProposalToCycle(drawFromDMNoisePrior, 10)
+if args.incGWB:
+    sampler.addProposalToCycle(drawFromGWBPrior, 10)
+if args.cgw_search:
+    sampler.addProposalToCycle(drawFromCWPrior, 10)
 
-    sampler.sample(p0=x0,Niter=1e6,thin=10,
-                covUpdate=1000, AMweight=20,
-                SCAMweight=30, DEweight=50, KDEweight=0)
+
+sampler.sample(p0=x0,Niter=1e6,thin=10)

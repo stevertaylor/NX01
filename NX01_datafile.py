@@ -2,7 +2,7 @@
 
 """
 
-PALdatafile.py
+NX01_datafile.py
 
 This file will use the libstempo library to add all relavant data
 into an hdf5 file. 
@@ -24,7 +24,8 @@ import cPickle as pickle
 
 import NX01_utils
 
-try:    # If without libstempo, can still read hdf5 files
+try:
+    # If without libstempo, can still read hdf5 files
     import libstempo
     t2 = libstempo
 except ImportError:
