@@ -359,7 +359,7 @@ if args.redSpecModel == 'powerlaw':
     pmin = -20.0*np.ones(len(psr))
     pmin = np.append(pmin,0.0*np.ones(len(psr)))
 elif args.redSpecModel == 'spectrum':
-    pmin = -20.0*np.ones(npsr*nmode)
+    pmin = -20.0*np.ones(len(psr)*nmode)
 if args.dmVar:
     pmin = np.append(pmin,-20.0*np.ones(len(psr)))
     pmin = np.append(pmin,0.0*np.ones(len(psr)))
@@ -392,7 +392,7 @@ if args.redSpecModel == 'powerlaw':
     pmax = -11.0*np.ones(len(psr))
     pmax = np.append(pmax,7.0*np.ones(len(psr)))
 elif args.redSpecModel == 'spectrum':
-    pmax = -11.0*np.ones(npsr*nmode)
+    pmax = -11.0*np.ones(len(psr)*nmode)
 if args.dmVar:
     pmax = np.append(pmax,-11.0*np.ones(len(psr)))
     pmax = np.append(pmax,7.0*np.ones(len(psr)))
