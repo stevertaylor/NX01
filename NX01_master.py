@@ -1141,7 +1141,7 @@ if not args.mnest:
     if args.redSpecModel == 'powerlaw':
         cov_diag = 0.5*np.ones(len(psr))
         cov_diag = np.append(cov_diag,0.5*np.ones(len(psr)))
-    elif args.redSpecModel = 'spectrum':
+    elif args.redSpecModel == 'spectrum':
         cov_diag = 0.1*np.ones(len(psr)*nmode)
     if args.dmVar:
         cov_diag = np.append(cov_diag,0.5*np.ones(len(psr)))
