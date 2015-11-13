@@ -166,7 +166,7 @@ if rank == 0:
 if args.mnest:
     import pymultinest
 else:
-    import PALInferencePTMCMC as PAL
+    import PTMCMCSampler as PAL
 
 #########################################################################
 # PASSING THROUGH TEMPO2 VIA libstempo
