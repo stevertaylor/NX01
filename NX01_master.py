@@ -975,7 +975,7 @@ for ii in range(len(psr)):
         parameters.append('gam_red_'+psr[ii].name)
     elif args.redSpecModel == 'spectrum':
         for jj in range(nmode):
-            parameters.append('redSpec'+'{0}'.format(jj+1)+psr[ii].name)
+            parameters.append('redSpec'+'_{0}_'.format(jj+1)+psr[ii].name)
 if args.dmVar:
     for ii in range(len(psr)):
         parameters.append('Adm_'+psr[ii].name)
