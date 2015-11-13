@@ -65,10 +65,14 @@ parser.add_option('--mnest', dest='mnest', action='store_true', default=False,
                    help='Sample using MultiNest? (default=False)')
 parser.add_option('--incGWB', dest='incGWB', action='store_true', default=False,
                   help='Do you want to search for a GWB? (default = False)')
-parser.add_option('--gwbSpecModel', dest='gwbSpecModel', action='store', type=str, default='plaw',
+parser.add_option('--gwbSpecModel', dest='gwbSpecModel', action='store', type=str, default='powerlaw',
                   help='What kind of spectral model do you want for the GWB: powerlaw, spectrum, broken (default = powerlaw)')
 parser.add_option('--incCorr', dest='incCorr', action='store_true', default=False,
                   help='Do you want to include cross-correlations in the GWB model? (default = False)')
+parser.add_option('--redSpecModel', dest='redSpecModel', action='store', type=str, default='powerlaw',
+                  help='What kind of spectral model do you want for red timing-noise: powerlaw, spectrum, broken (default = powerlaw)')
+parser.add_option('--dmSpecModel', dest='dmSpecModel', action='store', type=str, default='powerlaw',
+                  help='What kind of spectral model do you want for DM variations: powerlaw, spectrum, broken (default = powerlaw)')
 parser.add_option('--num_gwfreq_wins', dest='num_gwfreq_wins', action='store', type=int, default=1,
                    help='Number windows to split the band into (useful for evolving anisotropy searches (default = 1 windows)')
 parser.add_option('--lmax', dest='LMAX', action='store', type=int, default=0,
@@ -351,8 +355,11 @@ for ii,p in enumerate(psr):
 # SETTING UP PRIOR RANGES
 ##########################
 
-pmin = -20.0*np.ones(len(psr))
-pmin = np.append(pmin,0.0*np.ones(len(psr)))
+if args.redSpecModel == 'powerlaw':
+    pmin = -20.0*np.ones(len(psr))
+    pmin = np.append(pmin,0.0*np.ones(len(psr)))
+elif args.redSpecModel == 'spectrum':
+    pmin = -20.0*np.ones(npsr*nmode)
 if args.dmVar:
     pmin = np.append(pmin,-20.0*np.ones(len(psr)))
     pmin = np.append(pmin,0.0*np.ones(len(psr)))
@@ -381,8 +388,11 @@ if args.det_signal:
             pmin = np.append(pmin,-0.5)
 
 
-pmax = -11.0*np.ones(len(psr))
-pmax = np.append(pmax,7.0*np.ones(len(psr)))
+if args.redSpecModel == 'powerlaw':
+    pmax = -11.0*np.ones(len(psr))
+    pmax = np.append(pmax,7.0*np.ones(len(psr)))
+elif args.redSpecModel == 'spectrum':
+    pmax = -11.0*np.ones(npsr*nmode)
 if args.dmVar:
     pmax = np.append(pmax,-11.0*np.ones(len(psr)))
     pmax = np.append(pmax,7.0*np.ones(len(psr)))
@@ -439,10 +449,13 @@ def lnprob(xx):
     param_ct = 0
     
     # Pulsar noise parameters
-    Ared = 10.0**xx[:npsr]
-    gam_red = xx[npsr:2*npsr]
-
-    param_ct += 2*npsr
+    if args.redSpecModel == 'powerlaw':
+        Ared = 10.0**xx[:npsr]
+        gam_red = xx[npsr:2*npsr]
+        param_ct += 2*npsr
+    elif args.redSpecModel == 'spectrum':
+        red_spec = (xx[:nmode*npsr].copy()).reshape((npsr,nmode))
+        param_ct += npsr*nmode
 
     mode_count = 2*nmode
     if args.dmVar==True:
@@ -658,7 +671,7 @@ def lnprob(xx):
     
     Tspan = (1/fqs[0])*86400.0
 
-    # parameterize intrinsic red-noise and DM-variations as power law
+    # parameterize intrinsic red-noise and DM-variations
     kappa = [] 
     if args.dmVar:
         for ii in range(npsr):
@@ -670,9 +683,13 @@ def lnprob(xx):
                                          (fqs/86400.0)**(-gam_dm[ii])/Tspan ) ))
     else:
         for ii in range(npsr):
-            kappa.append(np.log10( Ared[ii]**2/12/np.pi**2 * \
-                                   f1yr**(gam_red[ii]-3) * \
-                                   (fqs/86400.0)**(-gam_red[ii])/Tspan ))
+            if args.redSpecModel == 'powerlaw':
+                kappa.append(np.log10( Ared[ii]**2/12/np.pi**2 * \
+                                       f1yr**(gam_red[ii]-3) * \
+                                       (fqs/86400.0)**(-gam_red[ii])/Tspan ))
+            elif args.redSpecModel == 'spectrum':
+                kappa.append(np.log10( 10.0**(2.0*red_spec[ii,:]) /
+                                       (12.0 * np.pi**2.0 * (fqs/86400.0)**3.0 * Tspan) ))
     
     ###################################
     # construct elements of sigma array
@@ -686,7 +703,8 @@ def lnprob(xx):
                            f1yr**(gam_gwb-3) * \
                            (fqs/86400.0)**(-gam_gwb)/Tspan)
         elif args.gwbSpecModel == 'spectrum':
-            rho = np.log10(10.0**(2.0*rho_spec) / (12.0 * np.pi**2.0 * (fqs/86400.0)**3.0))
+            rho = np.log10(10.0**(2.0*rho_spec) /
+                           (12.0 * np.pi**2.0 * (fqs/86400.0)**3.0 * Tspan))
 
         if args.dmVar:
             gwbspec = np.append( 10**rho, np.zeros_like(rho) )
@@ -912,12 +930,15 @@ def lnprob(xx):
             if args.gwbSpecModel == 'powerlaw':
                 priorfac_gwb = np.log(Agwb * np.log(10.0))
             elif args.gwbSpecModel == 'spectrum':
-                priorfac_gwb = np.sum(np.log(rho_spec * np.log(10.0)))
+                priorfac_gwb = np.sum(np.log(10.0**rho_spec * np.log(10.0)))
         else:
             priorfac_gwb = 0.0
 
     if args.limit_or_detect_red == 'limit':
-        priorfac_red = np.sum(np.log(Ared * np.log(10.0)))
+        if args.redSpecModel == 'powerlaw':
+            priorfac_red = np.sum(np.log(Ared * np.log(10.0)))
+        elif args.redSpecModel == 'spectrum':
+            priorfac_red = np.sum(np.log(10.0**red_spec * np.log(10.0)))
     else:
         priorfac_red = 0.0
 
@@ -949,13 +970,15 @@ def lnprob(xx):
 
 parameters=[]
 for ii in range(len(psr)):
-    parameters.append('Ared_'+psr[ii].name)
-for ii in range(len(psr)):
-    parameters.append('gam_red_'+psr[ii].name)
+    if args.redSpecModel == 'powerlaw':
+        parameters.append('Ared_'+psr[ii].name)
+        parameters.append('gam_red_'+psr[ii].name)
+    elif args.redSpecModel == 'spectrum':
+        for jj in range(nmode):
+            parameters.append('redSpec'+'{0}'.format(jj+1)+psr[ii].name)
 if args.dmVar:
     for ii in range(len(psr)):
         parameters.append('Adm_'+psr[ii].name)
-    for ii in range(len(psr)):
         parameters.append('gam_dm_'+psr[ii].name)
 if args.incGWB:
     if args.gwbSpecModel == 'powerlaw':
@@ -1020,7 +1043,7 @@ if args.det_signal:
         file_tag += '_bwm'
         if args.bwm_model_select:
             file_tag += 'ModelSelect'
-file_tag += '_red{0}_nmodes{1}'.format(args.limit_or_detect_red,args.nmodes)
+file_tag += '_red{0}{1}_nmodes{2}'.format(args.limit_or_detect_red,args.redSpecModel,args.nmodes)
 
 
 if rank == 0:
@@ -1080,8 +1103,11 @@ if args.mnest:
 if not args.mnest:
     
     # Start the sampling off with some reasonable parameter choices
-    x0 = np.log10(np.array([p.Redamp for p in psr]))
-    x0 = np.append(x0,np.array([p.Redind for p in psr]))
+    if args.redSpecModel == 'powerlaw':
+        x0 = np.log10(np.array([p.Redamp for p in psr]))
+        x0 = np.append(x0,np.array([p.Redind for p in psr]))
+    elif args.redSpecModel == 'spectrum':
+        x0 = np.random.uniform(-17.0,-13.0,len(psr)*nmode)
     if args.dmVar:
         x0 = np.append(x0,np.log10(np.array([p.Redamp for p in psr])))
         x0 = np.append(x0,np.array([p.Redind for p in psr]))
@@ -1112,8 +1138,11 @@ if not args.mnest:
         print "\n Your initial parameters are {0}\n".format(x0)
 
     # Make a reasonable covariance matrix to commence sampling
-    cov_diag = 0.5*np.ones(len(psr))
-    cov_diag = np.append(cov_diag,0.5*np.ones(len(psr)))
+    if args.redSpecModel == 'powerlaw':
+        cov_diag = 0.5*np.ones(len(psr))
+        cov_diag = np.append(cov_diag,0.5*np.ones(len(psr)))
+    elif args.redSpecModel = 'spectrum':
+        cov_diag = 0.1*np.ones(len(psr)*nmode)
     if args.dmVar:
         cov_diag = np.append(cov_diag,0.5*np.ones(len(psr)))
         cov_diag = np.append(cov_diag,0.5*np.ones(len(psr)))
@@ -1168,7 +1197,7 @@ if not args.mnest:
     #####################################
 
     # red noise draws (from Justin Ellis' PAL2)
-    def drawFromRedNoisePrior(parameters, iter, beta):
+    def drawFromRedpowerlawNoisePrior(parameters, iter, beta):
     
         # post-jump parameters
         q = parameters.copy()
@@ -1198,6 +1227,33 @@ if not args.mnest:
     
             q[npsr+ii] = np.random.uniform(pmin[npsr+ii], pmax[npsr+ii])
             qxy += 0
+
+        return q, qxy
+
+    # red noise draws (from Justin Ellis' PAL2)
+    def drawFromRedspectrumNoisePrior(parameters, iter, beta):
+    
+        # post-jump parameters
+        q = parameters.copy()
+
+        # transition probability
+        qxy = 0
+
+        npsr = len(psr)
+
+        ind = np.unique(np.random.randint(0, npsr*nmode, 1))
+
+        for ii in ind:
+            # log prior
+            if args.limit_or_detect_red == 'detect':
+        
+                q[ii] = np.random.uniform(pmin[ii], pmax[ii])
+                qxy += 0
+        
+            elif args.limit_or_detect_red == 'limit':
+        
+                q[ii] = np.random.uniform(pmin[ii], pmax[ii])
+                qxy += 0
 
         return q, qxy
 
@@ -1404,7 +1460,10 @@ if not args.mnest:
   
 
     # add jump proposals
-    sampler.addProposalToCycle(drawFromRedNoisePrior, 10)
+    if args.redSpecModel == 'powerlaw':
+        sampler.addProposalToCycle(drawFromRedpowerlawNoisePrior, 10)
+    elif args.redSpecModel == 'spectrum':
+        sampler.addProposalToCycle(drawFromRedspectrumNoisePrior, 10)
     if args.dmVar:
         sampler.addProposalToCycle(drawFromDMNoisePrior, 10)
     if args.incGWB:
