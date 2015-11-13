@@ -166,7 +166,8 @@ if rank == 0:
 if args.mnest:
     import pymultinest
 else:
-    import PTMCMCSampler as PAL
+    import PTMCMCSampler
+    from PTMCMCSampler import PTMCMCSampler as ptmcmc
 
 #########################################################################
 # PASSING THROUGH TEMPO2 VIA libstempo
@@ -1170,7 +1171,7 @@ if not args.mnest:
         cProfile.run('lnprob(x0)')
     
     
-    sampler = PAL.PTSampler(ndim=n_params,logl=lnprob,logp=my_prior,
+    sampler = ptmcmc.PTSampler(ndim=n_params,logl=lnprob,logp=my_prior,
                             cov=np.diag(cov_diag),
                             outDir='./chains_11yrnanoAnalysis/'+file_tag,
                             resume=True)
