@@ -65,6 +65,8 @@ parser.add_option('--mnest', dest='mnest', action='store_true', default=False,
                    help='Sample using MultiNest? (default=False)')
 parser.add_option('--incGWB', dest='incGWB', action='store_true', default=False,
                   help='Do you want to search for a GWB? (default = False)')
+parser.add_option('--gwbSpecModel', dest='gwbSpecModel', action='store', type=str, default='plaw',
+                  help='What kind of spectral model do you want for the GWB: powerlaw, spectrum, broken (default = powerlaw)')
 parser.add_option('--incCorr', dest='incCorr', action='store_true', default=False,
                   help='Do you want to include cross-correlations in the GWB model? (default = False)')
 parser.add_option('--num_gwfreq_wins', dest='num_gwfreq_wins', action='store', type=int, default=1,
@@ -355,9 +357,12 @@ if args.dmVar:
     pmin = np.append(pmin,-20.0*np.ones(len(psr)))
     pmin = np.append(pmin,0.0*np.ones(len(psr)))
 if args.incGWB:
-    pmin = np.append(pmin,-18.0)
-    if not args.fix_slope:
-        pmin = np.append(pmin,0.0)
+    if args.gwbSpecModel == 'powerlaw':
+        pmin = np.append(pmin,-18.0)
+        if not args.fix_slope:
+            pmin = np.append(pmin,0.0)
+    elif args.gwbSpecModel == 'spectrum':
+        pmin = np.append(pmin,-18.0*np.ones(nmode))
     if args.incCorr:
         if args.miCorr:
             pmin = np.append(pmin,np.zeros(num_corr_params))
@@ -382,9 +387,12 @@ if args.dmVar:
     pmax = np.append(pmax,-11.0*np.ones(len(psr)))
     pmax = np.append(pmax,7.0*np.ones(len(psr)))
 if args.incGWB:
-    pmax = np.append(pmax,-11.0)
-    if not args.fix_slope:
-        pmax = np.append(pmax,7.0)
+    if args.gwbSpecModel == 'powerlaw':
+        pmax = np.append(pmax,-11.0)
+        if not args.fix_slope:
+            pmax = np.append(pmax,7.0)
+    elif args.gwbSpecModel == 'spectrum':
+        pmax = np.append(pmax,-11.0*np.ones(nmode))
     if args.incCorr:
         if args.miCorr:
             pmax = np.append(pmax,np.pi*np.ones(num_corr_params))
@@ -428,38 +436,41 @@ def lnprob(xx):
     ###############################
     # Splitting up parameter vector
 
-    if args.dmVar:
+    param_ct = 0
+    
+    # Pulsar noise parameters
+    Ared = 10.0**xx[:npsr]
+    gam_red = xx[npsr:2*npsr]
+
+    param_ct += 2*npsr
+
+    mode_count = 2*nmode
+    if args.dmVar==True:
         mode_count = 4*nmode
-        if args.incGWB:
-            if args.incCorr:
-                Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, orf_coeffs, param_ct = \
-                  utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope,
-                                          args.incGWB, args.incCorr, num_corr_params )
+        Adm = 10.0**xx[2*npsr:3*npsr]
+        gam_dm = xx[3*npsr:4*npsr]
+        param_ct += 2*npsr
+
+    if args.incGWB:
+        # GWB parameters
+        if args.gwbSpecModel == 'powerlaw':
+            Agwb = 10.0**xx[param_ct]
+            param_ct += 1
+            if args.fix_slope:
+                gam_gwb = 13./3
             else:
-                Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, param_ct = \
-                  utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope,
-                                          args.incGWB, args.incCorr, num_corr_params )
-        else:
-            Ared, gam_red, Adm, gam_dm, param_ct = \
-              utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope,
-                                      args.incGWB, args.incCorr, num_corr_params )
-            
-    else:
-        mode_count = 2*nmode
-        if args.incGWB:
-            if args.incCorr:
-                Ared, gam_red, Agwb, gam_gwb, orf_coeffs, param_ct = \
-                  utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope,
-                                          args.incGWB, args.incCorr, num_corr_params )
-            else:
-                Ared, gam_red, Agwb, gam_gwb, param_ct = \
-                  utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope,
-                                          args.incGWB, args.incCorr, num_corr_params )
-        else:
-            Ared, gam_red, param_ct = \
-              utils.masterSplitParams(xx, npsr, args.dmVar, args.fix_slope,
-                                      args.incGWB, args.incCorr, num_corr_params )
-        
+                gam_gwb = xx[param_ct]
+                param_ct += 1
+        elif args.gwbSpecModel == 'spectrum':
+            rho_spec = xx[param_ct:param_ct+nmode]
+            param_ct += nmode
+
+        if args.incCorr:
+            # Anisotropy parameters
+            orf_coeffs = xx[param_ct:param_ct+num_corr_params]
+
+    # Remaining parameters are for a deterministic signal
+    param_ct += num_corr_params
 
     ###############################
     # Creating continuous GW signal
@@ -670,9 +681,12 @@ def lnprob(xx):
 
     if args.incGWB:
 
-        rho = np.log10(Agwb**2/12/np.pi**2 * \
-                       f1yr**(gam_gwb-3) * \
-                       (fqs/86400.0)**(-gam_gwb)/Tspan)
+        if args.gwbSpecModel == 'powerlaw':
+            rho = np.log10(Agwb**2/12/np.pi**2 * \
+                           f1yr**(gam_gwb-3) * \
+                           (fqs/86400.0)**(-gam_gwb)/Tspan)
+        elif args.gwbSpecModel == 'spectrum':
+            rho = np.log10(10.0**(2.0*rho_spec) / (12.0 * np.pi**2.0 * (fqs/86400.0)**3.0))
 
         if args.dmVar:
             gwbspec = np.append( 10**rho, np.zeros_like(rho) )
@@ -895,7 +909,10 @@ def lnprob(xx):
     
     if args.incGWB:
         if args.limit_or_detect_gwb == 'limit':
-            priorfac_gwb = np.log(Agwb * np.log(10.0))
+            if args.gwbSpecModel == 'powerlaw':
+                priorfac_gwb = np.log(Agwb * np.log(10.0))
+            elif args.gwbSpecModel == 'spectrum':
+                priorfac_gwb = np.sum(np.log(rho_spec * np.log(10.0)))
         else:
             priorfac_gwb = 0.0
 
@@ -941,9 +958,13 @@ if args.dmVar:
     for ii in range(len(psr)):
         parameters.append('gam_dm_'+psr[ii].name)
 if args.incGWB:
-    parameters.append("Agwb")
-    if not args.fix_slope:
-        parameters.append("gam_gwb")
+    if args.gwbSpecModel == 'powerlaw':
+        parameters.append("Agwb")
+        if not args.fix_slope:
+            parameters.append("gam_gwb")
+    elif args.gwbSpecModel == 'spectrum':
+        for ii in range(nmode):
+            parameters.append('gwbSpec_{0}'.format(ii+1))
     if args.incCorr:
         if args.miCorr:
             for ii in range(num_corr_params):
@@ -973,11 +994,14 @@ if rank==0:
 # Define a unique file tag
 
 file_tag = 'nanograv'
-if args.incGWB:    
-    if args.fix_slope:
-        gamma_tag = '_gam4p33'
-    else:
-        gamma_tag = '_gamVary'
+if args.incGWB:
+    if args.gwbSpecModel == 'powerlaw':
+        if args.fix_slope:
+            gamma_tag = '_gam4p33'
+        else:
+            gamma_tag = '_gamVary'
+    elif args.gwbSpecModel == 'spectrum':
+        gamma_tag = '_gwbSpec'
     if args.incCorr:
         if args.miCorr:
             file_tag += '_gwb{0}_miCorr{1}{2}'.format(args.limit_or_detect_gwb,evol_corr_tag,gamma_tag)
@@ -1062,9 +1086,12 @@ if not args.mnest:
         x0 = np.append(x0,np.log10(np.array([p.Redamp for p in psr])))
         x0 = np.append(x0,np.array([p.Redind for p in psr]))
     if args.incGWB:
-        x0 = np.append(x0,-15.0)
-        if not args.fix_slope:
-            x0 = np.append(x0,13./3.)
+        if args.gwbSpecModel == 'powerlaw':
+            x0 = np.append(x0,-15.0)
+            if not args.fix_slope:
+                x0 = np.append(x0,13./3.)
+        elif args.gwbSpecModel == 'spectrum':
+            x0 = np.append(x0,np.random.uniform(-16.0,-15.0,nmode))
         if args.incCorr:
             if args.miCorr:
                 x0 = np.append(x0,np.random.uniform(0.0,np.pi,num_corr_params))
@@ -1091,9 +1118,12 @@ if not args.mnest:
         cov_diag = np.append(cov_diag,0.5*np.ones(len(psr)))
         cov_diag = np.append(cov_diag,0.5*np.ones(len(psr)))
     if args.incGWB:
-        cov_diag = np.append(cov_diag,0.5)
-        if not args.fix_slope:
+        if args.gwbSpecModel == 'powerlaw':
             cov_diag = np.append(cov_diag,0.5)
+            if not args.fix_slope:
+                cov_diag = np.append(cov_diag,0.5)
+        elif args.gwbSpecModel == 'spectrum':
+            cov_diag = np.append(cov_diag,0.05*np.ones(nmode))
         if args.incCorr:
             cov_diag = np.append(cov_diag,0.05*np.ones(num_corr_params))
     if args.det_signal:
@@ -1113,7 +1143,7 @@ if not args.mnest:
     
     sampler = PAL.PTSampler(ndim=n_params,logl=lnprob,logp=my_prior,
                             cov=np.diag(cov_diag),
-                            outDir='./chains_nanoAnalysis/'+file_tag,
+                            outDir='./chains_11yrnanoAnalysis/'+file_tag,
                             resume=True)
 
     if rank == 0:
@@ -1121,16 +1151,16 @@ if not args.mnest:
             # Copy the anisotropy modefile into the results directory
             if args.anis_modefile is not None:
                 os.system('cp {0} {1}'.format(args.anis_modefile,
-                                              './chains_nanoAnalysis/'+file_tag))
+                                              './chains_11yrnanoAnalysis/'+file_tag))
 
         # Printing out the list of searched parameters
-        fil = open('./chains_nanoAnalysis/'+file_tag+'/parameter_list.txt','w')
+        fil = open('./chains_11yrnanoAnalysis/'+file_tag+'/parameter_list.txt','w')
         for ii,parm in enumerate(parameters):
             print >>fil, ii, parm
         fil.close()
 
         # Saving command-line arguments to file
-        with open('./chains_nanoAnalysis/'+file_tag+'/run_args.json', 'w') as fp:
+        with open('./chains_11yrnanoAnalysis/'+file_tag+'/run_args.json', 'w') as fp:
             json.dump(vars(args), fp)
 
     #####################################
@@ -1207,7 +1237,7 @@ if not args.mnest:
 
 
     # gwb draws 
-    def drawFromGWBPrior(parameters, iter, beta):
+    def drawFromGWBpowerlawPrior(parameters, iter, beta):
 
         # post-jump parameters
         q = parameters.copy()
@@ -1224,7 +1254,7 @@ if not args.mnest:
         # log prior
         if args.limit_or_detect_gwb == 'detect':
         
-            Agwb_samp = np.random.uniform(pmin[pct], pmax[pct])
+            q[pct] = np.random.uniform(pmin[pct], pmax[pct])
             qxy += 0
 
         elif args.limit_or_detect_gwb == 'limit':
@@ -1242,6 +1272,35 @@ if not args.mnest:
         
         return q, qxy
 
+    def drawFromGWBspectrumPrior(parameters, iter, beta):
+
+        # post-jump parameters
+        q = parameters.copy()
+
+        # transition probability
+        qxy = 0
+
+        npsr = len(psr)
+        pct = 2*npsr
+    
+        if args.dmVar:
+            pct += 2*npsr
+
+        ind = np.unique(np.random.randint(0, nmode, 1))
+
+        for ii in ind:
+            # log prior
+            if args.limit_or_detect_gwb == 'detect':
+
+                q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
+                qxy += 0
+
+            elif args.limit_or_detect_gwb == 'limit':
+            
+                q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
+                qxy += 0
+        
+        return q, qxy
 
     # cgw draws 
     def drawFromCWPrior(parameters, iter, beta):
@@ -1349,7 +1408,10 @@ if not args.mnest:
     if args.dmVar:
         sampler.addProposalToCycle(drawFromDMNoisePrior, 10)
     if args.incGWB:
-        sampler.addProposalToCycle(drawFromGWBPrior, 10)
+        if args.gwbSpecModel == 'powerlaw':
+            sampler.addProposalToCycle(drawFromGWBpowerlawPrior, 10)
+        elif args.gwbSpecModel == 'spectrum':
+            sampler.addProposalToCycle(drawFromGWBspectrumPrior, 10)
     if args.det_signal and args.cgw_search:
         sampler.addProposalToCycle(drawFromCWPrior, 10)
     if args.det_signal and args.bwm_search:
@@ -1357,6 +1419,6 @@ if not args.mnest:
         if args.bwm_model_select:
             sampler.addProposalToCycle(drawFromModelIndexPrior, 5)
 
-    sampler.sample(p0=x0,Niter=1e6,thin=10,
+    sampler.sample(p0=x0,Niter=5e6,thin=10,
                 covUpdate=1000, AMweight=20,
                 SCAMweight=30, DEweight=50, KDEweight=0)
