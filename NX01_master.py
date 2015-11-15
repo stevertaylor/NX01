@@ -695,7 +695,7 @@ def lnprob(xx):
             elif args.redSpecModel == 'spectrum':
                 #kappa.append(np.log10( 10.0**(2.0*red_spec[ii,:]) /
                 #                       (12.0 * np.pi**2.0 * (fqs/86400.0)**3.0 * Tspan) ))
-                kappa.append(np.log10( 10.0**(2.0*red_spec[ii,:]) / Tspan) ))
+                kappa.append(np.log10( 10.0**(2.0*red_spec[ii,:]) / Tspan) )
     
     ###################################
     # construct elements of sigma array
