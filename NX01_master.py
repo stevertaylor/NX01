@@ -73,6 +73,8 @@ parser.add_option('--redSpecModel', dest='redSpecModel', action='store', type=st
                   help='What kind of spectral model do you want for red timing-noise: powerlaw, spectrum, broken (default = powerlaw)')
 parser.add_option('--dmSpecModel', dest='dmSpecModel', action='store', type=str, default='powerlaw',
                   help='What kind of spectral model do you want for DM variations: powerlaw, spectrum, broken (default = powerlaw)')
+parser.add_option('--dirExt', dest='dirExt', action='store', type=str, default='./chains_nanoAnalysis/',
+                  help='What master directory name do you want to put this run into? (default = ./chains_nanoAnalysis/)')
 parser.add_option('--num_gwfreq_wins', dest='num_gwfreq_wins', action='store', type=int, default=1,
                    help='Number windows to split the band into (useful for evolving anisotropy searches (default = 1 windows)')
 parser.add_option('--lmax', dest='LMAX', action='store', type=int, default=0,
@@ -360,7 +362,8 @@ if args.redSpecModel == 'powerlaw':
     pmin = -20.0*np.ones(len(psr))
     pmin = np.append(pmin,0.0*np.ones(len(psr)))
 elif args.redSpecModel == 'spectrum':
-    pmin = -20.0*np.ones(len(psr)*nmode)
+    #pmin = -20.0*np.ones(len(psr)*nmode)
+    pmin = -8.0*np.ones(len(psr)*nmode)
 if args.dmVar:
     pmin = np.append(pmin,-20.0*np.ones(len(psr)))
     pmin = np.append(pmin,0.0*np.ones(len(psr)))
@@ -393,7 +396,8 @@ if args.redSpecModel == 'powerlaw':
     pmax = -11.0*np.ones(len(psr))
     pmax = np.append(pmax,7.0*np.ones(len(psr)))
 elif args.redSpecModel == 'spectrum':
-    pmax = -11.0*np.ones(len(psr)*nmode)
+    #pmax = -11.0*np.ones(len(psr)*nmode)
+    pmax = 3.0*np.ones(len(psr)*nmode)
 if args.dmVar:
     pmax = np.append(pmax,-11.0*np.ones(len(psr)))
     pmax = np.append(pmax,7.0*np.ones(len(psr)))
@@ -689,8 +693,9 @@ def lnprob(xx):
                                        f1yr**(gam_red[ii]-3) * \
                                        (fqs/86400.0)**(-gam_red[ii])/Tspan ))
             elif args.redSpecModel == 'spectrum':
-                kappa.append(np.log10( 10.0**(2.0*red_spec[ii,:]) /
-                                       (12.0 * np.pi**2.0 * (fqs/86400.0)**3.0 * Tspan) ))
+                #kappa.append(np.log10( 10.0**(2.0*red_spec[ii,:]) /
+                #                       (12.0 * np.pi**2.0 * (fqs/86400.0)**3.0 * Tspan) ))
+                kappa.append(np.log10( 10.0**(2.0*red_spec[ii,:]) / Tspan) ))
     
     ###################################
     # construct elements of sigma array
@@ -1065,7 +1070,8 @@ if rank == 0:
 
 if args.mnest:
 
-    dir_name = './chains_nanoAnalysis/'+file_tag+'_mnest'
+    #dir_name = './chains_nanoAnalysis/'+file_tag+'_mnest'
+    dir_name = args.dirExt+file_tag+'_mnest'
     if not os.path.exists(dir_name):
         os.makedirs(dir_name)
 
@@ -1108,7 +1114,8 @@ if not args.mnest:
         x0 = np.log10(np.array([p.Redamp for p in psr]))
         x0 = np.append(x0,np.array([p.Redind for p in psr]))
     elif args.redSpecModel == 'spectrum':
-        x0 = np.random.uniform(-17.0,-13.0,len(psr)*nmode)
+        #x0 = np.random.uniform(-17.0,-13.0,len(psr)*nmode)
+        x0 = np.random.uniform(-7.0,-3.0,len(psr)*nmode)
     if args.dmVar:
         x0 = np.append(x0,np.log10(np.array([p.Redamp for p in psr])))
         x0 = np.append(x0,np.array([p.Redind for p in psr]))
@@ -1173,7 +1180,7 @@ if not args.mnest:
     
     sampler = ptmcmc.PTSampler(ndim=n_params,logl=lnprob,logp=my_prior,
                             cov=np.diag(cov_diag),
-                            outDir='./chains_11yrnanoAnalysis/'+file_tag,
+                            outDir=args.dirExt+file_tag,
                             resume=True)
 
     if rank == 0:
@@ -1181,16 +1188,16 @@ if not args.mnest:
             # Copy the anisotropy modefile into the results directory
             if args.anis_modefile is not None:
                 os.system('cp {0} {1}'.format(args.anis_modefile,
-                                              './chains_11yrnanoAnalysis/'+file_tag))
+                                              args.dirExt+file_tag))
 
         # Printing out the list of searched parameters
-        fil = open('./chains_11yrnanoAnalysis/'+file_tag+'/parameter_list.txt','w')
+        fil = open(args.dirExt+file_tag+'/parameter_list.txt','w')
         for ii,parm in enumerate(parameters):
             print >>fil, ii, parm
         fil.close()
 
         # Saving command-line arguments to file
-        with open('./chains_11yrnanoAnalysis/'+file_tag+'/run_args.json', 'w') as fp:
+        with open(args.dirExt+file_tag+'/run_args.json', 'w') as fp:
             json.dump(vars(args), fp)
 
     #####################################
@@ -1198,7 +1205,7 @@ if not args.mnest:
     #####################################
 
     # red noise draws (from Justin Ellis' PAL2)
-    def drawFromRedpowerlawNoisePrior(parameters, iter, beta):
+    def drawFromRedNoisePowerlawPrior(parameters, iter, beta):
     
         # post-jump parameters
         q = parameters.copy()
@@ -1232,7 +1239,7 @@ if not args.mnest:
         return q, qxy
 
     # red noise draws (from Justin Ellis' PAL2)
-    def drawFromRedspectrumNoisePrior(parameters, iter, beta):
+    def drawFromRedNoiseSpectrumPrior(parameters, iter, beta):
     
         # post-jump parameters
         q = parameters.copy()
@@ -1294,7 +1301,7 @@ if not args.mnest:
 
 
     # gwb draws 
-    def drawFromGWBpowerlawPrior(parameters, iter, beta):
+    def drawFromGWBPowerlawPrior(parameters, iter, beta):
 
         # post-jump parameters
         q = parameters.copy()
@@ -1329,7 +1336,7 @@ if not args.mnest:
         
         return q, qxy
 
-    def drawFromGWBspectrumPrior(parameters, iter, beta):
+    def drawFromGWBSpectrumPrior(parameters, iter, beta):
 
         # post-jump parameters
         q = parameters.copy()
@@ -1462,16 +1469,16 @@ if not args.mnest:
 
     # add jump proposals
     if args.redSpecModel == 'powerlaw':
-        sampler.addProposalToCycle(drawFromRedpowerlawNoisePrior, 10)
+        sampler.addProposalToCycle(drawFromRedNoisePowerlawPrior, 10)
     elif args.redSpecModel == 'spectrum':
-        sampler.addProposalToCycle(drawFromRedspectrumNoisePrior, 10)
+        sampler.addProposalToCycle(drawFromRedNoiseSpectrumPrior, 10)
     if args.dmVar:
         sampler.addProposalToCycle(drawFromDMNoisePrior, 10)
     if args.incGWB:
         if args.gwbSpecModel == 'powerlaw':
-            sampler.addProposalToCycle(drawFromGWBpowerlawPrior, 10)
+            sampler.addProposalToCycle(drawFromGWBPowerlawPrior, 10)
         elif args.gwbSpecModel == 'spectrum':
-            sampler.addProposalToCycle(drawFromGWBspectrumPrior, 10)
+            sampler.addProposalToCycle(drawFromGWBSpectrumPrior, 10)
     if args.det_signal and args.cgw_search:
         sampler.addProposalToCycle(drawFromCWPrior, 10)
     if args.det_signal and args.bwm_search:
