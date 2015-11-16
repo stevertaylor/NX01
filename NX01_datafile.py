@@ -297,13 +297,14 @@ class DataFile(object):
         # Save some useful matrices
         self.writeData(psrGroup, 'designmatrix', psr.Mmat,
                        overwrite=overwrite)
-        self.writeData(psrGroup, 'Gmatrix', psr.G,
-                       overwrite=overwrite)
+        if psr.G is not None:
+            self.writeData(psrGroup, 'Gmatrix', psr.G,
+                           overwrite=overwrite)
+            self.writeData(psrGroup, 'Gres', psr.Gres,
+                           overwrite=overwrite)
         self.writeData(psrGroup, 'GCmatrix', psr.Gc,
                        overwrite=overwrite)
-        self.writeData(psrGroup, 'Gres', psr.Gres,
-                       overwrite=overwrite)
-
+        
         self.writeData(psrGroup, 'QuantMat', psr.Umat,
                        overwrite=overwrite)
         self.writeData(psrGroup, 'QuantInds', psr.Uinds,

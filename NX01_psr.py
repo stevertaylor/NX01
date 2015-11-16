@@ -371,9 +371,13 @@ class PsrObjFromH5(object):
         self.psr_locs = self.h5Obj['psrlocs'].value
 
         self.Mmat = self.h5Obj['designmatrix'].value
-        self.G = self.h5Obj['Gmatrix'].value
+        try:
+            self.G = self.h5Obj['Gmatrix'].value
+            self.Gres = self.h5Obj['Gres'].value
+        except:
+            self.G = None
+            self.Gres = None
         self.Gc = self.h5Obj['GCmatrix'].value
-        self.Gres = self.h5Obj['Gres'].value
         self.Umat = self.h5Obj['QuantMat'].value
         self.Uinds = self.h5Obj['QuantInds'].value
         self.epflags = self.h5Obj['EpochFlags'].value
