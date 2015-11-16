@@ -74,7 +74,7 @@ class PsrObj(object):
     """
     Initialise the libstempo object.
     """
-    def grab_all_vars(self, jitterbin=10.): # jitterbin is in seconds
+    def grab_all_vars(self, jitterbin=10., makeGmat=False): # jitterbin is in seconds
 
         print "--> Processing {0}".format(self.T2psr.name)
         
@@ -219,34 +219,36 @@ class PsrObj(object):
         # perform SVD of design matrix to stabilise
         print "--> Performing SVD of design matrix for stabilization..."   
         u,s,v = np.linalg.svd(self.Mmat)
-        self.G = u[:,len(s):len(u)]
-        self.Gc =  u[:,:len(s)]
 
-        self.Gres = np.dot(self.G.T, self.res)
+        if makeGmat:
+            self.G = u[:,len(s):len(u)]
+            self.Gres = np.dot(self.G.T, self.res)
+
+        self.Gc =  u[:,:len(s)]
 
         print "--> Done reading in pulsar :-) \n"
 
     def makeFred(self, nmodes, Ttot):
         
-        self.Fred = utils.createfourierdesignmatrix_RED(self.toas, nmodes, Tspan=Ttot)
+        self.Fred = utils.createFourierDesignmatrix_red(self.toas, nmodes, Tspan=Ttot)
 
     def makeFdm(self, nmodes, Ttot):
         
-        self.Fdm = utils.createfourierdesignmatrix_DM(self.toas, nmodes, self.obs_freqs, Tspan=Ttot)
+        self.Fdm = utils.createFourierDesignmatrix_dm(self.toas, nmodes, self.obs_freqs, Tspan=Ttot)
     
     def makeFtot(self, nmodes, Ttot):
         
-        self.Fred = utils.createfourierdesignmatrix_RED(self.toas, nmodes, Tspan=Ttot)
-        self.Fdm = utils.createfourierdesignmatrix_DM(self.toas, nmodes, self.obs_freqs, Tspan=Ttot)
+        self.Fred = utils.createFourierDesignmatrix_red(self.toas, nmodes, Tspan=Ttot)
+        self.Fdm = utils.createFourierDesignmatrix_dm(self.toas, nmodes, self.obs_freqs, Tspan=Ttot)
 
         self.Ftot = np.append(self.Fred, self.Fdm, axis=1)
 
     def makeTe(self, nmodes, Ttot, makeDM=False):
 
-        self.Fred = utils.createfourierdesignmatrix_RED(self.toas, nmodes, Tspan=Ttot)
+        self.Fred = utils.createFourierDesignmatrix_red(self.toas, nmodes, Tspan=Ttot)
 
         if makeDM==True:
-            self.Fdm = utils.createfourierdesignmatrix_DM(self.toas, nmodes, self.obs_freqs, Tspan=Ttot)
+            self.Fdm = utils.createFourierDesignmatrix_dm(self.toas, nmodes, self.obs_freqs, Tspan=Ttot)
             self.Ftot = np.append(self.Fred, self.Fdm, axis=1)
 
         else:
