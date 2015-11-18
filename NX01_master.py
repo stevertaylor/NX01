@@ -1211,13 +1211,13 @@ if args.sampler == 'ptmcmc':
     param_ct = 0
     ##### red noise #####
     if not args.fixRed:
-        if args.redModel == 'powerlaw':
+        if args.redSpecModel == 'powerlaw':
             rdamps = [ii for ii in range(len(psr))]
             rdgam = [ii+len(psr) for ii in rdamps]
             ids = [list(aa) for aa in zip(rdamps,rdgam)]
             [ind.append(id) for id in ids if len(id) > 0]
             param_ct += 2*len(psr)
-        elif args.redModel == 'spectrum':
+        elif args.redSpecModel == 'spectrum':
             ids = np.arange(0,nmode*len(psr)).reshape((len(psr),nmode))
             [ind.append(id) for id in ids if len(id) > 0]
             param_ct += nmode*len(psr)
@@ -1247,7 +1247,7 @@ if args.sampler == 'ptmcmc':
         
     ##### GWB #####
     if args.incGWB:
-        if args.gwbModel == 'powerlaw':
+        if args.gwbSpecModel == 'powerlaw':
             if args.fix_slope:
                 ids = [[param_ct]]
                 param_ct += 1
@@ -1255,7 +1255,7 @@ if args.sampler == 'ptmcmc':
                 ids = [[param_ct,param_ct+1]]
                 param_ct += 2
             [ind.append(id) for id in ids]
-        elif args.gwbModel == 'spectrum':
+        elif args.gwbSpecModel == 'spectrum':
             ids = [np.arange(param_ct,param_ct+nmode)]
             [ind.append(id) for id in ids]
             param_ct += nmode
@@ -1278,7 +1278,7 @@ if args.sampler == 'ptmcmc':
             [ind.append(id) for id in ids]
         
     ##### all parameters #####
-    ind.insert(0, range(len(p0)))
+    ind.insert(0, range(len(x0)))
     print ind
 
     
