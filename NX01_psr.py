@@ -43,6 +43,8 @@ class PsrObj(object):
     name = "J0000+0000"
     Gres = None
     epflags = None
+    detsig_avetoas = None
+    detsig_Uinds = None
 
     def __init__(self, t2obj):
         self.T2psr = t2obj
@@ -70,6 +72,8 @@ class PsrObj(object):
         self.sysflagdict = None
         self.Gres = None
         self.epflags = None
+        self.detsig_avetoas = None
+        self.detsig_Uinds = None
 
     """
     Initialise the libstempo object.
@@ -203,6 +207,9 @@ class PsrObj(object):
                 avetoas, self.Umat, Ui = utils.quantize_split(self.toas, flags, dt=jitterbin/86400., calci=True)
                 print "--> Computed quantization matrix."
 
+                self.detsig_avetoas = avetoas.copy()
+                self.detsig_Uinds = utils.quant2ind(self.Umat)
+
                 # get only epochs that need jitter/ecorr
                 self.Umat, avetoas, aveflags = utils.quantreduce(self.Umat, avetoas, flags)
                 print "--> Excized epochs without jitter."
@@ -302,6 +309,8 @@ class PsrObjFromH5(object):
     name = "J0000+0000"
     Gres = None
     epflags = None
+    detsig_avetoas = None
+    detsig_Uinds = None
     t2efacs = None
     t2equads = None
     t2ecorrs = None
@@ -339,6 +348,8 @@ class PsrObjFromH5(object):
         self.sysflagdict = None
         self.Gres = None
         self.epflags = None
+        self.detsig_avetoas = None
+        self.detsig_Uinds = None
         self.t2efacs = None
         self.t2equads = None
         self.t2ecorrs = None
@@ -381,6 +392,8 @@ class PsrObjFromH5(object):
         self.Umat = self.h5Obj['QuantMat'].value
         self.Uinds = self.h5Obj['QuantInds'].value
         self.epflags = self.h5Obj['EpochFlags'].value
+        self.detsig_avetoas = self.h5Obj['DetSigAveToas'].value
+        self.detsig_Uinds = self.h5Obj['DetSigQuantInds'].value
 
         self.sysflagdict = pickle.loads(self.h5Obj['SysFlagDict'].value)
 

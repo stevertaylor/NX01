@@ -311,6 +311,10 @@ class DataFile(object):
                        overwrite=overwrite)
         self.writeData(psrGroup, 'EpochFlags', psr.epflags,
                        overwrite=overwrite)
+        self.writeData(psrGroup, 'DetSigAveToas', psr.detsig_avetoas,
+                       overwrite=overwrite)
+        self.writeData(psrGroup, 'DetSigQuantInds', psr.detsig_Uinds,
+                       overwrite=overwrite)
 
         # pickle and store system flag dictionary
         storeFlagDict = pickle.dumps(psr.sysflagdict)

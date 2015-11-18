@@ -113,6 +113,8 @@ parser.add_option('--cgw-search', dest='cgw_search', action='store_true', defaul
                   help='Do you want to search for a single continuous GW signal? (default = False)')
 parser.add_option('--ecc-search', dest='ecc_search', action='store_true', default=False,
                   help='Do you want to search for an eccentric binary? (default = False)')
+parser.add_option('--epochTOAs', dest='epochTOAs', action='store_true', default=False,
+                  help='Do you want to compute CGW waveforms with the averaged TOAs? (default = False)')
 parser.add_option('--psrTerm', dest='psrTerm', action='store_true', default=False,
                   help='Do you want to include the pulsar term in the continuous wave search? (default = False)')
 parser.add_option('--periEv', dest='periEv', action='store_true', default=False,
@@ -524,15 +526,43 @@ def lnprob(xx):
             detres = []
             if args.ecc_search:
                 for ii,p in enumerate(psr):
-                    cgw_res.append( utils.ecc_cgw_signal(p, gwtheta, gwphi, mc, dist,
-                                                        orbfreq, gwinc, gwpol, gwgamma0,
-                                                        e0, l0, qr, periEv=args.periEv, tref=tref) )
+                    #cgw_res.append( utils.ecc_cgw_signal(p, gwtheta, gwphi, mc, dist,
+                    #                                    orbfreq, gwinc, gwpol, gwgamma0,
+                    #                                    e0, l0, qr, periEv=args.periEv,
+                    #                                    tref=tref, epochTOAs=args.epochTOAs) )
+                    
+                    tmp_res = utils.ecc_cgw_signal(p, gwtheta, gwphi, mc, dist,
+                                                   orbfreq, gwinc, gwpol, gwgamma0,
+                                                   e0, l0, qr, periEv=args.periEv,
+                                                   tref=tref, epochTOAs=args.epochTOAs)
+                    
+                    if args.epochTOAs:
+                        cgw_res.append(np.ones(len(p.toas)))
+                        for cc, swave in enumerate(tmp_res):
+                            cgw_res[ii][p.detsig_Uinds[cc,0]:p.detsig_Uinds[cc,1]] *= swave
+                    elif not args.epochTOAs:
+                        cgw_res[ii] = tmp_res
+                        
                     detres.append( p.res - cgw_res[ii] )
             else:
                 for ii,p in enumerate(psr):
-                    cgw_res.append( utils.ecc_cgw_signal(p, gwtheta, gwphi, mc, dist,
-                                                        orbfreq, gwinc, gwpol, gwgamma0,
-                                                        0.001, l0, qr, periEv=args.periEv, tref=tref) )
+                    #cgw_res.append( utils.ecc_cgw_signal(p, gwtheta, gwphi, mc, dist,
+                    #                                    orbfreq, gwinc, gwpol, gwgamma0,
+                    #                                    0.001, l0, qr, periEv=args.periEv,
+                    #                                    tref=tref, epochTOAs=args.epochTOAs) )
+
+                    tmp_res = utils.ecc_cgw_signal(p, gwtheta, gwphi, mc, dist,
+                                                   orbfreq, gwinc, gwpol, gwgamma0,
+                                                   0.001, l0, qr, periEv=args.periEv,
+                                                   tref=tref, epochTOAs=args.epochTOAs)
+                    
+                    if args.epochTOAs:
+                        cgw_res.append(np.ones(len(p.toas)))
+                        for cc, swave in enumerate(tmp_res):
+                            cgw_res[ii][p.detsig_Uinds[cc,0]:p.detsig_Uinds[cc,1]] *= swave
+                    elif not args.epochTOAs:
+                        cgw_res[ii] = tmp_res
+                    
                     detres.append( p.res - cgw_res[ii] )
 
         if args.bwm_search:
@@ -1206,7 +1236,9 @@ if args.sampler == 'ptmcmc':
         print "\n Running a quick profile on the likelihood to estimate evaluation speed...\n"
         cProfile.run('lnprob(x0)')
 
-
+    ########################################
+    # Creating parameter sampling groupings
+    
     ind = []
     param_ct = 0
     ##### red noise #####
