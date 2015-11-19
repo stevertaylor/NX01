@@ -390,7 +390,7 @@ if args.incGWB:
             pmin = np.append(pmin,-10.0*np.ones(num_corr_params))
 if args.det_signal:
     if args.cgw_search:
-        pmin = np.append(pmin,np.array([6.0,0.1,0.0,-9.3,
+        pmin = np.append(pmin,np.array([6.0,0.1,0.0,-10.0,
                                         0.0,-1.0,-1.0,0.0,0.0,0.0]))
         if args.ecc_search:
             pmin = np.append(pmin,0.001)

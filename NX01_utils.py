@@ -854,25 +854,48 @@ def calculate_splus_scross(nmax, mc, dl, F, e, t, l0, gamma, gammadot, inc):
     # tiled phase
     phase1 = n * np.tile(lt, (nmax-1,1)).T
     phase2 = np.tile(gt, (nmax-1,1)).T
-    phasep = phase1 + 2*phase2
-    phasem = phase1 - 2*phase2
+    #phasep = phase1 + 2*phase2
+    #phasem = phase1 - 2*phase2
 
     # intermediate terms
-    sp = np.sin(phasem)/(n*omega-2*gammadot) + \
-            np.sin(phasep)/(n*omega+2*gammadot)
-    sm = np.sin(phasem)/(n*omega-2*gammadot) - \
-            np.sin(phasep)/(n*omega+2*gammadot)
-    cp = np.cos(phasem)/(n*omega-2*gammadot) + \
-            np.cos(phasep)/(n*omega+2*gammadot)
-    cm = np.cos(phasem)/(n*omega-2*gammadot) - \
-            np.cos(phasep)/(n*omega+2*gammadot)
-    
+    #sp = np.sin(phasem)/(n*omega-2*gammadot) + \
+    #        np.sin(phasep)/(n*omega+2*gammadot)
+    #sm = np.sin(phasem)/(n*omega-2*gammadot) - \
+    #        np.sin(phasep)/(n*omega+2*gammadot)
+    #cp = np.cos(phasem)/(n*omega-2*gammadot) + \
+    #        np.cos(phasep)/(n*omega+2*gammadot)
+    #cm = np.cos(phasem)/(n*omega-2*gammadot) - \
+    #        np.cos(phasep)/(n*omega+2*gammadot)
+    #
+    #
+    #splus_n = -0.5 * (1+np.cos(inc)**2) * (an*sp - bn*sm) + \
+    #        (1-np.cos(inc)**2)*cn * np.sin(phase1)
+    #scross_n = np.cos(inc) * (an*cm - bn*cp)
 
+    sinp1 = np.sin(phase1)
+    cosp1 = np.cos(phase1)
+    sinp2 = np.sin(2*phase2)
+    cosp2 = np.cos(2*phase2)
+
+    sinpp = sinp1*cosp2 + cosp1*sinp2
+    cospp = cosp1*cosp2 - sinp1*sinp2
+    sinpm = sinp1*cosp2 - cosp1*sinp2
+    cospm = cosp1*cosp2 + sinp1*sinp2
+
+    # intermediate terms
+    sp = sinpm/(n*omega-2*gammadot) + \
+      sinpp/(n*omega+2*gammadot)
+    sm = sinpm/(n*omega-2*gammadot) - \
+      sinpp/(n*omega+2*gammadot)
+    cp = cospm/(n*omega-2*gammadot) + \
+      cospp/(n*omega+2*gammadot)
+    cm = cospm/(n*omega-2*gammadot) - \
+      cospp/(n*omega+2*gammadot)
+    
     splus_n = -0.5 * (1+np.cos(inc)**2) * (an*sp - bn*sm) + \
-            (1-np.cos(inc)**2)*cn * np.sin(phase1)
+            (1-np.cos(inc)**2)*cn * sinp1
     scross_n = np.cos(inc) * (an*cm - bn*cp)
         
-
     return np.sum(splus_n, axis=1), np.sum(scross_n, axis=1)
 
 def ecc_cgw_signal(psr, gwtheta, gwphi, mc, dist, F, inc, psi, gamma0,
