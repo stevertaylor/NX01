@@ -881,7 +881,6 @@ def fplus_fcross(psr, gwtheta, gwphi):
     # define variable for later use
     cosgwtheta, cosgwphi = np.cos(gwtheta), np.cos(gwphi)
     singwtheta, singwphi = np.sin(gwtheta), np.sin(gwphi)
-    sin2psi, cos2psi = np.sin(2*psi), np.cos(2*psi)
 
     # unit vectors to GW source
     m = np.array([singwphi, -cosgwphi, 0.0])
