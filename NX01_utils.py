@@ -583,6 +583,43 @@ def quantreduce(U, eat, flags, calci=False):
 
     return rv
 
+def dailyAve(times, res, err, ecorr, dt=1, flags=None):
+    # Does not work yet in NX01"
+
+    isort = np.argsort(times)
+    
+    bucket_ref = [times[isort[0]]]
+    bucket_ind = [[isort[0]]]
+    
+    for i in isort[1:]:
+        if times[i] - bucket_ref[-1] < dt:
+            bucket_ind[-1].append(i)
+        else:
+            bucket_ref.append(times[i])
+            bucket_ind.append([i])
+    
+    avetoas = np.array([np.mean(times[l]) for l in bucket_ind],'d')
+    if flags is not None:
+        aveflags = np.array([flags[l[0]] for l in bucket_ind])
+
+    aveerr = np.zeros(len(bucket_ind))
+    averes = np.zeros(len(bucket_ind))
+
+   
+    for i,l in enumerate(bucket_ind):
+        M = np.ones(len(l))
+        C = np.diag(err[l]**2) + np.ones((len(l), len(l))) * ecorr[l[0]]
+
+        avr = 1/np.dot(M, np.dot(np.linalg.inv(C), M))
+        aveerr[i] = np.sqrt(avr)
+        averes[i] = avr * np.dot(M, np.dot(np.linalg.inv(C), res[l]))
+ 
+        
+    if flags is not None:
+        return avetoas, averes, aveerr, aveflags
+    else:
+        return avetoas, aveerr, averes
+
 def make_ecc_interpolant():
     
     """
@@ -900,7 +937,8 @@ def calculate_splus_scross(nmax, mc, dl, F, e, t, l0, gamma, gammadot, inc):
 
 def ecc_cgw_signal(psr, gwtheta, gwphi, mc, dist, F, inc, psi, gamma0,
                    e0, l0, q, nmax=100, nset=None, pd=None, periEv=True,
-                   psrTerm=False, tref=0, check=False, useFile=True, epochTOAs=False):
+                   psrTerm=False, tref=0, check=False, useFile=True,
+                   epochTOAs=False, dummy_toas=None):
     
     """
     Simulate GW from eccentric SMBHB. Waveform models from
@@ -957,10 +995,13 @@ def ecc_cgw_signal(psr, gwtheta, gwphi, mc, dist, F, inc, psi, gamma0,
     cosMu = -np.dot(omhat, phat)
 
     # get values from pulsar object
-    if epochTOAs:
-        toas = (psr.detsig_avetoas.copy() - tref)*86400.0
-    elif not epochTOAs:
-        toas = (psr.toas.copy() - tref)*86400.0
+    if dummy_toas is None:
+        if epochTOAs:
+            toas = (psr.detsig_avetoas.copy() - tref)*86400.0
+        elif not epochTOAs:
+            toas = (psr.toas.copy() - tref)*86400.0
+    elif dummy_toas is not None:
+        toas = (dummy_toas.copy() - tref)*86400.0
     
     if check:
         # check that frequency is not evolving significantly over obs. time
@@ -979,7 +1020,7 @@ def ecc_cgw_signal(psr, gwtheta, gwphi, mc, dist, F, inc, psi, gamma0,
             print('F0 = {0}, F1 = {1}, delta f = {2}'.format(Fc0, Fc1, 1/Tobs))
     
     # get gammadot for earth term
-    if periEv==False:
+    if not periEv:
         gammadot = 0.0
     else:
         gammadot = get_gammadot(F, mc, q, e0)
@@ -1002,7 +1043,7 @@ def ecc_cgw_signal(psr, gwtheta, gwphi, mc, dist, F, inc, psi, gamma0,
     
     ##### pulsar term #####
     if psrTerm:
-
+       
         # convert units
         pd *= KPC2S   # convert from kpc to seconds
     
@@ -1042,6 +1083,7 @@ def ecc_cgw_signal(psr, gwtheta, gwphi, mc, dist, F, inc, psi, gamma0,
             rr = np.zeros(len(psr.toas))
             
     else:
+
         rr = - (fplus*cos2psi - fcross*sin2psi) * splus - \
                 (fplus*sin2psi + fcross*cos2psi) * scross
          

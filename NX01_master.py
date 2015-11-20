@@ -63,6 +63,8 @@ parser.add_option('--dmVar', dest='dmVar', action='store_true', default=False,
                    help='Search for DM variations in the data (False)? (default=False)')
 parser.add_option('--sampler', dest='sampler', action='store', type=str, default='ptmcmc',
                    help='Which sampler do you want to use: PTMCMC (ptmcmc) or MultiNest (mnest) (default = ptmcmc)')
+parser.add_option('--writeHotChains', dest='writeHotChains', action='store_true', default='False',
+                   help='Given a PTMCMC sampler, do you want to write out the hot chain samples? (default = False)')
 parser.add_option('--resume', dest='resume', action='store_true', default='False',
                    help='Do you want to resume the PTMCMC sampler (default = False)')
 parser.add_option('--incGWB', dest='incGWB', action='store_true', default=False,
@@ -382,7 +384,8 @@ if args.incGWB:
         if not args.fix_slope:
             pmin = np.append(pmin,0.0)
     elif args.gwbSpecModel == 'spectrum':
-        pmin = np.append(pmin,-18.0*np.ones(nmode))
+        #pmin = np.append(pmin,-18.0*np.ones(nmode))
+        pmin = np.append(pmin,-8.0*np.ones(nmode))
     if args.incCorr:
         if args.miCorr:
             pmin = np.append(pmin,np.zeros(num_corr_params))
@@ -417,7 +420,8 @@ if args.incGWB:
         if not args.fix_slope:
             pmax = np.append(pmax,7.0)
     elif args.gwbSpecModel == 'spectrum':
-        pmax = np.append(pmax,-11.0*np.ones(nmode))
+        #pmax = np.append(pmax,-11.0*np.ones(nmode))
+        pmax = np.append(pmax,3.0*np.ones(nmode))
     if args.incCorr:
         if args.miCorr:
             pmax = np.append(pmax,np.pi*np.ones(num_corr_params))
@@ -761,8 +765,9 @@ def lnprob(xx):
                            f1yr**(gam_gwb-3) * \
                            (fqs/86400.0)**(-gam_gwb)/Tspan)
         elif args.gwbSpecModel == 'spectrum':
-            rho = np.log10(10.0**(2.0*rho_spec) /
-                           (12.0 * np.pi**2.0 * (fqs/86400.0)**3.0 * Tspan))
+            #rho = np.log10(10.0**(2.0*rho_spec) /
+            #               (12.0 * np.pi**2.0 * (fqs/86400.0)**3.0 * Tspan))
+            rho = np.log10( 10.0**(2.0*rho_spec) / Tspan)
 
         if args.dmVar:
             gwbspec = np.append( 10**rho, np.zeros_like(rho) )
@@ -1183,7 +1188,8 @@ if args.sampler == 'ptmcmc':
             if not args.fix_slope:
                 x0 = np.append(x0,13./3.)
         elif args.gwbSpecModel == 'spectrum':
-            x0 = np.append(x0,np.random.uniform(-16.0,-15.0,nmode))
+            #x0 = np.append(x0,np.random.uniform(-16.0,-15.0,nmode))
+            x0 = np.append(x0,np.random.uniform(-7.0,-3.0,nmode))
         if args.incCorr:
             if args.miCorr:
                 x0 = np.append(x0,np.random.uniform(0.0,np.pi,num_corr_params))
@@ -1365,9 +1371,6 @@ if args.sampler == 'ptmcmc':
         
                 q[ii] = np.random.uniform(pmin[ii], pmax[ii])
                 qxy += 0
-
-                #Ared = np.log10(np.random.uniform(10 ** Ared_ll, 10 ** Ared_ul, len(Ared)))
-                #qxy += np.log(10 ** parameters[parind] / 10 ** q[parind])
     
             q[npsr+ii] = np.random.uniform(pmin[npsr+ii], pmax[npsr+ii])
             qxy += 0
@@ -1426,9 +1429,6 @@ if args.sampler == 'ptmcmc':
             
                 q[2*npsr+ii] = np.random.uniform(pmin[2*npsr+ii], pmax[2*npsr+ii])
                 qxy += 0
-
-                #Ared = np.log10(np.random.uniform(10 ** Ared_ll, 10 ** Ared_ul, len(Ared)))
-                #qxy += np.log(10 ** parameters[parind] / 10 ** q[parind])
     
             q[3*npsr+ii] = np.random.uniform(pmin[3*npsr+ii], pmax[3*npsr+ii])
             qxy += 0
@@ -1461,10 +1461,6 @@ if args.sampler == 'ptmcmc':
             
             q[pct] = np.random.uniform(pmin[pct], pmax[pct])
             qxy += 0
-
-            #Ared = np.log10(np.random.uniform(10 ** Ared_ll, 10 ** Ared_ul, len(Ared)))
-            #qxy += np.log(10 ** parameters[parind] / 10 ** q[parind])
-
 
         if not args.fix_slope:
             q[pct+1] = np.random.uniform(pmin[pct+1], pmax[pct+1])
@@ -1623,6 +1619,7 @@ if args.sampler == 'ptmcmc':
         if args.bwm_model_select:
             sampler.addProposalToCycle(drawFromModelIndexPrior, 5)
 
-    sampler.sample(p0=x0,Niter=5e6,thin=10,
+    sampler.sample(p0=x0, Niter=5e6, thin=10,
                 covUpdate=1000, AMweight=20,
-                SCAMweight=30, DEweight=50, KDEweight=0)
+                SCAMweight=30, DEweight=50, KDEweight=0,
+                writeHotChains=args.writeHotChains)
