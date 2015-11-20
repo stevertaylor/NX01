@@ -73,6 +73,8 @@ parser.add_option('--gwbSpecModel', dest='gwbSpecModel', action='store', type=st
                   help='What kind of spectral model do you want for the GWB: powerlaw, spectrum, broken (default = powerlaw)')
 parser.add_option('--incCorr', dest='incCorr', action='store_true', default=False,
                   help='Do you want to include cross-correlations in the GWB model? (default = False)')
+parser.add_option('--gwbPointSrc', dest='gwbPointSrc', action='store_true', default=False,
+                  help='Do you want to search for a localized stochastic GW source? (default = False)')
 parser.add_option('--redSpecModel', dest='redSpecModel', action='store', type=str, default='powerlaw',
                   help='What kind of spectral model do you want for red timing-noise: powerlaw, spectrum, broken (default = powerlaw)')
 parser.add_option('--dmSpecModel', dest='dmSpecModel', action='store', type=str, default='powerlaw',
@@ -236,7 +238,14 @@ if args.incGWB and args.incCorr:
 
         num_corr_params = tmp_num_gwfreq_wins*(len(psr)*(len(psr)-1)/2)
 
-    if not args.miCorr:
+    if args.gwbPointSrc:
+
+        #### only works for source covering all frequencies ##### 
+
+        num_corr_params = 2
+        
+
+    if not args.miCorr and not args.gwbPointSrc:
         
         # Computing all the correlation basis-functions for the array.
         CorrCoeff = np.array(anis.CorrBasis(positions,args.LMAX))
@@ -389,6 +398,8 @@ if args.incGWB:
     if args.incCorr:
         if args.miCorr:
             pmin = np.append(pmin,np.zeros(num_corr_params))
+        elif args.gwbPointSrc:
+            pmin = np.append(pmin,np.array([0.0,-1.0]))
         else:
             pmin = np.append(pmin,-10.0*np.ones(num_corr_params))
 if args.det_signal:
@@ -404,6 +415,7 @@ if args.det_signal:
             pmin = np.append(pmin,-0.5)
 
 
+            
 if not args.fixRed:
     if args.redSpecModel == 'powerlaw':
         pmax = -11.0*np.ones(len(psr))
@@ -425,6 +437,8 @@ if args.incGWB:
     if args.incCorr:
         if args.miCorr:
             pmax = np.append(pmax,np.pi*np.ones(num_corr_params))
+        elif args.gwbPointSrc:
+            pmax = np.append(pmax,np.array([2.0*np.pi,1.0]))
         else:
             pmax = np.append(pmax,10.0*np.ones(num_corr_params))
 if args.det_signal:
@@ -664,6 +678,42 @@ def lnprob(xx):
                 for ii in range(tmp_num_gwfreq_wins): # number of frequency windows
                     for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
                         ORF.append( np.zeros((npsr,npsr)) )
+
+            ORF = np.array(ORF)
+            ORFtot = np.zeros((mode_count,npsr,npsr)) # shouldn't be applying ORF to dmfreqs,
+                                                      # but the projection of GW spec onto dmfreqs
+                                                      # is defined as zero below.
+            ORFtot[0::2] = ORF
+            ORFtot[1::2] = ORF
+
+        elif args.gwbPointSrc:
+
+            gwphi, cosgwtheta = orf_coeffs
+            gwtheta = np.arccos(cosgwtheta)
+
+            corr_curve=np.zeros((npsr,npsr))
+
+            Fp = np.zeros(npsr)
+            Fc = np.zeros(npsr)
+            for ii in range(npsr):
+                Fp[ii], Fc[ii] = utils.fplus_fcross(psr[ii], gwtheta, gwphi)
+            
+            for ii in range(npsr):
+                for jj in range(ii,npsr):
+                    corr_curve[ii,jj] = (3.0/(8.0*np.pi)) * (Fp[ii]*Fp[jj] + Fc[ii]*Fc[jj])
+                    corr_curve[jj,ii] = corr_curve[ii,jj]
+
+                    if ii == jj:
+                        # scaling for pulsar-term
+                        corr_curve[ii,jj] *= 2.0
+
+            ORF=[]
+            for ii in range(nmode): # copy for all frequencies
+                ORF.append( corr_curve )
+                    
+            if args.dmVar==True:
+                for ii in range(nmode): # number of frequency windows
+                    ORF.append( np.zeros((npsr,npsr)) )
 
             ORF = np.array(ORF)
             ORFtot = np.zeros((mode_count,npsr,npsr)) # shouldn't be applying ORF to dmfreqs,
@@ -1056,6 +1106,8 @@ if args.incGWB:
         if args.miCorr:
             for ii in range(num_corr_params):
                 parameters.append('phi_corr_{0}'.format(ii+1))
+        elif args.gwbPointSrc:
+            parameters += ["gwb_phi", "gwb_costheta"]
         else:
             for ii in range(num_corr_params):
                 parameters.append('clm_{0}'.format(ii+1))
@@ -1092,6 +1144,8 @@ if args.incGWB:
     if args.incCorr:
         if args.miCorr:
             file_tag += '_gwb{0}_miCorr{1}{2}'.format(args.limit_or_detect_gwb,evol_corr_tag,gamma_tag)
+        elif args.gwbPointSrc:
+            file_tag += '_gwb{0}_pointSrc{1}'.format(args.limit_or_detect_gwb,gamma_tag)
         else:
             file_tag += '_gwb{0}_Lmax{1}{2}{3}'.format(args.limit_or_detect_gwb,
                                                        args.LMAX,evol_corr_tag,gamma_tag)
@@ -1193,6 +1247,8 @@ if args.sampler == 'ptmcmc':
         if args.incCorr:
             if args.miCorr:
                 x0 = np.append(x0,np.random.uniform(0.0,np.pi,num_corr_params))
+            elif args.gwbPointSrc:
+                x0 = np.append(x0,np.array([0.5,0.5]))
             else:
                 x0 = np.append(x0,np.zeros(num_corr_params))
     if args.det_signal:
@@ -1297,6 +1353,14 @@ if args.sampler == 'ptmcmc':
             ids = [np.arange(param_ct,param_ct+nmode)]
             [ind.append(id) for id in ids]
             param_ct += nmode
+
+
+    ##### GWB correlations #####
+    if args.incGWB and args.incCorr and args.gwbPointSrc:
+        ids = [[param_ct,param_ct+1]]
+        param_ct += 2
+        [ind.append(id) for id in ids]
+        
 
     ##### DET SIGNAL #####
     if args.det_signal:
@@ -1406,6 +1470,7 @@ if args.sampler == 'ptmcmc':
 
     # dm var draws 
     def drawFromDMNoisePrior(parameters, iter, beta):
+        ##### only for power-law DM at the moment #####
 
         # post-jump parameters
         q = parameters.copy()
@@ -1414,6 +1479,10 @@ if args.sampler == 'ptmcmc':
         qxy = 0
 
         npsr = len(psr)
+        if args.redSpecModel == 'powerlaw':
+            pct = 2*npsr
+        elif args.redSpecModel == 'spectrum':
+            pct = npsr*nmode
 
         #ind = np.unique(np.random.randint(0, npsr, npsr))
         ind = np.unique(np.random.randint(0, npsr, 1))
@@ -1422,15 +1491,15 @@ if args.sampler == 'ptmcmc':
             # log prior
             if args.limit_or_detect_dm == 'detect':
         
-                q[2*npsr+ii] = np.random.uniform(pmin[2*npsr+ii], pmax[2*npsr+ii])
+                q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
                 qxy += 0
         
             elif args.limit_or_detect_dm == 'limit':
             
-                q[2*npsr+ii] = np.random.uniform(pmin[2*npsr+ii], pmax[2*npsr+ii])
+                q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
                 qxy += 0
     
-            q[3*npsr+ii] = np.random.uniform(pmin[3*npsr+ii], pmax[3*npsr+ii])
+            q[pct+npsr+ii] = np.random.uniform(pmin[pct+npsr+ii], pmax[pct+npsr+ii])
             qxy += 0
 
         return q, qxy
@@ -1446,7 +1515,10 @@ if args.sampler == 'ptmcmc':
         qxy = 0
 
         npsr = len(psr)
-        pct = 2*npsr
+        if args.redSpecModel == 'powerlaw':
+            pct = 2*npsr
+        elif args.redSpecModel == 'spectrum':
+            pct = npsr*nmode
     
         if args.dmVar:
             pct += 2*npsr
@@ -1477,7 +1549,10 @@ if args.sampler == 'ptmcmc':
         qxy = 0
 
         npsr = len(psr)
-        pct = 2*npsr
+        if args.redSpecModel == 'powerlaw':
+            pct = 2*npsr
+        elif args.redSpecModel == 'spectrum':
+            pct = npsr*nmode
     
         if args.dmVar:
             pct += 2*npsr
@@ -1498,6 +1573,31 @@ if args.sampler == 'ptmcmc':
         
         return q, qxy
 
+    def drawFromGWBpointSrcPrior(parameters, iter, beta):
+
+        # post-jump parameters
+        q = parameters.copy()
+
+        # transition probability
+        qxy = 0
+
+        npsr = len(psr)
+        if args.redSpecModel == 'powerlaw':
+            pct = 2*npsr
+        elif args.redSpecModel == 'spectrum':
+            pct = npsr*nmode
+    
+        if args.dmVar:
+            pct += 2*npsr
+
+        q[pct] = np.random.uniform(pmin[pct], pmax[pct])
+        qxy += 0
+        
+        q[pct+1] = np.random.uniform(pmin[pct+1], pmax[pct+1])
+        qxy += 0
+
+        return q, qxy
+
     # cgw draws 
     def drawFromCWPrior(parameters, iter, beta):
 
@@ -1508,15 +1608,21 @@ if args.sampler == 'ptmcmc':
         qxy = 0
 
         npsr = len(psr)
-        pct = 2*npsr
+        if args.redSpecModel == 'powerlaw':
+            pct = 2*npsr
+        elif args.redSpecModel == 'spectrum':
+            pct = npsr*nmode
     
         if args.dmVar:
             pct += 2*npsr
 
         if args.incGWB:
-            pct += 1
-            if not args.fix_slope:
+            if args.gwbSpecModel == 'powerlaw':
                 pct += 1
+                if not args.fix_slope:
+                    pct += 1
+            elif args.gwbSpecModel == 'spectrum':
+                pct += nmode
 
             if args.incCorr:
                 pct += num_corr_params
@@ -1544,15 +1650,21 @@ if args.sampler == 'ptmcmc':
         qxy = 0
 
         npsr = len(psr)
-        pct = 2*npsr
+        if args.redSpecModel == 'powerlaw':
+            pct = 2*npsr
+        elif args.redSpecModel == 'spectrum':
+            pct = npsr*nmode
     
         if args.dmVar:
             pct += 2*npsr
 
         if args.incGWB:
-            pct += 1
-            if not args.fix_slope:
+            if args.gwbSpecModel == 'powerlaw':
                 pct += 1
+                if not args.fix_slope:
+                    pct += 1
+            elif args.gwbSpecModel == 'spectrum':
+                pct += nmode
 
             if args.incCorr:
                 pct += num_corr_params
@@ -1576,15 +1688,21 @@ if args.sampler == 'ptmcmc':
         qxy = 0
 
         npsr = len(psr)
-        pct = 2*npsr
+        if args.redSpecModel == 'powerlaw':
+            pct = 2*npsr
+        elif args.redSpecModel == 'spectrum':
+            pct = npsr*nmode
     
         if args.dmVar:
             pct += 2*npsr
 
         if args.incGWB:
-            pct += 1
-            if not args.fix_slope:
+            if args.gwbSpecModel == 'powerlaw':
                 pct += 1
+                if not args.fix_slope:
+                    pct += 1
+            elif args.gwbSpecModel == 'spectrum':
+                pct += nmode
 
             if args.incCorr:
                 pct += num_corr_params
@@ -1612,6 +1730,8 @@ if args.sampler == 'ptmcmc':
             sampler.addProposalToCycle(drawFromGWBPowerlawPrior, 10)
         elif args.gwbSpecModel == 'spectrum':
             sampler.addProposalToCycle(drawFromGWBSpectrumPrior, 10)
+        if args.incCorr and args.gwbPointSrc:
+            sampler.addProposalToCycle(drawFromGWBpointSrcPrior, 10)
     if args.det_signal and args.cgw_search:
         sampler.addProposalToCycle(drawFromCWPrior, 10)
     if args.det_signal and args.bwm_search:

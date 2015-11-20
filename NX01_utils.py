@@ -7,6 +7,7 @@ Code contributions by Rutger van Haasteren (piccard) and Justin Ellis (PAL/PAL2)
 
 """
 
+from __future__ import division
 import numpy as np
 from numpy import *
 import os
@@ -32,109 +33,6 @@ SOLAR2S = sc.G / sc.c**3 * 1.98855e30
 KPC2S = sc.parsec / sc.c * 1e3
 MPC2S = sc.parsec / sc.c * 1e6
 
-def masterSplitParams(xx, npsr, dmVar, fix_slope,
-                      incGWB, incCorr,
-                      num_corr_params=0, propose=False):
-    """
-    Takes in a vector of search parameters and
-    returns arrays of physical parameters.
-    e.g. Ared, gam_red, EFACS, ...
-
-    """
-
-    param_ct = 0
-    #########################
-    # Pulsar noise parameters
-    #########################
-    
-    Ared = 10.0**xx[:npsr]
-    gam_red = xx[npsr:2*npsr]
-
-    param_ct += 2*npsr
-
-    if dmVar==True:
-        Adm = 10.0**xx[2*npsr:3*npsr]
-        gam_dm = xx[3*npsr:4*npsr]
-        param_ct += 2*npsr
-
-
-    if incGWB:
-
-        #########################
-        # GWB parameters
-        #########################
-
-        Agwb = 10.0**xx[param_ct]
-        param_ct += 1
-        if fix_slope:
-            gam_gwb = 13./3
-        else:
-            gam_gwb = xx[param_ct]
-            param_ct += 1
-
-        if incCorr:
-            #########################
-            # Anisotropy parameters
-            #########################
-    
-            orf_coeffs = xx[param_ct:param_ct+num_corr_params]
-
-    #####################################################
-    # Remaining parameters are for a deterministic signal
-    param_ct += num_corr_params
-    #####################################################
-
-    if dmVar:
-        
-        if not propose:
-            if incGWB:
-                if incCorr:
-                    return Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, orf_coeffs, param_ct
-                else:
-                    return Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, param_ct
-            else:
-                return Ared, gam_red, Adm, gam_dm, param_ct
-        else:
-            if incGWB:
-                if incCorr:
-                    if not fix_slope:
-                        return Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb, orf_coeffs
-                    else:
-                        return Ared, gam_red, Adm, gam_dm, Agwb, orf_coeffs
-                else:
-                    if not fix_slope:
-                        return Ared, gam_red, Adm, gam_dm, Agwb, gam_gwb
-                    else:
-                        return Ared, gam_red, Adm, gam_dm, Agwb
-            else:
-                return Ared, gam_red, Adm, gam_dm
-                
-    else:
-        
-        if not propose:
-            if incGWB:
-                if incCorr:
-                    return Ared, gam_red, Agwb, gam_gwb, orf_coeffs, param_ct
-                else:
-                    return Ared, gam_red, Agwb, gam_gwb, param_ct
-            else:
-                return Ared, gam_red, param_ct
-        else:
-            if incGWB:
-                if incCorr:
-                    if not fix_slope:
-                        return Ared, gam_red, Agwb, gam_gwb, orf_coeffs
-                    else:
-                        return Ared, gam_red, Agwb, orf_coeffs
-                else:
-                    if not fix_slope:
-                        return Ared, gam_red, Agwb, gam_gwb
-                    else:
-                        return Ared, gam_red, Agwb
-            else:
-                return Ared, gam_red
-                
-
 
 def sumTermCovarianceMatrix_fast(tm, fL, gam):
     """
@@ -157,6 +55,16 @@ def sumTermCovarianceMatrix_fast(tm, fL, gam):
 
 
 def makeTimeGrid(psra, psrb):
+    """
+    Construct time-domain DM-variation
+    covariance matrix. 
+
+    @param psra: object for pulsar 'a'
+    @param psrb: object for pulsar 'b'
+
+    @return: Cdm: Time-lag grid
+
+    """
 
     ta, tb = np.meshgrid(psra.toas, psrb.toas)  
     tm = np.abs(ta-tb).astype(np.float64)/365.25
@@ -165,6 +73,17 @@ def makeTimeGrid(psra, psrb):
 
 
 def makeRedTDcov(Ared, gam_red, tm):
+    """
+    Construct time-domain red-noise
+    covariance matrix. 
+
+    @param Ared: Red-noise spectral amplitude
+    @param gam_red: Red-noise spectral slope
+    @param tm: time-lag matrix
+
+    @return: Cdm: Red-noise covariance matrix
+
+    """
 
     Tspan = tm.max()
     fL = 1/(100.0*Tspan)
@@ -180,6 +99,18 @@ def makeRedTDcov(Ared, gam_red, tm):
 
 
 def makeDmTDcov(psr, Adm, gam_dm, tm):
+    """
+    Construct time-domain DM-variation
+    covariance matrix. 
+
+    @param psr: pulsar object
+    @param Adm: DM-variation spectral amplitude
+    @param gam_dm: DM-variation spectral slope
+    @param tm: time-lag matrix
+
+    @return: Cdm: DM covariance matrix
+
+    """
 
     Tspan = tm.max()
     fL = 1/(100.0*Tspan)
@@ -934,6 +865,42 @@ def calculate_splus_scross(nmax, mc, dl, F, e, t, l0, gamma, gammadot, inc):
     scross_n = np.cos(inc) * (an*cm - bn*cp)
         
     return np.sum(splus_n, axis=1), np.sum(scross_n, axis=1)
+
+
+def fplus_fcross(psr, gwtheta, gwphi):
+    """
+    Compute gravitational-wave quadrupolar antenna pattern.
+
+    :param psr: pulsar object
+    :param gwtheta: Polar angle of GW source in celestial coords [radians]
+    :param gwphi: Azimuthal angle of GW source in celestial coords [radians]
+
+    :returns: fplus, fcross
+    """
+
+    # define variable for later use
+    cosgwtheta, cosgwphi = np.cos(gwtheta), np.cos(gwphi)
+    singwtheta, singwphi = np.sin(gwtheta), np.sin(gwphi)
+    sin2psi, cos2psi = np.sin(2*psi), np.cos(2*psi)
+
+    # unit vectors to GW source
+    m = np.array([singwphi, -cosgwphi, 0.0])
+    n = np.array([-cosgwtheta*cosgwphi, -cosgwtheta*singwphi, singwtheta])
+    omhat = np.array([-singwtheta*cosgwphi, -singwtheta*singwphi, -cosgwtheta])
+    
+    # pulsar location
+    ptheta = np.pi/2 - psr.psr_locs[1]
+    pphi = psr.psr_locs[0]
+    
+    # use definition from Sesana et al 2010 and Ellis et al 2012
+    phat = np.array([np.sin(ptheta)*np.cos(pphi), np.sin(ptheta)*np.sin(pphi),\
+            np.cos(ptheta)])
+
+    fplus = 0.5 * (np.dot(m, phat)**2 - np.dot(n, phat)**2) / (1+np.dot(omhat, phat))
+    fcross = (np.dot(m, phat)*np.dot(n, phat)) / (1 + np.dot(omhat, phat))
+
+    return fplus, fcross
+
 
 def ecc_cgw_signal(psr, gwtheta, gwphi, mc, dist, F, inc, psi, gamma0,
                    e0, l0, q, nmax=100, nset=None, pd=None, periEv=True,
