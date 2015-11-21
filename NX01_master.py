@@ -1366,7 +1366,8 @@ if args.sampler == 'ptmcmc':
         
     ##### all parameters #####
     ind.insert(0, range(len(x0)))
-    print ind
+    if rank == 0:
+        print "Your parameter index groupings for sampling are {0}".format(ind)
 
     
     sampler = ptmcmc.PTSampler(ndim=n_params,logl=lnprob,logp=my_prior,
