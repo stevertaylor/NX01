@@ -107,6 +107,8 @@ parser.add_option('--fixDM', dest='fixDM', action='store_true', default=False,
                   help='Do you want to perform a fixed power-law DM-variations analysis? (default = False)')
 parser.add_option('--num_psrs', dest='num_psrs', action='store', type=int, default=18,
                   help='How many pulsars do you want to analyse? (default = 18)')
+parser.add_option('--psrStartIndex', dest='psrStartIndex', action='store', type=int, default=0,
+                  help='From your pulsar list, which pulsar index do you want to start with? (default = 0)')
 parser.add_option('--det-signal', dest='det_signal', action='store_true', default=False,
                   help='Do you want to search for a deterministic GW signal? (default = False)')
 parser.add_option('--bwm-search', dest='bwm_search', action='store_true', default=False,
@@ -193,7 +195,8 @@ psr_pathinfo = np.genfromtxt(args.psrlist, dtype=str, skip_header=2)
 if args.from_h5:
 
     tmp_psr = []
-    for ii,tmp_name in enumerate(psr_pathinfo[:args.num_psrs,0]):
+    for ii,tmp_name in enumerate(psr_pathinfo[args.psrStartIndex:args.num_psrs,0],
+                                 start=args.psrStartIndex):
         tmp_psr.append(h5.File(psr_pathinfo[ii,1], 'r')[tmp_name])
 
     psr = [NX01_psr.PsrObjFromH5(p) for p in tmp_psr]
@@ -203,7 +206,7 @@ else:
     print 'Are you sure you do not want to use hdf5 files (recommended)?'
     
     t2psr=[]
-    for ii in range(args.num_psrs):
+    for ii in range(args.psrStartIndex,args.num_psrs):
         t2psr.append( T2.tempopulsar( parfile=psr_pathinfo[ii,2],
                                       timfile=psr_pathinfo[ii,3] ) )
         t2psr[ii].fit(iters=3)
@@ -382,7 +385,6 @@ if not args.fixRed:
         pmin = -20.0*np.ones(len(psr))
         pmin = np.append(pmin,0.0*np.ones(len(psr)))
     elif args.redSpecModel == 'spectrum':
-        #pmin = -20.0*np.ones(len(psr)*nmode)
         pmin = -8.0*np.ones(len(psr)*nmode)
 if args.dmVar:
     pmin = np.append(pmin,-20.0*np.ones(len(psr)))
@@ -393,7 +395,6 @@ if args.incGWB:
         if not args.fix_slope:
             pmin = np.append(pmin,0.0)
     elif args.gwbSpecModel == 'spectrum':
-        #pmin = np.append(pmin,-18.0*np.ones(nmode))
         pmin = np.append(pmin,-8.0*np.ones(nmode))
     if args.incCorr:
         if args.miCorr:
@@ -421,7 +422,6 @@ if not args.fixRed:
         pmax = -11.0*np.ones(len(psr))
         pmax = np.append(pmax,7.0*np.ones(len(psr)))
     elif args.redSpecModel == 'spectrum':
-        #pmax = -11.0*np.ones(len(psr)*nmode)
         pmax = 3.0*np.ones(len(psr)*nmode)
 if args.dmVar:
     pmax = np.append(pmax,-11.0*np.ones(len(psr)))
@@ -432,7 +432,6 @@ if args.incGWB:
         if not args.fix_slope:
             pmax = np.append(pmax,7.0)
     elif args.gwbSpecModel == 'spectrum':
-        #pmax = np.append(pmax,-11.0*np.ones(nmode))
         pmax = np.append(pmax,3.0*np.ones(nmode))
     if args.incCorr:
         if args.miCorr:
@@ -544,10 +543,6 @@ def lnprob(xx):
             detres = []
             if args.ecc_search:
                 for ii,p in enumerate(psr):
-                    #cgw_res.append( utils.ecc_cgw_signal(p, gwtheta, gwphi, mc, dist,
-                    #                                    orbfreq, gwinc, gwpol, gwgamma0,
-                    #                                    e0, l0, qr, periEv=args.periEv,
-                    #                                    tref=tref, epochTOAs=args.epochTOAs) )
                     
                     tmp_res = utils.ecc_cgw_signal(p, gwtheta, gwphi, mc, dist,
                                                    orbfreq, gwinc, gwpol, gwgamma0,
@@ -564,10 +559,6 @@ def lnprob(xx):
                     detres.append( p.res - cgw_res[ii] )
             else:
                 for ii,p in enumerate(psr):
-                    #cgw_res.append( utils.ecc_cgw_signal(p, gwtheta, gwphi, mc, dist,
-                    #                                    orbfreq, gwinc, gwpol, gwgamma0,
-                    #                                    0.001, l0, qr, periEv=args.periEv,
-                    #                                    tref=tref, epochTOAs=args.epochTOAs) )
 
                     tmp_res = utils.ecc_cgw_signal(p, gwtheta, gwphi, mc, dist,
                                                    orbfreq, gwinc, gwpol, gwgamma0,
@@ -799,8 +790,6 @@ def lnprob(xx):
                                            f1yr**(gam_red_tmp-3) * \
                                            (fqs/86400.0)**(-gam_red_tmp)/Tspan ))
                 elif args.redSpecModel == 'spectrum':
-                    #kappa.append(np.log10( 10.0**(2.0*red_spec[ii,:]) /
-                    #                       (12.0 * np.pi**2.0 * (fqs/86400.0)**3.0 * Tspan) ))
                     kappa.append(np.log10( 10.0**(2.0*red_spec[ii,:]) / Tspan) )
     
     ###################################
@@ -815,8 +804,6 @@ def lnprob(xx):
                            f1yr**(gam_gwb-3) * \
                            (fqs/86400.0)**(-gam_gwb)/Tspan)
         elif args.gwbSpecModel == 'spectrum':
-            #rho = np.log10(10.0**(2.0*rho_spec) /
-            #               (12.0 * np.pi**2.0 * (fqs/86400.0)**3.0 * Tspan))
             rho = np.log10( 10.0**(2.0*rho_spec) / Tspan)
 
         if args.dmVar:
@@ -1231,7 +1218,6 @@ if args.sampler == 'ptmcmc':
             x0 = np.log10(np.array([p.Redamp for p in psr]))
             x0 = np.append(x0,np.array([p.Redind for p in psr]))
         elif args.redSpecModel == 'spectrum':
-            #x0 = np.random.uniform(-17.0,-13.0,len(psr)*nmode)
             x0 = np.random.uniform(-7.0,-3.0,len(psr)*nmode)
     if args.dmVar:
         x0 = np.append(x0,np.log10(np.array([p.Redamp for p in psr])))
@@ -1242,7 +1228,6 @@ if args.sampler == 'ptmcmc':
             if not args.fix_slope:
                 x0 = np.append(x0,13./3.)
         elif args.gwbSpecModel == 'spectrum':
-            #x0 = np.append(x0,np.random.uniform(-16.0,-15.0,nmode))
             x0 = np.append(x0,np.random.uniform(-7.0,-3.0,nmode))
         if args.incCorr:
             if args.miCorr:
@@ -1421,7 +1406,6 @@ if args.sampler == 'ptmcmc':
 
         npsr = len(psr)
 
-        #ind = np.unique(np.random.randint(0, npsr, npsr))
         ind = np.unique(np.random.randint(0, npsr, 1))
 
         for ii in ind:
@@ -1484,7 +1468,6 @@ if args.sampler == 'ptmcmc':
         elif args.redSpecModel == 'spectrum':
             pct = npsr*nmode
 
-        #ind = np.unique(np.random.randint(0, npsr, npsr))
         ind = np.unique(np.random.randint(0, npsr, 1))
 
         for ii in ind:

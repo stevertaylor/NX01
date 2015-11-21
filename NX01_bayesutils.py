@@ -18,7 +18,8 @@ import statsmodels.api as sm
 import healpy as hp
 from bayestar import plot
 import matplotlib.mlab as ml
-from matplotlib.ticker import FormatStrFormatter, LinearLocator, NullFormatter, NullLocator, AutoMinorLocator
+from matplotlib.ticker import FormatStrFormatter,\
+     LinearLocator, NullFormatter, NullLocator, AutoMinorLocator
 import matplotlib.ticker
 import matplotlib.colors
 import matplotlib.cm as cmx
