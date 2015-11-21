@@ -113,6 +113,8 @@ parser.add_option('--det-signal', dest='det_signal', action='store_true', defaul
                   help='Do you want to search for a deterministic GW signal? (default = False)')
 parser.add_option('--bwm-search', dest='bwm_search', action='store_true', default=False,
                   help='Do you want to search for GW burst with memory (BWM)? (default = False)')
+parser.add_option('--bwm-antenna', dest='bwm_antenna', action='store', type=str, default='quad',
+                  help='What kind of antenna pattern do you want to use for a BWM? (default = quad)')
 parser.add_option('--bwm-model-select', dest='bwm_model_select', action='store_true', default=False,
                   help='Do you want to compute the Bayes Factor for BWM+noise verus noise-only? (default = False)')
 parser.add_option('--cgw-search', dest='cgw_search', action='store_true', default=False,
@@ -589,9 +591,11 @@ def lnprob(xx):
                     if nmodel==0:
                         bwm_res.append( np.zeros(len(p.toas)) )
                     elif nmodel==1:
-                        bwm_res.append( utils.bwmsignal(bwm_params,p) )
+                        bwm_res.append( utils.bwmsignal(bwm_params,p,
+                                                        antennaPattern=args.bwm_antenna) )
                 else:
-                    bwm_res.append( utils.bwmsignal(bwm_params,p) )
+                    bwm_res.append( utils.bwmsignal(bwm_params,p,
+                                                    antennaPattern=args.bwm_antenna) )
                 detres.append( p.res - bwm_res[ii] )
             
 
