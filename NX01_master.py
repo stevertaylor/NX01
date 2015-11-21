@@ -669,7 +669,7 @@ def lnprob(xx):
 
                     ORF.append(np.dot( upper_triang.T, upper_triang ))
        
-            if args.dmVar==True:
+            if args.dmVar:
                 for ii in range(tmp_num_gwfreq_wins): # number of frequency windows
                     for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
                         ORF.append( np.zeros((npsr,npsr)) )
@@ -706,7 +706,7 @@ def lnprob(xx):
             for ii in range(nmode): # copy for all frequencies
                 ORF.append( corr_curve )
                     
-            if args.dmVar==True:
+            if args.dmVar:
                 for ii in range(nmode): # number of frequency windows
                     ORF.append( np.zeros((npsr,npsr)) )
 
@@ -747,7 +747,7 @@ def lnprob(xx):
                 for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
                     ORF.append( sum(clm[ii,kk]*CorrCoeff[kk]
                                     for kk in range(len(CorrCoeff))) )
-            if args.dmVar==True:
+            if args.dmVar:
                 for ii in range(tmp_num_gwfreq_wins): # number of frequency windows
                     for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
                         ORF.append( np.zeros((npsr,npsr)) )
@@ -1149,7 +1149,7 @@ if args.det_signal:
         else:
             file_tag += '_ccgw'
     if args.bwm_search:
-        file_tag += '_bwm'
+        file_tag += '_bwm'+args.bwm_antenna
         if args.bwm_model_select:
             file_tag += 'ModelSelect'
 if args.fixRed:
