@@ -105,10 +105,12 @@ parser.add_option('--fixRed', dest='fixRed', action='store_true', default=False,
                   help='Do you want to perform a fixed power-law red-noise analysis? (default = False)')
 parser.add_option('--fixDM', dest='fixDM', action='store_true', default=False,
                   help='Do you want to perform a fixed power-law DM-variations analysis? (default = False)')
-parser.add_option('--num_psrs', dest='num_psrs', action='store', type=int, default=18,
-                  help='How many pulsars do you want to analyse? (default = 18)')
 parser.add_option('--psrStartIndex', dest='psrStartIndex', action='store', type=int, default=0,
                   help='From your pulsar list, which pulsar index do you want to start with? (default = 0)')
+parser.add_option('--psrEndIndex', dest='psrEndIndex', action='store', type=int, default=18,
+                  help='From your pulsar list, which pulsar index do you want to end with? (default = 18)')
+parser.add_option('--psrIndices', dest='psrIndices', action='store', type=str, default=None,
+                  help='Provide a sequence of indices from your pulsar list as a comma delimited string (default = None)')
 parser.add_option('--det-signal', dest='det_signal', action='store_true', default=False,
                   help='Do you want to search for a deterministic GW signal? (default = False)')
 parser.add_option('--bwm-search', dest='bwm_search', action='store_true', default=False,
@@ -197,9 +199,17 @@ psr_pathinfo = np.genfromtxt(args.psrlist, dtype=str, skip_header=2)
 if args.from_h5:
 
     tmp_psr = []
-    for ii,tmp_name in enumerate(psr_pathinfo[args.psrStartIndex:args.num_psrs,0],
-                                 start=args.psrStartIndex):
-        tmp_psr.append(h5.File(psr_pathinfo[ii,1], 'r')[tmp_name])
+    
+    if args.psrIndices is not None:
+        psr_inds = [int(item) for item in args.psrIndices.split(',')]
+        for ii,tmp_name in zip(psr_inds,psr_pathinfo[psr_inds,0]):
+            tmp_psr.append(h5.File(psr_pathinfo[ii,1], 'r')[tmp_name])
+
+    else:
+    
+        for ii,tmp_name in enumerate(psr_pathinfo[args.psrStartIndex:args.psrEndIndex,0],
+                                     start=args.psrStartIndex):
+            tmp_psr.append(h5.File(psr_pathinfo[ii,1], 'r')[tmp_name])
 
     psr = [NX01_psr.PsrObjFromH5(p) for p in tmp_psr]
     
@@ -208,7 +218,7 @@ else:
     print 'Are you sure you do not want to use hdf5 files (recommended)?'
     
     t2psr=[]
-    for ii in range(args.psrStartIndex,args.num_psrs):
+    for ii in range(args.psrStartIndex,args.psrEndIndex):
         t2psr.append( T2.tempopulsar( parfile=psr_pathinfo[ii,2],
                                       timfile=psr_pathinfo[ii,3] ) )
         t2psr[ii].fit(iters=3)
