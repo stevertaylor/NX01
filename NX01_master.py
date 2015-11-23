@@ -85,6 +85,8 @@ parser.add_option('--num_gwfreq_wins', dest='num_gwfreq_wins', action='store', t
                    help='Number windows to split the band into (useful for evolving anisotropy searches (default = 1 windows)')
 parser.add_option('--lmax', dest='LMAX', action='store', type=int, default=0,
                    help='Maximum multipole in anisotropic search (default = 0, i.e. isotropic-search)')
+parser.add_option('--noPhysPrior', dest='noPhysPrior', action='store_true', default=False,
+                   help='Switch off test for physicality of anisotropic coefficient sampling (default = False)')
 parser.add_option('--miCorr', dest='miCorr', action='store_true', default=False,
                    help='Do you want to search for the cross-correlation values directly? (default = False)')
 parser.add_option('--use-gpu', dest='use_gpu', action='store_true', default=False,
@@ -745,9 +747,10 @@ def lnprob(xx):
                     for ii in range(1,((args.LMAX+1)**2)):
                         clm[kk,ii] = orf_coeffs[kk,ii-1]   
 
-                    # Testing for physicality of power distribution.
-                    if (utils.PhysPrior(clm[kk],harm_sky_vals) == 'Unphysical'):
-                        return -np.inf
+                    if not args.noPhysPrior:
+                        # Testing for physicality of power distribution.
+                        if (utils.PhysPrior(clm[kk],harm_sky_vals) == 'Unphysical'):
+                            return -np.inf
 
             ############################################################
             # Computing frequency-dependent overlap reduction functions.
