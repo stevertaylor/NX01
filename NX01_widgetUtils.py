@@ -7,8 +7,10 @@ def NX01opts():
 
     preamble = widgets.VBox(children=[Checkbox(description='HDF5 files'),
                                       Text(description='Info file:',
-                                           value='/home/NX01/PsrListings_GWB.txt')])
+                                           value='/home/NX01/PsrListings_GWB.txt',font_size=15)])
     page0 = Box(children=[preamble], padding=4)
+    page0.padding=20
+    page0.font_size=20
 
     ############
     form = widgets.VBox()
@@ -16,22 +18,22 @@ def NX01opts():
     dm = widgets.Checkbox(description="DM variations", value=False)
 
     red_info = widgets.HBox(visible=False, \
-                            children=[widgets.Dropdown(description="prior",\
+                            children=[widgets.Dropdown(description="Prior",\
                                                        options=['detect', 'limit'],
-                                                       padding=10),\
-                                      widgets.Dropdown(description="spectral model",\
+                                                       font_size=20),\
+                                      widgets.Dropdown(description="Spectral model",\
                                                        options=['power-law', 'free-spectral'],
-                                                       padding=10)],\
-                                                       padding=15)
+                                                       font_size=20)],\
+                                                       padding=20)
 
     dm_info = widgets.HBox(visible=False, \
-                            children=[widgets.Dropdown(description="prior",\
+                            children=[widgets.Dropdown(description="Prior",\
                                                        options=['detect', 'limit'],
-                                                       padding=10),\
-                                      widgets.Dropdown(description="spectral model",\
+                                                       font_size=20),\
+                                      widgets.Dropdown(description="Spectral model",\
                                                        options=['power-law', 'free-spectral'],
-                                                       padding=10)],\
-                                                       padding=15)
+                                                       font_size=20)],\
+                                                       padding=20)
 
     form.children = [red,red_info,dm,dm_info]
 
@@ -52,6 +54,8 @@ def NX01opts():
     dm.on_trait_change(on_dm_toggle, 'value')
 
     page1 = Box(children=[form], padding=4)
+    page1.padding=20
+    page1.font_size=20
     ###########
 
     ###########
@@ -59,19 +63,23 @@ def NX01opts():
 
     gwb = Checkbox(description='Stochastic gravitational-wave background', value=False)
     gwb_preamble = widgets.HBox(visible=True, \
-                            children=[widgets.Dropdown(description="prior",\
-                                                       options=['detect', 'limit'],
-                                                       padding=10),\
-                                      widgets.Dropdown(description="spectral model",\
-                                                       options=['power-law', 'free-spectral'],
-                                                       padding=10)],\
-                                                       padding=15)
+                            children=[widgets.Dropdown(description="Prior",\
+                                                       options=['detect', 'limit'],font_size=20),\
+                                      widgets.Dropdown(description="Spectral model",\
+                                                       options=['power-law', 'free-spectral'],font_size=20)],padding=20)
+    fixSlope = widgets.Checkbox(description='Fix PSD slope to 13/3', value=False)
     incCorr = widgets.Checkbox(description='Include correlations', value=False)
-    corrOpts = widgets.Dropdown(visible=False, description='Type:', options=['Spherical-harmonic anisotropy',
+    corrOpts = widgets.Dropdown(visible=False, description='Type:', options=['Isotropic',
+                                                                             'Spherical-harmonic anisotropy',
                                                                              'Direct cross-correlation recovery',
-                                                                             'Stochastic point-source background'])
+                                                                             'Stochastic point-source background'],
+                                                                             font_size=20)
+    anisLmax = widgets.Text(visible=False, description='lmax:')
+    noPhysPrior = widgets.Checkbox(visible=False, description='Switch off physical prior')
+    anisOpts = widgets.HBox(children=[anisLmax,noPhysPrior])
 
-    gwb_info = widgets.VBox(visible=False, children=[gwb_preamble, incCorr, corrOpts])
+    gwb_info = widgets.VBox(visible=False, children=[gwb_preamble, fixSlope, incCorr,
+                                                     corrOpts, anisOpts])
 
     form.children = [gwb,gwb_info]
 
@@ -81,39 +89,67 @@ def NX01opts():
         else:
             gwb_info.visible = False
 
-    def on_corr_toggle(name, value):
+    def on_incCorr_toggle(name, value):
         if value:
             corrOpts.visible = True
         else:
             corrOpts.visible = False
+            anisLmax.visible = False
+            noPhysPrior.visible = False
+
+    def on_corrOpts_toggle(name, value):
+        if value == 'Spherical-harmonic anisotropy':
+            anisLmax.visible = True
+            noPhysPrior.visible = True
+        else:
+            anisLmax.visible = False
+            noPhysPrior.visible = False
         
     gwb.on_trait_change(on_gwb_toggle, 'value')
-    incCorr.on_trait_change(on_corr_toggle, 'value')
+    incCorr.on_trait_change(on_incCorr_toggle, 'value')
+    corrOpts.on_trait_change(on_corrOpts_toggle, 'value')
     
     page2 = Box(children=[form], padding=4)
+    page2.padding=20
+    page2.font_size=20
     ###############
 
     ###########
     form = widgets.VBox()
     detsig = Checkbox(description='Determinstic GW signal', value=False)
 
-    detsig_info = widgets.VBox(visible=False, \
-                            children=[widgets.Dropdown(description="signal type",\
-                                                       options=['circular binary', 'eccentric binary', 'burst with memory'],
-                                                       padding=5),\
-                                      widgets.Checkbox(description='Use epoch TOAs', value=False)],\
-                                      padding=15)
+    detsig_info = widgets.Dropdown(visible=False, description="Signal type",\
+                                                       options=['burst with memory', 'circular binary', 'eccentric binary'],
+                                                       font_size=20)
+    epochOpt = widgets.Checkbox(visible=False,description='Use epoch TOAs', value=False)
+    binary_info = widgets.VBox(visible=False,\
+                               children=[widgets.Checkbox(description='Pulsar term', value=False),\
+                                         widgets.Checkbox(description='Periapsis evolution', value=False)])
 
-    form.children = [detsig,detsig_info]
+    form.children = [detsig,detsig_info,binary_info,epochOpt]
 
     def on_detsig_toggle(name, value):
         if value:
             detsig_info.visible = True
+            epochOpt.visible = True
         else:
             detsig_info.visible = False
+            epochOpt.visible = False
+            binary_info.visible = False
+
+    def on_binary_toggle(name, value):
+        if 'binary' in value:
+            binary_info.visible = True
+            binary_info.margin=10
+        else:
+            binary_info.visible = False
         
     detsig.on_trait_change(on_detsig_toggle, 'value')
+    detsig_info.on_trait_change(on_binary_toggle, 'value')
+    
     page3 = Box(children=[form], padding=4)
+    page3.padding=20
+    page3.font_size=20
 
     ##########
     tabs = widgets.Tab(children=[page0, page1, page2, page3])
@@ -125,6 +161,7 @@ def NX01opts():
     tabs.font_weight='bolder'
     tabs.font_style='italic'
     tabs.padding=30
+    tabs.font_size=20
 
 
     return tabs
