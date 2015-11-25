@@ -5,10 +5,10 @@ from ipywidgets import *
 
 def NX01opts():
 
-    preamble=[]
-    preamble.append(Checkbox(description='HDF5 files'))
-    preamble.append(Text(description='Full path of hdf5/par/tim pointer file:',value='/home/NX01/PsrListings_GWB.txt'))
-    page0 = Box(children=preamble, padding=4)
+    preamble = widgets.VBox(children=[Checkbox(description='HDF5 files'),
+                                      Text(description='Info file:',
+                                           value='/home/NX01/PsrListings_GWB.txt')])
+    page0 = Box(children=[preamble], padding=4)
 
     ############
     form = widgets.VBox()
@@ -114,7 +114,6 @@ def NX01opts():
         
     detsig.on_trait_change(on_detsig_toggle, 'value')
     page3 = Box(children=[form], padding=4)
-    page3.font_style='oblique'
 
     ##########
     tabs = widgets.Tab(children=[page0, page1, page2, page3])
@@ -125,6 +124,7 @@ def NX01opts():
 
     tabs.font_weight='bolder'
     tabs.font_style='italic'
+    tabs.padding=30
 
 
     return tabs
