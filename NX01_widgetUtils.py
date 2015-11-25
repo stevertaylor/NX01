@@ -1,6 +1,6 @@
+from __future__ import print_function
 import ipywidgets as widgets
 from ipywidgets import *
-
 
 
 def NX01opts():
@@ -74,7 +74,7 @@ def NX01opts():
                                                                              'Direct cross-correlation recovery',
                                                                              'Stochastic point-source background'],
                                                                              font_size=20)
-    anisLmax = widgets.Text(visible=False, description='lmax:')
+    anisLmax = widgets.Text(visible=False, description='lmax:',font_size=20)
     noPhysPrior = widgets.Checkbox(visible=False, description='Switch off physical prior')
     anisOpts = widgets.HBox(children=[anisLmax,noPhysPrior])
 
@@ -104,10 +104,14 @@ def NX01opts():
         else:
             anisLmax.visible = False
             noPhysPrior.visible = False
+
+    def on_anisLmax_toggle(name, value):
+        print(value)
         
     gwb.on_trait_change(on_gwb_toggle, 'value')
     incCorr.on_trait_change(on_incCorr_toggle, 'value')
     corrOpts.on_trait_change(on_corrOpts_toggle, 'value')
+    anisLmax.on_trait_change(on_anisLmax_toggle, 'value')
     
     page2 = Box(children=[form], padding=4)
     page2.padding=20
