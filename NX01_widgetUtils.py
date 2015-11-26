@@ -14,6 +14,7 @@ def NX01opts():
 
     ############
     form = widgets.VBox()
+    modes = widgets.Text(description="Number of Fourier modes:", value='30', font_size=20,width='20%')
     red = widgets.Checkbox(description="Red noise", value=False)
     dm = widgets.Checkbox(description="DM variations", value=False)
 
@@ -35,7 +36,7 @@ def NX01opts():
                                                        font_size=20)],\
                                                        padding=20)
 
-    form.children = [red,red_info,dm,dm_info]
+    form.children = [modes,red,red_info,dm,dm_info]
 
     def on_red_toggle(name, value):
         if value:
@@ -104,14 +105,10 @@ def NX01opts():
         else:
             anisLmax.visible = False
             noPhysPrior.visible = False
-
-    def on_anisLmax_toggle(name, value):
-        print(value)
         
     gwb.on_trait_change(on_gwb_toggle, 'value')
     incCorr.on_trait_change(on_incCorr_toggle, 'value')
     corrOpts.on_trait_change(on_corrOpts_toggle, 'value')
-    anisLmax.on_trait_change(on_anisLmax_toggle, 'value')
     
     page2 = Box(children=[form], padding=4)
     page2.padding=20
