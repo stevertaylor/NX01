@@ -116,7 +116,7 @@ class NX01gui(object):
 
         red = widgets.Checkbox(description="Red noise", value=False)
         red_prior = widgets.Dropdown(description="Prior",\
-                                     options=['detect', 'limit'],\
+                                     options=['limit', 'detect'],\
                                      font_size=20)
         red_specmodel = widgets.Dropdown(description="Spectral model",\
                                          options=['power-law', 'free-spectral'],\
@@ -136,7 +136,7 @@ class NX01gui(object):
         
         dm = widgets.Checkbox(description="DM variations", value=False)
         dm_prior = widgets.Dropdown(description="Prior",\
-                                    options=['detect', 'limit'],\
+                                    options=['limit', 'detect'],\
                                     font_size=20)
         dm_specmodel = widgets.Dropdown(description="Spectral model",\
                                         options=['power-law', 'free-spectral'],\
@@ -178,7 +178,7 @@ class NX01gui(object):
         gwb.on_trait_change(change_incGWB, 'value')
 
         gwb_prior = widgets.Dropdown(description="Prior",\
-                                     options=['detect', 'limit'],\
+                                     options=['limit', 'detect'],\
                                      font_size=20)
         gwb_specmodel = widgets.Dropdown(description="Spectral model",\
                                          options=['power-law', 'free-spectral'],\
@@ -205,10 +205,24 @@ class NX01gui(object):
                                                                                 'Direct cross-correlation recovery',
                                                                                 'Stochastic point-source background'],
                                                                                 font_size=20)
+        def change_corrOpts(name, value):
+            if corrOpts.value == 'Direct cross-correlation recovery':
+                self.miCorr = True
+            elif corrOpts.value == 'Stochastic point-source background':
+                self.gwbPointSrc = True
+            elif corrOpts.value == 'Isotropic':
+                self.LMAX = 0
+        corrOpts.on_trait_change(change_corrOpts, 'value')
+        
         anisLmax = widgets.Text(visible=False, description='lmax:',font_size=20)
+        def change_anisLmax(name, value): self.LMAX = value
+        anisLmax.on_trait_change(change_anisLmax, 'value')
+        
         noPhysPrior = widgets.Checkbox(visible=False, description='Switch off physical prior')
+        def change_nophysprior(name, value): self.noPhysPrior = value
+        noPhysPrior.on_trait_change(change_nophysprior, 'value')
+        
         anisOpts = widgets.HBox(children=[anisLmax,noPhysPrior])
-
         gwb_info = widgets.VBox(visible=False, children=[gwb_preamble, fixSlope, incCorr,
                                                         corrOpts, anisOpts])
 
