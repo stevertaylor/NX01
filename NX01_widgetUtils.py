@@ -79,10 +79,10 @@ class NX01gui(object):
         self.psrEndIndex = 18
         self.psrIndices = None
         self.det_signal = False
-        self.bwm_search = False
+        self.bwm_search = True
         self.bwm_antenna = 'quad'
         self.bwm_model_select = False
-        self.cgw_search = True
+        self.cgw_search = False
         self.ecc_search = False
         self.epochTOAs = False
         self.psrTerm = False
@@ -272,7 +272,7 @@ class NX01gui(object):
         detsig.on_trait_change(change_detsig, 'value')
 
         detsig_info = widgets.Dropdown(visible=False, description="Signal type",\
-                                        options=['circular binary', 'eccentric binary', 'burst with memory'],
+                                        options=['burst with memory', 'circular binary', 'eccentric binary'],
                                         font_size=20)
         def change_detsiginfo(name, value):
             if detsig_info.value == 'circular binary':
