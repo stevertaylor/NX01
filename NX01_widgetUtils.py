@@ -82,7 +82,7 @@ class NX01gui(object):
         self.bwm_search = False
         self.bwm_antenna = 'quad'
         self.bwm_model_select = False
-        self.cgw_search = False
+        self.cgw_search = True
         self.ecc_search = False
         self.epochTOAs = False
         self.psrTerm = False
@@ -208,10 +208,17 @@ class NX01gui(object):
         def change_corrOpts(name, value):
             if corrOpts.value == 'Direct cross-correlation recovery':
                 self.miCorr = True
+                self.gwbPointSrc = False
             elif corrOpts.value == 'Stochastic point-source background':
+                self.miCorr = False
                 self.gwbPointSrc = True
             elif corrOpts.value == 'Isotropic':
                 self.LMAX = 0
+                self.miCorr = False
+                self.gwbPointSrc = False
+            elif corrOpts.value == 'Spherical-harmonic anisotropy':
+                self.miCorr = False
+                self.gwbPointSrc = False
         corrOpts.on_trait_change(change_corrOpts, 'value')
         
         anisLmax = widgets.Text(visible=False, description='lmax:',font_size=20)
@@ -259,16 +266,42 @@ class NX01gui(object):
 
         ###########
         form = widgets.VBox()
+        
         detsig = Checkbox(description='Determinstic GW signal', value=False)
+        def change_detsig(name, value): self.det_signal = value
+        detsig.on_trait_change(change_detsig, 'value')
 
         detsig_info = widgets.Dropdown(visible=False, description="Signal type",\
-                                        options=['burst with memory', 'circular binary', 'eccentric binary'],
+                                        options=['circular binary', 'eccentric binary', 'burst with memory'],
                                         font_size=20)
+        def change_detsiginfo(name, value):
+            if detsig_info.value == 'circular binary':
+                self.cgw_search = True
+                self.ecc_search = False
+                self.bwm_search = False
+            elif detsig_info.value == 'eccentric binary':
+                self.cgw_search = True
+                self.ecc_search = True
+                self.bwm_search = False
+            elif detsig_info.value == 'burst with memory':
+                self.cgw_search = False
+                self.ecc_search = False
+                self.bwm_search = True
+        detsig_info.on_trait_change(change_detsiginfo, 'value')
+        
         epochOpt = widgets.Checkbox(visible=False,description='Use epoch TOAs', value=False)
-        binary_info = widgets.VBox(visible=False,\
-                                children=[widgets.Checkbox(description='Pulsar term', value=False),\
-                                            widgets.Checkbox(description='Periapsis evolution', value=False)])
+        def change_epochopt(name, value): self.epochTOAs = value
+        epochOpt.on_trait_change(change_epochopt, 'value')
 
+        psrtermOpt = widgets.Checkbox(description='Pulsar term', value=False)
+        def change_psrtermopt(name, value): self.psrTerm = value
+        psrtermOpt.on_trait_change(change_psrtermopt, 'value')
+
+        perievOpt = widgets.Checkbox(description='Periapsis evolution', value=False)
+        def change_perievopt(name, value): self.periEv = value
+        perievOpt.on_trait_change(change_perievopt, 'value')
+        
+        binary_info = widgets.VBox(visible=False,children=[psrtermOpt,perievOpt])
         form.children = [detsig,detsig_info,binary_info,epochOpt]
 
         def on_detsig_toggle(name, value):
