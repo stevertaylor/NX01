@@ -24,7 +24,7 @@ class NX01gui(object):
     noPhysPrior = None
     miCorr = None
     use_gpu = None
-    fix_slope = None
+    fixSlope = None
     limit_or_detect_gwb = None
     limit_or_detect_red = None
     limit_or_detect_dm = None
@@ -67,7 +67,7 @@ class NX01gui(object):
         self.noPhysPrior = False
         self.miCorr = False
         self.use_gpu = False
-        self.fix_slope = False
+        self.fixSlope = False
         self.limit_or_detect_gwb = 'limit'
         self.limit_or_detect_red = 'limit'
         self.limit_or_detect_dm = 'limit'
@@ -176,14 +176,30 @@ class NX01gui(object):
         gwb = Checkbox(description='Stochastic gravitational-wave background', value=False)
         def change_incGWB(name, value): self.incGWB = value
         gwb.on_trait_change(change_incGWB, 'value')
-        
+
+        gwb_prior = widgets.Dropdown(description="Prior",\
+                                     options=['detect', 'limit'],\
+                                     font_size=20)
+        gwb_specmodel = widgets.Dropdown(description="Spectral model",\
+                                         options=['power-law', 'free-spectral'],\
+                                         font_size=20)
         gwb_preamble = widgets.HBox(visible=True, \
-                                    children=[widgets.Dropdown(description="Prior",\
-                                                        options=['detect', 'limit'],font_size=20),\
-                                        widgets.Dropdown(description="Spectral model",\
-                                                        options=['power-law', 'free-spectral'],font_size=20)],padding=20)
+                                    children=[gwb_prior,gwb_specmodel],padding=20)
+
+        def change_gwbprior(name, value): self.limit_or_detect_gwb = value
+        gwb_prior.on_trait_change(change_gwbprior, 'value')
+
+        def change_gwbspecmodel(name, value): self.gwbSpecModel = value
+        gwb_specmodel.on_trait_change(change_gwbspecmodel, 'value')
+                                    
         fixSlope = widgets.Checkbox(description='Fix PSD slope to 13/3', value=False)
+        def change_fixslope(name, value): self.fixSlope = value
+        fixSlope.on_trait_change(change_fixslope, 'value')
+        
         incCorr = widgets.Checkbox(description='Include correlations', value=False)
+        def change_inccorr(name, value): self.incCorr = value
+        incCorr.on_trait_change(change_inccorr, 'value')
+
         corrOpts = widgets.Dropdown(visible=False, description='Type:', options=['Isotropic',
                                                                                 'Spherical-harmonic anisotropy',
                                                                                 'Direct cross-correlation recovery',
@@ -199,10 +215,8 @@ class NX01gui(object):
         form.children = [gwb,gwb_info]
 
         def on_gwb_toggle(name, value):
-            if value:
-                gwb_info.visible = True
-            else:
-                gwb_info.visible = False
+            if value: gwb_info.visible = True
+            else: gwb_info.visible = False
 
         def on_incCorr_toggle(name, value):
             if value:
