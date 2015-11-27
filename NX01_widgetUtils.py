@@ -96,12 +96,10 @@ class NX01gui(object):
                                    value='/home/NX01/PsrListings_GWB.txt',font_size=15)
         preamble = widgets.VBox(children=[fromh5Check,psrlistText])
 
-        def change_fromh5(name, value):
-            self.from_h5 = value
+        def change_fromh5(name, value): self.from_h5 = value
         fromh5Check.on_trait_change(change_fromh5, 'value')
 
-        def change_psrlist(name, value):
-            self.psrlist = value
+        def change_psrlist(name, value): self.psrlist = value
         psrlistText.on_trait_change(change_psrlist, 'value')
         
         page0 = Box(children=[preamble], padding=4)
@@ -113,8 +111,7 @@ class NX01gui(object):
         
         modes = widgets.Text(description="Number of Fourier modes:", font_size=20,width='20%')
 
-        def change_nmodes(name, value):
-            self.nmodes = value
+        def change_nmodes(name, value): self.nmodes = value
         modes.on_trait_change(change_nmodes, 'value')
 
         red = widgets.Checkbox(description="Red noise", value=False)
@@ -127,18 +124,14 @@ class NX01gui(object):
         red_info = widgets.HBox(visible=False, children=[red_prior,red_specmodel], padding=20)
 
         def change_red(name, value):
-            if value:
-                self.fixRed = False
-            else:
-                self.fixRed = True
+            if value: self.fixRed = False
+            else: self.fixRed = True
         red.on_trait_change(change_red, 'value')
 
-        def change_redprior(name, value):
-            self.limit_or_detect_red = value
+        def change_redprior(name, value): self.limit_or_detect_red = value
         red_prior.on_trait_change(change_redprior, 'value')
 
-        def change_redspecmodel(name, value):
-            self.redSpecModel = value
+        def change_redspecmodel(name, value): self.redSpecModel = value
         red_specmodel.on_trait_change(change_redspecmodel, 'value')
         
         dm = widgets.Checkbox(description="DM variations", value=False)
@@ -150,33 +143,26 @@ class NX01gui(object):
                                         font_size=20)
         dm_info = widgets.HBox(visible=False, children=[dm_prior,dm_specmodel], padding=20)
 
-        def change_dm(name, value):
-            self.dmVar = value
+        def change_dm(name, value): self.dmVar = value
         dm.on_trait_change(change_dm, 'value')
         
-        def change_dmprior(name, value):
-            self.limit_or_detect_dm = value
+        def change_dmprior(name, value): self.limit_or_detect_dm = value
         dm_prior.on_trait_change(change_dmprior, 'value')
 
-        def change_dmspecmodel(name, value):
-            self.dmSpecModel = value
+        def change_dmspecmodel(name, value): self.dmSpecModel = value
         dm_specmodel.on_trait_change(change_dmspecmodel, 'value')
 
 
         form.children = [modes,red,red_info,dm,dm_info]
 
         def on_red_toggle(name, value):
-            if value:
-                red_info.visible = True
-            else:
-                red_info.visible = False
+            if value: red_info.visible = True
+            else: red_info.visible = False
         red.on_trait_change(on_red_toggle, 'value')
 
         def on_dm_toggle(name, value):
-            if value:
-                dm_info.visible = True
-            else:
-                dm_info.visible = False
+            if value: dm_info.visible = True
+            else: dm_info.visible = False
         dm.on_trait_change(on_dm_toggle, 'value')
 
         page1 = Box(children=[form], padding=4)
@@ -188,6 +174,9 @@ class NX01gui(object):
         form = widgets.VBox()
     
         gwb = Checkbox(description='Stochastic gravitational-wave background', value=False)
+        def change_incGWB(name, value): self.incGWB = value
+        gwb.on_trait_change(change_incGWB, 'value')
+        
         gwb_preamble = widgets.HBox(visible=True, \
                                     children=[widgets.Dropdown(description="Prior",\
                                                         options=['detect', 'limit'],font_size=20),\
