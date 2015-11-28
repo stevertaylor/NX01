@@ -3,6 +3,9 @@ from ipywidgets import *
 import json
 import cPickle as pickle
 
+from IPython import get_ipython
+ipython = get_ipython()
+
 class NX01gui(object):
 
     from_h5 = None
@@ -412,3 +415,15 @@ class NX01gui(object):
         json_click.on_click(on_button_clicked)
 
         return json_click
+
+    def makeRUN_button(self):
+
+        run_click = widgets.Button(description='ENGAGE',font_weight='bolder',
+                                    color='#F08080',font_size=30,border_color='#F08080',padding=30)
+        
+        def on_button_clicked(b):
+            ipython.magic("run NX01_master.py --jsonModel=mymodel.json")
+
+        run_click.on_click(on_button_clicked)
+
+        return run_click
