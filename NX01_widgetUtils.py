@@ -1,6 +1,6 @@
 import ipywidgets as widgets
 from ipywidgets import *
-
+import json
 
 class NX01gui(object):
 
@@ -379,6 +379,22 @@ class NX01gui(object):
         tabs.font_style='italic'
         tabs.padding=30
         tabs.font_size=20
+        tabs.border_color='#F08080'
 
     
         return tabs
+
+
+    def makeJSON_button(self):
+
+        json_click = widgets.Button(description='STORE MODEL',font_weight='bolder',
+                                    color='#F08080',font_size=30,border_color='#F08080')
+        
+        def on_button_clicked(b):
+            with open('mymodel.json', 'w') as fp:
+                json.dump(self.__dict__, fp)
+            fp.close()
+
+        json_click.on_click(on_button_clicked)
+
+        return json_click
