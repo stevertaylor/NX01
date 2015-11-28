@@ -94,13 +94,18 @@ class NX01gui(object):
         fromh5Check = widgets.Checkbox(description='HDF5 files')
         psrlistText = widgets.Text(description='Info file:',
                                    value='/home/NX01/PsrListings_GWB.txt',font_size=15)
-        preamble = widgets.VBox(children=[fromh5Check,psrlistText])
+        numpsrs = widgets.Text(description='Number of pulsars:',
+                               value='18',font_size=15,width='15%')
+        preamble = widgets.VBox(children=[fromh5Check,psrlistText,numpsrs])
 
         def change_fromh5(name, value): self.from_h5 = value
         fromh5Check.on_trait_change(change_fromh5, 'value')
 
         def change_psrlist(name, value): self.psrlist = value
         psrlistText.on_trait_change(change_psrlist, 'value')
+
+        def change_numpsrs(name, value): self.psrEndIndex = value
+        numpsrs.on_trait_change(change_numpsrs, 'value')
         
         page0 = Box(children=[preamble], padding=4)
         page0.padding=20
@@ -328,11 +333,47 @@ class NX01gui(object):
         page3.font_size=20
 
         ##########
-        tabs = widgets.Tab(children=[page0, page1, page2, page3])
+
+        samplerOpt = widgets.Dropdown(description='Sampler',
+                                   options=['PTMCMC','MultiNest'],font_size=20)
+        hotchains = widgets.Checkbox(visible=True,description='Write hot chains')
+        resume = widgets.Checkbox(visible=True,description='Resume')
+        
+        bookkeeping = widgets.VBox(children=[samplerOpt,hotchains,resume])
+
+        def change_sampler(name, value):
+            if value == 'PTMCMC':
+                self.sampler = 'ptmcmc'
+            elif value == 'MultiNest':
+                self.sampler = 'mnest'
+        samplerOpt.on_trait_change(change_sampler, 'value')
+
+        def change_hotchains(name, value): self.writeHotChains = value
+        hotchains.on_trait_change(change_hotchains, 'value')
+
+        def change_resume(name, value): self.resume = value
+        resume.on_trait_change(change_resume, 'value')
+
+        def on_sampler_toggle(name, value):
+            if value == 'PTMCMC':
+                hotchains.visible = True
+                resume.visible = True
+            else:
+                hotchains.visible = False
+                resume.visible = False
+        samplerOpt.on_trait_change(on_sampler_toggle, 'value')
+
+        page4 = Box(children=[bookkeeping], padding=4)
+        page4.padding=20
+        page4.font_size=20
+
+        ##########
+        tabs = widgets.Tab(children=[page0, page1, page2, page3, page4])
         tabs.set_title(0, 'Pulsars')
         tabs.set_title(1, 'Pulsar properties')
         tabs.set_title(2, 'Stochastic GW signals')
         tabs.set_title(3, 'Deterministic GW signals')
+        tabs.set_title(4, 'Sampling')
 
         tabs.font_weight='bolder'
         tabs.font_style='italic'
