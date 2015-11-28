@@ -51,6 +51,8 @@ parser = optparse.OptionParser(description = "NX01 - It's been a long road, gett
 ############################
 ############################
 
+parser.add_option('--jsonModel', dest='jsonModel', action='store', type=str, default = None,
+                   help='Do you want to provide model arguments from a JSON file? (default = None)')
 parser.add_option('--from-h5', dest='from_h5', action='store_true', default = False,
                    help='Do you want to read in pulsars from hdf5 files instead of directly via libstempo? (default = False)')
 parser.add_option('--psrlist', dest='psrlist', action='store', type=str, default = None,
@@ -134,6 +136,54 @@ parser.add_option('--periEv', dest='periEv', action='store_true', default=False,
 
 (args, x) = parser.parse_args()
 
+if args.jsonModel is not None:
+    
+    with open(args.jsonModel) as json_file:
+        json_data = json.load(json_file)
+        json_file.close()
+
+    args.from_h5 = json_data['from_h5']
+    args.psrlist = json_data['psrlist']
+    args.nmodes = json_data['nmodes']
+    args.cadence = json_data['cadence']
+    args.dmVar = json_data['dmVar']
+    args.sampler = json_data['sampler']
+    args.writeHotChains = json_data['writeHotChains']
+    args.resume = json_data['resume']
+    args.incGWB = json_data['incGWB']
+    args.gwbSpecModel = json_data['gwbSpecModel']
+    args.incCorr = json_data['incCorr']
+    args.gwbPointSrc = json_data['gwbPointSrc']
+    args.redSpecModel = json_data['redSpecModel']
+    args.dmSpecModel = json_data['dmSpecModel']
+    args.dirExt = json_data['dirExt']
+    args.num_gwfreq_wins = json_data['num_gwfreq_wins']
+    args.LMAX = json_data['LMAX']
+    args.noPhysPrior = json_data['noPhysPrior']
+    args.miCorr = json_data['miCorr']
+    args.use_gpu = json_data['use_gpu']
+    args.fix_slope = json_data['fixSlope']
+    args.limit_or_detect_gwb = json_data['limit_or_detect_gwb']
+    args.limit_or_detect_red = json_data['limit_or_detect_red']
+    args.limit_or_detect_dm = json_data['limit_or_detect_dm']
+    args.anis_modefile = json_data['anis_modefile']
+    args.fullN = json_data['fullN']
+    args.fixRed = json_data['fixRed']
+    args.fixDM = json_data['fixDM']
+    args.psrStartIndex = json_data['psrStartIndex']
+    args.psrEndIndex = json_data['psrEndIndex']
+    args.psrIndices = json_data['psrIndices']
+    args.det_signal = json_data['det_signal']
+    args.bwm_search = json_data['bwm_search']
+    args.bwm_antenna = json_data['bwm_antenna']
+    args.bwm_model_select = json_data['bwm_model_select']
+    args.cgw_search = json_data['cgw_search']
+    args.ecc_search = json_data['ecc_search']
+    args.epochTOAs = json_data['epochTOAs']
+    args.psrTerm = json_data['psrTerm']
+    args.periEv = json_data['periEv']
+
+
 header = """\
 
         
@@ -196,7 +246,7 @@ elif args.sampler == 'ptmcmc':
 #########################################################################
 
 # name, hdf5-path, par-path, tim-path
-psr_pathinfo = np.genfromtxt(args.psrlist, dtype=str, skip_header=2) 
+psr_pathinfo = np.genfromtxt(args.psrlist, dtype=str, skip_header=2)
 
 if args.from_h5:
 

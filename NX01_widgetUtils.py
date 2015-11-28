@@ -1,6 +1,7 @@
 import ipywidgets as widgets
 from ipywidgets import *
 import json
+import cPickle as pickle
 
 class NX01gui(object):
 
@@ -45,7 +46,7 @@ class NX01gui(object):
     psrTerm = None
     periEv = None
     
-    def __init__(self):
+    def __init__(self, *args, **kwargs):  
 
         self.from_h5 = False
         self.psrlist = None
@@ -61,7 +62,7 @@ class NX01gui(object):
         self.gwbPointSrc = False
         self.redSpecModel = 'powerlaw'
         self.dmSpecModel = 'powerlaw'
-        self.dirExt = None
+        self.dirExt = './chains_nanoAnalysis/'
         self.num_gwfreq_wins = 1
         self.LMAX = 0
         self.noPhysPrior = False
@@ -94,8 +95,8 @@ class NX01gui(object):
         fromh5Check = widgets.Checkbox(description='HDF5 files')
         psrlistText = widgets.Text(description='Info file:',
                                    value='/home/NX01/PsrListings_GWB.txt',font_size=15)
-        numpsrs = widgets.Text(description='Number of pulsars:',
-                               value='18',font_size=15,width='15%')
+        numpsrs = widgets.IntText(description='Number of pulsars:',
+                               value=18,font_size=15,width='100%')
         preamble = widgets.VBox(children=[fromh5Check,psrlistText,numpsrs])
 
         def change_fromh5(name, value): self.from_h5 = value
@@ -114,7 +115,7 @@ class NX01gui(object):
         ############
         form = widgets.VBox()
         
-        modes = widgets.Text(description="Number of Fourier modes:", font_size=20,width='20%')
+        modes = widgets.IntText(description="Number of Fourier modes:", width='100%')
 
         def change_nmodes(name, value): self.nmodes = value
         modes.on_trait_change(change_nmodes, 'value')
@@ -197,7 +198,7 @@ class NX01gui(object):
         def change_gwbspecmodel(name, value): self.gwbSpecModel = value
         gwb_specmodel.on_trait_change(change_gwbspecmodel, 'value')
                                     
-        fixSlope = widgets.Checkbox(description='Fix PSD slope to 13/3', value=False)
+        fixSlope = widgets.Checkbox(description='Fix PSD slope to -13/3', value=False)
         def change_fixslope(name, value): self.fixSlope = value
         fixSlope.on_trait_change(change_fixslope, 'value')
         
@@ -226,7 +227,7 @@ class NX01gui(object):
                 self.gwbPointSrc = False
         corrOpts.on_trait_change(change_corrOpts, 'value')
         
-        anisLmax = widgets.Text(visible=False, description='lmax:',font_size=20)
+        anisLmax = widgets.IntText(visible=False, description='lmax:',width='100%',font_size=20)
         def change_anisLmax(name, value): self.LMAX = value
         anisLmax.on_trait_change(change_anisLmax, 'value')
         
@@ -338,8 +339,10 @@ class NX01gui(object):
                                    options=['PTMCMC','MultiNest'],font_size=20)
         hotchains = widgets.Checkbox(visible=True,description='Write hot chains')
         resume = widgets.Checkbox(visible=True,description='Resume')
+        dirtext = widgets.Text(description='Parent results directory:',
+                               value='./chains_nanoAnalysis/',font_size=20)
         
-        bookkeeping = widgets.VBox(children=[samplerOpt,hotchains,resume])
+        bookkeeping = widgets.VBox(children=[samplerOpt,hotchains,resume,dirtext],width='150%')
 
         def change_sampler(name, value):
             if value == 'PTMCMC':
@@ -353,6 +356,9 @@ class NX01gui(object):
 
         def change_resume(name, value): self.resume = value
         resume.on_trait_change(change_resume, 'value')
+
+        def change_dirtext(name, value): self.dirExt = value
+        dirtext.on_trait_change(change_dirtext, 'value')
 
         def on_sampler_toggle(name, value):
             if value == 'PTMCMC':
@@ -368,6 +374,12 @@ class NX01gui(object):
         page4.font_size=20
 
         ##########
+        page0.border_color='#F08080'
+        page1.border_color='#F08080'
+        page2.border_color='#F08080'
+        page3.border_color='#F08080'
+        page4.border_color='#F08080'
+        
         tabs = widgets.Tab(children=[page0, page1, page2, page3, page4])
         tabs.set_title(0, 'Pulsars')
         tabs.set_title(1, 'Pulsar properties')
@@ -380,8 +392,8 @@ class NX01gui(object):
         tabs.padding=30
         tabs.font_size=20
         tabs.border_color='#F08080'
+        tabs.border_width=3
 
-    
         return tabs
 
 
@@ -394,6 +406,8 @@ class NX01gui(object):
             with open('mymodel.json', 'w') as fp:
                 json.dump(self.__dict__, fp)
             fp.close()
+
+            #pickle.dump(self.__dict__, open( "save.p", "wb" ) )
 
         json_click.on_click(on_button_clicked)
 
