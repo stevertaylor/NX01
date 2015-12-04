@@ -444,12 +444,13 @@ for ii,p in enumerate(psr):
 # SETTING UP PRIOR RANGES
 ##########################
 
+pmin = np.array([])
 if not args.fixRed:
     if args.redSpecModel == 'powerlaw':
-        pmin = -20.0*np.ones(len(psr))
+        pmin = np.append(pmin,-20.0*np.ones(len(psr)))
         pmin = np.append(pmin,0.0*np.ones(len(psr)))
     elif args.redSpecModel == 'spectrum':
-        pmin = -8.0*np.ones(len(psr)*nmode)
+        pmin = np.append(pmin,-8.0*np.ones(len(psr)*nmode))
 if args.dmVar:
     pmin = np.append(pmin,-20.0*np.ones(len(psr)))
     pmin = np.append(pmin,0.0*np.ones(len(psr)))
@@ -480,13 +481,13 @@ if args.det_signal:
             pmin = np.append(pmin,-0.5)
 
 
-            
+pmax = np.array([])
 if not args.fixRed:
     if args.redSpecModel == 'powerlaw':
-        pmax = -11.0*np.ones(len(psr))
+        pmax = np.append(pmax,-11.0*np.ones(len(psr)))
         pmax = np.append(pmax,7.0*np.ones(len(psr)))
     elif args.redSpecModel == 'spectrum':
-        pmax = 3.0*np.ones(len(psr)*nmode)
+        pmax = np.append(pmax,3.0*np.ones(len(psr)*nmode))
 if args.dmVar:
     pmax = np.append(pmax,-11.0*np.ones(len(psr)))
     pmax = np.append(pmax,7.0*np.ones(len(psr)))
