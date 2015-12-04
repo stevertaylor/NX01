@@ -1611,7 +1611,7 @@ if args.sampler == 'ptmcmc':
         return q, qxy
     
 
-    def drawFromGWBpointSrcPrior(parameters, iter, beta):
+    def drawFromGWBcorrPrior(parameters, iter, beta):
 
         # post-jump parameters
         q = parameters.copy()
@@ -1628,30 +1628,13 @@ if args.sampler == 'ptmcmc':
         if args.dmVar:
             pct += 2*npsr
 
-        q[pct] = np.random.uniform(pmin[pct], pmax[pct])
-        qxy += 0
-        
-        q[pct+1] = np.random.uniform(pmin[pct+1], pmax[pct+1])
-        qxy += 0
-
-        return q, qxy
-
-    def drawFromGWBspharmAnisPrior(parameters, iter, beta):
-
-        # post-jump parameters
-        q = parameters.copy()
-
-        # transition probability
-        qxy = 0
-
-        npsr = len(psr)
-        if args.redSpecModel == 'powerlaw':
-            pct = 2*npsr
-        elif args.redSpecModel == 'spectrum':
-            pct = npsr*nmode
-    
-        if args.dmVar:
-            pct += 2*npsr
+        if args.incGWB:
+            if args.gwbSpecModel == 'powerlaw':
+                pct += 1
+                if not args.fix_slope:
+                    pct += 1
+            elif args.gwbSpecModel == 'spectrum':
+                pct += nmode
 
         ind = np.unique(np.random.randint(0, num_corr_params, 1))
 
@@ -1793,10 +1776,8 @@ if args.sampler == 'ptmcmc':
             sampler.addProposalToCycle(drawFromGWBPowerlawPrior, 10)
         elif args.gwbSpecModel == 'spectrum':
             sampler.addProposalToCycle(drawFromGWBSpectrumPrior, 10)
-        if args.incCorr and (args.typeCorr == 'pointSrc'):
-            sampler.addProposalToCycle(drawFromGWBpointSrcPrior, 10)
-        elif args.incCorr and (args.typeCorr == 'spharmAnis'):
-            sampler.addProposalToCycle(drawFromGWBspharmAnisPrior, 10)
+        if args.incCorr:
+            sampler.addProposalToCycle(drawFromGWBcorrPrior, 10)
     if args.det_signal and args.cgw_search:
         sampler.addProposalToCycle(drawFromCWPrior, 10)
     if args.det_signal and args.bwm_search:
