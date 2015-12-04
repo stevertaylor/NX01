@@ -19,14 +19,13 @@ class NX01gui(object):
     incGWB = None
     gwbSpecModel = None
     incCorr = None
-    gwbPointSrc = None
+    typeCorr = None
     redSpecModel = None
     dmSpecModel = None
     dirExt = None
-    num_gwfreq_wins = None
+    nwins = None
     LMAX = None
     noPhysPrior = None
-    miCorr = None
     use_gpu = None
     fixSlope = None
     limit_or_detect_gwb = None
@@ -62,14 +61,13 @@ class NX01gui(object):
         self.incGWB = False
         self.gwbSpecModel = 'powerlaw'
         self.incCorr = False
-        self.gwbPointSrc = False
+        self.typeCorr = 'spharmAnis'
         self.redSpecModel = 'powerlaw'
         self.dmSpecModel = 'powerlaw'
         self.dirExt = './chains_nanoAnalysis/'
-        self.num_gwfreq_wins = 1
+        self.nwins = 1
         self.LMAX = 0
         self.noPhysPrior = False
-        self.miCorr = False
         self.use_gpu = False
         self.fixSlope = False
         self.limit_or_detect_gwb = 'limit'
@@ -216,18 +214,14 @@ class NX01gui(object):
                                                                                 font_size=20)
         def change_corrOpts(name, value):
             if corrOpts.value == 'Direct cross-correlation recovery':
-                self.miCorr = True
-                self.gwbPointSrc = False
+                self.typeCorr == 'modelIndep'
             elif corrOpts.value == 'Stochastic point-source background':
-                self.miCorr = False
-                self.gwbPointSrc = True
+                self.typeCorr == 'pointSrc'
             elif corrOpts.value == 'Isotropic':
                 self.LMAX = 0
-                self.miCorr = False
-                self.gwbPointSrc = False
+                self.typeCorr == 'spharmAnis'
             elif corrOpts.value == 'Spherical-harmonic anisotropy':
-                self.miCorr = False
-                self.gwbPointSrc = False
+                self.typeCorr == 'spharmAnis'
         corrOpts.on_trait_change(change_corrOpts, 'value')
         
         anisLmax = widgets.IntText(visible=False, description='lmax:',width='100%',font_size=20)

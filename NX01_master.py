@@ -75,22 +75,20 @@ parser.add_option('--gwbSpecModel', dest='gwbSpecModel', action='store', type=st
                   help='What kind of spectral model do you want for the GWB: powerlaw, spectrum, broken (default = powerlaw)')
 parser.add_option('--incCorr', dest='incCorr', action='store_true', default=False,
                   help='Do you want to include cross-correlations in the GWB model? (default = False)')
-parser.add_option('--gwbPointSrc', dest='gwbPointSrc', action='store_true', default=False,
-                  help='Do you want to search for a localized stochastic GW source? (default = False)')
+parser.add_option('--typeCorr', dest='typeCorr', action='store', type=str, default='spharmAnis',
+                  help='What type of correlated GW signal do you want to model?: spharmAnis, modelIndep, pointSrc (default = spharmAnis)')
 parser.add_option('--redSpecModel', dest='redSpecModel', action='store', type=str, default='powerlaw',
                   help='What kind of spectral model do you want for red timing-noise: powerlaw, spectrum, broken (default = powerlaw)')
 parser.add_option('--dmSpecModel', dest='dmSpecModel', action='store', type=str, default='powerlaw',
                   help='What kind of spectral model do you want for DM variations: powerlaw, spectrum, broken (default = powerlaw)')
 parser.add_option('--dirExt', dest='dirExt', action='store', type=str, default='./chains_nanoAnalysis/',
                   help='What master directory name do you want to put this run into? (default = ./chains_nanoAnalysis/)')
-parser.add_option('--num_gwfreq_wins', dest='num_gwfreq_wins', action='store', type=int, default=1,
+parser.add_option('--nwins', dest='nwins', action='store', type=int, default=1,
                    help='Number windows to split the band into (useful for evolving anisotropy searches (default = 1 windows)')
 parser.add_option('--lmax', dest='LMAX', action='store', type=int, default=0,
                    help='Maximum multipole in anisotropic search (default = 0, i.e. isotropic-search)')
 parser.add_option('--noPhysPrior', dest='noPhysPrior', action='store_true', default=False,
                    help='Switch off test for physicality of anisotropic coefficient sampling (default = False)')
-parser.add_option('--miCorr', dest='miCorr', action='store_true', default=False,
-                   help='Do you want to search for the cross-correlation values directly? (default = False)')
 parser.add_option('--use-gpu', dest='use_gpu', action='store_true', default=False,
                   help='Do you want to use the GPU for accelerated linear algebra? (default = False)')
 parser.add_option('--fix-slope', dest='fix_slope', action='store_true', default=False,
@@ -153,14 +151,12 @@ if args.jsonModel is not None:
     args.incGWB = json_data['incGWB']
     args.gwbSpecModel = json_data['gwbSpecModel']
     args.incCorr = json_data['incCorr']
-    args.gwbPointSrc = json_data['gwbPointSrc']
     args.redSpecModel = json_data['redSpecModel']
     args.dmSpecModel = json_data['dmSpecModel']
     args.dirExt = json_data['dirExt']
-    args.num_gwfreq_wins = json_data['num_gwfreq_wins']
+    args.nwins = json_data['nwins']
     args.LMAX = json_data['LMAX']
     args.noPhysPrior = json_data['noPhysPrior']
-    args.miCorr = json_data['miCorr']
     args.use_gpu = json_data['use_gpu']
     args.fix_slope = json_data['fixSlope']
     args.limit_or_detect_gwb = json_data['limit_or_detect_gwb']
@@ -294,25 +290,25 @@ num_corr_params = 0
 evol_corr_tag = ''
 if args.incGWB and args.incCorr:
     
-    if args.miCorr:
+    if args.typeCorr == 'modelIndep':
 
-        gwfreqs_per_win = int(1.*args.nmodes/(1.*args.num_gwfreq_wins)) 
+        gwfreqs_per_win = int(1.*args.nmodes/(1.*args.nwins)) 
         corr_modefreqs = np.arange(1,args.nmodes+1)
         corr_modefreqs = np.reshape(corr_modefreqs,
-                                    (args.num_gwfreq_wins,gwfreqs_per_win))
+                                    (args.nwins,gwfreqs_per_win))
 
-        tmp_num_gwfreq_wins = args.num_gwfreq_wins
+        tmp_nwins = args.nwins
 
-        num_corr_params = tmp_num_gwfreq_wins*(len(psr)*(len(psr)-1)/2)
+        num_corr_params = tmp_nwins*(len(psr)*(len(psr)-1)/2)
 
-    if args.gwbPointSrc:
+    if args.typeCorr == 'pointSrc':
 
         #### only works for source covering all frequencies ##### 
 
         num_corr_params = 2
         
 
-    if not args.miCorr and not args.gwbPointSrc:
+    if args.typeCorr == 'spharmAnis':
         
         # Computing all the correlation basis-functions for the array.
         CorrCoeff = np.array(anis.CorrBasis(positions,args.LMAX))
@@ -323,27 +319,27 @@ if args.incGWB and args.incCorr:
         if args.anis_modefile is None:
         
             # getting the number of GW frequencies per window
-            gwfreqs_per_win = int(1.*args.nmodes/(1.*args.num_gwfreq_wins)) 
+            gwfreqs_per_win = int(1.*args.nmodes/(1.*args.nwins)) 
             corr_modefreqs = np.arange(1,args.nmodes+1)
             corr_modefreqs = np.reshape(corr_modefreqs,
-                                        (args.num_gwfreq_wins,gwfreqs_per_win))
+                                        (args.nwins,gwfreqs_per_win))
 
-            tmp_num_gwfreq_wins = args.num_gwfreq_wins
+            tmp_nwins = args.nwins
     
         else:
 
             tmp_modefreqs = np.loadtxt(args.anis_modefile, skiprows=2)
-            tmp_num_gwfreq_wins = tmp_modefreqs.shape[0]
+            tmp_nwins = tmp_modefreqs.shape[0]
             corr_modefreqs = []
     
-            for ii in range(tmp_num_gwfreq_wins):
+            for ii in range(tmp_nwins):
                 corr_modefreqs.append(np.arange(tmp_modefreqs[ii,0],
                                                 tmp_modefreqs[ii,1]+1))
 
-        num_corr_params = tmp_num_gwfreq_wins*(((args.LMAX+1)**2)-1)
+        num_corr_params = tmp_nwins*(((args.LMAX+1)**2)-1)
 
         # Create a tag for evolving anisotropy searches
-        if (args.LMAX!=0) and (tmp_num_gwfreq_wins > 1):
+        if (args.LMAX!=0) and (tmp_nwins > 1):
             evol_corr_tag = '_evanis'
         else:
             evol_corr_tag = ''
@@ -388,7 +384,7 @@ for ii,p in enumerate(psr):
     # compute ( T.T * N^-1 * T )
     # & log determinant of N
     new_err = (p.toaerrs).copy()
-    if args.fullN==True:
+    if args.fullN:
         
         if len(p.ecorrs)>0:
 
@@ -462,11 +458,11 @@ if args.incGWB:
     elif args.gwbSpecModel == 'spectrum':
         pmin = np.append(pmin,-8.0*np.ones(nmode))
     if args.incCorr:
-        if args.miCorr:
+        if args.typeCorr == 'modelIndep':
             pmin = np.append(pmin,np.zeros(num_corr_params))
-        elif args.gwbPointSrc:
+        elif args.typeCorr == 'pointSrc':
             pmin = np.append(pmin,np.array([0.0,-1.0]))
-        else:
+        elif args.typeCorr == 'spharmAnis':
             pmin = np.append(pmin,-10.0*np.ones(num_corr_params))
 if args.det_signal:
     if args.cgw_search:
@@ -499,11 +495,11 @@ if args.incGWB:
     elif args.gwbSpecModel == 'spectrum':
         pmax = np.append(pmax,3.0*np.ones(nmode))
     if args.incCorr:
-        if args.miCorr:
+        if args.typeCorr == 'modelIndep':
             pmax = np.append(pmax,np.pi*np.ones(num_corr_params))
-        elif args.gwbPointSrc:
+        elif args.typeCorr == 'pointSrc':
             pmax = np.append(pmax,np.array([2.0*np.pi,1.0]))
-        else:
+        elif args.typeCorr == 'spharmAnis':
             pmax = np.append(pmax,10.0*np.ones(num_corr_params))
 if args.det_signal:
     if args.cgw_search:
@@ -673,7 +669,7 @@ def lnprob(xx):
             # compute ( T.T * N^-1 * T )
             # & log determinant of N
             new_err = (p.toaerrs).copy()
-            if args.fullN==True:
+            if args.fullN:
         
                 if len(p.ecorrs)>0:
                     Nx = jitter.cython_block_shermor_0D(detres[ii], new_err**2.,
@@ -701,16 +697,16 @@ def lnprob(xx):
             
     if args.incGWB and args.incCorr:
         
-        if args.miCorr:
+        if args.typeCorr == 'modelIndep':
 
             npairs = npsr*(npsr-1)/2
-            phi_corr = orf_coeffs.reshape((tmp_num_gwfreq_wins,npairs))
+            phi_corr = orf_coeffs.reshape((tmp_nwins,npairs))
 
             ############################################################
             # Computing frequency-dependent overlap reduction functions.
 
             ORF=[]
-            for ii in range(tmp_num_gwfreq_wins): # number of frequency windows
+            for ii in range(tmp_nwins): # number of frequency windows
                 for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
                     upper_triang = np.zeros((npsr,npsr))
                     phi_els = np.array([[0.0]*ii for ii in range(1,npsr)])
@@ -733,7 +729,7 @@ def lnprob(xx):
                     ORF.append(np.dot( upper_triang.T, upper_triang ))
        
             if args.dmVar:
-                for ii in range(tmp_num_gwfreq_wins): # number of frequency windows
+                for ii in range(tmp_nwins): # number of frequency windows
                     for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
                         ORF.append( np.zeros((npsr,npsr)) )
 
@@ -744,7 +740,7 @@ def lnprob(xx):
             ORFtot[0::2] = ORF
             ORFtot[1::2] = ORF
 
-        elif args.gwbPointSrc:
+        elif args.typeCorr == 'pointSrc':
 
             gwphi, cosgwtheta = orf_coeffs
             gwtheta = np.arccos(cosgwtheta)
@@ -780,21 +776,21 @@ def lnprob(xx):
             ORFtot[0::2] = ORF
             ORFtot[1::2] = ORF
             
-        else:
+        elif args.typeCorr == 'spharmAnis':
             
             ################################################
             # Reshaping freq-dependent anis coefficients,
             # and testing for power distribution physicality.
             
-            orf_coeffs = orf_coeffs.reshape((tmp_num_gwfreq_wins,
+            orf_coeffs = orf_coeffs.reshape((tmp_nwins,
                                             ((args.LMAX+1)**2)-1))
             clm = np.array([[0.0]*((args.LMAX+1)**2)
-                            for ii in range(tmp_num_gwfreq_wins)])
+                            for ii in range(tmp_nwins)])
             clm[:,0] = 2.0*np.sqrt(np.pi)
 
             if args.LMAX!=0:
 
-                for kk in range(tmp_num_gwfreq_wins):
+                for kk in range(tmp_nwins):
                     for ii in range(1,((args.LMAX+1)**2)):
                         clm[kk,ii] = orf_coeffs[kk,ii-1]   
 
@@ -807,12 +803,12 @@ def lnprob(xx):
             # Computing frequency-dependent overlap reduction functions.
         
             ORF=[]
-            for ii in range(tmp_num_gwfreq_wins): # number of frequency windows
+            for ii in range(tmp_nwins): # number of frequency windows
                 for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
                     ORF.append( sum(clm[ii,kk]*CorrCoeff[kk]
                                     for kk in range(len(CorrCoeff))) )
             if args.dmVar:
-                for ii in range(tmp_num_gwfreq_wins): # number of frequency windows
+                for ii in range(tmp_nwins): # number of frequency windows
                     for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
                         ORF.append( np.zeros((npsr,npsr)) )
 
@@ -1158,12 +1154,12 @@ if args.incGWB:
         for ii in range(nmode):
             parameters.append('gwbSpec_{0}'.format(ii+1))
     if args.incCorr:
-        if args.miCorr:
+        if args.typeCorr == 'modelIndep':
             for ii in range(num_corr_params):
                 parameters.append('phi_corr_{0}'.format(ii+1))
-        elif args.gwbPointSrc:
+        elif args.typeCorr == 'pointSrc':
             parameters += ["gwb_phi", "gwb_costheta"]
-        else:
+        elif args.typeCorr == 'spharmAnis':
             for ii in range(num_corr_params):
                 parameters.append('clm_{0}'.format(ii+1))
 if args.det_signal:
@@ -1197,11 +1193,11 @@ if args.incGWB:
     elif args.gwbSpecModel == 'spectrum':
         gamma_tag = '_gwbSpec'
     if args.incCorr:
-        if args.miCorr:
+        if args.typeCorr == 'modelIndep':
             file_tag += '_gwb{0}_miCorr{1}{2}'.format(args.limit_or_detect_gwb,evol_corr_tag,gamma_tag)
-        elif args.gwbPointSrc:
+        elif args.typeCorr == 'pointSrc':
             file_tag += '_gwb{0}_pointSrc{1}'.format(args.limit_or_detect_gwb,gamma_tag)
-        else:
+        elif args.typeCorr == 'spharmAnis':
             file_tag += '_gwb{0}_Lmax{1}{2}{3}'.format(args.limit_or_detect_gwb,
                                                        args.LMAX,evol_corr_tag,gamma_tag)
     else:
@@ -1298,11 +1294,11 @@ if args.sampler == 'ptmcmc':
         elif args.gwbSpecModel == 'spectrum':
             x0 = np.append(x0,np.random.uniform(-7.0,-3.0,nmode))
         if args.incCorr:
-            if args.miCorr:
+            if args.typeCorr == 'modelIndep':
                 x0 = np.append(x0,np.random.uniform(0.0,np.pi,num_corr_params))
-            elif args.gwbPointSrc:
+            elif args.typeCorr == 'pointSrc':
                 x0 = np.append(x0,np.array([0.5,0.5]))
-            else:
+            elif args.typeCorr == 'spharmAnis':
                 x0 = np.append(x0,np.zeros(num_corr_params))
     if args.det_signal:
         if args.cgw_search:
@@ -1369,28 +1365,19 @@ if args.sampler == 'ptmcmc':
             [ind.append(id) for id in ids if len(id) > 0]
             param_ct += nmode*len(psr)
             
-    '''
+
     ##### DM noise #####
     if args.dmVar:
-        if args.dmModel == 'powerlaw':
-            ids = model.get_parameter_indices('dmpowerlaw', corr='single', split=True)
-            [ind.append(id) for id in ids]
-        if args.dmModel == 'spectrum':
-            ids = model.get_parameter_indices('dmspectrum', corr='single', split=False)
-            [ind.append(id) for id in ids]
-
-    ##### Anisotropic GWB #####
-    
-    if args.incGWBAni:
-        if args.gwbModel == 'powerlaw':
-            ids = model.get_parameter_indices('powerlaw', corr='gr_sph', split=False)
-            [ind.append(id) for id in ids]
-        if args.gwbModel == 'spectrum':
-            ids = model.get_parameter_indices('spectrum', corr='gr_sph', split=False)
-            [ind.append(id) for id in ids]
-    
-    '''
-       
+        if args.dmSpecModel == 'powerlaw':
+            dmamps = [ii for ii in range(len(psr))]
+            dmgam = [ii+len(psr) for ii in dmamps]
+            ids = [list(aa) for aa in zip(dmamps,dmgam)]
+            [ind.append(id) for id in ids if len(id) > 0]
+            param_ct += 2*len(psr)
+        elif args.dmSpecModel == 'spectrum':
+            ids = np.arange(0,nmode*len(psr)).reshape((len(psr),nmode))
+            [ind.append(id) for id in ids if len(id) > 0]
+            param_ct += nmode*len(psr)
         
     ##### GWB #####
     if args.incGWB:
@@ -1407,14 +1394,12 @@ if args.sampler == 'ptmcmc':
             [ind.append(id) for id in ids]
             param_ct += nmode
 
-
     ##### GWB correlations #####
-    if args.incGWB and args.incCorr and args.gwbPointSrc:
-        ids = [[param_ct,param_ct+1]]
-        param_ct += 2
+    if args.incGWB and args.incCorr:
+        ids = [[param_ct,param_ct+num_corr_params]]
+        param_ct += num_corr_params
         [ind.append(id) for id in ids]
-        
-
+       
     ##### DET SIGNAL #####
     if args.det_signal:
         ##### CW #####
@@ -1624,6 +1609,7 @@ if args.sampler == 'ptmcmc':
                 qxy += 0
         
         return q, qxy
+    
 
     def drawFromGWBpointSrcPrior(parameters, iter, beta):
 
@@ -1647,6 +1633,31 @@ if args.sampler == 'ptmcmc':
         
         q[pct+1] = np.random.uniform(pmin[pct+1], pmax[pct+1])
         qxy += 0
+
+        return q, qxy
+
+    def drawFromGWBspharmAnisPrior(parameters, iter, beta):
+
+        # post-jump parameters
+        q = parameters.copy()
+
+        # transition probability
+        qxy = 0
+
+        npsr = len(psr)
+        if args.redSpecModel == 'powerlaw':
+            pct = 2*npsr
+        elif args.redSpecModel == 'spectrum':
+            pct = npsr*nmode
+    
+        if args.dmVar:
+            pct += 2*npsr
+
+        ind = np.unique(np.random.randint(0, num_corr_params, 1))
+
+        for ii in ind:
+            q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
+            qxy += 0
 
         return q, qxy
 
@@ -1782,8 +1793,10 @@ if args.sampler == 'ptmcmc':
             sampler.addProposalToCycle(drawFromGWBPowerlawPrior, 10)
         elif args.gwbSpecModel == 'spectrum':
             sampler.addProposalToCycle(drawFromGWBSpectrumPrior, 10)
-        if args.incCorr and args.gwbPointSrc:
+        if args.incCorr and (args.typeCorr == 'pointSrc'):
             sampler.addProposalToCycle(drawFromGWBpointSrcPrior, 10)
+        elif args.incCorr and (args.typeCorr == 'spharmAnis'):
+            sampler.addProposalToCycle(drawFromGWBspharmAnisPrior, 10)
     if args.det_signal and args.cgw_search:
         sampler.addProposalToCycle(drawFromCWPrior, 10)
     if args.det_signal and args.bwm_search:
