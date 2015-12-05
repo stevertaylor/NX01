@@ -6,31 +6,33 @@ Copyright (c) 2014 Stephen R. Taylor
 Code contributions by Rutger van Haasteren (piccard) and Justin Ellis (PAL/PAL2).
 
 """
-
 from __future__ import division
 import numpy as np
-import matplotlib
 import matplotlib.pyplot as plt
 import scipy.interpolate as interp
 import scipy.ndimage.filters as filter
-import scipy.special as ss
-import statsmodels.api as sm
-import healpy as hp
-from bayestar import plot
+try:
+    import healpy as hp
+except ImportError:
+    hp = None
+try:
+    from PAL2 import plot
+except ImportError:
+    plot = None
 import matplotlib.mlab as ml
-from matplotlib.ticker import FormatStrFormatter,\
-     LinearLocator, NullFormatter, NullLocator, AutoMinorLocator
+from matplotlib.ticker import FormatStrFormatter, LinearLocator, NullFormatter, NullLocator
 import matplotlib.ticker
 import matplotlib.colors
-import matplotlib.cm as cmx
+from scipy.stats import gaussian_kde
 from optparse import OptionParser
+from statsmodels.distributions.empirical_distribution import ECDF
 import os
-import NX01_utils as utils
 
 """
-Plotting codes from Justin Ellis' PAL package, with additions by Steve Taylor
+Plotting codes from Justin Ellis' PAL2 package, with additions by Steve Taylor
 
 """
+
 
 """
 Given a 2D matrix of (marginalised) likelihood levels, this function returns
@@ -38,13 +40,11 @@ the 1, 2, 3- sigma levels. The 2D matrix is usually either a 2D histogram or a
 likelihood scan
 
 """
-def getsigmalevels(hist2d):
+def getsigmalevels(hist2d, sig_levels=[0.68, 0.95, 0.997]):
   # We will draw contours with these levels
-  sigma1 = 0.68268949
+  sigma1, sigma2, sigma3 = sig_levels
   level1 = 0
-  sigma2 = 0.95449974
   level2 = 0
-  sigma3 = 0.99730024
   level3 = 0
 
   #
@@ -78,17 +78,21 @@ def getsigmalevels(hist2d):
 
   return level1, level2, level3
 
-
 def confinterval(samples, sigma=0.68, onesided=False, weights=None, bins=40,
                 type='equalArea', kde=False):
     """
+
     Given a list of samples, return the desired cofidence intervals.
     Returns the minimum and maximum confidence levels
+
     @param samples: Samples that we wish to get confidence intervals
+
     @param sigmalevel: Sigma level 1, 2, or 3 sigma, will return 
                        corresponding confidence limits
+
     @param onesided: Boolean to use onesided or twosided confidence
                      limits.
+
     """
 
     ## Create the histogram
@@ -103,7 +107,7 @@ def confinterval(samples, sigma=0.68, onesided=False, weights=None, bins=40,
     #ifunc = interp.interp1d(xedges, cdf, kind='cubic')
     #y = ifunc(x)
 
-    ecdf = sm.distributions.ECDF(samples)
+    ecdf = ECDF(samples)
 
     # Create the binning
     x = np.linspace(min(samples), max(samples), 1000)
@@ -112,7 +116,7 @@ def confinterval(samples, sigma=0.68, onesided=False, weights=None, bins=40,
         kd = gaussian_kde(samples)
         y = np.cumsum(kd.pdf(x) / np.sum(kd.pdf(x)))
     else:
-        ecdf = sm.distributions.ECDF(samples)
+        ecdf = ECDF(samples)
         y = ecdf(x)
 
     # Find the intervals
@@ -154,49 +158,11 @@ def confinterval(samples, sigma=0.68, onesided=False, weights=None, bins=40,
     return x2min, x2max
 
 
-def skylocPrecision(samples1, samples2, weights=None, smooth=True,
-                    bins=[40, 40], x_range=None, y_range=None):                                                                                                                                                                 
-    if x_range is None:
-        xmin = np.min(samples1)
-        xmax = np.max(samples1)
-    else:
-        xmin = x_range[0]
-        xmax = x_range[1]
- 
-    if y_range is None:
-        ymin = np.min(samples2)
-        ymax = np.max(samples2)
-    else:
-        ymin = y_range[0]
-        ymax = y_range[1]
- 
-    hist2d,xedges,yedges = np.histogram2d(samples1, samples2, weights=weights,
-                                          bins=bins, range=[[xmin,xmax],[ymin,ymax]])
-    extent = [xedges[0], xedges[-1], yedges[0], yedges[-1] ]
- 
-    xedges = np.delete(xedges, -1) + 0.5*(xedges[1] - xedges[0])
-    yedges = np.delete(yedges, -1) + 0.5*(yedges[1] - yedges[0])
- 
-    # gaussian smoothing
-    if smooth:
-        hist2d = filter.gaussian_filter(hist2d, sigma=0.75)
- 
-    level1, level2, level3 = getsigmalevels(hist2d)
-    contourlevels = (level1, level2, level3)
-    locAreas=[]
-    for lev in contourlevels:
-        dummy = np.zeros(hist2d.shape)
-        dummy[hist2d>lev] = 1.0
-        locAreas.append(4.0*np.pi * np.sum(dummy)/(dummy.shape[0]*dummy.shape[1]))
- 
-    return np.array(locAreas)
 
-
-
-def makesubplot2d(ax, samples1, samples2, cmap, color=True, weights=None, smooth=True, contourcolors=('black', 'black', 'black'), \
-                  bins=[40, 40], label=None, contours=True, x_range=None, y_range=None, \
-                  logx=False, logy=False, logz=False):
-
+def makesubplot2d(ax, samples1, samples2, cmap=None, color='k', weights=None,
+                  smooth=True, bins=[40, 40], contours=True, x_range=None,
+                  y_range=None, logx=False, logy=False, logz=False, lw=1.5,
+                  conf_levels=[0.68, 0.95, 0.99]):
     
     if x_range is None:
         xmin = np.min(samples1)
@@ -238,28 +204,18 @@ def makesubplot2d(ax, samples1, samples2, cmap, color=True, weights=None, smooth
 
     if contours:
         
-        level1, level2, level3 = getsigmalevels(hist2d)
+        level1, level2, level3 = getsigmalevels(hist2d, conf_levels)
         
         contourlevels = (level1, level2, level3)
         
-        #contourcolors = ('darkblue', 'darkblue', 'darkblue')
         contourcolors = (color, color, color)
         contourlinestyles = ('-', '--', '-.')
-        #contourlinewidths = (2.0, 2.0, 2.0)
-        contourlinewidths = (1.5, 1.5, 1.5)
-        contourlabels = [r'$68\%$', r'$95\%$',r'$99.7\%$']
+        contourlinewidths = (lw, lw, lw)
         
-        contlabels = (contourlabels[0], contourlabels[1], contourlabels[2])
 
-        c1 = ax.contour(xedges,yedges,hist2d.T,contourlevels, \
-                colors=contourcolors, linestyles=contourlinestyles, \
-                linewidths=contourlinewidths, zorder=2)
-
-        fmt = {}
-        for l,s in zip( c1.levels, contlabels ):
-            fmt[l] = s
-
-        ax.clabel(c1,inline=True,fmt=fmt,fontsize=10)
+        c1 = ax.contour(xedges,yedges,hist2d.T,contourlevels[:2], \
+                        colors=contourcolors[:2], linestyles=contourlinestyles[:2], \
+                        linewidths=contourlinewidths[:2], zorder=2)
     if cmap:
         if logz:
             c2 = ax.imshow(np.flipud(hist2d.T), extent=extent, aspect=ax.get_aspect(), \
@@ -296,15 +252,12 @@ def getMeanAndStd(samples, weights=None, bins=50):
     
     
 def makesubplot1d(ax, samples, weights=None, interpolate=False, smooth=True,\
-                  label=None, bins=30, range=None, color='k', cmap='Spectral_r'):
+                  label=None, bins=30, range=None, color='k', 
+                  orientation='vertical', logbin=False, **kwargs):
     """ 
     Make histogram of samples
 
     """
-    spec = cm = plt.get_cmap(cmap) 
-    cNorm  = matplotlib.colors.Normalize(vmin=0, vmax=1)
-    scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=spec)
-    colorVal = scalarMap.to_rgba(0)
 
     if range is None:
         hist, xedges = np.histogram(samples, bins, normed=True, weights=weights)
@@ -318,18 +271,25 @@ def makesubplot1d(ax, samples, weights=None, interpolate=False, smooth=True,\
         hist = filter.gaussian_filter(hist, sigma=0.75)
         if interpolate:
             f = interp.interp1d(xedges, hist, kind='cubic')
-            xedges = np.linspace(xedges.min(), xedges.max(), 10000)
+            if logbin:
+                xedges = np.logspace(np.log10(xedges.min()), 
+                                     np.log10(xedges.max()), 
+                                     10000)
+            else:
+                xedges = np.linspace(xedges.min(), xedges.max(), 10000)
             hist = f(xedges)
 
     # make plot
     if label is not None:
-        ax.plot(xedges, hist, color=color, lw=1.5, label=label)
-        if cmap is not None:
-            ax.fill_between(xedges, hist, y2=0, where=None, color=colorVal, alpha=0.7)
+        if orientation == 'horizontal':
+            ax.plot(hist, xedges, color=color, label=label, **kwargs)
+        else:
+            ax.plot(xedges, hist, color=color, label=label, **kwargs)
     else:
-        ax.plot(xedges, hist, color=color, lw=1.5)
-        if cmap is not None:
-            ax.fill_between(xedges, hist, y2=0, where=None, color=colorVal, alpha=0.7)
+        if orientation == 'horizontal':
+            ax.plot(hist, xedges, color=color, **kwargs)
+        else:
+            ax.plot(xedges, hist, color=color, **kwargs)
 
 def getMax(samples, weights=None, range=None, bins=50):
     """ 
@@ -357,9 +317,10 @@ def getMax(samples, weights=None, range=None, bins=50):
         
 
 # make triangle plot of marginalized posterior distribution
-def triplot(chain, gcf_axarr=None, color='k', weights=None, interpolate=False, smooth=True, \
+def triplot(chain, color='k', weights=None, interpolate=False, smooth=True, \
            labels=None, figsize=(11,8.5), title=None, inj=None, tex=True, \
-            incMaxPost=True, bins=[60,60], cmap='Spectral_r', holdon=False):
+            incMaxPost=True, cmap='YlOrBr', lw=1.5, ranges=False, axarr=None):
+
     """
 
     Make Triangle plot
@@ -367,26 +328,24 @@ def triplot(chain, gcf_axarr=None, color='k', weights=None, interpolate=False, s
     """
 
     # rcParams settings
-    if chain.shape[1] < 3:
-        plt.rcParams['ytick.labelsize'] = 18.0
-        plt.rcParams['xtick.labelsize'] = 18.0
-    elif chain.shape[1] < 10:
-        plt.rcParams['ytick.labelsize'] = 10.0
-        plt.rcParams['xtick.labelsize'] = 10.0
+    if chain.shape[1] < 10:
+        ticksize = 10
+        #plt.rcParams['ytick.labelsize'] = 10.0
+        #plt.rcParams['xtick.labelsize'] = 10.0
     else:
-        plt.rcParams['ytick.labelsize'] = 8.0
-        plt.rcParams['xtick.labelsize'] = 8.0
+        ticksize = 8
+        #plt.rcParams['ytick.labelsize'] = 8.0
+        #plt.rcParams['xtick.labelsize'] = 8.0
     if tex:
         plt.rcParams['text.usetex'] = True
-    plt.rcParams['figure.figsize'] = figsize
+
 
     # get number of parameters
     ndim = chain.shape[1]
     parameters = np.linspace(0,ndim-1,ndim)
     
-    if holdon:
+    if axarr is not None:
         f = plt.gcf()
-        axarr = gcf_axarr
         #fig, axarr = plt.subplots(nrows=len(parameters), ncols=len(parameters),figsize=figsize)
     else:
         f, axarr = plt.subplots(nrows=len(parameters), ncols=len(parameters),figsize=figsize)
@@ -396,6 +355,22 @@ def triplot(chain, gcf_axarr=None, color='k', weights=None, interpolate=False, s
         for j in range(len(parameters)):
             ii = i
             jj = len(parameters) - j - 1
+
+            # get ranges
+            if ranges:
+                xmin, xmax = confinterval(chain[:, parameters[ii]], sigma=0.95, 
+                                          type='equalProb')
+                x_range = [xmin, xmax]
+                xmin, xmax = confinterval(chain[:, parameters[jj]], sigma=0.95, 
+                                          type='equalProb')
+                y_range = [xmin, xmax]
+
+            else:
+                x_range = [chain[:, parameters[ii]].min(), chain[:, parameters[ii]].max()]
+                y_range = [chain[:, parameters[jj]].min(), chain[:, parameters[jj]].max()]
+
+
+            axarr[ii, jj].tick_params(axis='both', which='major', labelsize=10)
 
             xmajorLocator = matplotlib.ticker.MaxNLocator(nbins=4,prune='both')
             ymajorLocator = matplotlib.ticker.MaxNLocator(nbins=4,prune='both')
@@ -417,19 +392,21 @@ def triplot(chain, gcf_axarr=None, color='k', weights=None, interpolate=False, s
                     # Make a 1D plot
                     makesubplot1d(axarr[ii][ii], chain[:,parameters[ii]], \
                                   weights=weights, interpolate=interpolate, \
-                                  smooth=smooth, color=color, cmap=cmap)
+                                  smooth=smooth, color=color, lw=lw, range=x_range)
                     axarr[ii][jj].set_ylim(ymin=0)
                     if incMaxPost:
                         mx = getMax(chain[:,parameters[ii]], weights=weights)
-                        axarr[ii][jj].set_title('MAP = %5.4g'%(mx), fontsize=10)
+                        axarr[ii][jj].set_title('%5.4g'%(mx), fontsize=10)
 
                     if inj is not None:
                         axarr[ii][ii].axvline(inj[ii], lw=2, color='k')
                 else:
                     # Make a 2D plot
-                    makesubplot2d(axarr[jj][ii], chain[:,parameters[ii]], \
-                            chain[:,parameters[jj]], cmap=cmap, color=color, weights=weights, \
-                                  smooth=smooth, bins=bins)
+                    makesubplot2d(axarr[jj][ii], chain[:,parameters[ii]],
+                                  chain[:,parameters[jj]], cmap=cmap, 
+                                  color=color, weights=weights,
+                                  smooth=smooth, lw=lw, x_range=x_range,
+                                  y_range=y_range)
 
                     if inj is not None:
                         axarr[jj][ii].plot(inj[ii], inj[jj], 'x', color='k', markersize=12, \
@@ -444,7 +421,7 @@ def triplot(chain, gcf_axarr=None, color='k', weights=None, interpolate=False, s
             if jj == len(parameters)-1:
                 axarr[jj][ii].xaxis.set_major_formatter(xmajorFormatter)
                 if labels:
-                    axarr[jj][ii].set_xlabel(labels[ii], fontsize=12)
+                    axarr[jj][ii].set_xlabel(labels[ii])
 
             if ii == 0:
                 if jj == 0:
@@ -453,7 +430,7 @@ def triplot(chain, gcf_axarr=None, color='k', weights=None, interpolate=False, s
                 else:
                     axarr[jj][ii].yaxis.set_major_formatter(ymajorFormatter)
                     if labels:
-                        axarr[jj][ii].set_ylabel(labels[jj], fontsize=12)
+                        axarr[jj][ii].set_ylabel(labels[jj])
 
     # overall plot title
     if title:
@@ -464,8 +441,6 @@ def triplot(chain, gcf_axarr=None, color='k', weights=None, interpolate=False, s
     f.subplots_adjust(wspace=0.1)
 
     return axarr
-
-    #plt.hold(holdon)
 
 
 def pol2cart(lon, lat): 
@@ -482,7 +457,7 @@ def pol2cart(lon, lat):
     return np.array([x,y,z])
 
 
-def greedy_bin_sky(skypos, skycarts, weights=None):
+def greedy_bin_sky(skypos, skycarts):
     """
 
     Greedy binning algorithm
@@ -491,19 +466,12 @@ def greedy_bin_sky(skypos, skycarts, weights=None):
 
     N = len(skycarts) 
     skycarts = np.array(skycarts)
-    bins = np.zeros(N)
-    ct = 0
+    bins = np.zeros(N) 
     for raSample, decSample in skypos: 
         sampcart = pol2cart(raSample, decSample) 
         dx = np.dot(skycarts, sampcart)
         maxdx = np.argmax(dx)
-
-        if weights is not None:
-            bins[maxdx] += weights[ct]
-        else:
-            bins[maxdx] += 1
-
-        ct += 1
+        bins[maxdx] += 1 
 
     # fill in skymap
     histIndices = np.argsort(bins)[::-1]    # in decreasing order
@@ -519,7 +487,7 @@ def greedy_bin_sky(skypos, skycarts, weights=None):
 
 
 def plotSkyMap(raSample, decSample, nside=64, contours=None, colorbar=True, \
-              inj=None, weights=None, psrs=None):
+              inj=None, psrs=None, cmap='YlOrBr', outfile='skymap.pdf'):
     """
 
     Plot Skymap of chain samples on Mollwiede projection.
@@ -533,7 +501,6 @@ def plotSkyMap(raSample, decSample, nside=64, contours=None, colorbar=True, \
     @param colorbar: Boolean option to draw colorbar [default = True]
     @param inj: list of injected values [ra, dec] in radians to plot
                 [default = None]
-    @param weights: sample weights [default = None]
     @param psrs: Stacked array of pulsar sky locations [ra, dec] in radians
                  [default=None] Will plot as white diamonds
 
@@ -554,10 +521,10 @@ def plotSkyMap(raSample, decSample, nside=64, contours=None, colorbar=True, \
         skycarts.append(np.array(hp.pix2vec(nside,ii)))
 
     # get skymap values from greedy binning algorithm
-    skymap = greedy_bin_sky(skypos, skycarts, weights)
+    skymap = greedy_bin_sky(skypos, skycarts)
 
     # smooth skymap
-    skymap = hp.smoothing(skymap, 0.05)
+    skymap = hp.smoothing(skymap, sigma=0.02)
 
     # make plot
     ax = plt.subplot(111, projection='astro mollweide')
@@ -577,7 +544,7 @@ def plotSkyMap(raSample, decSample, nside=64, contours=None, colorbar=True, \
     # plot map
     ax.grid()
     plot.outline_text(ax)
-    plot.healpix_heatmap(skymap)
+    plot.healpix_heatmap(skymap, cmap=cmap)
 
     # add injection
     if inj:
@@ -585,7 +552,7 @@ def plotSkyMap(raSample, decSample, nside=64, contours=None, colorbar=True, \
 
     # add pulsars
     if np.all(psrs):
-        ax.plot(psrs[:,0], psrs[:,1], 'D', color='w', markersize=3, mew=1, mec='w')
+        ax.plot(psrs[:,0], psrs[:,1], '*', color='lime', markersize=8, mew=1, mec='k')
 
     # add colorbar and title
     if colorbar:
@@ -593,12 +560,12 @@ def plotSkyMap(raSample, decSample, nside=64, contours=None, colorbar=True, \
         plt.suptitle(r'$p(\alpha,\delta|d)$', y=0.1)
 
     # save skymap
-    plt.savefig('skymap.pdf', bbox_inches='tight')
+    plt.savefig(outfile, bbox_inches='tight')
+
 
 
 def upperlimitplot2d(x, y, sigma=0.95, ymin=None, ymax=None, bins=40, log=False, \
-                     logA=False, savename=None, labels=None, hold=False, linestyle='solid', \
-                     color='black', linewidth=None, leglabel=None, savetable=False, **kwargs):
+                     savename=None, labels=None, hold=False, **kwargs):
 
     """
 
@@ -648,42 +615,30 @@ def upperlimitplot2d(x, y, sigma=0.95, ymin=None, ymax=None, bins=40, log=False,
 
     # make plot
     if log:
-        plt.loglog(10**yvals[bin_index], 10**upper, ls=linestyle, lw=linewidth, color=color, label=leglabel, **kwargs)
+        plt.loglog(10**yvals[bin_index], 10**upper, **kwargs)
         plt.grid(which='major')
         plt.grid(which='minor')
-        #plt.legend(fancybox=True, shadow=True)
-        if savetable == True:
-          np.savetxt('2D_UpperTable_sigma{0}.txt'.format(int(100*sigma)), np.vstack([10**yvals[bin_index],10**upper]).T)
-    elif logA:
-        plt.plot(yvals[bin_index], 10**upper, ls=linestyle, lw=linewidth, color=color, label=leglabel, **kwargs)
-        plt.yscale('log')
-        plt.grid(which='major')
-        plt.grid(which='minor')
-        #plt.legend(fancybox=True, shadow=True)
-        if savetable == True:
-          np.savetxt('2D_UpperTable_sigma{0}.txt'.format(int(100*sigma)), np.vstack([yvals[bin_index],10**upper]).T)
     else:
-        plt.plot(yvals[bin_index], upper, ls=linestyle, lw=linewidth, color=color, label=leglabel, **kwargs)
+        plt.plot(yvals[bin_index], upper, **kwargs)
         plt.grid()
-        #plt.legend(fancybox=True, shadow=True)
-        if savetable == True:
-          np.savetxt('2D_UpperTable_sigma{0}.txt'.format(int(100*sigma)), np.vstack([yvals[bin_index],upper]).T)
 
     # labels
     if labels:
-        plt.xlabel(labels[0], fontsize=20)
-        plt.ylabel(labels[1],fontsize=20)
+        plt.xlabel(labels[0])
+        plt.ylabel(labels[1])
 
     if savename:
         plt.savefig(savename, bbox_inches='tight')
+    else:
+        plt.savefig('2dUpperLimit.pdf', bbox_inches='tight')
 
         """
 Given an mcmc chain, plot the log-spectrum
 
 """
-def makespectrumplot(chain, parstart=1, numfreqs=10, freqs=None, \
+def makespectrumplot(ax, chain, parstart=1, numfreqs=10, freqs=None, \
         Apl=None, gpl=None, Asm=None, asm=None, fcsm=0.1, plotlog=False, \
-        lcolor='black', Tmax=None, Aref=None, holdon=False, title=None, \
+        lcolor='black', Tmax=None, Aref=None, title=None, \
         values=False):
 
     if freqs is None:
@@ -708,8 +663,6 @@ def makespectrumplot(chain, parstart=1, numfreqs=10, freqs=None, \
         retvals.append(yval)
         retvals.append(yerr)
     
-    if not(holdon):
-        fig = plt.figure()
 
     # For plotting reference spectra
     pfreqs = 10 ** ufreqs
@@ -718,24 +671,24 @@ def makespectrumplot(chain, parstart=1, numfreqs=10, freqs=None, \
 
     if plotlog:
         pic_spy = 3.16e7
-        plt.errorbar(ufreqs, yval, yerr=yerr, fmt='.', c=lcolor)
+        ax.errorbar(ufreqs, yval, yerr=yerr, fmt='.', c=lcolor)
         # outmatrix = np.array([ufreqs, yval, yerr]).T
         # np.savetxt('spectrumplot.txt', outmatrix)
 
         if Apl is not None and gpl is not None and Tmax is not None:
             Apl = 10**Apl
             ypl = (Apl**2 * pic_spy**3 / (12*np.pi*np.pi * (Tmax))) * ((pfreqs * pic_spy) ** (-gpl))
-            plt.plot(np.log10(pfreqs), np.log10(ypl), 'g--', linewidth=2.0)
+            ax.plot(np.log10(pfreqs), np.log10(ypl), 'g--', linewidth=2.0)
 
         if Asm is not None and asm is not None and Tmax is not None:
             Asm = 10**Asm
             fcsm = fcsm / pic_spy
             ysm = (Asm * pic_spy**3 / Tmax) * ((1 + (pfreqs/fcsm)**2)**(-0.5*asm))
-            plt.plot(np.log10(pfreqs), np.log10(ysm), 'r--', linewidth=2.0)
+            ax.plot(np.log10(pfreqs), np.log10(ysm), 'r--', linewidth=2.0)
 
 
         #plt.axis([np.min(ufreqs)-0.1, np.max(ufreqs)+0.1, np.min(yval-yerr)-1, np.max(yval+yerr)+1])
-        plt.xlabel("Frequency [log(f/Hz)]")
+        ax.set_xlabel("Frequency [log(f/Hz)]")
         #if True:
         #    #freqs = likobhy.ptapsrs[0].Ffreqs
         #    Tmax = 156038571.88061461
@@ -750,16 +703,16 @@ def makespectrumplot(chain, parstart=1, numfreqs=10, freqs=None, \
         #    plt.plot(np.log10(freqs), np.log10(pcpl), 'g--', linewidth=2.0)
 
     else:
-        plt.errorbar(10**ufreqs, yval, yerr=yerr, fmt='.', c='black')
+        ax.errorbar(10**ufreqs, yval, yerr=yerr, fmt='.', c='black')
         if Aref is not None:
-            plt.plot(10**ufreqs, np.log10(yinj), 'k--')
+            ax.plot(10**ufreqs, np.log10(yinj), 'k--')
         plt.axis([np.min(10**ufreqs)*0.9, np.max(10**ufreqs)*1.01, np.min(yval-yerr)-1, np.max(yval+yerr)+1])
         plt.xlabel("Frequency [Hz]")
 
     #plt.title("Power spectrum")
     if title is not None:
-        plt.title(title)
-    plt.ylabel("Power Spectrum [s^2]")
+        ax.set_title(title)
+    ax.set_ylabel("Power Spectrum [s^2]")
     plt.grid(True)
 
     return retvals
