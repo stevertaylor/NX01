@@ -208,7 +208,7 @@ ____    ____  ______    __    __      __    __       ___   ____    ____  _______
                                                                                     
 """
 if rank == 0:
-    print header                                
+    print header                             
 
 # Do you want to use GPU acceleration?
 if args.use_gpu:
@@ -301,14 +301,20 @@ if args.incGWB and args.incCorr:
 
         num_corr_params = tmp_nwins*(len(psr)*(len(psr)-1)/2)
 
-    if args.typeCorr == 'pointSrc':
+    elif args.typeCorr == 'pointSrc':
 
-        #### only works for source covering all frequencies ##### 
+        #### only works for source covering all frequencies #####
 
-        num_corr_params = 2
+        gwfreqs_per_win = int(1.*args.nmodes/(1.*args.nwins)) 
+        corr_modefreqs = np.arange(1,args.nmodes+1)
+        corr_modefreqs = np.reshape(corr_modefreqs,
+                                    (args.nwins,gwfreqs_per_win))
+
+        tmp_nwins = args.nwins
+
+        num_corr_params = 2*tmp_nwins
         
-
-    if args.typeCorr == 'spharmAnis':
+    elif args.typeCorr == 'spharmAnis':
         
         # Computing all the correlation basis-functions for the array.
         CorrCoeff = np.array(anis.CorrBasis(positions,args.LMAX))
@@ -461,7 +467,7 @@ if args.incGWB:
         if args.typeCorr == 'modelIndep':
             pmin = np.append(pmin,np.zeros(num_corr_params))
         elif args.typeCorr == 'pointSrc':
-            pmin = np.append(pmin,np.array([0.0,-1.0]))
+            pmin = np.append(pmin,np.tile([0.0,-1.0],tmp_nwins))
         elif args.typeCorr == 'spharmAnis':
             pmin = np.append(pmin,-10.0*np.ones(num_corr_params))
 if args.det_signal:
@@ -498,7 +504,7 @@ if args.incGWB:
         if args.typeCorr == 'modelIndep':
             pmax = np.append(pmax,np.pi*np.ones(num_corr_params))
         elif args.typeCorr == 'pointSrc':
-            pmax = np.append(pmax,np.array([2.0*np.pi,1.0]))
+            pmax = np.append(pmax,np.tile([2.0*np.pi,1.0],tmp_nwins))
         elif args.typeCorr == 'spharmAnis':
             pmax = np.append(pmax,10.0*np.ones(num_corr_params))
 if args.det_signal:
@@ -742,32 +748,39 @@ def lnprob(xx):
 
         elif args.typeCorr == 'pointSrc':
 
-            gwphi, cosgwtheta = orf_coeffs
+            orf_coeffs = orf_coeffs.reshape((tmp_nwins,2))
+            gwphi, cosgwtheta = orf_coeffs[:,0], orf_coeffs[:,1]
             gwtheta = np.arccos(cosgwtheta)
 
-            corr_curve=np.zeros((npsr,npsr))
+            corr_curve=np.zeros((tmp_nwins,npsr,npsr))
 
-            Fp = np.zeros(npsr)
-            Fc = np.zeros(npsr)
-            for ii in range(npsr):
-                Fp[ii], Fc[ii] = utils.fplus_fcross(psr[ii], gwtheta, gwphi)
-            
-            for ii in range(npsr):
-                for jj in range(ii,npsr):
-                    corr_curve[ii,jj] = (3.0/(8.0*np.pi)) * (Fp[ii]*Fp[jj] + Fc[ii]*Fc[jj])
-                    corr_curve[jj,ii] = corr_curve[ii,jj]
+            Fp = np.zeros((tmp_nwins,npsr))
+            Fc = np.zeros((tmp_nwins,npsr))
+            for kk in range(tmp_nwins):
+                for ii in range(npsr):
+                    Fp[kk,ii], Fc[kk,ii] = \
+                      utils.fplus_fcross(psr[ii], gwtheta[kk], gwphi[kk])
 
-                    if ii == jj:
-                        # scaling for pulsar-term
-                        corr_curve[ii,jj] *= 2.0
+            for kk in range(tmp_nwins):
+                for ii in range(npsr):
+                    for jj in range(ii,npsr):
+                        corr_curve[kk,ii,jj] = (3.0/(8.0*np.pi)) * \
+                          (Fp[kk,ii]*Fp[kk,jj] + Fc[kk,ii]*Fc[kk,jj])
+                        corr_curve[kk,jj,ii] = corr_curve[kk,ii,jj]
+
+                        if ii == jj:
+                            # scaling for pulsar-term
+                            corr_curve[kk,ii,jj] *= 2.0
 
             ORF=[]
-            for ii in range(nmode): # copy for all frequencies
-                ORF.append( corr_curve )
+            for ii in range(tmp_nwins): # number of frequency windows
+                for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
+                    ORF.append( corr_curve[kk,:,:] )
                     
             if args.dmVar:
-                for ii in range(nmode): # number of frequency windows
-                    ORF.append( np.zeros((npsr,npsr)) )
+                for ii in range(tmp_nwins): # number of frequency windows
+                    for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
+                        ORF.append( np.zeros((npsr,npsr)) )
 
             ORF = np.array(ORF)
             ORFtot = np.zeros((mode_count,npsr,npsr)) # shouldn't be applying ORF to dmfreqs,
@@ -1155,13 +1168,17 @@ if args.incGWB:
             parameters.append('gwbSpec_{0}'.format(ii+1))
     if args.incCorr:
         if args.typeCorr == 'modelIndep':
-            for ii in range(num_corr_params):
-                parameters.append('phi_corr_{0}'.format(ii+1))
+            for ii in range(tmp_nwins): 
+                for jj in range(len(psr)*(len(psr)-1)/2):
+                    parameters.append('phi_corr_win{0}_val{1}'.format(ii+1,jj+1))
         elif args.typeCorr == 'pointSrc':
-            parameters += ["gwb_phi", "gwb_costheta"]
+            for ii in range(tmp_nwins):
+                parameters += ["gwb_phi_win{0}".format(ii+1),
+                               "gwb_costheta_{0}".format(ii+1)]
         elif args.typeCorr == 'spharmAnis':
-            for ii in range(num_corr_params):
-                parameters.append('clm_{0}'.format(ii+1))
+            for ii in range(tmp_nwins): 
+                for jj in range((args.LMAX+1)**2 - 1):
+                    parameters.append('clm_win{0}_val{1}'.format(ii+1,jj+1))
 if args.det_signal:
     if args.cgw_search:
         parameters += ["chirpmass", "qratio", "dist", "orb-freq",
@@ -1196,7 +1213,7 @@ if args.incGWB:
         if args.typeCorr == 'modelIndep':
             file_tag += '_gwb{0}_miCorr{1}{2}'.format(args.limit_or_detect_gwb,evol_corr_tag,gamma_tag)
         elif args.typeCorr == 'pointSrc':
-            file_tag += '_gwb{0}_pointSrc{1}'.format(args.limit_or_detect_gwb,gamma_tag)
+            file_tag += '_gwb{0}_pointSrc{1}{2}'.format(args.limit_or_detect_gwb,evol_corr_tag,gamma_tag)
         elif args.typeCorr == 'spharmAnis':
             file_tag += '_gwb{0}_Lmax{1}{2}{3}'.format(args.limit_or_detect_gwb,
                                                        args.LMAX,evol_corr_tag,gamma_tag)
@@ -1297,7 +1314,7 @@ if args.sampler == 'ptmcmc':
             if args.typeCorr == 'modelIndep':
                 x0 = np.append(x0,np.random.uniform(0.0,np.pi,num_corr_params))
             elif args.typeCorr == 'pointSrc':
-                x0 = np.append(x0,np.array([0.5,0.5]))
+                x0 = np.append(x0,np.tile([0.5,0.5],tmp_nwins))
             elif args.typeCorr == 'spharmAnis':
                 x0 = np.append(x0,np.zeros(num_corr_params))
     if args.det_signal:
