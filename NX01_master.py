@@ -1396,7 +1396,7 @@ if args.sampler == 'ptmcmc':
 
     ##### GWB correlations #####
     if args.incGWB and args.incCorr:
-        ids = [[param_ct,param_ct+num_corr_params]]
+        ids = [np.arange(param_ct,param_ct+num_corr_params)]
         param_ct += num_corr_params
         [ind.append(id) for id in ids]
        
