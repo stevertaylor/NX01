@@ -775,7 +775,7 @@ def lnprob(xx):
             ORF=[]
             for ii in range(tmp_nwins): # number of frequency windows
                 for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
-                    ORF.append( corr_curve[kk,:,:] )
+                    ORF.append( corr_curve[ii,:,:] )
                     
             if args.dmVar:
                 for ii in range(tmp_nwins): # number of frequency windows
@@ -1174,7 +1174,7 @@ if args.incGWB:
         elif args.typeCorr == 'pointSrc':
             for ii in range(tmp_nwins):
                 parameters += ["gwb_phi_win{0}".format(ii+1),
-                               "gwb_costheta_{0}".format(ii+1)]
+                               "gwb_costheta_win{0}".format(ii+1)]
         elif args.typeCorr == 'spharmAnis':
             for ii in range(tmp_nwins): 
                 for jj in range((args.LMAX+1)**2 - 1):

@@ -78,7 +78,7 @@ class PsrObj(object):
     """
     Initialise the libstempo object.
     """
-    def grab_all_vars(self, jitterbin=10., makeGmat=False): # jitterbin is in seconds
+    def grab_all_vars(self, jitterbin=10., makeGmat=False, fastDesign=True): # jitterbin is in seconds
 
         print "--> Processing {0}".format(self.T2psr.name)
         
@@ -224,14 +224,24 @@ class PsrObj(object):
                 print "...Finished checks."
 
         # perform SVD of design matrix to stabilise
-        print "--> Performing SVD of design matrix for stabilization..."   
-        u,s,v = np.linalg.svd(self.Mmat)
+        if fastDesign:
+            print "--> Stabilizing the design matrix the fast way..."
 
-        if makeGmat:
-            self.G = u[:,len(s):len(u)]
-            self.Gres = np.dot(self.G.T, self.res)
+            Mm = self.Mmat.copy()
+            norm = np.sqrt(np.sum(Mm ** 2, axis=0))
+            Mm /= norm
 
-        self.Gc =  u[:,:len(s)]
+            self.Gc = Mm
+        else:
+            print "--> Performing SVD of design matrix for stabilization..."   
+
+            u,s,v = np.linalg.svd(self.Mmat)
+
+            if makeGmat:
+                self.G = u[:,len(s):len(u)]
+                self.Gres = np.dot(self.G.T, self.res)
+
+            self.Gc =  u[:,:len(s)]
 
         print "--> Done reading in pulsar :-) \n"
 
