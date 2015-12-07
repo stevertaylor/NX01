@@ -41,9 +41,16 @@ pyximport.install(setup_args={"include_dirs":np.get_include()},
 
 import NX01_jitter as jitter
 
-from mpi4py import MPI
-comm = MPI.COMM_WORLD
-rank = comm.Get_rank()
+try:
+    from mpi4py import MPI
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+except ImportError:
+    print 'Do not have mpi4py package.'
+    import nompi4py as MPI
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+
 f1yr = 1.0/(365.25*86400.0)
 
 parser = optparse.OptionParser(description = "NX01 - It's been a long road, getting from there to here...")
