@@ -1154,17 +1154,16 @@ def lnprob(xx):
 
 parameters=[]
 if not args.fixRed:
-    for ii in range(len(psr)):
-        if args.redSpecModel == 'powerlaw':
-            parameters.append('Ared_'+psr[ii].name)
-            parameters.append('gam_red_'+psr[ii].name)
-        elif args.redSpecModel == 'spectrum':
+    if args.redSpecModel == 'powerlaw':
+        [parameters.append('Ared_'+p.name) for p in psr]
+        [parameters.append('gam_red_'+p.name) for p in psr]
+    elif args.redSpecModel == 'spectrum':
+        for ii in range(len(psr)):
             for jj in range(nmode):
                 parameters.append('redSpec'+'_{0}_'.format(jj+1)+psr[ii].name)
 if args.dmVar:
-    for ii in range(len(psr)):
-        parameters.append('Adm_'+psr[ii].name)
-        parameters.append('gam_dm_'+psr[ii].name)
+    [parameters.append('Adm_'+p.name) for p in psr]
+    [parameters.append('gam_dm_'+p.name) for p in psr]
 if args.incGWB:
     if args.gwbSpecModel == 'powerlaw':
         parameters.append("Agwb")
