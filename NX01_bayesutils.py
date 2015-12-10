@@ -20,7 +20,8 @@ try:
 except ImportError:
     plot = None
 import matplotlib.mlab as ml
-from matplotlib.ticker import FormatStrFormatter, LinearLocator, NullFormatter, NullLocator
+from matplotlib.ticker import FormatStrFormatter, \
+     LinearLocator, NullFormatter, NullLocator
 import matplotlib.ticker
 import matplotlib.colors
 from scipy.stats import gaussian_kde
@@ -77,6 +78,7 @@ def getsigmalevels(hist2d, sig_levels=[0.68, 0.95, 0.997]):
   level3 = sortlik[nIndex]
 
   return level1, level2, level3
+
 
 def confinterval(samples, sigma=0.68, onesided=False, weights=None, bins=40,
                 type='equalArea', kde=False):
@@ -158,7 +160,6 @@ def confinterval(samples, sigma=0.68, onesided=False, weights=None, bins=40,
     return x2min, x2max
 
 
-
 def makesubplot2d(ax, samples1, samples2, cmap=None, color='k', weights=None,
                   smooth=True, bins=[40, 40], contours=True, x_range=None,
                   y_range=None, logx=False, logy=False, logz=False, lw=1.5,
@@ -228,6 +229,7 @@ def makesubplot2d(ax, samples1, samples2, cmap=None, color='k', weights=None,
         ax.set_xscale('log')
     if logy:
         ax.set_yscale('log')
+        
 
 def getMeanAndStd(samples, weights=None, bins=50):
     """
@@ -249,8 +251,7 @@ def getMeanAndStd(samples, weights=None, bins=50):
 
     return m, std
 
-    
-    
+        
 def makesubplot1d(ax, samples, weights=None, interpolate=False, smooth=True,\
                   label=None, bins=30, range=None, color='k', 
                   orientation='vertical', logbin=False, **kwargs):
@@ -706,7 +707,8 @@ def makespectrumplot(ax, chain, parstart=1, numfreqs=10, freqs=None, \
         ax.errorbar(10**ufreqs, yval, yerr=yerr, fmt='.', c='black')
         if Aref is not None:
             ax.plot(10**ufreqs, np.log10(yinj), 'k--')
-        plt.axis([np.min(10**ufreqs)*0.9, np.max(10**ufreqs)*1.01, np.min(yval-yerr)-1, np.max(yval+yerr)+1])
+        plt.axis([np.min(10**ufreqs)*0.9, np.max(10**ufreqs)*1.01,
+                  np.min(yval-yerr)-1, np.max(yval+yerr)+1])
         plt.xlabel("Frequency [Hz]")
 
     #plt.title("Power spectrum")
@@ -785,7 +787,8 @@ def makePostPlots_show(chain, ndim, labels):
         ax.yaxis.set_major_locator(ymajorLocator)
 
 
-def makeCDF(sample, linestyle=None, linewidth=None, labels=None, legendbox=False, title=None, tex=True):
+def makeCDF(sample, linestyle=None, linewidth=None, labels=None,
+            legendbox=False, title=None, tex=True):
     if tex == True:
         plt.rcParams['text.usetex'] = True
     
@@ -805,13 +808,16 @@ def makeCDF(sample, linestyle=None, linewidth=None, labels=None, legendbox=False
     lab90 = "%.2f" % up90
     lab95 = "%.2f" % up95
 
-    plt.hlines(y=0.68, xmin=0.0, xmax=up68, linewidth=3.0, linestyle='dashed', color='green', label=r'$A_{h,68\%}=$'+str(lab68)+r'$\times 10^{-15}$')
+    plt.hlines(y=0.68, xmin=0.0, xmax=up68, linewidth=3.0, linestyle='dashed',
+               color='green', label=r'$A_{h,68\%}=$'+str(lab68)+r'$\times 10^{-15}$')
     plt.vlines(x=up68, ymin=0.0, ymax=0.68, linewidth=3.0, linestyle='dashed', color='green')
 
-    plt.hlines(y=0.90, xmin=0.0, xmax=up90, linewidth=3.0, linestyle='dashed', color='blue', label=r'$A_{h,90\%}=$'+str(lab90)+r'$\times 10^{-15}$')
+    plt.hlines(y=0.90, xmin=0.0, xmax=up90, linewidth=3.0, linestyle='dashed',
+               color='blue', label=r'$A_{h,90\%}=$'+str(lab90)+r'$\times 10^{-15}$')
     plt.vlines(x=up90, ymin=0.0, ymax=0.90, linewidth=3.0, linestyle='dashed', color='blue')
 
-    plt.hlines(y=0.95, xmin=0.0, xmax=up95, linewidth=3.0, linestyle='dashed', color='red', label=r'$A_{h,95\%}=$'+str(lab95)+r'$\times 10^{-15}$')
+    plt.hlines(y=0.95, xmin=0.0, xmax=up95, linewidth=3.0, linestyle='dashed',
+               color='red', label=r'$A_{h,95\%}=$'+str(lab95)+r'$\times 10^{-15}$')
     plt.vlines(x=up95, ymin=0.0, ymax=0.95, linewidth=3.0, linestyle='dashed', color='red')
 
     plt.legend(loc='lower right', shadow=True, frameon=True, prop={'size':15})
@@ -825,7 +831,8 @@ def makeCDF(sample, linestyle=None, linewidth=None, labels=None, legendbox=False
 
     plt.title(title, fontsize=20)
 
-def make_all_CDF(sample0, sample1, sample2, sample3, linestyle=None, linewidth=None, labels=None, legendbox=False, title=None, tex=False):
+def make_all_CDF(sample0, sample1, sample2, sample3, linestyle=None, linewidth=None,
+                 labels=None, legendbox=False, title=None, tex=False):
    if tex == True:
        plt.rcParams['text.usetex'] = True
 
@@ -861,13 +868,16 @@ def make_all_CDF(sample0, sample1, sample2, sample3, linestyle=None, linewidth=N
    lab90 = "%.2f" % up90
    lab95 = "%.2f" % up95
 
-   plt.hlines(y=0.68, xmin=0.0, xmax=up68, linewidth=3.0, linestyle='dashed', color='green', label=r'$A_{h,68\%}=$'+str(lab68)+r'$\times 10^{-15}$, $l_{max}=3$')
+   plt.hlines(y=0.68, xmin=0.0, xmax=up68, linewidth=3.0, linestyle='dashed',
+              color='green', label=r'$A_{h,68\%}=$'+str(lab68)+r'$\times 10^{-15}$, $l_{max}=3$')
    plt.vlines(x=up68, ymin=0.0, ymax=0.68, linewidth=3.0, linestyle='dashed', color='green')
 
-   plt.hlines(y=0.90, xmin=0.0, xmax=up90, linewidth=3.0, linestyle='dashed', color='blue', label=r'$A_{h,90\%}=$'+str(lab90)+r'$\times 10^{-15}$, $l_{max}=3$')
+   plt.hlines(y=0.90, xmin=0.0, xmax=up90, linewidth=3.0, linestyle='dashed',
+              color='blue', label=r'$A_{h,90\%}=$'+str(lab90)+r'$\times 10^{-15}$, $l_{max}=3$')
    plt.vlines(x=up90, ymin=0.0, ymax=0.90, linewidth=3.0, linestyle='dashed', color='blue')
 
-   plt.hlines(y=0.95, xmin=0.0, xmax=up95, linewidth=3.0, linestyle='dashed', color='red', label=r'$A_{h,95\%}=$'+str(lab95)+r'$\times 10^{-15}$, $l_{max}=3$')
+   plt.hlines(y=0.95, xmin=0.0, xmax=up95, linewidth=3.0, linestyle='dashed',
+              color='red', label=r'$A_{h,95\%}=$'+str(lab95)+r'$\times 10^{-15}$, $l_{max}=3$')
    plt.vlines(x=up95, ymin=0.0, ymax=0.95, linewidth=3.0, linestyle='dashed', color='red')
 
    plt.legend(loc='lower right', shadow=True, frameon=True, prop={'size':15})
@@ -912,11 +922,12 @@ def makeSkyMap(samples, lmax, nside=32, tex=True, psrs=None):
     #plt.suptitle(r'$P_{\mathrm{GWB}}^{\mathrm{ML}}(-\hat\Omega)$', y=0.1)
 
     # add pulsars locations
-    if np.all(psrs):
+    if psrs is not None:
         ax.plot(psrs[:,0], psrs[:,1], '*', color='w', markersize=6, mew=1, mec='w')
 
 
-def OSupperLimit(psr, GCGnoiseInv, ORF, OSsmbhb, ul_list=None, far=None, drlist=None, tex=True, nlims=60):
+def OSupperLimit(psr, GCGnoiseInv, ORF, OSsmbhb, ul_list=None,
+                 far=None, drlist=None, tex=True, nlims=60):
     if tex == True:
         plt.rcParams['text.usetex'] = True
 
@@ -934,14 +945,20 @@ def OSupperLimit(psr, GCGnoiseInv, ORF, OSsmbhb, ul_list=None, far=None, drlist=
     stylelist = ['solid','dashed','dotted']
     if ul_list is not None:
         for ii in range(len(ul_list)):
-            ax.plot(gam_bkgrd, np.sqrt( optStatList[:,0] + optStatList[:,1]*np.sqrt(2.0)*( ss.erfcinv(2.0*(1.-ul_list[ii])) ) ), linestyle=stylelist[ii], color='black', linewidth=3.0, label='$A_h$ {0}$\%$ upper-limit'.format(ul_list[ii]*100))
-            plt.hlines(y=np.sqrt( OSsmbhb[0] + OSsmbhb[1]*np.sqrt(2.0)*( ss.erfcinv(2.0*(1.-ul_list[ii])) ) ), xmin=gam_bkgrd.min(), xmax=13./3., linewidth=3.0, linestyle='solid', color='red')
-            plt.vlines(x=13./3., ymin=0.0, ymax=np.sqrt( OSsmbhb[0] + OSsmbhb[1]*np.sqrt(2.0)*( ss.erfcinv(2.0*(1.-ul_list[ii])) ) ), linewidth=3.0, linestyle='solid', color='red')
+            ax.plot(gam_bkgrd, np.sqrt( optStatList[:,0] + optStatList[:,1]*np.sqrt(2.0)*( ss.erfcinv(2.0*(1.-ul_list[ii])) ) ),
+                    linestyle=stylelist[ii], color='black', linewidth=3.0, label='$A_h$ {0}$\%$ upper-limit'.format(ul_list[ii]*100))
+            plt.hlines(y=np.sqrt( OSsmbhb[0] + OSsmbhb[1]*np.sqrt(2.0)*( ss.erfcinv(2.0*(1.-ul_list[ii])) ) ),
+                       xmin=gam_bkgrd.min(), xmax=13./3., linewidth=3.0, linestyle='solid', color='red')
+            plt.vlines(x=13./3., ymin=0.0, ymax=np.sqrt( OSsmbhb[0] + OSsmbhb[1]*np.sqrt(2.0)*( ss.erfcinv(2.0*(1.-ul_list[ii])) ) ),
+                       linewidth=3.0, linestyle='solid', color='red')
     else:
         for ii in range(len(drlist)):
-            ax.plot(gam_bkgrd, np.sqrt( optStatList[:,1]*np.sqrt(2.0)*( ss.erfcinv(2.0*far) - ss.erfcinv(2.0*drlist[ii]) ) ), linestyle=stylelist[ii], color='black', linewidth=3.0, label='$A_h$ ({0}$\%$ FAR, {1}$\%$ DR)'.format(far*100,drlist[ii]*100))
-            plt.hlines(y=np.sqrt( OSsmbhb*np.sqrt(2.0)*( ss.erfcinv(2.0*far) - ss.erfcinv(2.0*drlist[ii]) ) ), xmin=gam_bkgrd.min(), xmax=13./3., linewidth=3.0, linestyle='solid', color='red')
-            plt.vlines(x=13./3., ymin=0.0, ymax=np.sqrt( OSsmbhb*np.sqrt(2.0)*( ss.erfcinv(2.0*far) - ss.erfcinv(2.0*drlist[ii]) ) ), linewidth=3.0, linestyle='solid', color='red')
+            ax.plot(gam_bkgrd, np.sqrt( optStatList[:,1]*np.sqrt(2.0)*( ss.erfcinv(2.0*far) - ss.erfcinv(2.0*drlist[ii]) ) ),
+                    linestyle=stylelist[ii], color='black', linewidth=3.0, label='$A_h$ ({0}$\%$ FAR, {1}$\%$ DR)'.format(far*100,drlist[ii]*100))
+            plt.hlines(y=np.sqrt( OSsmbhb*np.sqrt(2.0)*( ss.erfcinv(2.0*far) - ss.erfcinv(2.0*drlist[ii]) ) ),
+                       xmin=gam_bkgrd.min(), xmax=13./3., linewidth=3.0, linestyle='solid', color='red')
+            plt.vlines(x=13./3., ymin=0.0, ymax=np.sqrt( OSsmbhb*np.sqrt(2.0)*( ss.erfcinv(2.0*far) - ss.erfcinv(2.0*drlist[ii]) ) ),
+                       linewidth=3.0, linestyle='solid', color='red')
 
     ax.set_yscale('log')
     ax.set_xlabel(r'$\gamma\equiv 3-2\alpha$', fontsize=20)
@@ -954,7 +971,8 @@ def OSupperLimit(psr, GCGnoiseInv, ORF, OSsmbhb, ul_list=None, far=None, drlist=
     plt.legend(loc='lower left', shadow=True, frameon=True, prop={'size':15})
     plt.show()
 
-def TF_OSupperLimit(psr, fqs, Tspan, F, GCGnoiseInv, ORF, OSsmbhb, ul_list=None, far=None, drlist=None, tex=True, nlims=70):
+def TF_OSupperLimit(psr, fqs, Tspan, F, GCGnoiseInv, ORF, OSsmbhb,
+                    ul_list=None, far=None, drlist=None, tex=True, nlims=70):
     if tex == True:
         plt.rcParams['text.usetex'] = True
 
@@ -972,14 +990,20 @@ def TF_OSupperLimit(psr, fqs, Tspan, F, GCGnoiseInv, ORF, OSsmbhb, ul_list=None,
     stylelist = ['solid','dashed','dotted']
     if ul_list is not None:
         for ii in range(len(ul_list)):
-            ax.plot(gam_bkgrd, np.sqrt( optStatList[:,0] + optStatList[:,1]*np.sqrt(2.0)*( ss.erfcinv(2.0*(1.-ul_list[ii])) ) ), linestyle=stylelist[ii], color='black', linewidth=3.0, label='{0}$\%$ upper-limit'.format(ul_list[ii]*100))
-            plt.hlines(y=np.sqrt( OSsmbhb[0] + OSsmbhb[1]*np.sqrt(2.0)*( ss.erfcinv(2.0*(1.-ul_list[ii])) ) ), xmin=gam_bkgrd.min(), xmax=13./3., linewidth=3.0, linestyle='solid', color='red')
-            plt.vlines(x=13./3., ymin=0.0, ymax=np.sqrt( OSsmbhb[0] + OSsmbhb[1]*np.sqrt(2.0)*( ss.erfcinv(2.0*(1.-ul_list[ii])) ) ), linewidth=3.0, linestyle='solid', color='red')
+            ax.plot(gam_bkgrd, np.sqrt( optStatList[:,0] + optStatList[:,1]*np.sqrt(2.0)*( ss.erfcinv(2.0*(1.-ul_list[ii])) ) ),
+                    linestyle=stylelist[ii], color='black', linewidth=3.0, label='{0}$\%$ upper-limit'.format(ul_list[ii]*100))
+            plt.hlines(y=np.sqrt( OSsmbhb[0] + OSsmbhb[1]*np.sqrt(2.0)*( ss.erfcinv(2.0*(1.-ul_list[ii])) ) ),
+                       xmin=gam_bkgrd.min(), xmax=13./3., linewidth=3.0, linestyle='solid', color='red')
+            plt.vlines(x=13./3., ymin=0.0, ymax=np.sqrt( OSsmbhb[0] + OSsmbhb[1]*np.sqrt(2.0)*( ss.erfcinv(2.0*(1.-ul_list[ii])) ) ),
+                       linewidth=3.0, linestyle='solid', color='red')
     else:
         for ii in range(len(drlist)):
-            ax.plot(gam_bkgrd, np.sqrt( optStatList[:,1]*np.sqrt(2.0)*( ss.erfcinv(2.0*far) - ss.erfcinv(2.0*drlist[ii]) ) ), linestyle=stylelist[ii], color='black', linewidth=3.0, label='$A$ ({0}$\%$ FAR, {1}$\%$ DR)'.format(far*100,drlist[ii]*100))
-            plt.hlines(y=np.sqrt( OSsmbhb*np.sqrt(2.0)*( ss.erfcinv(2.0*far) - ss.erfcinv(2.0*drlist[ii]) ) ), xmin=gam_bkgrd.min(), xmax=13./3., linewidth=3.0, linestyle='solid', color='red')
-            plt.vlines(x=13./3., ymin=0.0, ymax=np.sqrt( OSsmbhb*np.sqrt(2.0)*( ss.erfcinv(2.0*far) - ss.erfcinv(2.0*drlist[ii]) ) ), linewidth=3.0, linestyle='solid', color='red')
+            ax.plot(gam_bkgrd, np.sqrt( optStatList[:,1]*np.sqrt(2.0)*( ss.erfcinv(2.0*far) - ss.erfcinv(2.0*drlist[ii]) ) ),
+                    linestyle=stylelist[ii], color='black', linewidth=3.0, label='$A$ ({0}$\%$ FAR, {1}$\%$ DR)'.format(far*100,drlist[ii]*100))
+            plt.hlines(y=np.sqrt( OSsmbhb*np.sqrt(2.0)*( ss.erfcinv(2.0*far) - ss.erfcinv(2.0*drlist[ii]) ) ),
+                       xmin=gam_bkgrd.min(), xmax=13./3., linewidth=3.0, linestyle='solid', color='red')
+            plt.vlines(x=13./3., ymin=0.0, ymax=np.sqrt( OSsmbhb*np.sqrt(2.0)*( ss.erfcinv(2.0*far) - ss.erfcinv(2.0*drlist[ii]) ) ),
+                       linewidth=3.0, linestyle='solid', color='red')
 
     ax.set_yscale('log')
     ax.set_xlabel(r'$\gamma\equiv 3-2\alpha$', fontsize=20)
@@ -1005,8 +1029,11 @@ def OScrossPower(angSep, crossCorr, crossCorrErr, tex=True):
            seps.append(np.arccos(angSep[ii,jj]))
             
     #ax.plot(seps, crossCorr, 'k', color='#1B2ACC')
-    #ax.fill_between(seps, crossCorr-crossCorrErr, crossCorr-crossCorrErr, alpha=0.2, edgecolor='#1B2ACC', facecolor='#089FFF', linewidth=4, linestyle='dashdot', antialiased=True)
-    ax.errorbar(np.array(seps)*180.0/np.pi, crossCorr, yerr=crossCorrErr, fmt='o', color='#089FFF', ecolor='#089FFF', capsize=8, linewidth=3)
+    #ax.fill_between(seps, crossCorr-crossCorrErr, crossCorr-crossCorrErr,
+           #alpha=0.2, edgecolor='#1B2ACC', facecolor='#089FFF', linewidth=4,
+           #linestyle='dashdot', antialiased=True)
+    ax.errorbar(np.array(seps)*180.0/np.pi, crossCorr, yerr=crossCorrErr,
+                fmt='o', color='#089FFF', ecolor='#089FFF', capsize=8, linewidth=3)
     plt.hlines(y=0.0, xmin=0.0, xmax=180.0, linewidth=3.0, linestyle='solid', color='black')
     ax.set_xlabel('Pulsar angular separation [degrees]', fontsize=20)
     ax.set_ylabel('Cross power', fontsize=20)
@@ -1019,36 +1046,50 @@ def OScrossPower(angSep, crossCorr, crossCorrErr, tex=True):
     plt.show()
 
 
+
+def postdensity_getclr(dat, nedges, cfvalue):
+    # get the bound
     
+    counts, edges = np.histogram(dat, nedges)
+    counts = np.float64(np.array(counts))/len(dat)
 
-################################
-# COMMANDS FOR LEGEND LINE PROXY
-################################
-#scatter1_proxy = matplotlib.lines.Line2D([0],[0], linestyle="none", c=colors[0], marker = 'o')
-#scatter2_proxy = matplotlib.lines.Line2D([0],[0], linestyle="none", c=colors[1], marker = 'v')
-#ax.legend([scatter1_proxy, scatter2_proxy], ['label1', 'label2'], numpoints = 1, prop={'size':6})
+    ind_center = np.argmax(counts)
+    maxc = counts[ind_center]
+    cedges = (edges[0:-1]+edges[1:])*0.5
+    sort_ind = np.argsort(-counts)
 
-#####################################
-# COMMANDS FOR TILTED WORDS IN X-AXIS
-#####################################
-#n=5
-#
-#x = np.arange(n)
-#y = np.sin(np.linspace(-3,3,n))
-#xlabels = ['Ticklabel %i' % i for i in range(n)]
-#
-#fig, axs = plt.subplots(1,3, figsize=(12,3))
-#
-#ha = ['right', 'center', 'left']
-#
-#for n, ax in enumerate(axs):
-#    ax.plot(x,y, 'o-')
-#    ax.set_title(ha[n])
-#    ax.set_xticks(x)
+    cflevel = np.cumsum(counts[sort_ind])
+    ind_cflevel = cflevel <= cfvalue
+    conf_data = cedges[sort_ind][ind_cflevel]
 
-    
+    left = np.min(conf_data)
+    right = np.max(conf_data)
+
+    return cedges[ind_center], left, right
 
 
+def postdensity_getupper(dat, nedges, cfvalue):
+
+    # Create the histogram
+    hist, xedges = np.histogram(dat, nedges)
+    xedges = np.delete(xedges, -1) + 0.5*(xedges[1] - xedges[0])
+
+    # CDF
+    cdf = np.cumsum(hist/hist.sum())
+
+    # interpolate
+    x = np.linspace(xedges.min(), xedges.max(), 10000)
+    ifunc = interp.interp1d(xedges, cdf, kind='linear')
+    y = ifunc(x)
+
+    x2max = y[-1]
+    bound = cfvalue
+    for i in reversed(range(len(y))):
+        if y[i] <= bound:
+            x2max = x[i]
+            break
+
+    return x2max
 
 
 
