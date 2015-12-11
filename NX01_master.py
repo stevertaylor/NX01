@@ -1418,7 +1418,7 @@ if args.sampler == 'ptmcmc':
             param_ct += nmode
 
     ##### GWB correlations #####
-    if args.incGWB and args.incCorr:
+    if args.incGWB and args.incCorr and num_corr_params>0:
         ids = [np.arange(param_ct,param_ct+num_corr_params)]
         param_ct += num_corr_params
         [ind.append(id) for id in ids]
@@ -1799,7 +1799,7 @@ if args.sampler == 'ptmcmc':
             sampler.addProposalToCycle(drawFromGWBPowerlawPrior, 10)
         elif args.gwbSpecModel == 'spectrum':
             sampler.addProposalToCycle(drawFromGWBSpectrumPrior, 10)
-        if args.incCorr:
+        if args.incCorr and num_corr_params>0:
             sampler.addProposalToCycle(drawFromGWBcorrPrior, 10)
     if args.det_signal and args.cgw_search:
         sampler.addProposalToCycle(drawFromCWPrior, 10)
