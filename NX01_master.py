@@ -1221,8 +1221,12 @@ if args.incGWB:
         elif args.typeCorr == 'pointSrc':
             file_tag += '_gwb{0}_pointSrc{1}{2}'.format(args.limit_or_detect_gwb,evol_corr_tag,gamma_tag)
         elif args.typeCorr == 'spharmAnis':
-            file_tag += '_gwb{0}_Lmax{1}{2}{3}'.format(args.limit_or_detect_gwb,
-                                                       args.LMAX,evol_corr_tag,gamma_tag)
+            if args.noPhysPrior:
+                physprior_tag = '_noPhysPrior'
+            elif not args.noPhysPrior:
+                physprior_tag = ''
+            file_tag += '_gwb{0}_Lmax{1}{2}{3}{4}'.format(args.limit_or_detect_gwb,
+                                                       args.LMAX,physprior_tag,evol_corr_tag,gamma_tag)
     else:
         file_tag += '_gwb{0}_noCorr{1}'.format(args.limit_or_detect_gwb,gamma_tag)
 if args.det_signal:
