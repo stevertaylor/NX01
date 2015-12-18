@@ -308,6 +308,11 @@ if args.incGWB and args.incCorr:
 
         num_corr_params = tmp_nwins*(len(psr)*(len(psr)-1)/2)
 
+        if tmp_nwins>1:
+            evol_corr_tag = '_evanis'
+        else:
+            evol_corr_tag = ''
+
     elif args.typeCorr == 'pointSrc':
 
         #### only works for source covering all frequencies #####
@@ -320,6 +325,11 @@ if args.incGWB and args.incCorr:
         tmp_nwins = args.nwins
 
         num_corr_params = 2*tmp_nwins
+
+        if tmp_nwins>1:
+            evol_corr_tag = '_evanis'
+        else:
+            evol_corr_tag = ''
         
     elif args.typeCorr == 'spharmAnis':
         

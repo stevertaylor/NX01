@@ -51,11 +51,13 @@ parser.add_option('--manualburn', dest='manualburn', action='store', type=int, d
 #################
 
 try:
-    chain = np.loadtxt(args.parentpath+args.chaindir+'/chain_1.0.txt')
+    chain = np.loadtxt(args.parentpath+'/'+args.chaindir+'/chain_1.0.txt')
 except:
-    chain = np.loadtxt(args.parentpath+args.chaindir+'/chain_1.txt')
+    chain = np.loadtxt(args.parentpath+'/'+args.chaindir+'/chain_1.txt')
 
-param_list = np.genfromtxt(args.parentpath+args.chaindir+'/parameter_list.txt',dtype=str)
+param_list = np.genfromtxt(args.parentpath+'/'+args.chaindir+'/parameter_list.txt',dtype=str)
+
+print "Chain has been read-in"
 
 ##################
 # Burn in samples
@@ -134,7 +136,7 @@ if 'gam4p33' in args.chaindir:
     
     bu.makeCDF(10.0**Agwb/1e-15, linestyle='k-', linewidth=3.0,
                labels=None, legendbox=True,
-               title=noisetag+' '+ltag+', $\gamma_{\mathrm{GWB}}=13/3$')
+               title='$\gamma_{\mathrm{GWB}}=13/3$')
 
     plt.xlabel(r'$A_h\; /\; 10^{-15}$', fontsize=20)
     plt.ylabel('Cumulative probability', fontsize=20)
@@ -163,12 +165,12 @@ elif 'gamVary' in args.chaindir:
     # make an upper limit plot for the GWB amplitude as a function of spectral index
     ################################################################################
     
-    bu.upperlimitplot2d(Agwb, gam_gwb, sigma=0.68, bins=30, logA=True, \
-                     labels=[r'$\gamma=3-2\alpha$', r'$A_h$'], hold=True, linestyle='solid', \
-                     color='black', linewidth=3.0, leglabel=r'68\% upper-limit')
+    #bu.upperlimitplot2d(Agwb, gam_gwb, sigma=0.68, bins=30, logA=True, \
+    #                 labels=[r'$\gamma=3-2\alpha$', r'$A_h$'], hold=True, linestyle='solid', \
+    #                 color='black', linewidth=3.0, leglabel=r'68\% upper-limit')
     bu.upperlimitplot2d(Agwb, gam_gwb, sigma=0.95, bins=30, logA=True, \
                      labels=[r'$\gamma=3-2\alpha$', r'$A_h$'], hold=True, linestyle='dashed', \
-                     color='black', linewidth=3.0, leglabel=r'95\% upper-limit')
+                     color='black', linewidth=3.0)
     plt.grid(which='major')
     plt.grid(which='minor')
     plt.legend(fancybox=True, shadow=True)
