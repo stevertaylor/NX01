@@ -52,10 +52,12 @@ parser.add_option('--manualburn', dest='manualburn', action='store', type=int, d
 
 try:
     chain = np.loadtxt(args.parentpath+'/'+args.chaindir+'/chain_1.0.txt')
-except:
+except IOError:
     chain = np.loadtxt(args.parentpath+'/'+args.chaindir+'/chain_1.txt')
+    print chain.shape
 
 param_list = np.genfromtxt(args.parentpath+'/'+args.chaindir+'/parameter_list.txt',dtype=str)
+print param_list
 
 print "Chain has been read-in"
 

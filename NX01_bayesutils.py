@@ -26,8 +26,11 @@ import matplotlib.ticker
 import matplotlib.colors
 from scipy.stats import gaussian_kde
 from optparse import OptionParser
+import statsmodels.api as sm
 from statsmodels.distributions.empirical_distribution import ECDF
 import os
+
+import NX01_utils as utils
 
 """
 Plotting codes from Justin Ellis' PAL2 package, with additions by Steve Taylor
