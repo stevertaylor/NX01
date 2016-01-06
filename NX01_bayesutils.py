@@ -841,10 +841,10 @@ def make_all_CDF(sample0, sample1, sample2, sample3, linestyle=None, linewidth=N
 
    fig, ax = plt.subplots()
 
-   ecdf0 = sm.distributions.ECDF(sample0)
-   ecdf1 = sm.distributions.ECDF(sample1)
-   ecdf2 = sm.distributions.ECDF(sample2)
-   ecdf3 = sm.distributions.ECDF(sample3)
+   ecdf0 = ECDF(sample0)
+   ecdf1 = ECDF(sample1)
+   ecdf2 = ECDF(sample2)
+   ecdf3 = ECDF(sample3)
 
    x0 = np.linspace(min(sample0), max(sample0))
    y0 = ecdf0(x0)
