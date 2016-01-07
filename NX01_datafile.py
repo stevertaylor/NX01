@@ -276,11 +276,12 @@ class DataFile(object):
 
         # Load the entire noise-file into memory, so that we can save it in the
         # HDF5 file
-        with open(psr.noisefile, 'r') as content_file:
-            noisefile_content = content_file.read()
-        # Save the noise-file and path to the HDF5 file
-        self.writeData(psrGroup, 'noisefilepath', psr.noisefile, overwrite=overwrite)
-        self.writeData(psrGroup, 'noisefile', noisefile_content, overwrite=overwrite)
+        if psr.noisefile is not None:
+            with open(psr.noisefile, 'r') as content_file:
+                noisefile_content = content_file.read()
+            # Save the noise-file and path to the HDF5 file
+            self.writeData(psrGroup, 'noisefilepath', psr.noisefile, overwrite=overwrite)
+            self.writeData(psrGroup, 'noisefile', noisefile_content, overwrite=overwrite)
 
         # Save the basic quantities
         self.writeData(psrGroup, 'name', psr.name,
@@ -304,17 +305,18 @@ class DataFile(object):
                            overwrite=overwrite)
         self.writeData(psrGroup, 'GCmatrix', psr.Gc,
                        overwrite=overwrite)
-        
-        self.writeData(psrGroup, 'QuantMat', psr.Umat,
-                       overwrite=overwrite)
-        self.writeData(psrGroup, 'QuantInds', psr.Uinds,
-                       overwrite=overwrite)
-        self.writeData(psrGroup, 'EpochFlags', psr.epflags,
-                       overwrite=overwrite)
-        self.writeData(psrGroup, 'DetSigAveToas', psr.detsig_avetoas,
-                       overwrite=overwrite)
-        self.writeData(psrGroup, 'DetSigQuantInds', psr.detsig_Uinds,
-                       overwrite=overwrite)
+
+        if psr.Umat is not None:
+            self.writeData(psrGroup, 'QuantMat', psr.Umat,
+                        overwrite=overwrite)
+            self.writeData(psrGroup, 'QuantInds', psr.Uinds,
+                        overwrite=overwrite)
+            self.writeData(psrGroup, 'EpochFlags', psr.epflags,
+                        overwrite=overwrite)
+            self.writeData(psrGroup, 'DetSigAveToas', psr.detsig_avetoas,
+                        overwrite=overwrite)
+            self.writeData(psrGroup, 'DetSigQuantInds', psr.detsig_Uinds,
+                        overwrite=overwrite)
 
         # pickle and store system flag dictionary
         storeFlagDict = pickle.dumps(psr.sysflagdict)

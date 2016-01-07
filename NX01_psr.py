@@ -111,7 +111,7 @@ class PsrObj(object):
               
         # get the sky position
         if 'RAJ' and 'DECJ' in self.T2psr.pars():
-            self.psr_locs = [self.T2psr['RAJ'].val,self.T2psr['DECJ'].val]
+            self.psr_locs = [np.double(self.T2psr['RAJ'].val),np.double(self.T2psr['DECJ'].val)]
         elif 'ELONG' and 'ELAT' in self.T2psr.pars():
             fac = 180./np.pi
             # check for B name
@@ -382,7 +382,10 @@ class PsrObjFromH5(object):
         self.name = self.h5Obj['name'].value
         self.parfile = self.h5Obj['parfilepath'].value
         self.timfile = self.h5Obj['timfilepath'].value
-        self.noisefile = self.h5Obj['noisefilepath'].value
+        try:
+            self.noisefile = self.h5Obj['noisefilepath'].value
+        except:
+            self.noisefile = None
         
         self.toas = self.h5Obj['TOAs'].value
         self.res = self.h5Obj['postfitRes'].value
@@ -399,11 +402,18 @@ class PsrObjFromH5(object):
             self.G = None
             self.Gres = None
         self.Gc = self.h5Obj['GCmatrix'].value
-        self.Umat = self.h5Obj['QuantMat'].value
-        self.Uinds = self.h5Obj['QuantInds'].value
-        self.epflags = self.h5Obj['EpochFlags'].value
-        self.detsig_avetoas = self.h5Obj['DetSigAveToas'].value
-        self.detsig_Uinds = self.h5Obj['DetSigQuantInds'].value
+        try:
+            self.Umat = self.h5Obj['QuantMat'].value
+            self.Uinds = self.h5Obj['QuantInds'].value
+            self.epflags = self.h5Obj['EpochFlags'].value
+            self.detsig_avetoas = self.h5Obj['DetSigAveToas'].value
+            self.detsig_Uinds = self.h5Obj['DetSigQuantInds'].value
+        except:
+            self.Umat = None
+            self.Uinds = None
+            self.epflags = None
+            self.detsig_avetoas = None
+            self.detsig_Uinds = None
 
         self.sysflagdict = pickle.loads(self.h5Obj['SysFlagDict'].value)
 
@@ -434,49 +444,52 @@ class PsrObjFromH5(object):
                 self.parRedind = -np.double(ll.split()[1])
 
         # Let's also find single pulsar analysis EFACS, EQUADS, ECORRS
-        noiselines = self.h5Obj['noisefile'].value.split('\n')
-        efacs = []
-        equads = []
-        ecorrs = []
-        for ll in noiselines:
-            if 'efac' in ll:
-                efacs.append([ll.split()[0].split('efac-')[1], np.double(ll.split()[1])])
-            if 'equad' in ll:
-                equads.append([ll.split()[0].split('equad-')[1], 10.0**np.double(ll.split()[1])])
-            if 'jitter' in ll:
-                ecorrs.append([ll.split()[0].split('jitter_q-')[1], 10.0**np.double(ll.split()[1])])
-
-        self.efacs = OrderedDict(efacs)
-        self.equads = OrderedDict(equads)
-        self.ecorrs = OrderedDict(ecorrs)
-
-        # Let's get the red noise properties from single-pulsar analysis
         self.Redamp = 1e-20
         self.Redind = 0.0
-        for ll in noiselines:
-            if 'RN-Amplitude' in ll:
-                self.Redamp = 10.0**np.double(ll.split()[1]) # 1e-6 * f1yr * np.sqrt(12.0*np.pi**2.0) * np.double(ll.split()[1]) 
-            if 'RN-spectral-index' in ll:
-                self.Redind = np.double(ll.split()[1])
+        if self.noisefile is not None:
+            noiselines = self.h5Obj['noisefile'].value.split('\n')
+            efacs = []
+            equads = []
+            ecorrs = []
+            for ll in noiselines:
+                if 'efac' in ll:
+                    efacs.append([ll.split()[0].split('efac-')[1], np.double(ll.split()[1])])
+                if 'equad' in ll:
+                    equads.append([ll.split()[0].split('equad-')[1], 10.0**np.double(ll.split()[1])])
+                if 'jitter' in ll:
+                    ecorrs.append([ll.split()[0].split('jitter_q-')[1], 10.0**np.double(ll.split()[1])])
 
-        # Time to rescale the TOA uncertainties by single-pulsar EFACS and EQUADS
-        systems = self.sysflagdict['f']
-        if rescale==True:
-            tmp_errs = self.toaerrs.copy()
+            self.efacs = OrderedDict(efacs)
+            self.equads = OrderedDict(equads)
+            self.ecorrs = OrderedDict(ecorrs)
 
-            for sysname in systems:
-                tmp_errs[systems[sysname]] *= self.efacs[sysname] 
+            # Let's get the red noise properties from single-pulsar analysis
+            self.Redamp = 1e-20
+            self.Redind = 0.0
+            for ll in noiselines:
+                if 'RN-Amplitude' in ll:
+                    self.Redamp = 10.0**np.double(ll.split()[1]) # 1e-6 * f1yr * np.sqrt(12.0*np.pi**2.0) * np.double(ll.split()[1]) 
+                if 'RN-spectral-index' in ll:
+                    self.Redind = np.double(ll.split()[1])
 
-            ###
+            # Time to rescale the TOA uncertainties by single-pulsar EFACS and EQUADS
+            systems = self.sysflagdict['f']
+            if rescale==True:
+                tmp_errs = self.toaerrs.copy()
 
-            t2equad_bit = np.ones(len(tmp_errs))
-            for sysname in systems:
-                t2equad_bit[systems[sysname]] *= self.equads[sysname]
+                for sysname in systems:
+                    tmp_errs[systems[sysname]] *= self.efacs[sysname] 
 
-            ###
+                ###
 
-            tmp_errs = np.sqrt( tmp_errs**2.0 + t2equad_bit**2.0 )
-            self.toaerrs = tmp_errs
+                t2equad_bit = np.ones(len(tmp_errs))
+                for sysname in systems:
+                    t2equad_bit[systems[sysname]] *= self.equads[sysname]
+
+                ###
+
+                tmp_errs = np.sqrt( tmp_errs**2.0 + t2equad_bit**2.0 )
+                self.toaerrs = tmp_errs
         
 
         print "--> Done extracting pulsar from hdf5 file :-) \n"

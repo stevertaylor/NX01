@@ -409,7 +409,7 @@ for ii,p in enumerate(psr):
     new_err = (p.toaerrs).copy()
     if args.fullN:
         
-        if len(p.ecorrs)>0:
+        if p.ecorrs is not None and len(p.ecorrs)>0:
 
             Jamp.append(np.ones(len(p.epflags)))
             for jj,nano_sysname in enumerate(p.sysflagdict['nano-f'].keys()):
@@ -694,7 +694,7 @@ def lnprob(xx):
             new_err = (p.toaerrs).copy()
             if args.fullN:
         
-                if len(p.ecorrs)>0:
+                if p.ecorrs is not None and len(p.ecorrs)>0:
                     Nx = jitter.cython_block_shermor_0D(detres[ii], new_err**2.,
                                                         Jamp[ii], p.Uinds)
                     dtmp[ii] = np.dot(p.Te.T, Nx)
@@ -1314,12 +1314,13 @@ if args.sampler == 'mnest':
 if args.sampler == 'ptmcmc':
     
     # Start the sampling off with some reasonable parameter choices
+    x0 = np.array([])
     if not args.fixRed:
         if args.redSpecModel == 'powerlaw':
-            x0 = np.log10(np.array([p.Redamp for p in psr]))
+            x0 = np.append(x0,np.log10(np.array([p.Redamp for p in psr])))
             x0 = np.append(x0,np.array([p.Redind for p in psr]))
         elif args.redSpecModel == 'spectrum':
-            x0 = np.random.uniform(-7.0,-3.0,len(psr)*nmode)
+            x0 = np.append(x0,np.random.uniform(-7.0,-3.0,len(psr)*nmode))
     if args.dmVar:
         x0 = np.append(x0,np.log10(np.array([p.Redamp for p in psr])))
         x0 = np.append(x0,np.array([p.Redind for p in psr]))
@@ -1352,12 +1353,13 @@ if args.sampler == 'ptmcmc':
         print "\n Your initial parameters are {0}\n".format(x0)
 
     # Make a reasonable covariance matrix to commence sampling
+    cov_diag = np.array([])
     if not args.fixRed:
         if args.redSpecModel == 'powerlaw':
-            cov_diag = 0.5*np.ones(len(psr))
+            cov_diag = np.append(cov_diag,0.5*np.ones(len(psr)))
             cov_diag = np.append(cov_diag,0.5*np.ones(len(psr)))
         elif args.redSpecModel == 'spectrum':
-            cov_diag = 0.1*np.ones(len(psr)*nmode)
+            cov_diag = np.append(cov_diag,0.1*np.ones(len(psr)*nmode))
     if args.dmVar:
         cov_diag = np.append(cov_diag,0.5*np.ones(len(psr)))
         cov_diag = np.append(cov_diag,0.5*np.ones(len(psr)))
@@ -1589,10 +1591,12 @@ if args.sampler == 'ptmcmc':
         qxy = 0
 
         npsr = len(psr)
-        if args.redSpecModel == 'powerlaw':
-            pct = 2*npsr
-        elif args.redSpecModel == 'spectrum':
-            pct = npsr*nmode
+        pct = 0
+        if not args.fixRed:
+            if args.redSpecModel == 'powerlaw':
+                pct = 2*npsr
+            elif args.redSpecModel == 'spectrum':
+                pct = npsr*nmode
     
         if args.dmVar:
             pct += 2*npsr
@@ -1623,10 +1627,12 @@ if args.sampler == 'ptmcmc':
         qxy = 0
 
         npsr = len(psr)
-        if args.redSpecModel == 'powerlaw':
-            pct = 2*npsr
-        elif args.redSpecModel == 'spectrum':
-            pct = npsr*nmode
+        pct = 0
+        if not args.fixRed:
+            if args.redSpecModel == 'powerlaw':
+                pct = 2*npsr
+            elif args.redSpecModel == 'spectrum':
+                pct = npsr*nmode
     
         if args.dmVar:
             pct += 2*npsr
@@ -1657,10 +1663,12 @@ if args.sampler == 'ptmcmc':
         qxy = 0
 
         npsr = len(psr)
-        if args.redSpecModel == 'powerlaw':
-            pct = 2*npsr
-        elif args.redSpecModel == 'spectrum':
-            pct = npsr*nmode
+        pct = 0
+        if not args.fixRed:
+            if args.redSpecModel == 'powerlaw':
+                pct = 2*npsr
+            elif args.redSpecModel == 'spectrum':
+                pct = npsr*nmode
     
         if args.dmVar:
             pct += 2*npsr
@@ -1691,10 +1699,12 @@ if args.sampler == 'ptmcmc':
         qxy = 0
 
         npsr = len(psr)
-        if args.redSpecModel == 'powerlaw':
-            pct = 2*npsr
-        elif args.redSpecModel == 'spectrum':
-            pct = npsr*nmode
+        pct = 0
+        if not args.fixRed:
+            if args.redSpecModel == 'powerlaw':
+                pct = 2*npsr
+            elif args.redSpecModel == 'spectrum':
+                pct = npsr*nmode
     
         if args.dmVar:
             pct += 2*npsr
@@ -1733,10 +1743,12 @@ if args.sampler == 'ptmcmc':
         qxy = 0
 
         npsr = len(psr)
-        if args.redSpecModel == 'powerlaw':
-            pct = 2*npsr
-        elif args.redSpecModel == 'spectrum':
-            pct = npsr*nmode
+        pct = 0
+        if not args.fixRed:
+            if args.redSpecModel == 'powerlaw':
+                pct = 2*npsr
+            elif args.redSpecModel == 'spectrum':
+                pct = npsr*nmode
     
         if args.dmVar:
             pct += 2*npsr
@@ -1771,10 +1783,12 @@ if args.sampler == 'ptmcmc':
         qxy = 0
 
         npsr = len(psr)
-        if args.redSpecModel == 'powerlaw':
-            pct = 2*npsr
-        elif args.redSpecModel == 'spectrum':
-            pct = npsr*nmode
+        pct = 0
+        if not args.fixRed:
+            if args.redSpecModel == 'powerlaw':
+                pct = 2*npsr
+            elif args.redSpecModel == 'spectrum':
+                pct = npsr*nmode
     
         if args.dmVar:
             pct += 2*npsr
