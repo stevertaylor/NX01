@@ -913,16 +913,17 @@ def makeSkyMap(samples, lmax, nside=32, tex=True, psrs=None):
     if np.atleast_2d(samples).shape[0]>1:
         samples = np.mean(samples, axis=0)
         samples = np.append(2.*np.sqrt(np.pi), samples)
+    else:
+        samples = np.append(2.*np.sqrt(np.pi), samples)
 
     pwr = utils.GWpower(samples, harmvals)
 
     ax = plt.subplot(111, projection='astro mollweide')
     ax.grid()
     plot.outline_text(ax)
-    plot.healpix_heatmap(pwr[::-1])
+    plot.healpix_heatmap(pwr)
     plt.colorbar(orientation='horizontal')
-    plt.suptitle(r'$\langle P_{\mathrm{GWB}}(-\hat\Omega)\rangle$', y=0.1)
-    #plt.suptitle(r'$P_{\mathrm{GWB}}^{\mathrm{ML}}(-\hat\Omega)$', y=0.1)
+    plt.suptitle(r'$\langle P_{\mathrm{GWB}}(\hat\Omega)\rangle$', y=0.1)
 
     # add pulsars locations
     if psrs is not None:
