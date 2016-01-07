@@ -170,7 +170,7 @@ elif 'gamVary' in args.chaindir:
     #bu.upperlimitplot2d(Agwb, gam_gwb, sigma=0.68, bins=30, logA=True, \
     #                 labels=[r'$\gamma=3-2\alpha$', r'$A_h$'], hold=True, linestyle='solid', \
     #                 color='black', linewidth=3.0, leglabel=r'68\% upper-limit')
-    bu.upperlimitplot2d(Agwb, gam_gwb, sigma=0.95, bins=30, logA=True, \
+    bu.upperlimitplot2d(Agwb, gam_gwb, sigma=0.95, bins=30, log=True, \
                      labels=[r'$\gamma=3-2\alpha$', r'$A_h$'], hold=True, linestyle='dashed', \
                      color='black', linewidth=3.0)
     plt.grid(which='major')

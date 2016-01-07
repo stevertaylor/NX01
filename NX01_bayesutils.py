@@ -619,9 +619,10 @@ def upperlimitplot2d(x, y, sigma=0.95, ymin=None, ymax=None, bins=40, log=False,
 
     # make plot
     if log:
-        plt.loglog(yvals[bin_index], 10**upper, **kwargs)
+        plt.plot(yvals[bin_index], 10**upper, **kwargs)
         plt.grid(which='major')
         plt.grid(which='minor')
+        plt.yscale('log')
     else:
         plt.plot(yvals[bin_index], upper, **kwargs)
         plt.grid()
