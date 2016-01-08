@@ -100,12 +100,15 @@ parser.add_option('--use-gpu', dest='use_gpu', action='store_true', default=Fals
                   help='Do you want to use the GPU for accelerated linear algebra? (default = False)')
 parser.add_option('--fix-slope', dest='fix_slope', action='store_true', default=False,
                   help='Do you want to fix the slope of the GWB spectrum? (default = False)')
-parser.add_option('--limit-or-detect-gwb', dest='limit_or_detect_gwb', action='store', type=str, default='limit',
-                   help='Do you want to use a uniform prior on log_10(Agwb) [detect] or Agwb itself [limit] (default=\'limit\')?')
-parser.add_option('--limit-or-detect-red', dest='limit_or_detect_red', action='store', type=str, default='limit',
-                   help='Do you want to use a uniform prior on log_10(Ared) [detect] or Ared itself [limit] (default=\'limit\')?')
-parser.add_option('--limit-or-detect-dm', dest='limit_or_detect_dm', action='store', type=str, default='limit',
-                   help='Do you want to use a uniform prior on log_10(Adm) [detect] or Adm itself [limit] (default=\'limit\')?')
+parser.add_option('--gwbPrior', dest='gwbPrior', action='store', type=str, default='uniform',
+                   help='Do you want to use a uniform prior on log_10(Agwb) for detection [loguniform],
+                   on Agwb itself for limits [uniform], or an astrophysical prior [sesana, mcwilliams] (default=\'uniform\')?')
+parser.add_option('--redPrior', dest='redPrior', action='store', type=str, default='uniform',
+                   help='Do you want to use a uniform prior on log_10(Ared) for detection [loguniform],
+                   on Ared itself for limits [uniform] (default=\'uniform\')?')
+parser.add_option('--dmPrior', dest='dmPrior', action='store', type=str, default='uniform',
+                   help='Do you want to use a uniform prior on log_10(Adm) for detection [loguniform],
+                   on Adm itself for limits [uniform] (default=\'uniform\')?')
 parser.add_option('--anis-modefile', dest='anis_modefile', action='store', type=str, default = None,
                    help='Do you want to provide an anisotropy modefile to split band into frequency windows?')
 parser.add_option('--fullN', dest='fullN', action='store_true', default=True,
@@ -166,9 +169,9 @@ if args.jsonModel is not None:
     args.noPhysPrior = json_data['noPhysPrior']
     args.use_gpu = json_data['use_gpu']
     args.fix_slope = json_data['fixSlope']
-    args.limit_or_detect_gwb = json_data['limit_or_detect_gwb']
-    args.limit_or_detect_red = json_data['limit_or_detect_red']
-    args.limit_or_detect_dm = json_data['limit_or_detect_dm']
+    args.gwbPrior = json_data['gwbPrior']
+    args.redPrior = json_data['redPrior']
+    args.dmPrior = json_data['dmPrior']
     args.anis_modefile = json_data['anis_modefile']
     args.fullN = json_data['fullN']
     args.fixRed = json_data['fixRed']
@@ -1120,15 +1123,25 @@ def lnprob(xx):
     # sampling, thus making a uniform prior
     
     if args.incGWB:
-        if args.limit_or_detect_gwb == 'limit':
+        if args.gwbPrior == 'uniform':
             if args.gwbSpecModel == 'powerlaw':
                 priorfac_gwb = np.log(Agwb * np.log(10.0))
             elif args.gwbSpecModel == 'spectrum':
                 priorfac_gwb = np.sum(np.log(10.0**rho_spec * np.log(10.0)))
-        else:
+        elif args.gwbPrior == 'loguniform':
             priorfac_gwb = 0.0
+        elif args.gwbPrior == 'sesana':
+            mu = -15.0
+            sig = 0.22
+            priorfac_gwb = np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
+                                   / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
+        elif args.gwbPrior == 'mcwilliams':
+            mu = -14.4
+            sig = 0.26
+            priorfac_gwb = np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
+                                   / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
 
-    if args.limit_or_detect_red == 'limit':
+    if args.redPrior == 'uniform':
         if args.redSpecModel == 'powerlaw':
             priorfac_red = np.sum(np.log(Ared * np.log(10.0)))
         elif args.redSpecModel == 'spectrum':
@@ -1137,7 +1150,7 @@ def lnprob(xx):
         priorfac_red = 0.0
 
     if args.dmVar:
-        if args.limit_or_detect_dm == 'limit':
+        if args.dmPrior == 'uniform':
             priorfac_dm = np.sum(np.log(Adm * np.log(10.0)))
         else:
             priorfac_dm = 0.0
@@ -1227,18 +1240,18 @@ if args.incGWB:
         gamma_tag = '_gwbSpec'
     if args.incCorr:
         if args.typeCorr == 'modelIndep':
-            file_tag += '_gwb{0}_miCorr{1}{2}'.format(args.limit_or_detect_gwb,evol_corr_tag,gamma_tag)
+            file_tag += '_gwb{0}_miCorr{1}{2}'.format(args.gwbPrior,evol_corr_tag,gamma_tag)
         elif args.typeCorr == 'pointSrc':
-            file_tag += '_gwb{0}_pointSrc{1}{2}'.format(args.limit_or_detect_gwb,evol_corr_tag,gamma_tag)
+            file_tag += '_gwb{0}_pointSrc{1}{2}'.format(args.gwbPrior,evol_corr_tag,gamma_tag)
         elif args.typeCorr == 'spharmAnis':
             if args.noPhysPrior:
                 physprior_tag = '_noPhysPrior'
             elif not args.noPhysPrior:
                 physprior_tag = ''
-            file_tag += '_gwb{0}_Lmax{1}{2}{3}{4}'.format(args.limit_or_detect_gwb,
+            file_tag += '_gwb{0}_Lmax{1}{2}{3}{4}'.format(args.gwbPrior,
                                                        args.LMAX,physprior_tag,evol_corr_tag,gamma_tag)
     else:
-        file_tag += '_gwb{0}_noCorr{1}'.format(args.limit_or_detect_gwb,gamma_tag)
+        file_tag += '_gwb{0}_noCorr{1}'.format(args.gwbPrior,gamma_tag)
 if args.det_signal:
     if args.cgw_search:
         if args.ecc_search:
@@ -1252,7 +1265,7 @@ if args.det_signal:
 if args.fixRed:
     red_tag = 'Fix'
 elif not args.fixRed:
-    red_tag = args.limit_or_detect_red+args.redSpecModel
+    red_tag = args.redPrior+args.redSpecModel
 file_tag += '_red{0}_nmodes{1}'.format(red_tag,args.nmodes)
 
 
@@ -1503,12 +1516,12 @@ if args.sampler == 'ptmcmc':
 
         for ii in ind:
             # log prior
-            if args.limit_or_detect_red == 'detect':
+            if args.redPrior == 'loguniform':
         
                 q[ii] = np.random.uniform(pmin[ii], pmax[ii])
                 qxy += 0
         
-            elif args.limit_or_detect_red == 'limit':
+            elif args.redPrior == 'uniform':
         
                 q[ii] = np.random.uniform(pmin[ii], pmax[ii])
                 qxy += 0
@@ -1533,12 +1546,12 @@ if args.sampler == 'ptmcmc':
 
         for ii in ind:
             # log prior
-            if args.limit_or_detect_red == 'detect':
+            if args.redPrior == 'loguniform':
         
                 q[ii] = np.random.uniform(pmin[ii], pmax[ii])
                 qxy += 0
         
-            elif args.limit_or_detect_red == 'limit':
+            elif args.redPrior == 'uniform':
         
                 q[ii] = np.random.uniform(pmin[ii], pmax[ii])
                 qxy += 0
@@ -1565,12 +1578,12 @@ if args.sampler == 'ptmcmc':
 
         for ii in ind:
             # log prior
-            if args.limit_or_detect_dm == 'detect':
+            if args.dmPrior == 'loguniform':
         
                 q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
                 qxy += 0
         
-            elif args.limit_or_detect_dm == 'limit':
+            elif args.dmPrior == 'uniform':
             
                 q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
                 qxy += 0
@@ -1602,12 +1615,12 @@ if args.sampler == 'ptmcmc':
             pct += 2*npsr
 
         # log prior
-        if args.limit_or_detect_gwb == 'detect':
+        if args.gwbPrior == 'loguniform':
         
             q[pct] = np.random.uniform(pmin[pct], pmax[pct])
             qxy += 0
 
-        elif args.limit_or_detect_gwb == 'limit':
+        elif args.gwbPrior == 'uniform':
             
             q[pct] = np.random.uniform(pmin[pct], pmax[pct])
             qxy += 0
@@ -1641,12 +1654,12 @@ if args.sampler == 'ptmcmc':
 
         for ii in ind:
             # log prior
-            if args.limit_or_detect_gwb == 'detect':
+            if args.gwbPrior == 'loguniform':
 
                 q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
                 qxy += 0
 
-            elif args.limit_or_detect_gwb == 'limit':
+            elif args.gwbPrior == 'uniform':
             
                 q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
                 qxy += 0
