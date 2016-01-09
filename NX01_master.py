@@ -79,15 +79,15 @@ parser.add_option('--resume', dest='resume', action='store_true', default='False
 parser.add_option('--incGWB', dest='incGWB', action='store_true', default=False,
                   help='Do you want to search for a GWB? (default = False)')
 parser.add_option('--gwbSpecModel', dest='gwbSpecModel', action='store', type=str, default='powerlaw',
-                  help='What kind of spectral model do you want for the GWB: powerlaw, spectrum, broken (default = powerlaw)')
+                  help='What kind of spectral model do you want for the GWB: powerlaw, spectrum, turnover (default = powerlaw)')
 parser.add_option('--incCorr', dest='incCorr', action='store_true', default=False,
                   help='Do you want to include cross-correlations in the GWB model? (default = False)')
 parser.add_option('--typeCorr', dest='typeCorr', action='store', type=str, default='spharmAnis',
                   help='What type of correlated GW signal do you want to model?: spharmAnis, modelIndep, pointSrc (default = spharmAnis)')
 parser.add_option('--redSpecModel', dest='redSpecModel', action='store', type=str, default='powerlaw',
-                  help='What kind of spectral model do you want for red timing-noise: powerlaw, spectrum, broken (default = powerlaw)')
+                  help='What kind of spectral model do you want for red timing-noise: powerlaw, spectrum (default = powerlaw)')
 parser.add_option('--dmSpecModel', dest='dmSpecModel', action='store', type=str, default='powerlaw',
-                  help='What kind of spectral model do you want for DM variations: powerlaw, spectrum, broken (default = powerlaw)')
+                  help='What kind of spectral model do you want for DM variations: powerlaw, spectrum (default = powerlaw)')
 parser.add_option('--dirExt', dest='dirExt', action='store', type=str, default='./chains_nanoAnalysis/',
                   help='What master directory name do you want to put this run into? (default = ./chains_nanoAnalysis/)')
 parser.add_option('--nwins', dest='nwins', action='store', type=int, default=1,
@@ -102,8 +102,8 @@ parser.add_option('--fix-slope', dest='fix_slope', action='store_true', default=
                   help='Do you want to fix the slope of the GWB spectrum? (default = False)')
 parser.add_option('--gwbPrior', dest='gwbPrior', action='store', type=str, default='uniform',
                    help='Do you want to use a uniform prior on log_10(Agwb) for detection [loguniform],
-                   on Agwb itself for limits [uniform], or an astrophysical prior (only for powerlaw model)
-                   [sesana, mcwilliams] (default=\'uniform\')?')
+                   on Agwb itself for limits [uniform], or an astrophysical prior (only for powerlaw or
+                   turnover models) [sesana, mcwilliams] (default=\'uniform\')?')
 parser.add_option('--redPrior', dest='redPrior', action='store', type=str, default='uniform',
                    help='Do you want to use a uniform prior on log_10(Ared) for detection [loguniform],
                    on Ared itself for limits [uniform] (default=\'uniform\')?')
@@ -484,6 +484,8 @@ if args.incGWB:
             pmin = np.append(pmin,0.0)
     elif args.gwbSpecModel == 'spectrum':
         pmin = np.append(pmin,-8.0*np.ones(nmode))
+    elif args.gwbSpecModel == 'turnover':
+        pmin = np.append(pmin,np.array([-18.0,0.0,-9.0]))
     if args.incCorr:
         if args.typeCorr == 'modelIndep':
             pmin = np.append(pmin,np.zeros(num_corr_params))
@@ -494,7 +496,8 @@ if args.incGWB:
 if args.det_signal:
     if args.cgw_search:
         pmin = np.append(pmin,np.array([6.0,0.1,0.0,-10.0,
-                                        0.0,-1.0,-1.0,0.0,0.0,0.0]))
+                                        0.0,-1.0,-1.0,
+                                        0.0,0.0,0.0]))
         if args.ecc_search:
             pmin = np.append(pmin,0.001)
     if args.bwm_search:
@@ -521,6 +524,8 @@ if args.incGWB:
             pmax = np.append(pmax,7.0)
     elif args.gwbSpecModel == 'spectrum':
         pmax = np.append(pmax,3.0*np.ones(nmode))
+    elif args.gwbSpecModel == 'turnover':
+        pmax = np.append(pmax,np.array([-11.0,7.0,-7.0]))
     if args.incCorr:
         if args.typeCorr == 'modelIndep':
             pmax = np.append(pmax,np.pi*np.ones(num_corr_params))
@@ -531,7 +536,8 @@ if args.incGWB:
 if args.det_signal:
     if args.cgw_search:
         pmax = np.append(pmax,np.array([10.0,1.0,4.0,-7.0,
-                                        2.0*np.pi,1.0,1.0,np.pi,np.pi,2.0*np.pi]))
+                                        2.0*np.pi,1.0,1.0,
+                                        np.pi,np.pi,2.0*np.pi]))
         if args.ecc_search:
             pmax = np.append(pmax,0.9)
     if args.bwm_search:
@@ -598,6 +604,11 @@ def lnprob(xx):
         elif args.gwbSpecModel == 'spectrum':
             rho_spec = xx[param_ct:param_ct+nmode]
             param_ct += nmode
+        elif args.gwbSpecModel == 'turnover':
+            Agwb = 10.0**xx[param_ct]
+            kappa = xx[param_ct+1]
+            fbend = 10.0**xx[param_ct+2]
+            param_ct += 3
 
         if args.incCorr:
             # Anisotropy parameters
@@ -903,6 +914,11 @@ def lnprob(xx):
                            (fqs/86400.0)**(-gam_gwb)/Tspan)
         elif args.gwbSpecModel == 'spectrum':
             rho = np.log10( 10.0**(2.0*rho_spec) / Tspan)
+        elif args.gwbSpecModel == 'turnover':
+            rho = np.log10(Agwb**2/12/np.pi**2 * \
+                           f1yr**(13.0/3.0-3.0) * \
+                           (fqs/86400.0)**(-13.0/3.0) / \
+                           (1.0+(fbend*86400.0/fqs)**kappa)/Tspan)
 
         if args.dmVar:
             gwbspec = np.append( 10**rho, np.zeros_like(rho) )
@@ -1125,7 +1141,7 @@ def lnprob(xx):
     
     if args.incGWB:
         if args.gwbPrior == 'uniform':
-            if args.gwbSpecModel == 'powerlaw':
+            if args.gwbSpecModel == 'powerlaw' or args.gwbSpecModel == 'turnover':
                 priorfac_gwb = np.log(Agwb * np.log(10.0))
             elif args.gwbSpecModel == 'spectrum':
                 priorfac_gwb = np.sum(np.log(10.0**rho_spec * np.log(10.0)))
@@ -1196,6 +1212,8 @@ if args.incGWB:
     elif args.gwbSpecModel == 'spectrum':
         for ii in range(nmode):
             parameters.append('gwbSpec_{0}'.format(ii+1))
+    elif args.gwbSpecModel == 'turnover':
+        parameters += ["Agwb", "kappa", "fbend"]
     if args.incCorr:
         if args.typeCorr == 'modelIndep':
             for ii in range(tmp_nwins): 
@@ -1239,6 +1257,8 @@ if args.incGWB:
             gamma_tag = '_gamVary'
     elif args.gwbSpecModel == 'spectrum':
         gamma_tag = '_gwbSpec'
+    elif args.gwbSpecModel == 'turnover':
+        gamma_tag = '_gwbTurnover'
     if args.incCorr:
         if args.typeCorr == 'modelIndep':
             file_tag += '_gwb{0}_miCorr{1}{2}'.format(args.gwbPrior,evol_corr_tag,gamma_tag)
@@ -1345,6 +1365,8 @@ if args.sampler == 'ptmcmc':
                 x0 = np.append(x0,13./3.)
         elif args.gwbSpecModel == 'spectrum':
             x0 = np.append(x0,np.random.uniform(-7.0,-3.0,nmode))
+        elif args.gwbSpecModel == 'turnover':
+            x0 = np.append(x0,np.array([-15.0,13./3.,-8.0]))
         if args.incCorr:
             if args.typeCorr == 'modelIndep':
                 x0 = np.append(x0,np.random.uniform(0.0,np.pi,num_corr_params))
@@ -1384,6 +1406,8 @@ if args.sampler == 'ptmcmc':
                 cov_diag = np.append(cov_diag,0.5)
         elif args.gwbSpecModel == 'spectrum':
             cov_diag = np.append(cov_diag,0.05*np.ones(nmode))
+        elif args.gwbSpecModel == 'turnover':
+            cov_diag = np.append(cov_diag,np.array([0.5,0.5,0.1]))
         if args.incCorr:
             cov_diag = np.append(cov_diag,0.05*np.ones(num_corr_params))
     if args.det_signal:
@@ -1446,6 +1470,10 @@ if args.sampler == 'ptmcmc':
             ids = [np.arange(param_ct,param_ct+nmode)]
             [ind.append(id) for id in ids]
             param_ct += nmode
+        elif args.gwbSpecModel == 'turnover':
+            ids = [np.arange(param_ct,param_ct+3)]
+            [ind.append(id) for id in ids]
+            param_ct += 3
 
     ##### GWB correlations #####
     if args.incGWB and args.incCorr and num_corr_params>0:
@@ -1615,7 +1643,7 @@ if args.sampler == 'ptmcmc':
         if args.dmVar:
             pct += 2*npsr
 
-        # log prior
+        # amplitude
         if args.gwbPrior == 'loguniform':
         
             q[pct] = np.random.uniform(pmin[pct], pmax[pct])
@@ -1642,6 +1670,7 @@ if args.sampler == 'ptmcmc':
             qxy -= (mu - parameters[pct]) ** 2 / 2 / \
               sig ** 2 - (mu - q[pct]) ** 2 / 2 / s ** 2
 
+        # gamma
         if not args.fix_slope:
             q[pct+1] = np.random.uniform(pmin[pct+1], pmax[pct+1])
             qxy += 0
@@ -1670,7 +1699,6 @@ if args.sampler == 'ptmcmc':
         ind = np.unique(np.random.randint(0, nmode, 1))
 
         for ii in ind:
-            # log prior
             if args.gwbPrior == 'loguniform':
 
                 q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
@@ -1682,8 +1710,65 @@ if args.sampler == 'ptmcmc':
                 qxy += 0
         
         return q, qxy
-    
 
+
+    def drawFromGWBTurnoverPrior(parameters, iter, beta):
+
+        # post-jump parameters
+        q = parameters.copy()
+
+        # transition probability
+        qxy = 0
+
+        npsr = len(psr)
+        pct = 0
+        if not args.fixRed:
+            if args.redSpecModel == 'powerlaw':
+                pct = 2*npsr
+            elif args.redSpecModel == 'spectrum':
+                pct = npsr*nmode
+    
+        if args.dmVar:
+            pct += 2*npsr
+
+        # amplitude
+        if args.gwbPrior == 'loguniform':
+        
+            q[pct] = np.random.uniform(pmin[pct], pmax[pct])
+            qxy += 0
+
+        elif args.gwbPrior == 'uniform':
+            
+            q[pct] = np.random.uniform(pmin[pct], pmax[pct])
+            qxy += 0
+
+        elif args.gwbPrior == 'sesana':
+            
+            mu = -15
+            sig = 0.22
+            q[pct] = mu + np.random.randn() * sig
+            qxy -= (mu - parameters[pct]) ** 2 / 2 / \
+              sig ** 2 - (mu - q[pct]) ** 2 / 2 / s ** 2
+
+        elif args.gwbPrior == 'mcwilliams':
+
+            mu = -14.4
+            sig = 0.26
+            q[pct] = mu + np.random.randn() * sig
+            qxy -= (mu - parameters[pct]) ** 2 / 2 / \
+              sig ** 2 - (mu - q[pct]) ** 2 / 2 / s ** 2
+
+        # kappa
+        q[pct+1] = np.random.uniform(pmin[pct+1], pmax[pct+1])
+        qxy += 0
+
+        # fbend
+        q[pct+2] = np.random.uniform(pmin[pct+2], pmax[pct+2])
+        qxy += 0
+        
+        return q, qxy
+
+    
     def drawFromGWBcorrPrior(parameters, iter, beta):
 
         # post-jump parameters
@@ -1710,6 +1795,8 @@ if args.sampler == 'ptmcmc':
                     pct += 1
             elif args.gwbSpecModel == 'spectrum':
                 pct += nmode
+            elif args.gwbSpecModel == 'turnover':
+                pct += 3
 
         ind = np.unique(np.random.randint(0, num_corr_params, 1))
 
@@ -1746,6 +1833,8 @@ if args.sampler == 'ptmcmc':
                     pct += 1
             elif args.gwbSpecModel == 'spectrum':
                 pct += nmode
+            elif args.gwbSpecModel == 'turnover':
+                pct += 3
 
             if args.incCorr:
                 pct += num_corr_params
@@ -1790,6 +1879,8 @@ if args.sampler == 'ptmcmc':
                     pct += 1
             elif args.gwbSpecModel == 'spectrum':
                 pct += nmode
+            elif args.gwbSpecModel == 'turnover':
+                pct += 3
 
             if args.incCorr:
                 pct += num_corr_params
@@ -1830,6 +1921,8 @@ if args.sampler == 'ptmcmc':
                     pct += 1
             elif args.gwbSpecModel == 'spectrum':
                 pct += nmode
+            elif args.gwbSpecModel == 'turnover':
+                pct += 3
 
             if args.incCorr:
                 pct += num_corr_params
@@ -1857,6 +1950,8 @@ if args.sampler == 'ptmcmc':
             sampler.addProposalToCycle(drawFromGWBPowerlawPrior, 10)
         elif args.gwbSpecModel == 'spectrum':
             sampler.addProposalToCycle(drawFromGWBSpectrumPrior, 10)
+        elif args.gwbSpecModel == 'turnover':
+            sampler.addProposalToCycle(drawFromGWBTurnoverPrior, 10)
         if args.incCorr and num_corr_params>0:
             sampler.addProposalToCycle(drawFromGWBcorrPrior, 10)
     if args.det_signal and args.cgw_search:
