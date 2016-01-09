@@ -28,9 +28,9 @@ class NX01gui(object):
     noPhysPrior = None
     use_gpu = None
     fixSlope = None
-    limit_or_detect_gwb = None
-    limit_or_detect_red = None
-    limit_or_detect_dm = None
+    gwbPrior = None
+    redPrior = None
+    dmPrior = None
     anis_modefile = None
     fullN = None
     fixRed = None
@@ -70,9 +70,9 @@ class NX01gui(object):
         self.noPhysPrior = False
         self.use_gpu = False
         self.fixSlope = False
-        self.limit_or_detect_gwb = 'limit'
-        self.limit_or_detect_red = 'limit'
-        self.limit_or_detect_dm = 'limit'
+        self.gwbPrior = 'uniform'
+        self.redPrior = 'uniform'
+        self.dmPrior = 'uniform'
         self.anis_modefile = None
         self.fullN = True
         self.fixRed = False
@@ -123,10 +123,10 @@ class NX01gui(object):
 
         red = widgets.Checkbox(description="Red noise", value=False)
         red_prior = widgets.Dropdown(description="Prior",\
-                                     options=['limit', 'detect'],\
+                                     options=['uniform', 'loguniform'],\
                                      font_size=20)
         red_specmodel = widgets.Dropdown(description="Spectral model",\
-                                         options=['power-law', 'free-spectral'],\
+                                         options=['powerlaw', 'freespectral'],\
                                          font_size=20)
         red_info = widgets.HBox(visible=False, children=[red_prior,red_specmodel], padding=20)
 
@@ -135,7 +135,7 @@ class NX01gui(object):
             else: self.fixRed = True
         red.on_trait_change(change_red, 'value')
 
-        def change_redprior(name, value): self.limit_or_detect_red = value
+        def change_redprior(name, value): self.redPrior = value
         red_prior.on_trait_change(change_redprior, 'value')
 
         def change_redspecmodel(name, value): self.redSpecModel = value
@@ -143,17 +143,17 @@ class NX01gui(object):
         
         dm = widgets.Checkbox(description="DM variations", value=False)
         dm_prior = widgets.Dropdown(description="Prior",\
-                                    options=['limit', 'detect'],\
+                                    options=['uniform', 'loguniform'],\
                                     font_size=20)
         dm_specmodel = widgets.Dropdown(description="Spectral model",\
-                                        options=['power-law', 'free-spectral'],\
+                                        options=['powerlaw', 'freespectral'],\
                                         font_size=20)
         dm_info = widgets.HBox(visible=False, children=[dm_prior,dm_specmodel], padding=20)
 
         def change_dm(name, value): self.dmVar = value
         dm.on_trait_change(change_dm, 'value')
         
-        def change_dmprior(name, value): self.limit_or_detect_dm = value
+        def change_dmprior(name, value): self.dmPrior = value
         dm_prior.on_trait_change(change_dmprior, 'value')
 
         def change_dmspecmodel(name, value): self.dmSpecModel = value
@@ -185,15 +185,15 @@ class NX01gui(object):
         gwb.on_trait_change(change_incGWB, 'value')
 
         gwb_prior = widgets.Dropdown(description="Prior",\
-                                     options=['limit', 'detect'],\
+                                     options=['uniform', 'loguniform', 'sesana', 'mcwilliams'],\
                                      font_size=20)
         gwb_specmodel = widgets.Dropdown(description="Spectral model",\
-                                         options=['power-law', 'free-spectral'],\
+                                         options=['powerlaw', 'freespectral', 'turnover'],\
                                          font_size=20)
         gwb_preamble = widgets.HBox(visible=True, \
                                     children=[gwb_prior,gwb_specmodel],padding=20)
 
-        def change_gwbprior(name, value): self.limit_or_detect_gwb = value
+        def change_gwbprior(name, value): self.gwbPrior = value
         gwb_prior.on_trait_change(change_gwbprior, 'value')
 
         def change_gwbspecmodel(name, value): self.gwbSpecModel = value
