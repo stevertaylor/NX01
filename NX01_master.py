@@ -102,7 +102,8 @@ parser.add_option('--fix-slope', dest='fix_slope', action='store_true', default=
                   help='Do you want to fix the slope of the GWB spectrum? (default = False)')
 parser.add_option('--gwbPrior', dest='gwbPrior', action='store', type=str, default='uniform',
                    help='Do you want to use a uniform prior on log_10(Agwb) for detection [loguniform],
-                   on Agwb itself for limits [uniform], or an astrophysical prior [sesana, mcwilliams] (default=\'uniform\')?')
+                   on Agwb itself for limits [uniform], or an astrophysical prior (only for powerlaw model)
+                   [sesana, mcwilliams] (default=\'uniform\')?')
 parser.add_option('--redPrior', dest='redPrior', action='store', type=str, default='uniform',
                    help='Do you want to use a uniform prior on log_10(Ared) for detection [loguniform],
                    on Ared itself for limits [uniform] (default=\'uniform\')?')
@@ -1624,6 +1625,22 @@ if args.sampler == 'ptmcmc':
             
             q[pct] = np.random.uniform(pmin[pct], pmax[pct])
             qxy += 0
+
+        elif args.gwbPrior == 'sesana':
+            
+            mu = -15
+            sig = 0.22
+            q[pct] = mu + np.random.randn() * sig
+            qxy -= (mu - parameters[pct]) ** 2 / 2 / \
+              sig ** 2 - (mu - q[pct]) ** 2 / 2 / s ** 2
+
+        elif args.gwbPrior == 'mcwilliams':
+
+            mu = -14.4
+            sig = 0.26
+            q[pct] = mu + np.random.randn() * sig
+            qxy -= (mu - parameters[pct]) ** 2 / 2 / \
+              sig ** 2 - (mu - q[pct]) ** 2 / 2 / s ** 2
 
         if not args.fix_slope:
             q[pct+1] = np.random.uniform(pmin[pct+1], pmax[pct+1])
