@@ -101,15 +101,11 @@ parser.add_option('--use-gpu', dest='use_gpu', action='store_true', default=Fals
 parser.add_option('--fix-slope', dest='fix_slope', action='store_true', default=False,
                   help='Do you want to fix the slope of the GWB spectrum? (default = False)')
 parser.add_option('--gwbPrior', dest='gwbPrior', action='store', type=str, default='uniform',
-                   help='Do you want to use a uniform prior on log_10(Agwb) for detection [loguniform],
-                   on Agwb itself for limits [uniform], or an astrophysical prior (only for powerlaw or
-                   turnover models) [sesana, mcwilliams] (default=\'uniform\')?')
+                   help='Do you want to use a uniform prior on log_10(Agwb) for detection [loguniform], on Agwb itself for limits [uniform], or an astrophysical prior (only for powerlaw or turnover models) [sesana, mcwilliams] (default=\'uniform\')?')
 parser.add_option('--redPrior', dest='redPrior', action='store', type=str, default='uniform',
-                   help='Do you want to use a uniform prior on log_10(Ared) for detection [loguniform],
-                   on Ared itself for limits [uniform] (default=\'uniform\')?')
+                   help='Do you want to use a uniform prior on log_10(Ared) for detection [loguniform], on Ared itself for limits [uniform] (default=\'uniform\')?')
 parser.add_option('--dmPrior', dest='dmPrior', action='store', type=str, default='uniform',
-                   help='Do you want to use a uniform prior on log_10(Adm) for detection [loguniform],
-                   on Adm itself for limits [uniform] (default=\'uniform\')?')
+                   help='Do you want to use a uniform prior on log_10(Adm) for detection [loguniform], on Adm itself for limits [uniform] (default=\'uniform\')?')
 parser.add_option('--anis-modefile', dest='anis_modefile', action='store', type=str, default = None,
                    help='Do you want to provide an anisotropy modefile to split band into frequency windows?')
 parser.add_option('--fullN', dest='fullN', action='store_true', default=True,
@@ -145,8 +141,7 @@ parser.add_option('--periEv', dest='periEv', action='store_true', default=False,
 parser.add_option('--incGWline', dest='incGWline', action='store_true', default=False,
                   help='Do you want to include a single-frequency line in the GW spectrum? (default = False)')
 parser.add_option('--gwlinePrior', dest='gwlinePrior', action='store', type=str, default='uniform',
-                   help='Do you want to use a uniform prior on log_10(rho_line) for detection [loguniform],
-                   on rho_line itself for limits [uniform] (default=\'uniform\')?')
+                   help='Do you want to use a uniform prior on log_10(rho_line) for detection [loguniform], on rho_line itself for limits [uniform] (default=\'uniform\')?')
 
 (args, x) = parser.parse_args()
 
@@ -194,8 +189,8 @@ if args.jsonModel is not None:
     args.epochTOAs = json_data['epochTOAs']
     args.psrTerm = json_data['psrTerm']
     args.periEv = json_data['periEv']
-    args.incGWline = json_data['incGWline']
-    args.gwlinePrior = json_data['gwlinePrior']
+    #args.incGWline = json_data['incGWline']
+    #args.gwlinePrior = json_data['gwlinePrior']
 
 
 header = """\
@@ -1411,7 +1406,7 @@ if args.dmVar:
     dm_tag = '_dm'+args.dmPrior+args.dmSpecModel
 elif not args.dmVar:
     dm_tag = ''
-file_tag += red_tag+dm_tag+'_nmodes{1}'.format(args.nmodes)
+file_tag += red_tag+dm_tag+'_nmodes{0}'.format(args.nmodes)
 
 
 if rank == 0:
@@ -1544,7 +1539,7 @@ if args.sampler == 'ptmcmc':
         if args.incCorr:
             cov_diag = np.append(cov_diag,0.05*np.ones(num_corr_params))
     if args.incGWline:
-        cov_diag = np.append(cov_diag,np.array([0.1,0.1,0.1,0.1])
+        cov_diag = np.append(cov_diag,np.array([0.1,0.1,0.1,0.1]))
     if args.det_signal:
         if args.cgw_search:
             cov_diag = np.append(cov_diag,0.2*np.ones(10))
