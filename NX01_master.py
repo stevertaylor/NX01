@@ -322,8 +322,6 @@ if args.incGWB and args.incCorr:
 
     elif args.typeCorr == 'pointSrc':
 
-        #### only works for source covering all frequencies #####
-
         gwfreqs_per_win = int(1.*args.nmodes/(1.*args.nwins)) 
         corr_modefreqs = np.arange(1,args.nmodes+1)
         corr_modefreqs = np.reshape(corr_modefreqs,
@@ -633,10 +631,10 @@ def lnprob(xx):
     # Including a single GW line
 
     if args.incGWline:
-        spec_line = xx[param_ct]
-        freq_line = 10.0**xx[param_ct+1]
-        phi_line = xx[param_ct+2]
-        costheta_line = xx[param_ct+3]
+        spec_gwline = xx[param_ct]
+        freq_gwline = 10.0**xx[param_ct+1]
+        phi_gwline = xx[param_ct+2]
+        theta_gwline = np.arccos(xx[param_ct+3])
         param_ct += 4
 
     ###############################
@@ -885,6 +883,25 @@ def lnprob(xx):
                                                       # is defined as zero below.
             ORFtot[0::2] = ORF
             ORFtot[1::2] = ORF
+            
+
+    if args.incGWline:
+
+        gwline_orf = np.zeros((npsr,npsr))
+
+        Fp = np.zeros(npsr)
+        Fc = np.zeros(npsr)
+        for ii in range(npsr):
+            Fp[ii], Fc[ii] = utils.fplus_fcross(psr[ii], theta_gwline, phi_gwline)
+        
+        for ii in range(npsr):
+            for jj in range(ii,npsr):
+                gwline_orf[ii,jj] = (3.0/(8.0*np.pi)) * (Fp[ii]*Fp[jj] + Fc[ii]*Fc[jj])
+                gwline_orf[jj,ii] = gwline_orf[ii,jj]
+
+                if ii == jj:
+                    # scaling for pulsar-term
+                    gwline_orf[ii,jj] *= 2.0
 
     ################################################
     # parameterize intrinsic red noise as power law
@@ -938,7 +955,6 @@ def lnprob(xx):
     # construct elements of sigma array
     
     sigdiag = []
-
     if args.incGWB:
 
         if args.gwbSpecModel == 'powerlaw':
@@ -946,7 +962,7 @@ def lnprob(xx):
                            f1yr**(gam_gwb-3) * \
                            (fqs/86400.0)**(-gam_gwb)/Tspan)
         elif args.gwbSpecModel == 'spectrum':
-            rho = np.log10( 10.0**(2.0*rho_spec) / Tspan)
+            rho = np.log10( 10.0**(2.0*rho_spec) / Tspan )
         elif args.gwbSpecModel == 'turnover':
             rho = np.log10(Agwb**2/12/np.pi**2 * \
                            f1yr**(13.0/3.0-3.0) * \
@@ -959,7 +975,21 @@ def lnprob(xx):
             gwbspec = 10**rho
 
         if args.incCorr:
-            sigoffdiag = []
+            sig_gwboffdiag = []
+
+    if args.incGWline:
+        
+        rho_line = np.zeros(len(fqs))
+        idx = np.argmin(np.abs(fqs/86400.0 - freq_gwline))
+        rho_line[idx] = np.log10( 10.0**(2.0*spec_gwline) / Tspan )
+
+        if args.dmVar:
+            gwline_spec = np.append( 10**rho_line, np.zeros_like(rho_line) )
+        else:
+            gwline_spec = 10**rho_line
+
+        if args.incCorr:
+            sig_gwlineoffdiag = []
         
 
     for ii in range(npsr):
@@ -983,13 +1013,35 @@ def lnprob(xx):
                 tot[0::2] += ORF[:,ii,ii]*gwbspec
                 tot[1::2] += ORF[:,ii,ii]*gwbspec
 
-                sigoffdiag.append(offdiag)
+                sig_gwboffdiag.append(offdiag)
                 
             if not args.incCorr:
                 
                 # diagonal terms
                 tot[0::2] += gwbspec
                 tot[1::2] += gwbspec
+
+        if args.incGWline:
+            
+            if args.incCorr:
+                
+                offdiag = np.zeros(mode_count)
+
+                # off diagonal terms
+                offdiag[0::2] = gwline_spec
+                offdiag[1::2] = gwline_spec
+
+                # diagonal terms
+                tot[0::2] += gwline_orf[ii,ii]*gwline_spec
+                tot[1::2] += gwline_orf[ii,ii]*gwline_spec
+
+                sig_gwlineoffdiag.append(offdiag)
+                
+            if not args.incCorr:
+                
+                # diagonal terms
+                tot[0::2] += gwline_spec
+                tot[1::2] += gwline_spec
                 
         # fill in lists of arrays
         sigdiag.append(tot)
@@ -998,7 +1050,7 @@ def lnprob(xx):
     ###############################################
     # Computing Phi and Sigma matrices without GWB
     
-    if not args.incGWB:
+    if not args.incGWB and not args.incGWline:
 
         for ii,p in enumerate(psr):
             
@@ -1035,7 +1087,7 @@ def lnprob(xx):
         logLike += loglike1_tmp
         
 
-    if args.incGWB:
+    if args.incGWB or args.incGWline:
 
         if not args.incCorr:
             
@@ -1085,7 +1137,10 @@ def lnprob(xx):
                     if ii == jj:
                         smallMatrix[:,ii,jj] = sigdiag[jj] 
                     else:
-                        smallMatrix[:,ii,jj] = ORFtot[:,ii,jj] * sigoffdiag[jj] 
+                        if args.incGWB:
+                            smallMatrix[:,ii,jj] += ORFtot[:,ii,jj] * sig_gwboffdiag[jj]
+                        if args.incGWline:
+                            smallMatrix[:,ii,jj] += sig_gwlineoffdiag[jj]
                         smallMatrix[:,jj,ii] = smallMatrix[:,ii,jj]
 
             ###################################
@@ -1193,6 +1248,14 @@ def lnprob(xx):
     elif not args.incGWB:
         priorfac_gwb = 0.0
 
+    if args.incGWline:
+        if args.gwlinePrior == 'uniform':
+            priorfac_gwline = np.log(10.0**spec_gwline * np.log(10.0))
+        elif args.gwlinePrior == 'loguniform':
+            priorfac_gwline = 0.0
+    elif not args.incGWline:
+        priorfac_gwline = 0.0
+
     if not args.fixRed:
         if args.redPrior == 'uniform':
             if args.redSpecModel == 'powerlaw':
@@ -1218,7 +1281,7 @@ def lnprob(xx):
     #####################################
     # Finally, return the log-likelihood
     
-    return logLike + priorfac_gwb + priorfac_red + priorfac_dm
+    return logLike + priorfac_gwb + priorfac_gwline + priorfac_red + priorfac_dm
      
 
 
@@ -1267,6 +1330,9 @@ if args.incGWB:
             for ii in range(tmp_nwins): 
                 for jj in range((args.LMAX+1)**2 - 1):
                     parameters.append('clm_win{0}_val{1}'.format(ii+1,jj+1))
+if args.incGWline:
+    parameters += ["spec_gwline", "freq_gwline",
+                   "phi_gwline", "costheta_gwline"]
 if args.det_signal:
     if args.cgw_search:
         parameters += ["chirpmass", "qratio", "dist", "orb-freq",
@@ -1275,7 +1341,8 @@ if args.det_signal:
         if args.ecc_search:
             parameters.append("ecc")
     if args.bwm_search:
-        parameters += ["burst_mjd", "burst_strain", "phi", "costheta", "gwpol"]
+        parameters += ["burst_mjd", "burst_strain",
+                       "phi", "costheta", "gwpol"]
         if args.bwm_model_select:
             parameters.append("nmodel")
 
@@ -1313,6 +1380,11 @@ if args.incGWB:
                                                        args.LMAX,physprior_tag,evol_corr_tag,gamma_tag)
     else:
         file_tag += '_gwb{0}_noCorr{1}'.format(args.gwbPrior,gamma_tag)
+if args.incGWline:
+    if args.incCorr:
+        file_tag += '_gwline{0}'.format(args.gwlinePrior)
+    elif not args.incCorr:
+        file_tag += '_gwline{0}_noCorr'.format(args.gwlinePrior)
 if args.det_signal:
     if args.cgw_search:
         if args.ecc_search:
@@ -1422,6 +1494,8 @@ if args.sampler == 'ptmcmc':
                 x0 = np.append(x0,np.tile([0.5,0.5],tmp_nwins))
             elif args.typeCorr == 'spharmAnis':
                 x0 = np.append(x0,np.zeros(num_corr_params))
+    if args.incGWline:
+        x0 = np.append(x0,np.array([-6.0,-8.0,0.5,0.5]))
     if args.det_signal:
         if args.cgw_search:
             x0 = np.append(x0,np.array([9.0, 0.5, 1.5, -8.0, 0.5,
@@ -1461,6 +1535,8 @@ if args.sampler == 'ptmcmc':
             cov_diag = np.append(cov_diag,np.array([0.5,0.5,0.1]))
         if args.incCorr:
             cov_diag = np.append(cov_diag,0.05*np.ones(num_corr_params))
+    if args.incGWline:
+        cov_diag = np.append(cov_diag,0.1)
     if args.det_signal:
         if args.cgw_search:
             cov_diag = np.append(cov_diag,0.2*np.ones(10))
@@ -1530,6 +1606,12 @@ if args.sampler == 'ptmcmc':
     if args.incGWB and args.incCorr and num_corr_params>0:
         ids = [np.arange(param_ct,param_ct+num_corr_params)]
         param_ct += num_corr_params
+        [ind.append(id) for id in ids]
+
+    ##### GW line #####
+    if args.incGWline:
+        ids = [np.arange(param_ct,param_ct+4)]
+        param_ct += 4
         [ind.append(id) for id in ids]
        
     ##### DET SIGNAL #####
@@ -1885,6 +1967,49 @@ if args.sampler == 'ptmcmc':
 
         return q, qxy
 
+    # gwline draws 
+    def drawFromGWlinePrior(parameters, iter, beta):
+
+        # post-jump parameters
+        q = parameters.copy()
+
+        # transition probability
+        qxy = 0
+
+        npsr = len(psr)
+        pct = 0
+        if not args.fixRed:
+            if args.redSpecModel == 'powerlaw':
+                pct = 2*npsr
+            elif args.redSpecModel == 'spectrum':
+                pct = npsr*nmode
+    
+        if args.dmVar:
+            pct += 2*npsr
+
+        if args.incGWB:
+            if args.gwbSpecModel == 'powerlaw':
+                pct += 1
+                if not args.fix_slope:
+                    pct += 1
+            elif args.gwbSpecModel == 'spectrum':
+                pct += nmode
+            elif args.gwbSpecModel == 'turnover':
+                pct += 3
+
+            if args.incCorr:
+                pct += num_corr_params
+
+        # logspec_line, logfreq_line,
+        # phi_line, costheta_line
+        ind = np.unique(np.random.randint(0, 4, 1))
+
+        for ii in ind:
+            q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
+            qxy += 0
+        
+        return q, qxy
+
     # cgw draws 
     def drawFromCWPrior(parameters, iter, beta):
 
@@ -1917,6 +2042,9 @@ if args.sampler == 'ptmcmc':
 
             if args.incCorr:
                 pct += num_corr_params
+
+        if args.incGWline:
+            pct += 4
 
         # logmass, qr, logdist, logorbfreq, gwphi,
         # costheta, cosinc, gwpol, gwgamma0, l0
@@ -1964,6 +2092,9 @@ if args.sampler == 'ptmcmc':
             if args.incCorr:
                 pct += num_corr_params
 
+        if args.incGWline:
+            pct += 4
+
         # burst_mjd, burst_amp, phi, costheta, gwpol
         ind = np.unique(np.random.randint(0, 5, 1))
 
@@ -2006,6 +2137,9 @@ if args.sampler == 'ptmcmc':
             if args.incCorr:
                 pct += num_corr_params
 
+        if args.incGWline:
+            pct += 4
+
         if args.det_signal and args.bwm_search:
             pct += 5
             # indexing parameter is at end of list
@@ -2036,6 +2170,8 @@ if args.sampler == 'ptmcmc':
             sampler.addProposalToCycle(drawFromGWBTurnoverPrior, 10)
         if args.incCorr and num_corr_params>0:
             sampler.addProposalToCycle(drawFromGWBcorrPrior, 10)
+    if args.incGWline:
+        sampler.addProposalToCycle(drawFromGWlinePrior, 10)
     if args.det_signal and args.cgw_search:
         sampler.addProposalToCycle(drawFromCWPrior, 10)
     if args.det_signal and args.bwm_search:
