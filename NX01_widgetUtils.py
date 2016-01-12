@@ -47,6 +47,8 @@ class NX01gui(object):
     epochTOAs = None
     psrTerm = None
     periEv = None
+    incGWline = None
+    gwlinePrior = None
     
     def __init__(self, *args, **kwargs):  
 
@@ -89,6 +91,8 @@ class NX01gui(object):
         self.epochTOAs = False
         self.psrTerm = False
         self.periEv = False
+        self.incGWline = False
+        self.gwlinePrior = 'uniform'
 
 
     def makeGUI(self):
@@ -403,8 +407,6 @@ class NX01gui(object):
             with open('mymodel.json', 'w') as fp:
                 json.dump(self.__dict__, fp)
             fp.close()
-
-            #pickle.dump(self.__dict__, open( "save.p", "wb" ) )
 
         json_click.on_click(on_button_clicked)
 

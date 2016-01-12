@@ -189,8 +189,8 @@ if args.jsonModel is not None:
     args.epochTOAs = json_data['epochTOAs']
     args.psrTerm = json_data['psrTerm']
     args.periEv = json_data['periEv']
-    #args.incGWline = json_data['incGWline']
-    #args.gwlinePrior = json_data['gwlinePrior']
+    args.incGWline = json_data['incGWline']
+    args.gwlinePrior = json_data['gwlinePrior']
 
 
 header = """\
