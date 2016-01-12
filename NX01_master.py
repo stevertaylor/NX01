@@ -142,6 +142,8 @@ parser.add_option('--psrTerm', dest='psrTerm', action='store_true', default=Fals
                   help='Do you want to include the pulsar term in the continuous wave search? (default = False)')
 parser.add_option('--periEv', dest='periEv', action='store_true', default=False,
                   help='Do you want to model the binary periapsis evolution? (default = False)')
+parser.add_option('--incGWline', dest='incGWline', action='store_true', default=False,
+                  help='Do you want to include a single-frequency line in the GW spectrum? (default = False)')
 
 (args, x) = parser.parse_args()
 
@@ -189,6 +191,7 @@ if args.jsonModel is not None:
     args.epochTOAs = json_data['epochTOAs']
     args.psrTerm = json_data['psrTerm']
     args.periEv = json_data['periEv']
+    args.incGWline = json_data['incGWline']
 
 
 header = """\
@@ -624,8 +627,17 @@ def lnprob(xx):
             # Anisotropy parameters
             orf_coeffs = xx[param_ct:param_ct+num_corr_params]
 
-    # Remaining parameters are for a deterministic signal
     param_ct += num_corr_params
+
+    ###############################
+    # Including a single GW line
+
+    if args.incGWline:
+        spec_line = xx[param_ct]
+        freq_line = 10.0**xx[param_ct+1]
+        phi_line = xx[param_ct+2]
+        costheta_line = xx[param_ct+3]
+        param_ct += 4
 
     ###############################
     # Creating continuous GW signal
@@ -921,40 +933,6 @@ def lnprob(xx):
         # Now create total red signal for each pulsar
         kappa.append(np.append(red_kappa_tmp,dm_kappa_tmp))
     
-
-
-
-    '''
-    if args.dmVar:
-        for ii in range(npsr):
-            kappa.append(np.log10( np.append( Ared[ii]**2/12/np.pi**2 * \
-                                              f1yr**(gam_red[ii]-3) * \
-                                              (fqs/86400.0)**(-gam_red[ii])/Tspan,
-                                        Adm[ii]**2/12/np.pi**2 * \
-                                         f1yr**(gam_dm[ii]-3) * \
-                                         (fqs/86400.0)**(-gam_dm[ii])/Tspan ) ))
-    else:
-        for ii in range(npsr):
-
-            if args.fixRed:
-                Ared_tmp = psr[ii].Redamp
-                gam_red_tmp = psr[ii].Redind
-
-                kappa.append(np.log10( Ared_tmp**2/12/np.pi**2 * \
-                                       f1yr**(gam_red_tmp-3) * \
-                                       (fqs/86400.0)**(-gam_red_tmp)/Tspan ))
-
-            if not args.fixRed:
-                if args.redSpecModel == 'powerlaw':
-                    Ared_tmp = Ared[ii]
-                    gam_red_tmp = gam_red[ii]
-                    
-                    kappa.append(np.log10( Ared_tmp**2/12/np.pi**2 * \
-                                           f1yr**(gam_red_tmp-3) * \
-                                           (fqs/86400.0)**(-gam_red_tmp)/Tspan ))
-                elif args.redSpecModel == 'spectrum':
-                    kappa.append(np.log10( 10.0**(2.0*red_spec[ii,:]) / Tspan) )
-    '''
                 
     ###################################
     # construct elements of sigma array
