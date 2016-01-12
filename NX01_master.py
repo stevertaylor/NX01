@@ -501,6 +501,8 @@ if args.incGWB:
             pmin = np.append(pmin,np.tile([0.0,-1.0],tmp_nwins))
         elif args.typeCorr == 'spharmAnis':
             pmin = np.append(pmin,-10.0*np.ones(num_corr_params))
+if args.incGWline:
+    pmin = np.append(pmin,np.array([-8.0,-10.0,0.0,-1.0]))
 if args.det_signal:
     if args.cgw_search:
         pmin = np.append(pmin,np.array([6.0,0.1,0.0,-10.0,
@@ -544,6 +546,8 @@ if args.incGWB:
             pmax = np.append(pmax,np.tile([2.0*np.pi,1.0],tmp_nwins))
         elif args.typeCorr == 'spharmAnis':
             pmax = np.append(pmax,10.0*np.ones(num_corr_params))
+if args.incGWline:
+    pmax = np.append(pmax,np.array([3.0,-7.0,2.0*np.pi,1.0]))
 if args.det_signal:
     if args.cgw_search:
         pmax = np.append(pmax,np.array([10.0,1.0,4.0,-7.0,
@@ -985,12 +989,12 @@ def lnprob(xx):
         
         rho_line = np.zeros(len(fqs))
         idx = np.argmin(np.abs(fqs/86400.0 - freq_gwline))
-        rho_line[idx] = np.log10( 10.0**(2.0*spec_gwline) / Tspan )
+        rho_line[idx] = 10.0**(2.0*spec_gwline) / Tspan 
 
         if args.dmVar:
-            gwline_spec = np.append( 10**rho_line, np.zeros_like(rho_line) )
+            gwline_spec = np.append( rho_line, np.zeros_like(rho_line) )
         else:
-            gwline_spec = 10**rho_line
+            gwline_spec = rho_line
 
         if args.incCorr:
             sig_gwlineoffdiag = []
@@ -1540,7 +1544,7 @@ if args.sampler == 'ptmcmc':
         if args.incCorr:
             cov_diag = np.append(cov_diag,0.05*np.ones(num_corr_params))
     if args.incGWline:
-        cov_diag = np.append(cov_diag,0.1)
+        cov_diag = np.append(cov_diag,np.array([0.1,0.1,0.1,0.1])
     if args.det_signal:
         if args.cgw_search:
             cov_diag = np.append(cov_diag,0.2*np.ones(10))
