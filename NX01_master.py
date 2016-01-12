@@ -144,6 +144,9 @@ parser.add_option('--periEv', dest='periEv', action='store_true', default=False,
                   help='Do you want to model the binary periapsis evolution? (default = False)')
 parser.add_option('--incGWline', dest='incGWline', action='store_true', default=False,
                   help='Do you want to include a single-frequency line in the GW spectrum? (default = False)')
+parser.add_option('--gwlinePrior', dest='gwlinePrior', action='store', type=str, default='uniform',
+                   help='Do you want to use a uniform prior on log_10(rho_line) for detection [loguniform],
+                   on rho_line itself for limits [uniform] (default=\'uniform\')?')
 
 (args, x) = parser.parse_args()
 
@@ -192,6 +195,7 @@ if args.jsonModel is not None:
     args.psrTerm = json_data['psrTerm']
     args.periEv = json_data['periEv']
     args.incGWline = json_data['incGWline']
+    args.gwlinePrior = json_data['gwlinePrior']
 
 
 header = """\
