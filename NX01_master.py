@@ -80,15 +80,17 @@ parser.add_option('--resume', dest='resume', action='store_true', default='False
 parser.add_option('--incGWB', dest='incGWB', action='store_true', default=False,
                   help='Do you want to search for a GWB? (default = False)')
 parser.add_option('--gwbSpecModel', dest='gwbSpecModel', action='store', type=str, default='powerlaw',
-                  help='What kind of spectral model do you want for the GWB: powerlaw, spectrum, turnover, gpEnvInterp (default = powerlaw)')
+                  help='What kind of spectral model do you want for the GWB?: powerlaw, spectrum, turnover, gpEnvInterp (default = powerlaw)')
+parser.add_option('--incCosVar', dest='incCosVar', action='store_true', default=False,
+                  help='Do you want to include GP interpolation uncertainties or cosmic variance in your gpEnvInterp model? (default = False)')
 parser.add_option('--incCorr', dest='incCorr', action='store_true', default=False,
                   help='Do you want to include cross-correlations in the GWB model? (default = False)')
 parser.add_option('--typeCorr', dest='typeCorr', action='store', type=str, default='spharmAnis',
                   help='What type of correlated GW signal do you want to model?: spharmAnis, modelIndep, pointSrc (default = spharmAnis)')
 parser.add_option('--redSpecModel', dest='redSpecModel', action='store', type=str, default='powerlaw',
-                  help='What kind of spectral model do you want for red timing-noise: powerlaw, spectrum (default = powerlaw)')
+                  help='What kind of spectral model do you want for red timing-noise?: powerlaw, spectrum (default = powerlaw)')
 parser.add_option('--dmSpecModel', dest='dmSpecModel', action='store', type=str, default='powerlaw',
-                  help='What kind of spectral model do you want for DM variations: powerlaw, spectrum (default = powerlaw)')
+                  help='What kind of spectral model do you want for DM variations?: powerlaw, spectrum (default = powerlaw)')
 parser.add_option('--dirExt', dest='dirExt', action='store', type=str, default='./chains_nanoAnalysis/',
                   help='What master directory name do you want to put this run into? (default = ./chains_nanoAnalysis/)')
 parser.add_option('--nwins', dest='nwins', action='store', type=int, default=1,
@@ -162,6 +164,7 @@ if args.jsonModel is not None:
     args.resume = json_data['resume']
     args.incGWB = json_data['incGWB']
     args.gwbSpecModel = json_data['gwbSpecModel']
+    args.incCosVar = json_data['incCosVar']
     args.incCorr = json_data['incCorr']
     args.redSpecModel = json_data['redSpecModel']
     args.dmSpecModel = json_data['dmSpecModel']
@@ -638,7 +641,7 @@ def lnprob(xx):
             param_ct += 3
         elif args.gwbSpecModel == 'gpEnvInterp':
             Agwb = 10.0**xx[param_ct]
-            ecc = xx[param_ct]
+            ecc = xx[param_ct+1]
             param_ct += 2
 
         if args.incCorr:
@@ -990,10 +993,13 @@ def lnprob(xx):
                            (1.0+(fbend*86400.0/fqs)**kappa)/Tspan)
         elif args.gwbSpecModel == 'gpEnvInterp':
             hc_pred = np.zeros(len(fqs))
-            #sigma = np.zeros_like(y_pred)
+            #sigma = np.zeros_like(hc_pred)
             for ii,freq in enumerate(fqs):
-                hc_pred[ii], mse = gp[ii].predict(ecc, eval_MSE=True)
-                #sigma[ii,:] = np.sqrt(mse)
+                if not args.incCosVar:
+                    hc_pred[ii], mse = gp[ii].predict(ecc, eval_MSE=True)
+                    #sigma[ii] = np.sqrt(mse)
+                #if args.incCosVar:
+                # random draw from GP...not implemented yet
             hc = Agwb * hc_pred
             rho = np.log10( hc**2 / (12.0*np.pi**2.0) / (fqs/86400.0)**3.0 / Tspan )
 
