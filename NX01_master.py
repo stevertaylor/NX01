@@ -81,6 +81,8 @@ parser.add_option('--incGWB', dest='incGWB', action='store_true', default=False,
                   help='Do you want to search for a GWB? (default = False)')
 parser.add_option('--gwbSpecModel', dest='gwbSpecModel', action='store', type=str, default='powerlaw',
                   help='What kind of spectral model do you want for the GWB?: powerlaw, spectrum, turnover, gpEnvInterp (default = powerlaw)')
+parser.add_option('--gpPickle', dest='gpPickle', action='store', type=str, default='/Users/staylor/Research/PapersInProgress/NPDE/gp4ptas/ecc_gp.pkl',
+                  help='Provide the pickle file storing the list of GP objects for when gwbSpecModel is gpEnvInterp (default = /Users/staylor/Research/PapersInProgress/NPDE/gp4ptas/ecc_gp.pkl)')
 parser.add_option('--incCosVar', dest='incCosVar', action='store_true', default=False,
                   help='Do you want to include GP interpolation uncertainties or cosmic variance in your gpEnvInterp model? (default = False)')
 parser.add_option('--incCorr', dest='incCorr', action='store_true', default=False,
@@ -164,6 +166,7 @@ if args.jsonModel is not None:
     args.resume = json_data['resume']
     args.incGWB = json_data['incGWB']
     args.gwbSpecModel = json_data['gwbSpecModel']
+    args.incCosVar = json_data['gpPickle']
     args.incCosVar = json_data['incCosVar']
     args.incCorr = json_data['incCorr']
     args.redSpecModel = json_data['redSpecModel']
@@ -407,7 +410,7 @@ if args.det_signal:
 
 gp = None
 if args.incGWB and args.gwbSpecModel == 'gpEnvInterp':
-    gp = pickle.load( open( "/Users/staylor/Research/PapersInProgress/NPDE/gp4ptas/ecc_gp.pkl", "rb" ) )
+    gp = pickle.load( open( args.gpPickle, "rb" ) )
 
 #######################################
 # PRE-COMPUTING WHITE NOISE PROPERTIES 
