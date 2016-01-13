@@ -11,6 +11,7 @@ Code contributions by Rutger van Haasteren (piccard) and Justin Ellis (PAL/PAL2)
 from __future__ import division
 import os, math, optparse, time, cProfile
 import json
+import cPickle as pickle
 from time import gmtime, strftime
 from collections import OrderedDict
 import h5py as h5
@@ -397,6 +398,14 @@ if args.det_signal:
     tt = [np.min(p.toas) for p in psr]
     tref = np.min(tt)
 
+############################################
+# READ IN PICKLED GAUSSIAN PROCESS INSTANCE
+############################################
+
+gp = None
+if args.incGWB and args.gwbSpecModel == 'gpEnvInterp':
+    gp = pickle.load( open( "/Users/staylor/Research/PapersInProgress/NPDE/gp4ptas/ecc_gp.pkl", "rb" ) )
+
 #######################################
 # PRE-COMPUTING WHITE NOISE PROPERTIES 
 #######################################
@@ -537,7 +546,7 @@ if args.incGWB:
     elif args.gwbSpecModel == 'turnover':
         pmax = np.append(pmax,np.array([-11.0,7.0,-7.0]))
     elif args.gwbSpecModel == 'gpEnvInterp':
-        pmin = np.append(pmin,np.array([-11.0,0.9]))
+        pmax = np.append(pmax,np.array([-11.0,0.9]))
     if args.incCorr:
         if args.typeCorr == 'modelIndep':
             pmax = np.append(pmax,np.pi*np.ones(num_corr_params))
@@ -980,7 +989,7 @@ def lnprob(xx):
                            (fqs/86400.0)**(-13.0/3.0) / \
                            (1.0+(fbend*86400.0/fqs)**kappa)/Tspan)
         elif args.gwbSpecModel == 'gpEnvInterp':
-            hc_pred = np.zeros(len(fk))
+            hc_pred = np.zeros(len(fqs))
             #sigma = np.zeros_like(y_pred)
             for ii,freq in enumerate(fqs):
                 hc_pred[ii], mse = gp[ii].predict(ecc, eval_MSE=True)
@@ -1686,6 +1695,9 @@ if args.sampler == 'ptmcmc':
             print >>fil, ii, parm
         fil.close()
 
+        # Printing out the array of frequencies in the rank-reduced spectrum
+        np.save(args.dirExt+file_tag+'/freq_array.npy', fqs/86400.0)
+
         # Saving command-line arguments to file
         with open(args.dirExt+file_tag+'/run_args.json', 'w') as fp:
             json.dump(vars(args), fp)
@@ -1996,7 +2008,7 @@ if args.sampler == 'ptmcmc':
             sig = 0.22
             q[pct] = mu + np.random.randn() * sig
             qxy -= (mu - parameters[pct]) ** 2 / 2 / \
-              sig ** 2 - (mu - q[pct]) ** 2 / 2 / s ** 2
+              sig ** 2 - (mu - q[pct]) ** 2 / 2 / sig ** 2
 
         elif args.gwbPrior == 'mcwilliams':
 
@@ -2004,7 +2016,7 @@ if args.sampler == 'ptmcmc':
             sig = 0.26
             q[pct] = mu + np.random.randn() * sig
             qxy -= (mu - parameters[pct]) ** 2 / 2 / \
-              sig ** 2 - (mu - q[pct]) ** 2 / 2 / s ** 2
+              sig ** 2 - (mu - q[pct]) ** 2 / 2 / sig ** 2
 
         # eccentricity
         q[pct+1] = np.random.uniform(pmin[pct+1], pmax[pct+1])
