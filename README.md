@@ -101,7 +101,7 @@ ephem`.
 15. [EXTRA] If you want to make use of the NX01 GUI, you will need to install ipython widgets as follows: `conda install ipywidgets`.
 16. [EXTRA] Open `NX01_GUI.ipynb` and execute the cells. This will produce an
     interactive GUI, allowing you to check boxes or enter options for
-    your model. Clocking `Store Model` will create a json file called
+    your model. Clicking `Store Model` will create a json file called
     `mymodel.json` in the NX01 directory. Clicking `Engage` will begin
     running the analysis with output piped into the notebook
     cell. Alternatively you can take the json file and upload to your
