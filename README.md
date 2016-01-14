@@ -96,8 +96,7 @@ ephem`.
     the following:
 		    
 			import NX01_bayesutils as bu
-			upper_lim = bu.confinterval(Agwb_samples, sigma=x/100,
-			onesided=True)[1]
+			upper_lim = bu.confinterval(Agwb_samples, sigma=x/100, onesided=True)[1]
 15. If you want to make a few summary plots, you can use
 `NX01_processResults.py`. Execute `python NX01_processResults.py
 --help` to see the options available to you. An example command is
