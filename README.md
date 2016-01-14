@@ -92,7 +92,7 @@ ephem`.
     columns of `chain_1.txt` where one can find the parameters of the
     second column.
 14. After identifying the column of `chain_1.txt` which corresponds to
-    `Agwb`, you can get an <math>x\%</math> upper limit by executing
+    `Agwb`, you can get an $x\%$ upper limit by executing
     the following:
 ```
 import NX01_bayesutils as bu
