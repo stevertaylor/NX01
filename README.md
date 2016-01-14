@@ -69,8 +69,19 @@ ephem`.
    par and tim data. The end result should produce a directory
    containing `hdf5` files for all NANOGrav pulsars in the dataset.
 10. Copy `PsrListings_GWB.txt` to a new file for your own specific
-    use. Edits the paths to the `hdf5` files, `par` files, and `tim`
+    use. Edit the paths to the `hdf5` files, `par` files, and `tim`
     files to reflect where you have stored them on your machine.
+11. Execute `python NX01_master.py --help` to see all of the options
+    available to you. These are quite extensive, and are being
+    actively updated and improved.
+12. To run an analysis which will recover the upper limit on the
+    dimensionless strain amplitude which matches that reported in the
+    [NANOGrav 9-year limit paper](http://arxiv.org/abs/1508.03024), execute
+```
+python NX01_master.py --from-h5
+--psrlist=./PsrListings_GWB.txt --nmodes=15
+--incGWB --fix-slope --psrEndIndex=18
+```
 
 ## Preliminaries
 
