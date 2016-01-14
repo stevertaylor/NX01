@@ -37,7 +37,12 @@ information in the pulsar class. Useful for storing array products.
    installation process, copy T2runtime to a
    location of your choice. When you set the TEMPO2 environment
    variable, make sure to also add it to your bashrc file, and reload
-   your bashrc file (`source ~/.bashrc`) to reflect the environment change.
+   your bashrc file (`source ~/.bashrc`) to reflect the environment
+   change.
+3. After installing tempo2, you may also need to add the tempo2
+   libraries to your library path. Do so by adding `export
+   LD_LIBRARY_PATH=$TEMPO2/lib` to your bashrc file, and reload the
+   bashrc file to reflect your changes.
 
 ## Preliminaries
 
