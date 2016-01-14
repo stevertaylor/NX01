@@ -23,13 +23,13 @@ storing all relevant variables.
 information in the pulsar class. Useful for storing array products.
 * **NX01_jitter.pxy**: cython code to perform Sherman-Morrison
   block noise-matrix inversions when handling ECORR (jitter). 
-  * **NX01_bayesutils.py**: utilities file for generating plotting data.
+* **NX01_bayesutils.py**: utilities file for generating plotting data.
 
 ## Getting things installed (from scratch)
 
 1. Make sure you have a good python installation with a comprehensive
-   collection of popular modules. I suggest Anaconda
-   [webpage](https://www.continuum.io/downloads).
+   collection of popular modules. I suggest
+   [Anaconda](https://www.continuum.io/downloads).
 2. 
 
 ## Preliminaries
