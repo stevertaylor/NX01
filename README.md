@@ -30,7 +30,11 @@ information in the pulsar class. Useful for storing array products.
 1. Make sure you have a good python installation with a comprehensive
    collection of popular modules. I suggest
    [Anaconda](https://www.continuum.io/downloads), which has a large
-   set of modules that we need.
+   set of modules that we need. If you don't want to mess with your
+   existing python installation, then I suggest you proceed with the
+   following steps, resolving module errors as they are encountered by
+   either finding the relevant module git repository or trying `pip
+   install [...]`.
 2. Download a recent version of
    [tempo2](https://bitbucket.org/psrsoft/tempo2). The download
    website has quite a good installation guide. During the
