@@ -76,12 +76,18 @@ ephem`.
     actively updated and improved.
 12. To run an analysis which will recover the upper limit on the
     dimensionless strain amplitude which matches that reported in the
-    [NANOGrav 9-year limit paper](http://arxiv.org/abs/1508.03024), execute
-```
-python NX01_master.py --from-h5
---psrlist=./PsrListings_GWB.txt --nmodes=15
---incGWB --fix-slope --psrEndIndex=18
-```
+    [NANOGrav 9-year limit paper](http://arxiv.org/abs/1508.03024),
+    execute `python NX01_master.py --from-h5
+    --psrlist=./PsrListings_GWB.txt --nmodes=15 --incGWB --fix-slope
+    --psrEndIndex=18 --dirExt=./chains_firsttests/`.
+13. This will initiate a run, producing a parent directory
+    `chains_firsttests`, and run-specific sub-directory.  This
+    sub-directory will contain MCMC sample files and many auxillary
+    files, amongst which is `parameter_list.txt`. This contains two
+    columns -- the first is a list of indices corresponding to
+    columns of `chain_1.txt` where one can find the parameters of the
+    second column.
+
 
 ## Preliminaries
 
