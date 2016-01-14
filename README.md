@@ -88,10 +88,16 @@ ephem`.
     `chains_firsttests`, and run-specific sub-directory.  This
     sub-directory will contain MCMC sample files and many auxillary
     files, amongst which is `parameter_list.txt`. This contains two
-    columns -- the first is a list of indices corresponding to
+    columns; the first is a list of indices corresponding to
     columns of `chain_1.txt` where one can find the parameters of the
     second column.
-
+14. After identifying the column of `chain_1.txt` which corresponds to
+    `Agwb`, you can get an <math>x\%</math> upper limit by executing
+    the following:
+```
+import NX01_bayesutils as bu
+upper_lim = bu.confinterval(Agwb_samples, sigma=x/100, onesided=True)
+```
 
 ## Preliminaries
 
