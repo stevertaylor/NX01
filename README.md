@@ -90,10 +90,10 @@ An example run command would be:
 ```
 python NX01_master.py --from-h5
 --psrlist=./PsrListings_GWB.txt --nmodes=15
---incGWB --fix-slope --num_psrs=18 --fullN
+--incGWB --fix-slope --psrEndIndex=18
 ```
 which will perform a GW background upper-limit analysis (without
-correlations...to include correlations add `--incCorr`) on the 18 pulsars analyzed in the 9-year NANOGrav limit paper.
+correlations...to include correlations add `--incCorr`) with PTMCMC on the 18 pulsars analyzed in the 9-year NANOGrav limit paper.
 
-As in the single-pulsar analysis case, you can use MPI for the PTMCMC,
-however MultiNest functionality is not yet ready.
+As in the single-pulsar analysis case, you can use MPI for both PTMCMC
+and MultiNest samplers.
