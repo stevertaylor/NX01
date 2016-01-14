@@ -49,6 +49,11 @@ information in the pulsar class. Useful for storing array products.
    want to store software on your machine, and install with `python
    setup.py install --with-tempo2=$TEMPO2`. If needed, more complete
    instructions can be found at `http://vallis.github.io/libstempo/`.
+5. For NANOGrav analyses, download the
+   [dataset](http://data.nanograv.org/) and follow the instructions in
+   README.clock to update your tempo2 clock files. Note that the
+   instructions tell you to copy `gbt2gps.dat` but the file is
+   actually `gbt2gps.clk`. 
 
 ## Preliminaries
 
