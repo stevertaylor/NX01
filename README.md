@@ -29,8 +29,15 @@ information in the pulsar class. Useful for storing array products.
 
 1. Make sure you have a good python installation with a comprehensive
    collection of popular modules. I suggest
-   [Anaconda](https://www.continuum.io/downloads).
-2. 
+   [Anaconda](https://www.continuum.io/downloads), which has a large
+   set of modules that we need.
+2. Download a recent version of
+   [tempo2](https://bitbucket.org/psrsoft/tempo2). The download
+   website has quite a good installation guide. During the
+   installation process, copy T2runtime to a
+   location of your choice. When you set the TEMPO2 environment
+   variable, make sure to also add it to your bashrc file, and reload
+   your bashrc file (`source ~/.bashrc`) to reflect the environment change.
 
 ## Preliminaries
 
