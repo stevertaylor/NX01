@@ -39,7 +39,7 @@ information in the pulsar class. Useful for storing array products.
    variable, make sure to also add it to your bashrc file, and reload
    your bashrc file (`source ~/.bashrc`) to reflect the environment
    change.
-3. After installing tempo2, you may also need to add the tempo2
+3. After installing `tempo2`, you may also need to add the `tempo2`
    libraries to your library path. Do so by adding `export
    LD_LIBRARY_PATH=$TEMPO2/lib` to your bashrc file, and reload the
    bashrc file to reflect your changes.
@@ -59,7 +59,10 @@ information in the pulsar class. Useful for storing array products.
    explore the signal and noise parameter space. As before, clone with
    `git clone https://github.com/jellis18/PTMCMCSampler.git` and
    install with `python setup.py install`.
-7. Install the python `ephem` package by executing `conda install ephem`.
+7. Install the python `ephem` package by executing `conda install
+ephem`.
+8. Download [NX01](https://github.com/stevertaylor/NX01.git) by
+   cloning the repository -- `git clone https://github.com/stevertaylor/NX01.git`.
 
 ## Preliminaries
 
