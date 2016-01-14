@@ -98,6 +98,9 @@ ephem`.
 import NX01_bayesutils as bu
 upper_lim = bu.confinterval(Agwb_samples, sigma=x/100, onesided=True)[1]
 ```
+15. If you want to make use of the NX01 GUI, you will need to install
+ipython widgets as follows: `conda install ipywidgets`.
+
 
 ## Preliminaries
 
