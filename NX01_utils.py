@@ -1162,6 +1162,7 @@ def real_sph_harm(ll, mm, phi, theta):
     """
     The real-valued spherical harmonics
     (adapted from van Haasteren's piccard code)
+    
     """
     
     if mm>0:
@@ -1183,6 +1184,7 @@ def SetupPriorSkyGrid(lmax):
     Check whether these anisotropy coefficients correspond to a physical
     angular-distribution of the metric-perturbation quadratic
     expectation-value.
+    
     """
     
     ngrid_phi = 40
@@ -1205,6 +1207,7 @@ def PhysPrior(clm,harm_sky_vals):
     Check whether these anisotropy coefficients correspond to a physical
     angular-distribution of the metric-perturbation quadratic
     expectation-value.
+    
     """
 
     Pdist=0.
@@ -1223,6 +1226,7 @@ def SetupSkymapPlottingGrid(lmax,skypos):
     Compute the real spherical harmonics
     on a sky-grid defined by healpy for
     plotting purposes.
+    
     """
     
     harmvals = [[0.0]*(2*ll+1) for ll in range(lmax+1)]
@@ -1236,6 +1240,7 @@ def SetupSkymapPlottingGrid(lmax,skypos):
 def GWpower(clm,harmvals):
     """
     Construct the GW power flowing into each pixel
+    
     """
 
     Pdist=0.
@@ -1245,6 +1250,7 @@ def GWpower(clm,harmvals):
     
     return Pdist
 
+'''
 def singlePsrLL(psr, Amp=5e-14, gam_gwb=13./3.):
     ######################################
     # Calculate the GW covariance matrix
@@ -1452,24 +1458,24 @@ def AnisOptStat(psr, GCGnoiseInv, CorrCoeff, lmax, gam_gwb=4.33333):
             fisher[alpha,beta] = np.sum(np.triu(orf_grid*weight, 1))
 
     invFisher = sl.pinv(fisher)
-    '''
-    u,s,v = sl.svd(fisher)
-    print s
-    sold = s
-    try:
-        max_ind = np.where(s < 1e-4*s[0])[0][0] #will need to perform injections and recovery to justify this eigenvalue cutoff
-    except IndexError:
-        max_ind = len(s)
-    s = s[:max_ind]
-    u = u[:,:max_ind]
-    v = v[:max_ind,:]
-    invFisher = np.dot(v.T, np.dot(np.diag(1./s), u.T))
-    '''
+    
+    #u,s,v = sl.svd(fisher)
+    #print s
+    #sold = s
+    #try:
+    #    max_ind = np.where(s < 1e-4*s[0])[0][0] #will need to perform injections and recovery to justify this eigenvalue cutoff
+    #except IndexError:
+    #    max_ind = len(s)
+    #s = s[:max_ind]
+    #u = u[:,:max_ind]
+    #v = v[:max_ind,:]
+    #invFisher = np.dot(v.T, np.dot(np.diag(1./s), u.T))
+    
     P = np.dot(invFisher, X)
 
     return P, invFisher, np.linalg.slogdet(fisher) #, sold
 
-
+'''
 
    
 
