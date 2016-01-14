@@ -53,7 +53,13 @@ information in the pulsar class. Useful for storing array products.
    [dataset](http://data.nanograv.org/) and follow the instructions in
    README.clock to update your tempo2 clock files. Note that the
    instructions tell you to copy `gbt2gps.dat` but the file is
-   actually `gbt2gps.clk`. 
+   actually `gbt2gps.clk`.
+6. Install [PTMCMCSampler](https://github.com/jellis18/PTMCMCSampler),
+   which is the main sampler we use to
+   explore the signal and noise parameter space. As before, clone with
+   `git clone https://github.com/jellis18/PTMCMCSampler.git` and
+   install with `python setup.py install`.
+7. Install the python `ephem` package by executing `conda install ephem`.
 
 ## Preliminaries
 
