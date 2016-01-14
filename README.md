@@ -16,7 +16,7 @@ Perhaps you want the [webpage](http://stevertaylor.github.io/NX01/)?
 * **NX01_AnisCoefficients.py**: utility file to create power-anisotropy
   basis-functions.
 * **NX01_utils.py**: utility file.
-* **NX01_plot.py**: plotting package, adapted and extended from PAL.
+* **NX01_processResults.py**: plotting script, adapted and extended from PAL.
 * **NX01_psr.py**: utility file which defines the pulsar class for
 storing all relevant variables.
 * **NX01_datafile.py**: creates an hdf5 container to store all the
@@ -96,10 +96,15 @@ ephem`.
     the following:
 		    
 			import NX01_bayesutils as bu
-			upper_lim = bu.confinterval(Agwb_samples, sigma=x/100, onesided=True)[1]
-			
-15. [EXTRA] If you want to make use of the NX01 GUI, you will need to install ipython widgets as follows: `conda install ipywidgets`.
-16. [EXTRA] Open `NX01_GUI.ipynb` and execute the cells. This will produce an
+			upper_lim = bu.confinterval(Agwb_samples, sigma=x/100,
+			onesided=True)[1]
+15. If you want to make a few summary plots, you can use
+`NX01_processResults.py`. Execute `python NX01_processResults.py
+--help` to see the options available to you. An example command is
+`python NX01_processResults.py
+--parentpath=/home/user/NX01/chains_firsttests --chaindir=nanograv_gwbdetect_noCorr_gam4p33_reddetectpowerlaw_nmodes15`
+16. [EXTRA] If you want to make use of the NX01 GUI, you will need to install ipython widgets as follows: `conda install ipywidgets`.
+17. [EXTRA] Open `NX01_GUI.ipynb` and execute the cells. This will produce an
     interactive GUI, allowing you to check boxes or enter options for
     your model. Clicking `Store Model` will create a json file called
     `mymodel.json` in the NX01 directory. Clicking `Engage` will begin
