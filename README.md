@@ -43,6 +43,12 @@ information in the pulsar class. Useful for storing array products.
    libraries to your library path. Do so by adding `export
    LD_LIBRARY_PATH=$TEMPO2/lib` to your bashrc file, and reload the
    bashrc file to reflect your changes.
+4. Install [libstempo](https://github.com/vallis/libstempo), which is
+   our python interface to tempo2. You can clone the repository (`git
+   clone https://github.com/vallis/libstempo.git`) to wherever you
+   want to store software on your machine, and install with `python
+   setup.py install --with-tempo2=$TEMPO2`. If needed, more complete
+   instructions can be found at `http://vallis.github.io/libstempo/`.
 
 ## Preliminaries
 
