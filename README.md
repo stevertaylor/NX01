@@ -98,8 +98,8 @@ ephem`.
 			import NX01_bayesutils as bu
 			upper_lim = bu.confinterval(Agwb_samples, sigma=x/100, onesided=True)[1]
 			
-15. If you want to make use of the NX01 GUI, you will need to install ipython widgets as follows: `conda install ipywidgets`.
-16. Open `NX01_GUI.ipynb` and execute the cells. This will produce an
+15. [EXTRA] If you want to make use of the NX01 GUI, you will need to install ipython widgets as follows: `conda install ipywidgets`.
+16. [EXTRA] Open `NX01_GUI.ipynb` and execute the cells. This will produce an
     interactive GUI, allowing you to check boxes or enter options for
     your model. Clocking `Store Model` will create a json file called
     `mymodel.json` in the NX01 directory. Clicking `Engage` will begin
