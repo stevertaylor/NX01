@@ -413,7 +413,7 @@ if args.det_signal:
 
 gp = None
 if args.incGWB:
-    if args.gwbSpecModel == 'gpEnvInterp' or args.gwbPrior == 'gaussProc':
+    if args.gwbPrior == 'gaussProc':
         gp = pickle.load( open( args.gpPickle, "rb" ) )
 
 #######################################
@@ -510,6 +510,8 @@ if args.incGWB:
             pmin = np.append(pmin,np.array([-18.0,0.0]))
     elif args.gwbSpecModel == 'turnover':
         pmin = np.append(pmin,np.array([-18.0,0.0,-9.0]))
+        if args.gwbPrior == 'gaussProc':
+            pmin = np.append(pmin,0.0)
     elif args.gwbSpecModel == 'gpEnvInterp':
         pmin = np.append(pmin,np.array([-18.0,0.0]))
     if args.incCorr:
@@ -559,6 +561,8 @@ if args.incGWB:
             pmax = np.append(pmax,np.array([-11.0,0.9]))
     elif args.gwbSpecModel == 'turnover':
         pmax = np.append(pmax,np.array([-11.0,7.0,-7.0]))
+        if args.gwbPrior == 'gaussProc':
+            pmax = np.append(pmax,0.9)
     elif args.gwbSpecModel == 'gpEnvInterp':
         pmax = np.append(pmax,np.array([-11.0,0.9]))
     if args.incCorr:
@@ -651,9 +655,12 @@ def lnprob(xx):
                 param_ct += 2
         elif args.gwbSpecModel == 'turnover':
             Agwb = 10.0**xx[param_ct]
-            kappa = xx[param_ct+1]
+            kappaturn = xx[param_ct+1]
             fbend = 10.0**xx[param_ct+2]
             param_ct += 3
+            if args.gwbPrior == 'gaussProc':
+                ecc = xx[param_ct]
+                param_ct += 1
         elif args.gwbSpecModel == 'gpEnvInterp':
             Agwb = 10.0**xx[param_ct]
             ecc = xx[param_ct+1]
@@ -1005,7 +1012,7 @@ def lnprob(xx):
             rho = np.log10(Agwb**2/12/np.pi**2 * \
                            f1yr**(13.0/3.0-3.0) * \
                            (fqs/86400.0)**(-13.0/3.0) / \
-                           (1.0+(fbend*86400.0/fqs)**kappa)/Tspan)
+                           (1.0+(fbend*86400.0/fqs)**kappaturn)/Tspan)
         elif args.gwbSpecModel == 'gpEnvInterp':
             hc_pred = np.zeros((len(fqs),2))
             for ii,freq in enumerate(fqs):
@@ -1346,6 +1353,32 @@ def lnprob(xx):
                 sig = 0.26
                 priorfac_gwb = np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
                                     / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
+            elif args.gwbPrior == 'gaussProc':
+                hc_pred = np.zeros((len(fqs),2))
+                for ii,freq in enumerate(fqs):
+                    hc_pred[ii,0], mse = gp[ii].predict(ecc, eval_MSE=True)
+                    hc_pred[ii,1] = np.sqrt(mse)
+                    
+                hc_turn = (fqs/86400.0/f1yr)**(-2./3.) / np.sqrt(1.0+(fbend*86400.0/fqs)**kappaturn)
+                        
+                priorfac_gwb = np.sum( np.log( np.exp(-0.5 * (hc_pred[:,0]-hc_turn)**2.0 / hc_pred[:,1]**2.0)
+                                               / np.sqrt(2.0*np.pi*hc_pred[:,1]**2.0) ) )
+
+                ### adding hyper prior on strain amplitude ###
+                if args.gwbHyperPrior == 'uniform':
+                    priorfac_gwb += np.log(Agwb * np.log(10.0))
+                elif args.gwbHyperPrior == 'loguniform':
+                    priorfac_gwb += 0.0
+                elif args.gwbHyperPrior == 'sesana':
+                    mu = -15.0
+                    sig = 0.22
+                    priorfac_gwb += np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
+                                        / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
+                elif args.gwbHyperPrior == 'mcwilliams':
+                    mu = -14.4
+                    sig = 0.26
+                    priorfac_gwb += np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
+                                        / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
 
         ### gp interpolation spectral model ###
         elif args.gwbSpecModel == 'gpEnvInterp':
@@ -1452,6 +1485,8 @@ if args.incGWB:
             parameters += ["Agwb", "ecc"]
     elif args.gwbSpecModel == 'turnover':
         parameters += ["Agwb", "kappa", "fbend"]
+        if args.gwbPrior == 'gaussProc':
+            parameters.append("ecc")
     elif args.gwbSpecModel == 'gpEnvInterp':
         parameters += ["Agwb", "ecc"]
     if args.incCorr:
@@ -1492,7 +1527,7 @@ if rank==0:
 
 # Define a unique file tag
 
-file_tag = 'nanograv'
+file_tag = 'pta'
 if args.incGWB:
     if args.gwbSpecModel == 'powerlaw':
         if args.fix_slope:
@@ -1505,6 +1540,8 @@ if args.incGWB:
             gamma_tag += 'Hyper{0}'.format(args.gwbHyperPrior)
     elif args.gwbSpecModel == 'turnover':
         gamma_tag = '_gwbTurnover'
+        if args.gwbPrior == 'gaussProc':
+            gamma_tag += 'Hyper{0}'.format(args.gwbHyperPrior)
     elif args.gwbSpecModel == 'gpEnvInterp':
         gamma_tag = '_gwbGP'
         if args.incCosVar:
@@ -1629,9 +1666,21 @@ if args.sampler == 'ptmcmc':
         elif args.gwbSpecModel == 'spectrum':
             x0 = np.append(x0,np.random.uniform(-7.0,-3.0,nmode))
             if args.gwbPrior == 'gaussProc':
-                x0 = np.append(x0,np.array([-15.0,0.2]))
+                '''
+                gpstart = np.array([-15.0,0.2])
+                hc_start = np.zeros(len(fqs))
+                for ii,freq in enumerate(fqs):
+                    hc_start[ii], mse = gp[ii].predict(gpstart[1], eval_MSE=True)
+                hc_start *= 10.0**gpstart[0]
+                rho_start = np.log10( np.sqrt(hc_start**2 / (12.0*np.pi**2.0) / (fqs/86400.0)**3.0) )
+                x0 = np.append(x0,rho_start)
+                x0 = np.append(x0,gpstart)
+                '''
+                x0 = np.append(x0,np.array([-15.0,0.8]))
         elif args.gwbSpecModel == 'turnover':
             x0 = np.append(x0,np.array([-15.0,13./3.,-8.0]))
+            if args.gwbPrior == 'gaussProc':
+                x0 = np.append(x0,0.6)
         elif args.gwbSpecModel == 'gpEnvInterp':
             x0 = np.append(x0,np.array([-15.0,0.2]))
         if args.incCorr:
@@ -1677,11 +1726,13 @@ if args.sampler == 'ptmcmc':
             if not args.fix_slope:
                 cov_diag = np.append(cov_diag,0.5)
         elif args.gwbSpecModel == 'spectrum':
-            cov_diag = np.append(cov_diag,0.05*np.ones(nmode))
+            cov_diag = np.append(cov_diag,0.5*np.ones(nmode))
             if args.gwbPrior == 'gaussProc':
                 cov_diag = np.append(cov_diag,np.array([0.5,0.05]))
         elif args.gwbSpecModel == 'turnover':
             cov_diag = np.append(cov_diag,np.array([0.5,0.5,0.1]))
+            if args.gwbPrior == 'gaussProc':
+                cov_diag = np.append(cov_diag,0.05)
         elif args.gwbSpecModel == 'gpEnvInterp':
             cov_diag = np.append(cov_diag,np.array([0.5,0.05]))
         if args.incCorr:
@@ -1745,17 +1796,25 @@ if args.sampler == 'ptmcmc':
                 param_ct += 2
             [ind.append(id) for id in ids]
         elif args.gwbSpecModel == 'spectrum':
-            ids = [np.arange(param_ct,param_ct+nmode)]
-            [ind.append(id) for id in ids]
+            ids_spec = [np.arange(param_ct,param_ct+nmode)]
+            [ind.append(id) for id in ids_spec]
             param_ct += nmode
             if args.gwbPrior == 'gaussProc':
-                ids = [np.arange(param_ct,param_ct+2)]
-                [ind.append(id) for id in ids]
+                ids_gp = [np.arange(param_ct,param_ct+2)]
+                [ind.append(id) for id in ids_gp]
                 param_ct += 2
+            ids_both_low = [np.append(ids_spec[0][0],ids_gp[0])]
+            ids_both_high = [np.append(ids_spec[0][1:],ids_gp[0][0])]
+            [ind.append(id) for id in ids_both_low]
+            [ind.append(id) for id in ids_both_high]
         elif args.gwbSpecModel == 'turnover':
             ids = [np.arange(param_ct,param_ct+3)]
             [ind.append(id) for id in ids]
             param_ct += 3
+            if args.gwbPrior == 'gaussProc':
+                ids = [[param_ct]]
+                [ind.append(id) for id in ids]
+                param_ct += 1
         elif args.gwbSpecModel == 'gpEnvInterp':
             ids = [np.arange(param_ct,param_ct+2)]
             [ind.append(id) for id in ids]
@@ -2056,13 +2115,13 @@ if args.sampler == 'ptmcmc':
             sig = 0.22
             q[pct] = mu + np.random.randn() * sig
             qxy -= (mu - parameters[pct]) ** 2 / 2 / \
-              sig ** 2 - (mu - q[pct]) ** 2 / 2 / s ** 2
+              sig ** 2 - (mu - q[pct]) ** 2 / 2 / sig ** 2
         elif args.gwbPrior == 'mcwilliams':
             mu = -14.4
             sig = 0.26
             q[pct] = mu + np.random.randn() * sig
             qxy -= (mu - parameters[pct]) ** 2 / 2 / \
-              sig ** 2 - (mu - q[pct]) ** 2 / 2 / s ** 2
+              sig ** 2 - (mu - q[pct]) ** 2 / 2 / sig ** 2
 
         # kappa
         q[pct+1] = np.random.uniform(pmin[pct+1], pmax[pct+1])
@@ -2071,7 +2130,12 @@ if args.sampler == 'ptmcmc':
         # fbend
         q[pct+2] = np.random.uniform(pmin[pct+2], pmax[pct+2])
         qxy += 0
-        
+
+        # eccentricity
+        if args.gwbPrior == 'gaussProc':
+            q[pct+3] = np.random.uniform(pmin[pct+3], pmax[pct+3])
+            qxy += 0
+            
         return q, qxy
 
     def drawFromGWBGaussProcPrior(parameters, iter, beta):
