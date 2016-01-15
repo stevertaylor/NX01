@@ -1007,15 +1007,16 @@ def lnprob(xx):
                            (fqs/86400.0)**(-13.0/3.0) / \
                            (1.0+(fbend*86400.0/fqs)**kappa)/Tspan)
         elif args.gwbSpecModel == 'gpEnvInterp':
-            hc_pred = np.zeros(len(fqs))
-            #sigma = np.zeros_like(hc_pred)
+            hc_pred = np.zeros((len(fqs),2))
             for ii,freq in enumerate(fqs):
-                if not args.incCosVar:
-                    hc_pred[ii], mse = gp[ii].predict(ecc, eval_MSE=True)
-                    #sigma[ii] = np.sqrt(mse)
-                #if args.incCosVar:
-                # random draw from GP...not implemented yet
-            hc = Agwb * hc_pred
+                hc_pred[ii,0], mse = gp[ii].predict(ecc, eval_MSE=True)
+                hc_pred[ii,1] = np.sqrt(mse)
+
+            if not args.incCosVar:
+                hc = Agwb * hc_pred[:,0]
+            elif args.incCosVar:
+                hc = Agwb * (hc_pred[:,0] + np.random.normal(0.0,1.0,len(fqs)) * hc_pred[:,1])
+
             rho = np.log10( hc**2 / (12.0*np.pi**2.0) / (fqs/86400.0)**3.0 / Tspan )
 
         if args.dmVar:
