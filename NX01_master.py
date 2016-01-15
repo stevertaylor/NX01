@@ -414,7 +414,7 @@ if args.det_signal:
 gp = None
 if args.incGWB:
     if args.gwbSpecModel == 'gpEnvInterp' or args.gwbPrior == 'gaussProc':
-    gp = pickle.load( open( args.gpPickle, "rb" ) )
+        gp = pickle.load( open( args.gpPickle, "rb" ) )
 
 #######################################
 # PRE-COMPUTING WHITE NOISE PROPERTIES 
