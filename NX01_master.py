@@ -1281,7 +1281,7 @@ def lnprob(xx):
         if args.gwbSpecModel == 'powerlaw':
             if args.gwbPrior == 'uniform':
                 priorfac_gwb = np.log(Agwb * np.log(10.0))
-            elif args.gwbPrior == 'loguniform'
+            elif args.gwbPrior == 'loguniform':
                 priorfac_gwb = 0.0
             elif args.gwbPrior == 'sesana':
                 mu = -15.0
@@ -1298,7 +1298,7 @@ def lnprob(xx):
         elif args.gwbSpecModel == 'spectrum':
             if args.gwbPrior == 'uniform':
                 priorfac_gwb = np.sum(np.log(10.0**rho_spec * np.log(10.0)))
-            elif args.gwbPrior == 'loguniform'
+            elif args.gwbPrior == 'loguniform':
                 priorfac_gwb = 0.0
             elif args.gwbPrior == 'gaussProc':
                 hc_pred = np.zeros((len(fqs),2))
@@ -1315,7 +1315,7 @@ def lnprob(xx):
                 ### adding hyper prior on strain amplitude ###
                 if args.gwbHyperPrior == 'uniform':
                     priorfac_gwb += np.log(Agwb * np.log(10.0))
-                elif args.gwbHyperPrior == 'loguniform'
+                elif args.gwbHyperPrior == 'loguniform':
                     priorfac_gwb += 0.0
                 elif args.gwbHyperPrior == 'sesana':
                     mu = -15.0
