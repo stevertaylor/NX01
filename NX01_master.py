@@ -106,7 +106,9 @@ parser.add_option('--use-gpu', dest='use_gpu', action='store_true', default=Fals
 parser.add_option('--fix-slope', dest='fix_slope', action='store_true', default=False,
                   help='Do you want to fix the slope of the GWB spectrum? (default = False)')
 parser.add_option('--gwbPrior', dest='gwbPrior', action='store', type=str, default='uniform',
-                   help='Do you want to use a uniform prior on log_10(Agwb) for detection [loguniform], on Agwb itself for limits [uniform], or an astrophysical prior (only for powerlaw, turnover, gpEnvInterp models) [sesana, mcwilliams] (default=\'uniform\')?')
+                   help='Do you want to use a uniform prior on log_10(amplitude) for detection [loguniform], on amplitudes themselves for limits [uniform], an astrophysical prior (only when the amplitude is Agwb: for powerlaw, turnover, gpEnvInterp models) [sesana, mcwilliams], or a gaussian process prior [gaussProc] (default=\'uniform\')?')
+parser.add_option('--gwbHyperPrior', dest='gwbHyperPrior', action='store', type=str, default='uniform',
+                   help='When gwbPrior=gaussProc, do you want to use a uniform prior on log_10(Agwb) for detection [loguniform], on Agwb itself for limits [uniform], or an astrophysical prior [sesana, mcwilliams] (default=\'uniform\')?')
 parser.add_option('--redPrior', dest='redPrior', action='store', type=str, default='uniform',
                    help='Do you want to use a uniform prior on log_10(Ared) for detection [loguniform], on Ared itself for limits [uniform] (default=\'uniform\')?')
 parser.add_option('--dmPrior', dest='dmPrior', action='store', type=str, default='uniform',
@@ -178,6 +180,7 @@ if args.jsonModel is not None:
     args.use_gpu = json_data['use_gpu']
     args.fix_slope = json_data['fixSlope']
     args.gwbPrior = json_data['gwbPrior']
+    args.gwbHyperPrior = json_data['gwbHyperPrior']
     args.redPrior = json_data['redPrior']
     args.dmPrior = json_data['dmPrior']
     args.anis_modefile = json_data['anis_modefile']
@@ -409,7 +412,8 @@ if args.det_signal:
 ############################################
 
 gp = None
-if args.incGWB and args.gwbSpecModel == 'gpEnvInterp':
+if args.incGWB:
+    if args.gwbSpecModel == 'gpEnvInterp' or args.gwbPrior == 'gaussProc':
     gp = pickle.load( open( args.gpPickle, "rb" ) )
 
 #######################################
@@ -502,6 +506,8 @@ if args.incGWB:
             pmin = np.append(pmin,0.0)
     elif args.gwbSpecModel == 'spectrum':
         pmin = np.append(pmin,-8.0*np.ones(nmode))
+        if args.gwbPrior == 'gaussProc':
+            pmin = np.append(pmin,np.array([-18.0,0.0]))
     elif args.gwbSpecModel == 'turnover':
         pmin = np.append(pmin,np.array([-18.0,0.0,-9.0]))
     elif args.gwbSpecModel == 'gpEnvInterp':
@@ -549,6 +555,8 @@ if args.incGWB:
             pmax = np.append(pmax,7.0)
     elif args.gwbSpecModel == 'spectrum':
         pmax = np.append(pmax,3.0*np.ones(nmode))
+        if args.gwbPrior == 'gaussProc':
+            pmax = np.append(pmax,np.array([-11.0,0.9]))
     elif args.gwbSpecModel == 'turnover':
         pmax = np.append(pmax,np.array([-11.0,7.0,-7.0]))
     elif args.gwbSpecModel == 'gpEnvInterp':
@@ -637,6 +645,10 @@ def lnprob(xx):
         elif args.gwbSpecModel == 'spectrum':
             rho_spec = xx[param_ct:param_ct+nmode]
             param_ct += nmode
+            if args.gwbPrior == 'gaussProc':
+                Agwb = 10.0**xx[param_ct]
+                ecc = xx[param_ct+1]
+                param_ct += 2
         elif args.gwbSpecModel == 'turnover':
             Agwb = 10.0**xx[param_ct]
             kappa = xx[param_ct+1]
@@ -1262,28 +1274,98 @@ def lnprob(xx):
 
     ################################################
     # Multiplying likelihood to correct log-uniform
-    # sampling, thus making a uniform prior
+    # sampling, thus making a prior of our choice
     
     if args.incGWB:
-        if args.gwbPrior == 'uniform':
-            if args.gwbSpecModel == 'powerlaw' or args.gwbSpecModel == 'turnover' or args.gwbSpecModel == 'gpEnvInterp':
+        ### powerlaw spectral model ###
+        if args.gwbSpecModel == 'powerlaw':
+            if args.gwbPrior == 'uniform':
                 priorfac_gwb = np.log(Agwb * np.log(10.0))
-            elif args.gwbSpecModel == 'spectrum':
+            elif args.gwbPrior == 'loguniform'
+                priorfac_gwb = 0.0
+            elif args.gwbPrior == 'sesana':
+                mu = -15.0
+                sig = 0.22
+                priorfac_gwb = np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
+                                    / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
+            elif args.gwbPrior == 'mcwilliams':
+                mu = -14.4
+                sig = 0.26
+                priorfac_gwb = np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
+                                    / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
+                
+        ### free spectral model ###
+        elif args.gwbSpecModel == 'spectrum':
+            if args.gwbPrior == 'uniform':
                 priorfac_gwb = np.sum(np.log(10.0**rho_spec * np.log(10.0)))
-        elif args.gwbPrior == 'loguniform':
-            priorfac_gwb = 0.0
-        elif args.gwbPrior == 'sesana':
-            mu = -15.0
-            sig = 0.22
-            priorfac_gwb = np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
-                                   / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
-        elif args.gwbPrior == 'mcwilliams':
-            mu = -14.4
-            sig = 0.26
-            priorfac_gwb = np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
-                                   / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
+            elif args.gwbPrior == 'loguniform'
+                priorfac_gwb = 0.0
+            elif args.gwbPrior == 'gaussProc':
+                hc_pred = np.zeros((len(fqs),2))
+                for ii,freq in enumerate(fqs):
+                    hc_pred[ii,0], mse = gp[ii].predict(ecc, eval_MSE=True)
+                    hc_pred[ii,1] = np.sqrt(mse)
+                psd_mean = Agwb**2.0 * hc_pred[:,0]**2.0 / (12.0*np.pi**2.0) / (fqs/86400.0)**3.0 / Tspan
+                psd_std = 2.0 * psd_mean * hc_pred[:,1] / hc_pred[:,0]
+
+                priorfac_gwb = np.sum( np.log(2.0 * 10.0**rho * np.log(10.0))
+                                       - 0.5*np.log(2.0 * np.pi * psd_std**2.0)
+                                       - 0.5*(10.0**rho - psd_mean)**2.0 / psd_std**2.0  )
+
+                ### adding hyper prior on strain amplitude ###
+                if args.gwbHyperPrior == 'uniform':
+                    priorfac_gwb += np.log(Agwb * np.log(10.0))
+                elif args.gwbHyperPrior == 'loguniform'
+                    priorfac_gwb += 0.0
+                elif args.gwbHyperPrior == 'sesana':
+                    mu = -15.0
+                    sig = 0.22
+                    priorfac_gwb += np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
+                                        / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
+                elif args.gwbHyperPrior == 'mcwilliams':
+                    mu = -14.4
+                    sig = 0.26
+                    priorfac_gwb += np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
+                                        / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
+                    
+                
+        ### turnover spectral model ###
+        elif args.gwbSpecModel == 'turnover':
+            if args.gwbPrior == 'uniform':
+                priorfac_gwb = np.log(Agwb * np.log(10.0))
+            elif args.gwbPrior == 'loguniform':
+                priorfac_gwb = 0.0
+            elif args.gwbPrior == 'sesana':
+                mu = -15.0
+                sig = 0.22
+                priorfac_gwb = np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
+                                    / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
+            elif args.gwbPrior == 'mcwilliams':
+                mu = -14.4
+                sig = 0.26
+                priorfac_gwb = np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
+                                    / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
+
+        ### gp interpolation spectral model ###
+        elif args.gwbSpecModel == 'gpEnvInterp':
+            if args.gwbPrior == 'uniform':
+                priorfac_gwb = np.log(Agwb * np.log(10.0))
+            elif args.gwbPrior == 'loguniform':
+                priorfac_gwb = 0.0
+            elif args.gwbPrior == 'sesana':
+                mu = -15.0
+                sig = 0.22
+                priorfac_gwb = np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
+                                    / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
+            elif args.gwbPrior == 'mcwilliams':
+                mu = -14.4
+                sig = 0.26
+                priorfac_gwb = np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
+                                    / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
+                
     elif not args.incGWB:
         priorfac_gwb = 0.0
+         
 
     if args.incGWline:
         if args.gwlinePrior == 'uniform':
@@ -1292,28 +1374,41 @@ def lnprob(xx):
             priorfac_gwline = 0.0
     elif not args.incGWline:
         priorfac_gwline = 0.0
+        
 
     if not args.fixRed:
-        if args.redPrior == 'uniform':
-            if args.redSpecModel == 'powerlaw':
+        ### powerlaw spectral model ###
+        if args.redSpecModel == 'powerlaw':
+            if args.redPrior == 'uniform':
                 priorfac_red = np.sum(np.log(Ared * np.log(10.0)))
-            elif args.redSpecModel == 'spectrum':
+            elif args.redPrior == 'loguniform':
+                priorfac_red = 0.0
+        ### free spectral model ###
+        elif args.redSpecModel == 'spectrum':
+            if args.redPrior == 'uniform':
                 priorfac_red = np.sum(np.log(10.0**red_spec * np.log(10.0)))
-        else:
-            priorfac_red = 0.0
+            elif args.redPrior == 'loguniform':
+                priorfac_red = 0.0
     elif args.fixRed:
         priorfac_red = 0.0
+        
 
     if args.dmVar:
-        if args.dmPrior == 'uniform':
-            if args.dmSpecModel == 'powerlaw':
+        ### powerlaw spectral model ###
+        if args.dmSpecModel == 'powerlaw':
+            if args.dmPrior == 'uniform':
                 priorfac_dm = np.sum(np.log(Adm * np.log(10.0)))
-            elif args.dmSpecModel == 'spectrum':
+            elif args.dmPrior == 'loguniform':
+                priorfac_dm = 0.0
+        ### free spectral model ###
+        elif args.dmSpecModel == 'spectrum':
+            if args.dmPrior == 'uniform':
                 priorfac_dm = np.sum(np.log(10.0**dm_spec * np.log(10.0)))
-        else:
-            priorfac_dm = 0.0
+            elif args.dmPrior == 'loguniform':
+                priorfac_dm = 0.0
     elif not args.dmVar:
         priorfac_dm = 0.0
+        
 
     #####################################
     # Finally, return the log-likelihood
@@ -1352,6 +1447,8 @@ if args.incGWB:
     elif args.gwbSpecModel == 'spectrum':
         for ii in range(nmode):
             parameters.append('gwbSpec_{0}'.format(ii+1))
+        if args.gwbPrior == 'gaussProc':
+            parameters += ["Agwb", "ecc"]
     elif args.gwbSpecModel == 'turnover':
         parameters += ["Agwb", "kappa", "fbend"]
     elif args.gwbSpecModel == 'gpEnvInterp':
@@ -1403,6 +1500,8 @@ if args.incGWB:
             gamma_tag = '_gamVary'
     elif args.gwbSpecModel == 'spectrum':
         gamma_tag = '_gwbSpec'
+        if args.gwbPrior == 'gaussProc':
+            gamma_tag += 'Hyper{0}'.format(args.gwbHyperPrior)
     elif args.gwbSpecModel == 'turnover':
         gamma_tag = '_gwbTurnover'
     elif args.gwbSpecModel == 'gpEnvInterp':
@@ -1526,6 +1625,8 @@ if args.sampler == 'ptmcmc':
                 x0 = np.append(x0,13./3.)
         elif args.gwbSpecModel == 'spectrum':
             x0 = np.append(x0,np.random.uniform(-7.0,-3.0,nmode))
+            if args.gwbPrior == 'gaussProc':
+                x0 = np.append(x0,np.array([-15.0,0.2]))
         elif args.gwbSpecModel == 'turnover':
             x0 = np.append(x0,np.array([-15.0,13./3.,-8.0]))
         elif args.gwbSpecModel == 'gpEnvInterp':
@@ -1574,6 +1675,8 @@ if args.sampler == 'ptmcmc':
                 cov_diag = np.append(cov_diag,0.5)
         elif args.gwbSpecModel == 'spectrum':
             cov_diag = np.append(cov_diag,0.05*np.ones(nmode))
+            if args.gwbPrior == 'gaussProc':
+                cov_diag = np.append(cov_diag,np.array([0.5,0.05]))
         elif args.gwbSpecModel == 'turnover':
             cov_diag = np.append(cov_diag,np.array([0.5,0.5,0.1]))
         elif args.gwbSpecModel == 'gpEnvInterp':
@@ -1642,6 +1745,10 @@ if args.sampler == 'ptmcmc':
             ids = [np.arange(param_ct,param_ct+nmode)]
             [ind.append(id) for id in ids]
             param_ct += nmode
+            if args.gwbPrior == 'gaussProc':
+                ids = [np.arange(param_ct,param_ct+2)]
+                [ind.append(id) for id in ids]
+                param_ct += 2
         elif args.gwbSpecModel == 'turnover':
             ids = [np.arange(param_ct,param_ct+3)]
             [ind.append(id) for id in ids]
@@ -1731,12 +1838,9 @@ if args.sampler == 'ptmcmc':
         for ii in ind:
             # log prior
             if args.redPrior == 'loguniform':
-        
                 q[ii] = np.random.uniform(pmin[ii], pmax[ii])
                 qxy += 0
-        
             elif args.redPrior == 'uniform':
-        
                 q[ii] = np.random.uniform(pmin[ii], pmax[ii])
                 qxy += 0
     
@@ -1761,12 +1865,9 @@ if args.sampler == 'ptmcmc':
         for ii in ind:
             # log prior
             if args.redPrior == 'loguniform':
-        
                 q[ii] = np.random.uniform(pmin[ii], pmax[ii])
                 qxy += 0
-        
             elif args.redPrior == 'uniform':
-        
                 q[ii] = np.random.uniform(pmin[ii], pmax[ii])
                 qxy += 0
 
@@ -1792,12 +1893,9 @@ if args.sampler == 'ptmcmc':
         for ii in ind:
             # log prior
             if args.dmPrior == 'loguniform':
-        
                 q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
                 qxy += 0
-        
             elif args.dmPrior == 'uniform':
-            
                 q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
                 qxy += 0
     
@@ -1825,12 +1923,9 @@ if args.sampler == 'ptmcmc':
         for ii in ind:
             # log prior
             if args.dmPrior == 'loguniform':
-        
                 q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
                 qxy += 0
-        
             elif args.dmPrior == 'uniform':
-            
                 q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
                 qxy += 0
 
@@ -1854,29 +1949,25 @@ if args.sampler == 'ptmcmc':
                 pct = npsr*nmode
     
         if args.dmVar:
-            pct += 2*npsr
+            if args.dmSpecModel == 'powerlaw':
+                pct = 2*npsr
+            elif args.dmSpecModel == 'spectrum':
+                pct = npsr*nmode
 
         # amplitude
         if args.gwbPrior == 'loguniform':
-        
             q[pct] = np.random.uniform(pmin[pct], pmax[pct])
             qxy += 0
-
         elif args.gwbPrior == 'uniform':
-            
             q[pct] = np.random.uniform(pmin[pct], pmax[pct])
             qxy += 0
-
         elif args.gwbPrior == 'sesana':
-            
             mu = -15
             sig = 0.22
             q[pct] = mu + np.random.randn() * sig
             qxy -= (mu - parameters[pct]) ** 2 / 2 / \
               sig ** 2 - (mu - q[pct]) ** 2 / 2 / s ** 2
-
         elif args.gwbPrior == 'mcwilliams':
-
             mu = -14.4
             sig = 0.26
             q[pct] = mu + np.random.randn() * sig
@@ -1907,18 +1998,21 @@ if args.sampler == 'ptmcmc':
                 pct = npsr*nmode
     
         if args.dmVar:
-            pct += 2*npsr
+            if args.dmSpecModel == 'powerlaw':
+                pct = 2*npsr
+            elif args.dmSpecModel == 'spectrum':
+                pct = npsr*nmode
 
         ind = np.unique(np.random.randint(0, nmode, 1))
 
         for ii in ind:
             if args.gwbPrior == 'loguniform':
-
                 q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
                 qxy += 0
-
             elif args.gwbPrior == 'uniform':
-            
+                q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
+                qxy += 0
+            elif args.gwbPrior == 'gaussProc':
                 q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
                 qxy += 0
         
@@ -1942,29 +2036,25 @@ if args.sampler == 'ptmcmc':
                 pct = npsr*nmode
     
         if args.dmVar:
-            pct += 2*npsr
+            if args.dmSpecModel == 'powerlaw':
+                pct = 2*npsr
+            elif args.dmSpecModel == 'spectrum':
+                pct = npsr*nmode
 
         # amplitude
         if args.gwbPrior == 'loguniform':
-        
             q[pct] = np.random.uniform(pmin[pct], pmax[pct])
             qxy += 0
-
         elif args.gwbPrior == 'uniform':
-            
             q[pct] = np.random.uniform(pmin[pct], pmax[pct])
             qxy += 0
-
         elif args.gwbPrior == 'sesana':
-            
             mu = -15
             sig = 0.22
             q[pct] = mu + np.random.randn() * sig
             qxy -= (mu - parameters[pct]) ** 2 / 2 / \
               sig ** 2 - (mu - q[pct]) ** 2 / 2 / s ** 2
-
         elif args.gwbPrior == 'mcwilliams':
-
             mu = -14.4
             sig = 0.26
             q[pct] = mu + np.random.randn() * sig
@@ -1998,29 +2088,25 @@ if args.sampler == 'ptmcmc':
                 pct = npsr*nmode
     
         if args.dmVar:
-            pct += 2*npsr
+            if args.dmSpecModel == 'powerlaw':
+                pct = 2*npsr
+            elif args.dmSpecModel == 'spectrum':
+                pct = npsr*nmode
 
         # amplitude
         if args.gwbPrior == 'loguniform':
-        
             q[pct] = np.random.uniform(pmin[pct], pmax[pct])
             qxy += 0
-
         elif args.gwbPrior == 'uniform':
-            
             q[pct] = np.random.uniform(pmin[pct], pmax[pct])
             qxy += 0
-
         elif args.gwbPrior == 'sesana':
-            
             mu = -15
             sig = 0.22
             q[pct] = mu + np.random.randn() * sig
             qxy -= (mu - parameters[pct]) ** 2 / 2 / \
               sig ** 2 - (mu - q[pct]) ** 2 / 2 / sig ** 2
-
         elif args.gwbPrior == 'mcwilliams':
-
             mu = -14.4
             sig = 0.26
             q[pct] = mu + np.random.randn() * sig
@@ -2033,6 +2119,60 @@ if args.sampler == 'ptmcmc':
         
         return q, qxy
 
+    def drawFromGWBSpectrumHyperPrior(parameters, iter, beta):
+        '''
+        Only for the free spectral model.
+
+        '''
+
+        # post-jump parameters
+        q = parameters.copy()
+
+        # transition probability
+        qxy = 0
+
+        npsr = len(psr)
+        pct = 0
+        if not args.fixRed:
+            if args.redSpecModel == 'powerlaw':
+                pct = 2*npsr
+            elif args.redSpecModel == 'spectrum':
+                pct = npsr*nmode
+    
+        if args.dmVar:
+            if args.dmSpecModel == 'powerlaw':
+                pct = 2*npsr
+            elif args.dmSpecModel == 'spectrum':
+                pct = npsr*nmode
+
+        # adding nmodes of gwb spectrum
+        pct += nmode
+           
+        # hyper priors on spectral parameters: amplitude
+        if args.gwbHyperPrior == 'loguniform':
+            q[pct] = np.random.uniform(pmin[pct], pmax[pct])
+            qxy += 0
+        elif args.gwbHyperPrior == 'uniform':
+            q[pct] = np.random.uniform(pmin[pct], pmax[pct])
+            qxy += 0
+        elif args.gwbHyperPrior == 'sesana':
+            mu = -15
+            sig = 0.22
+            q[pct] = mu + np.random.randn() * sig
+            qxy -= (mu - parameters[pct]) ** 2 / 2 / \
+              sig ** 2 - (mu - q[pct]) ** 2 / 2 / sig ** 2
+        elif args.gwbHyperPrior == 'mcwilliams':
+            mu = -14.4
+            sig = 0.26
+            q[pct] = mu + np.random.randn() * sig
+            qxy -= (mu - parameters[pct]) ** 2 / 2 / \
+              sig ** 2 - (mu - q[pct]) ** 2 / 2 / sig ** 2
+
+        # hyper priors on spectral parameters: eccentricity
+        q[pct+1] = np.random.uniform(pmin[pct+1], pmax[pct+1])
+        qxy += 0
+        
+        return q, qxy
     
     def drawFromGWBcorrPrior(parameters, iter, beta):
 
@@ -2051,7 +2191,10 @@ if args.sampler == 'ptmcmc':
                 pct = npsr*nmode
     
         if args.dmVar:
-            pct += 2*npsr
+            if args.dmSpecModel == 'powerlaw':
+                pct = 2*npsr
+            elif args.dmSpecModel == 'spectrum':
+                pct = npsr*nmode
 
         if args.incGWB:
             if args.gwbSpecModel == 'powerlaw':
@@ -2060,8 +2203,12 @@ if args.sampler == 'ptmcmc':
                     pct += 1
             elif args.gwbSpecModel == 'spectrum':
                 pct += nmode
+                if args.gwbPrior == 'gaussProc':
+                    pct += 2
             elif args.gwbSpecModel == 'turnover':
                 pct += 3
+            elif args.gwbSpecModel == 'gpEnvInterp':
+                pct += 2
 
         ind = np.unique(np.random.randint(0, num_corr_params, 1))
 
@@ -2089,7 +2236,10 @@ if args.sampler == 'ptmcmc':
                 pct = npsr*nmode
     
         if args.dmVar:
-            pct += 2*npsr
+            if args.dmSpecModel == 'powerlaw':
+                pct = 2*npsr
+            elif args.dmSpecModel == 'spectrum':
+                pct = npsr*nmode
 
         if args.incGWB:
             if args.gwbSpecModel == 'powerlaw':
@@ -2098,8 +2248,12 @@ if args.sampler == 'ptmcmc':
                     pct += 1
             elif args.gwbSpecModel == 'spectrum':
                 pct += nmode
+                if args.gwbPrior == 'gaussProc':
+                    pct += 2
             elif args.gwbSpecModel == 'turnover':
                 pct += 3
+            elif args.gwbSpecModel == 'gpEnvInterp':
+                pct += 2
 
             if args.incCorr:
                 pct += num_corr_params
@@ -2132,7 +2286,10 @@ if args.sampler == 'ptmcmc':
                 pct = npsr*nmode
     
         if args.dmVar:
-            pct += 2*npsr
+            if args.dmSpecModel == 'powerlaw':
+                pct = 2*npsr
+            elif args.dmSpecModel == 'spectrum':
+                pct = npsr*nmode
 
         if args.incGWB:
             if args.gwbSpecModel == 'powerlaw':
@@ -2141,8 +2298,12 @@ if args.sampler == 'ptmcmc':
                     pct += 1
             elif args.gwbSpecModel == 'spectrum':
                 pct += nmode
+                if args.gwbPrior == 'gaussProc':
+                    pct += 2
             elif args.gwbSpecModel == 'turnover':
                 pct += 3
+            elif args.gwbSpecModel == 'gpEnvInterp':
+                pct += 2
 
             if args.incCorr:
                 pct += num_corr_params
@@ -2181,7 +2342,10 @@ if args.sampler == 'ptmcmc':
                 pct = npsr*nmode
     
         if args.dmVar:
-            pct += 2*npsr
+            if args.dmSpecModel == 'powerlaw':
+                pct = 2*npsr
+            elif args.dmSpecModel == 'spectrum':
+                pct = npsr*nmode
 
         if args.incGWB:
             if args.gwbSpecModel == 'powerlaw':
@@ -2190,8 +2354,12 @@ if args.sampler == 'ptmcmc':
                     pct += 1
             elif args.gwbSpecModel == 'spectrum':
                 pct += nmode
+                if args.gwbPrior == 'gaussProc':
+                    pct += 2
             elif args.gwbSpecModel == 'turnover':
                 pct += 3
+            elif args.gwbSpecModel == 'gpEnvInterp':
+                pct += 2
 
             if args.incCorr:
                 pct += num_corr_params
@@ -2226,7 +2394,10 @@ if args.sampler == 'ptmcmc':
                 pct = npsr*nmode
     
         if args.dmVar:
-            pct += 2*npsr
+            if args.dmSpecModel == 'powerlaw':
+                pct = 2*npsr
+            elif args.dmSpecModel == 'spectrum':
+                pct = npsr*nmode
 
         if args.incGWB:
             if args.gwbSpecModel == 'powerlaw':
@@ -2235,8 +2406,12 @@ if args.sampler == 'ptmcmc':
                     pct += 1
             elif args.gwbSpecModel == 'spectrum':
                 pct += nmode
+                if args.gwbPrior == 'gaussProc':
+                    pct += 2
             elif args.gwbSpecModel == 'turnover':
                 pct += 3
+            elif args.gwbSpecModel == 'gpEnvInterp':
+                pct += 2
 
             if args.incCorr:
                 pct += num_corr_params
@@ -2270,6 +2445,8 @@ if args.sampler == 'ptmcmc':
             sampler.addProposalToCycle(drawFromGWBPowerlawPrior, 10)
         elif args.gwbSpecModel == 'spectrum':
             sampler.addProposalToCycle(drawFromGWBSpectrumPrior, 10)
+            if args.gwbPrior == 'gaussProc':
+                sampler.addProposalToCycle(drawFromGWBSpectrumHyperPrior, 10)
         elif args.gwbSpecModel == 'turnover':
             sampler.addProposalToCycle(drawFromGWBTurnoverPrior, 10)
         elif args.gwbSpecModel == 'gpEnvInterp':
