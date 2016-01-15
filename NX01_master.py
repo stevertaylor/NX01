@@ -1507,6 +1507,8 @@ if args.incGWB:
         gamma_tag = '_gwbTurnover'
     elif args.gwbSpecModel == 'gpEnvInterp':
         gamma_tag = '_gwbGP'
+        if args.incCosVar:
+            gamma_tag += 'cosvar'
     if args.incCorr:
         if args.typeCorr == 'modelIndep':
             file_tag += '_gwb{0}_miCorr{1}{2}'.format(args.gwbPrior,evol_corr_tag,gamma_tag)
