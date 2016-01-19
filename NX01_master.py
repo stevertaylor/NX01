@@ -2022,9 +2022,9 @@ if args.sampler == 'ptmcmc':
     
         if args.dmVar:
             if args.dmSpecModel == 'powerlaw':
-                pct = 2*npsr
+                pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
-                pct = npsr*nmode
+                pct += npsr*nmode
 
         # amplitude
         if args.gwbPrior == 'loguniform':
@@ -2071,9 +2071,9 @@ if args.sampler == 'ptmcmc':
     
         if args.dmVar:
             if args.dmSpecModel == 'powerlaw':
-                pct = 2*npsr
+                pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
-                pct = npsr*nmode
+                pct += npsr*nmode
 
         ind = np.unique(np.random.randint(0, nmode, 1))
 
@@ -2109,9 +2109,9 @@ if args.sampler == 'ptmcmc':
     
         if args.dmVar:
             if args.dmSpecModel == 'powerlaw':
-                pct = 2*npsr
+                pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
-                pct = npsr*nmode
+                pct += npsr*nmode
 
         # amplitude
         if args.gwbPrior == 'loguniform':
@@ -2166,9 +2166,9 @@ if args.sampler == 'ptmcmc':
     
         if args.dmVar:
             if args.dmSpecModel == 'powerlaw':
-                pct = 2*npsr
+                pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
-                pct = npsr*nmode
+                pct += npsr*nmode
 
         # amplitude
         if args.gwbPrior == 'loguniform':
@@ -2218,9 +2218,9 @@ if args.sampler == 'ptmcmc':
     
         if args.dmVar:
             if args.dmSpecModel == 'powerlaw':
-                pct = 2*npsr
+                pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
-                pct = npsr*nmode
+                pct += npsr*nmode
 
         # adding nmodes of gwb spectrum
         pct += nmode
@@ -2269,9 +2269,9 @@ if args.sampler == 'ptmcmc':
     
         if args.dmVar:
             if args.dmSpecModel == 'powerlaw':
-                pct = 2*npsr
+                pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
-                pct = npsr*nmode
+                pct += npsr*nmode
 
         if args.incGWB:
             if args.gwbSpecModel == 'powerlaw':
@@ -2284,6 +2284,8 @@ if args.sampler == 'ptmcmc':
                     pct += 2
             elif args.gwbSpecModel == 'turnover':
                 pct += 3
+                if args.gwbPrior == 'gaussProc':
+                    pct += 1
             elif args.gwbSpecModel == 'gpEnvInterp':
                 pct += 2
 
@@ -2314,9 +2316,9 @@ if args.sampler == 'ptmcmc':
     
         if args.dmVar:
             if args.dmSpecModel == 'powerlaw':
-                pct = 2*npsr
+                pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
-                pct = npsr*nmode
+                pct += npsr*nmode
 
         if args.incGWB:
             if args.gwbSpecModel == 'powerlaw':
@@ -2329,6 +2331,8 @@ if args.sampler == 'ptmcmc':
                     pct += 2
             elif args.gwbSpecModel == 'turnover':
                 pct += 3
+                if args.gwbPrior == 'gaussProc':
+                    pct += 1
             elif args.gwbSpecModel == 'gpEnvInterp':
                 pct += 2
 
@@ -2364,9 +2368,9 @@ if args.sampler == 'ptmcmc':
     
         if args.dmVar:
             if args.dmSpecModel == 'powerlaw':
-                pct = 2*npsr
+                pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
-                pct = npsr*nmode
+                pct += npsr*nmode
 
         if args.incGWB:
             if args.gwbSpecModel == 'powerlaw':
@@ -2379,6 +2383,8 @@ if args.sampler == 'ptmcmc':
                     pct += 2
             elif args.gwbSpecModel == 'turnover':
                 pct += 3
+                if args.gwbPrior == 'gaussProc':
+                    pct += 1
             elif args.gwbSpecModel == 'gpEnvInterp':
                 pct += 2
 
@@ -2420,9 +2426,9 @@ if args.sampler == 'ptmcmc':
     
         if args.dmVar:
             if args.dmSpecModel == 'powerlaw':
-                pct = 2*npsr
+                pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
-                pct = npsr*nmode
+                pct += npsr*nmode
 
         if args.incGWB:
             if args.gwbSpecModel == 'powerlaw':
@@ -2435,6 +2441,8 @@ if args.sampler == 'ptmcmc':
                     pct += 2
             elif args.gwbSpecModel == 'turnover':
                 pct += 3
+                if args.gwbPrior == 'gaussProc':
+                    pct += 1
             elif args.gwbSpecModel == 'gpEnvInterp':
                 pct += 2
 
@@ -2472,9 +2480,9 @@ if args.sampler == 'ptmcmc':
     
         if args.dmVar:
             if args.dmSpecModel == 'powerlaw':
-                pct = 2*npsr
+                pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
-                pct = npsr*nmode
+                pct += npsr*nmode
 
         if args.incGWB:
             if args.gwbSpecModel == 'powerlaw':
@@ -2487,6 +2495,8 @@ if args.sampler == 'ptmcmc':
                     pct += 2
             elif args.gwbSpecModel == 'turnover':
                 pct += 3
+                if args.gwbPrior == 'gaussProc':
+                    pct += 1
             elif args.gwbSpecModel == 'gpEnvInterp':
                 pct += 2
 
