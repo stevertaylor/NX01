@@ -115,7 +115,7 @@ parser.add_option('--dmPrior', dest='dmPrior', action='store', type=str, default
                    help='Do you want to use a uniform prior on log_10(Adm) for detection [loguniform], on Adm itself for limits [uniform] (default=\'uniform\')?')
 parser.add_option('--anis-modefile', dest='anis_modefile', action='store', type=str, default = None,
                    help='Do you want to provide an anisotropy modefile to split band into frequency windows?')
-parser.add_option('--noEcorr', dest='fullN', action='store_true', default=False,
+parser.add_option('--noEcorr', dest='noEcorr', action='store_true', default=False,
                   help='Do you want to ignore correlated white noise terms in noise matrix? (default = False)')
 parser.add_option('--fixRed', dest='fixRed', action='store_true', default=False,
                   help='Do you want to perform a fixed power-law red-noise analysis? (default = False)')
@@ -186,7 +186,7 @@ if args.jsonModel is not None:
     args.redPrior = json_data['redPrior']
     args.dmPrior = json_data['dmPrior']
     args.anis_modefile = json_data['anis_modefile']
-    args.fullN = json_data['fullN']
+    args.noEcorr = json_data['noEcorr']
     args.fixRed = json_data['fixRed']
     args.fixDM = json_data['fixDM']
     args.psrStartIndex = json_data['psrStartIndex']
@@ -203,6 +203,7 @@ if args.jsonModel is not None:
     args.periEv = json_data['periEv']
     args.incGWline = json_data['incGWline']
     args.gwlinePrior = json_data['gwlinePrior']
+    args.constLike = json_data['constLike']
 
 
 header = """\
