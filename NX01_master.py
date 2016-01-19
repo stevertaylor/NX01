@@ -115,8 +115,8 @@ parser.add_option('--dmPrior', dest='dmPrior', action='store', type=str, default
                    help='Do you want to use a uniform prior on log_10(Adm) for detection [loguniform], on Adm itself for limits [uniform] (default=\'uniform\')?')
 parser.add_option('--anis-modefile', dest='anis_modefile', action='store', type=str, default = None,
                    help='Do you want to provide an anisotropy modefile to split band into frequency windows?')
-parser.add_option('--fullN', dest='fullN', action='store_true', default=True,
-                  help='Do you want to perform a full noise search? (default = True)')
+parser.add_option('--noEcorr', dest='fullN', action='store_true', default=False,
+                  help='Do you want to ignore correlated white noise terms in noise matrix? (default = False)')
 parser.add_option('--fixRed', dest='fixRed', action='store_true', default=False,
                   help='Do you want to perform a fixed power-law red-noise analysis? (default = False)')
 parser.add_option('--fixDM', dest='fixDM', action='store_true', default=False,
@@ -149,6 +149,8 @@ parser.add_option('--incGWline', dest='incGWline', action='store_true', default=
                   help='Do you want to include a single-frequency line in the GW spectrum? (default = False)')
 parser.add_option('--gwlinePrior', dest='gwlinePrior', action='store', type=str, default='uniform',
                    help='Do you want to use a uniform prior on log_10(rho_line) for detection [loguniform], on rho_line itself for limits [uniform] (default=\'uniform\')?')
+parser.add_option('--constLike', dest='constLike', action='store_true', default=False,
+                  help='Do you want to set the likelihood to a constant and thus sample from the prior? (default = False)')
 
 (args, x) = parser.parse_args()
 
@@ -430,7 +432,7 @@ for ii,p in enumerate(psr):
     # compute ( T.T * N^-1 * T )
     # & log determinant of N
     new_err = (p.toaerrs).copy()
-    if args.fullN:
+    if not args.noEcorr:
         
         if p.ecorrs is not None and len(p.ecorrs)>0:
 
@@ -684,470 +686,437 @@ def lnprob(xx):
 
     ###############################
     # Creating continuous GW signal
-    
-    if args.det_signal:
-        if args.cgw_search:
 
-            cgw_params = xx[param_ct:]
+    if args.constLike:
+        
+        logLike = 0.0
+        
+    elif not args.constLike:
     
-            if args.ecc_search:
-                logmass, qr, logdist, logorbfreq, gwphi,\
-                costheta, cosinc, gwpol, gwgamma0, l0, e0 = cgw_params
-            else:
-                logmass, qr, logdist, logorbfreq, gwphi,\
-                costheta, cosinc, gwpol, gwgamma0, l0 = cgw_params
+        if args.det_signal:
+            if args.cgw_search:
 
-            mc = 10.0**logmass
-            dist = 10.0**logdist
-            orbfreq = 10.0**logorbfreq
-            gwtheta = np.arccos(costheta)
-            gwinc = np.arccos(cosinc)
+                cgw_params = xx[param_ct:]
+    
+                if args.ecc_search:
+                    logmass, qr, logdist, logorbfreq, gwphi,\
+                    costheta, cosinc, gwpol, gwgamma0, l0, e0 = cgw_params
+                else:
+                    logmass, qr, logdist, logorbfreq, gwphi,\
+                    costheta, cosinc, gwpol, gwgamma0, l0 = cgw_params
+
+                mc = 10.0**logmass
+                dist = 10.0**logdist
+                orbfreq = 10.0**logorbfreq
+                gwtheta = np.arccos(costheta)
+                gwinc = np.arccos(cosinc)
             
-            cgw_res = []
-            detres = []
-            if args.ecc_search:
-                for ii,p in enumerate(psr):
+                cgw_res = []
+                detres = []
+                if args.ecc_search:
+                    for ii,p in enumerate(psr):
                     
-                    tmp_res = utils.ecc_cgw_signal(p, gwtheta, gwphi, mc, dist,
-                                                   orbfreq, gwinc, gwpol, gwgamma0,
-                                                   e0, l0, qr, periEv=args.periEv,
-                                                   tref=tref, epochTOAs=args.epochTOAs)
+                        tmp_res = utils.ecc_cgw_signal(p, gwtheta, gwphi, mc, dist,
+                                                    orbfreq, gwinc, gwpol, gwgamma0,
+                                                    e0, l0, qr, periEv=args.periEv,
+                                                    tref=tref, epochTOAs=args.epochTOAs)
                     
-                    if args.epochTOAs:
-                        cgw_res.append(np.ones(len(p.toas)))
-                        for cc, swave in enumerate(tmp_res):
-                            cgw_res[ii][p.detsig_Uinds[cc,0]:p.detsig_Uinds[cc,1]] *= swave
-                    elif not args.epochTOAs:
-                        cgw_res[ii] = tmp_res
+                        if args.epochTOAs:
+                            cgw_res.append(np.ones(len(p.toas)))
+                            for cc, swave in enumerate(tmp_res):
+                                cgw_res[ii][p.detsig_Uinds[cc,0]:p.detsig_Uinds[cc,1]] *= swave
+                        elif not args.epochTOAs:
+                            cgw_res[ii] = tmp_res
                         
-                    detres.append( p.res - cgw_res[ii] )
-            else:
-                for ii,p in enumerate(psr):
+                        detres.append( p.res - cgw_res[ii] )
+                else:
+                    for ii,p in enumerate(psr):
 
-                    tmp_res = utils.ecc_cgw_signal(p, gwtheta, gwphi, mc, dist,
-                                                   orbfreq, gwinc, gwpol, gwgamma0,
-                                                   0.001, l0, qr, periEv=args.periEv,
-                                                   tref=tref, epochTOAs=args.epochTOAs)
+                        tmp_res = utils.ecc_cgw_signal(p, gwtheta, gwphi, mc, dist,
+                                                    orbfreq, gwinc, gwpol, gwgamma0,
+                                                    0.001, l0, qr, periEv=args.periEv,
+                                                    tref=tref, epochTOAs=args.epochTOAs)
                     
-                    if args.epochTOAs:
-                        cgw_res.append(np.ones(len(p.toas)))
-                        for cc, swave in enumerate(tmp_res):
-                            cgw_res[ii][p.detsig_Uinds[cc,0]:p.detsig_Uinds[cc,1]] *= swave
-                    elif not args.epochTOAs:
-                        cgw_res[ii] = tmp_res
+                        if args.epochTOAs:
+                            cgw_res.append(np.ones(len(p.toas)))
+                            for cc, swave in enumerate(tmp_res):
+                                cgw_res[ii][p.detsig_Uinds[cc,0]:p.detsig_Uinds[cc,1]] *= swave
+                        elif not args.epochTOAs:
+                            cgw_res[ii] = tmp_res
                     
-                    detres.append( p.res - cgw_res[ii] )
+                        detres.append( p.res - cgw_res[ii] )
 
-        if args.bwm_search:
-            if args.bwm_model_select:
-                bwm_params = xx[param_ct:-1]
-                # '0' is noise-only, '1' is BWM
-                nmodel = int(np.rint(xx[-1]))
-            else:
-                bwm_params = xx[param_ct:]
-
-            bwm_res = []
-            detres = []
-            for ii,p in enumerate(psr):
+            if args.bwm_search:
                 if args.bwm_model_select:
-                    if nmodel==0:
-                        bwm_res.append( np.zeros(len(p.toas)) )
-                    elif nmodel==1:
+                    bwm_params = xx[param_ct:-1]
+                    # '0' is noise-only, '1' is BWM
+                    nmodel = int(np.rint(xx[-1]))
+                else:
+                    bwm_params = xx[param_ct:]
+
+                bwm_res = []
+                detres = []
+                for ii,p in enumerate(psr):
+                    if args.bwm_model_select:
+                        if nmodel==0:
+                            bwm_res.append( np.zeros(len(p.toas)) )
+                        elif nmodel==1:
+                            bwm_res.append( utils.bwmsignal(bwm_params,p,
+                                                            antennaPattern=args.bwm_antenna) )
+                    else:
                         bwm_res.append( utils.bwmsignal(bwm_params,p,
                                                         antennaPattern=args.bwm_antenna) )
-                else:
-                    bwm_res.append( utils.bwmsignal(bwm_params,p,
-                                                    antennaPattern=args.bwm_antenna) )
-                detres.append( p.res - bwm_res[ii] )
+                    detres.append( p.res - bwm_res[ii] )
             
 
-        #############################################################
-        # Recomputing some noise quantities involving 'residuals'.
-        # Unfortunately necessary when we have a deterministic signal.
+            #############################################################
+            # Recomputing some noise quantities involving 'residuals'.
+            # Unfortunately necessary when we have a deterministic signal.
         
-        loglike1_tmp = 0
-        dtNdt = []
-        for ii,p in enumerate(psr):
+            loglike1_tmp = 0
+            dtNdt = []
+            for ii,p in enumerate(psr):
 
-            # compute ( T.T * N^-1 * T )
-            # & log determinant of N
-            new_err = (p.toaerrs).copy()
-            if args.fullN:
+                # compute ( T.T * N^-1 * T )
+                # & log determinant of N
+                new_err = (p.toaerrs).copy()
+                if not args.noEcorr:
         
-                if p.ecorrs is not None and len(p.ecorrs)>0:
-                    Nx = jitter.cython_block_shermor_0D(detres[ii], new_err**2.,
+                    if p.ecorrs is not None and len(p.ecorrs)>0:
+                        Nx = jitter.cython_block_shermor_0D(detres[ii], new_err**2.,
+                                                            Jamp[ii], p.Uinds)
+                        dtmp[ii] = np.dot(p.Te.T, Nx)
+                        det_dummy, dtNdt_dummy = \
+                        jitter.cython_block_shermor_1D(detres[ii], new_err**2.,
                                                         Jamp[ii], p.Uinds)
-                    dtmp[ii] = np.dot(p.Te.T, Nx)
-                    det_dummy, dtNdt_dummy = \
-                      jitter.cython_block_shermor_1D(detres[ii], new_err**2.,
-                                                     Jamp[ii], p.Uinds)
-                    dtNdt.append(dtNdt_dummy)
+                        dtNdt.append(dtNdt_dummy)
 
-                else:
+                    else:
             
+                        dtmp[ii] = np.dot(p.Te.T, detres[ii]/( new_err**2.0 ))
+                        dtNdt.append(np.sum(detres[ii]**2.0/( new_err**2.0 )))
+                
+                else:
+        
                     dtmp[ii] = np.dot(p.Te.T, detres[ii]/( new_err**2.0 ))
                     dtNdt.append(np.sum(detres[ii]**2.0/( new_err**2.0 )))
-                
-            else:
         
-                dtmp[ii] = np.dot(p.Te.T, detres[ii]/( new_err**2.0 ))
-                dtNdt.append(np.sum(detres[ii]**2.0/( new_err**2.0 )))
-        
-            loglike1_tmp += -0.5 * (logdet_N[ii] + dtNdt[ii])
+                loglike1_tmp += -0.5 * (logdet_N[ii] + dtNdt[ii])
         
         
 
             
-    if args.incGWB and args.incCorr:
-        
-        if args.typeCorr == 'modelIndep':
+        if args.incGWB and args.incCorr:
+            
+            if args.typeCorr == 'modelIndep':
 
-            npairs = npsr*(npsr-1)/2
-            phi_corr = orf_coeffs.reshape((tmp_nwins,npairs))
+                npairs = npsr*(npsr-1)/2
+                phi_corr = orf_coeffs.reshape((tmp_nwins,npairs))
 
-            ############################################################
-            # Computing frequency-dependent overlap reduction functions.
+                ############################################################
+                # Computing frequency-dependent overlap reduction functions.
 
-            ORF=[]
-            for ii in range(tmp_nwins): # number of frequency windows
-                for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
-                    upper_triang = np.zeros((npsr,npsr))
-                    phi_els = np.array([[0.0]*ii for ii in range(1,npsr)])
-                    ct=0
-                    for ii in range(len(phi_els)):
-                        for jj in range(len(phi_els[ii])):
-                            phi_els[ii,jj] = phi_corr[ct]
-                            ct += 1
+                ORF=[]
+                for ii in range(tmp_nwins): # number of frequency windows
+                    for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
+                        upper_triang = np.zeros((npsr,npsr))
+                        phi_els = np.array([[0.0]*ii for ii in range(1,npsr)])
+                        ct=0
+                        for ii in range(len(phi_els)):
+                            for jj in range(len(phi_els[ii])):
+                                phi_els[ii,jj] = phi_corr[ct]
+                                ct += 1
 
-                    upper_triang[0,0] = 1.
-                    for jj in range(1,upper_triang.shape[1]):
-                        upper_triang[0,jj] = np.cos(phi_els[jj-1][0])
-                    for ii in range(1,upper_triang.shape[1]):
-                        upper_triang[ii,ii] = np.prod( np.sin(phi_els[ii-1]) )
-                    for ii in range(1,upper_triang.shape[1]):
-                        for jj in range(ii+1,upper_triang.shape[1]):
-                            upper_triang[ii,jj] = np.cos(phi_els[jj-1][ii]) * \
-                            np.prod( np.sin(np.array(phi_els[jj-1])[0:ii]) )   
+                        upper_triang[0,0] = 1.
+                        for jj in range(1,upper_triang.shape[1]):
+                            upper_triang[0,jj] = np.cos(phi_els[jj-1][0])
+                        for ii in range(1,upper_triang.shape[1]):
+                            upper_triang[ii,ii] = np.prod( np.sin(phi_els[ii-1]) )
+                        for ii in range(1,upper_triang.shape[1]):
+                            for jj in range(ii+1,upper_triang.shape[1]):
+                                upper_triang[ii,jj] = np.cos(phi_els[jj-1][ii]) * \
+                                np.prod( np.sin(np.array(phi_els[jj-1])[0:ii]) )   
 
-                    ORF.append(np.dot( upper_triang.T, upper_triang ))
+                        ORF.append(np.dot( upper_triang.T, upper_triang ))
        
-            if args.dmVar:
-                for ii in range(tmp_nwins): # number of frequency windows
-                    for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
-                        ORF.append( np.zeros((npsr,npsr)) )
+                if args.dmVar:
+                    for ii in range(tmp_nwins): # number of frequency windows
+                        for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
+                            ORF.append( np.zeros((npsr,npsr)) )
 
-            ORF = np.array(ORF)
-            ORFtot = np.zeros((mode_count,npsr,npsr)) # shouldn't be applying ORF to dmfreqs,
-                                                      # but the projection of GW spec onto dmfreqs
-                                                      # is defined as zero below.
-            ORFtot[0::2] = ORF
-            ORFtot[1::2] = ORF
+                ORF = np.array(ORF)
+                ORFtot = np.zeros((mode_count,npsr,npsr)) # shouldn't be applying ORF to dmfreqs,
+                                                          # but the projection of GW spec onto dmfreqs
+                                                          # is defined as zero below.
+                ORFtot[0::2] = ORF
+                ORFtot[1::2] = ORF
 
-        elif args.typeCorr == 'pointSrc':
+            elif args.typeCorr == 'pointSrc':
 
-            orf_coeffs = orf_coeffs.reshape((tmp_nwins,2))
-            gwphi, cosgwtheta = orf_coeffs[:,0], orf_coeffs[:,1]
-            gwtheta = np.arccos(cosgwtheta)
+                orf_coeffs = orf_coeffs.reshape((tmp_nwins,2))
+                gwphi, cosgwtheta = orf_coeffs[:,0], orf_coeffs[:,1]
+                gwtheta = np.arccos(cosgwtheta)
 
-            corr_curve=np.zeros((tmp_nwins,npsr,npsr))
+                corr_curve=np.zeros((tmp_nwins,npsr,npsr))
 
-            Fp = np.zeros((tmp_nwins,npsr))
-            Fc = np.zeros((tmp_nwins,npsr))
-            for kk in range(tmp_nwins):
-                for ii in range(npsr):
-                    Fp[kk,ii], Fc[kk,ii] = \
-                      utils.fplus_fcross(psr[ii], gwtheta[kk], gwphi[kk])
-
-            for kk in range(tmp_nwins):
-                for ii in range(npsr):
-                    for jj in range(ii,npsr):
-                        corr_curve[kk,ii,jj] = (3.0/(8.0*np.pi)) * \
-                          (Fp[kk,ii]*Fp[kk,jj] + Fc[kk,ii]*Fc[kk,jj])
-                        corr_curve[kk,jj,ii] = corr_curve[kk,ii,jj]
-
-                        if ii == jj:
-                            # scaling for pulsar-term
-                            corr_curve[kk,ii,jj] *= 2.0
-
-            ORF=[]
-            for ii in range(tmp_nwins): # number of frequency windows
-                for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
-                    ORF.append( corr_curve[ii,:,:] )
-                    
-            if args.dmVar:
-                for ii in range(tmp_nwins): # number of frequency windows
-                    for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
-                        ORF.append( np.zeros((npsr,npsr)) )
-
-            ORF = np.array(ORF)
-            ORFtot = np.zeros((mode_count,npsr,npsr)) # shouldn't be applying ORF to dmfreqs,
-                                                      # but the projection of GW spec onto dmfreqs
-                                                      # is defined as zero below.
-            ORFtot[0::2] = ORF
-            ORFtot[1::2] = ORF
-            
-        elif args.typeCorr == 'spharmAnis':
-            
-            ################################################
-            # Reshaping freq-dependent anis coefficients,
-            # and testing for power distribution physicality.
-            
-            orf_coeffs = orf_coeffs.reshape((tmp_nwins,
-                                            ((args.LMAX+1)**2)-1))
-            clm = np.array([[0.0]*((args.LMAX+1)**2)
-                            for ii in range(tmp_nwins)])
-            clm[:,0] = 2.0*np.sqrt(np.pi)
-
-            if args.LMAX!=0:
+                Fp = np.zeros((tmp_nwins,npsr))
+                Fc = np.zeros((tmp_nwins,npsr))
+                for kk in range(tmp_nwins):
+                    for ii in range(npsr):
+                        Fp[kk,ii], Fc[kk,ii] = \
+                        utils.fplus_fcross(psr[ii], gwtheta[kk], gwphi[kk])
 
                 for kk in range(tmp_nwins):
-                    for ii in range(1,((args.LMAX+1)**2)):
-                        clm[kk,ii] = orf_coeffs[kk,ii-1]   
+                    for ii in range(npsr):
+                        for jj in range(ii,npsr):
+                            corr_curve[kk,ii,jj] = (3.0/(8.0*np.pi)) * \
+                            (Fp[kk,ii]*Fp[kk,jj] + Fc[kk,ii]*Fc[kk,jj])
+                            corr_curve[kk,jj,ii] = corr_curve[kk,ii,jj]
 
-                    if not args.noPhysPrior:
-                        # Testing for physicality of power distribution.
-                        if (utils.PhysPrior(clm[kk],harm_sky_vals) == 'Unphysical'):
-                            return -np.inf
+                            if ii == jj:
+                                # scaling for pulsar-term
+                                corr_curve[kk,ii,jj] *= 2.0
 
-            ############################################################
-            # Computing frequency-dependent overlap reduction functions.
-        
-            ORF=[]
-            for ii in range(tmp_nwins): # number of frequency windows
-                for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
-                    ORF.append( sum(clm[ii,kk]*CorrCoeff[kk]
-                                    for kk in range(len(CorrCoeff))) )
-            if args.dmVar:
+                ORF=[]
                 for ii in range(tmp_nwins): # number of frequency windows
                     for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
-                        ORF.append( np.zeros((npsr,npsr)) )
-
-            ORF = np.array(ORF)
-            ORFtot = np.zeros((mode_count,npsr,npsr)) # shouldn't be applying ORF to dmfreqs,
-                                                      # but the projection of GW spec onto dmfreqs
-                                                      # is defined as zero below.
-            ORFtot[0::2] = ORF
-            ORFtot[1::2] = ORF
-            
-
-    if args.incGWline:
-
-        gwline_orf = np.zeros((npsr,npsr))
-
-        Fp = np.zeros(npsr)
-        Fc = np.zeros(npsr)
-        for ii in range(npsr):
-            Fp[ii], Fc[ii] = utils.fplus_fcross(psr[ii], theta_gwline, phi_gwline)
-        
-        for ii in range(npsr):
-            for jj in range(ii,npsr):
-                gwline_orf[ii,jj] = (3.0/(8.0*np.pi)) * (Fp[ii]*Fp[jj] + Fc[ii]*Fc[jj])
-                gwline_orf[jj,ii] = gwline_orf[ii,jj]
-
-                if ii == jj:
-                    # scaling for pulsar-term
-                    gwline_orf[ii,jj] *= 2.0
-
-    ################################################
-    # parameterize intrinsic red noise as power law
-    
-    Tspan = (1/fqs[0])*86400.0
-
-    # parameterize intrinsic red-noise and DM-variations
-    kappa = []
-    for ii in range(npsr):
-        
-        # Construct red noise signal
-        if args.fixRed:
-            Ared_tmp = psr[ii].Redamp
-            gam_red_tmp = psr[ii].Redind
-
-            red_kappa_tmp = np.log10( Ared_tmp**2/12/np.pi**2 * \
-                                   f1yr**(gam_red_tmp-3) * \
-                                    (fqs/86400.0)**(-gam_red_tmp)/Tspan )
-            
-        if not args.fixRed:
-            if args.redSpecModel == 'powerlaw':
-                Ared_tmp = Ared[ii]
-                gam_red_tmp = gam_red[ii]
+                        ORF.append( corr_curve[ii,:,:] )
                     
-                red_kappa_tmp = np.log10( Ared_tmp**2/12/np.pi**2 * \
-                                          f1yr**(gam_red_tmp-3) * \
-                                          (fqs/86400.0)**(-gam_red_tmp)/Tspan )
-            elif args.redSpecModel == 'spectrum':
-                red_kappa_tmp = np.log10( 10.0**(2.0*red_spec[ii,:]) / Tspan)
+                if args.dmVar:
+                    for ii in range(tmp_nwins): # number of frequency windows
+                        for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
+                            ORF.append( np.zeros((npsr,npsr)) )
 
-        # Construct DM-variations signal (if appropriate)
-        if args.dmVar:
-            if args.dmSpecModel == 'powerlaw':
-                Adm_tmp = Adm[ii]
-                gam_dm_tmp = gam_dm[ii]
-                    
-                dm_kappa_tmp = np.log10( Adm_tmp**2/12/np.pi**2 * \
-                                          f1yr**(gam_dm_tmp-3) * \
-                                          (fqs/86400.0)**(-gam_dm_tmp)/Tspan )
-            elif args.dmSpecModel == 'spectrum':
-                dm_kappa_tmp = np.log10( 10.0**(2.0*dm_spec[ii,:]) / Tspan)
-
-        if not args.dmVar:
-            dm_kappa_tmp = np.array([])
-
-        # Now create total red signal for each pulsar
-        kappa.append(np.append(red_kappa_tmp,dm_kappa_tmp))
-    
-                
-    ###################################
-    # construct elements of sigma array
-    
-    sigdiag = []
-    if args.incGWB:
-
-        if args.gwbSpecModel == 'powerlaw':
-            rho = np.log10(Agwb**2/12/np.pi**2 * \
-                           f1yr**(gam_gwb-3) * \
-                           (fqs/86400.0)**(-gam_gwb)/Tspan)
-        elif args.gwbSpecModel == 'spectrum':
-            rho = np.log10( 10.0**(2.0*rho_spec) / Tspan )
-        elif args.gwbSpecModel == 'turnover':
-            rho = np.log10(Agwb**2/12/np.pi**2 * \
-                           f1yr**(13.0/3.0-3.0) * \
-                           (fqs/86400.0)**(-13.0/3.0) / \
-                           (1.0+(fbend*86400.0/fqs)**kappaturn)/Tspan)
-        elif args.gwbSpecModel == 'gpEnvInterp':
-            hc_pred = np.zeros((len(fqs),2))
-            for ii,freq in enumerate(fqs):
-                hc_pred[ii,0], mse = gp[ii].predict(ecc, eval_MSE=True)
-                hc_pred[ii,1] = np.sqrt(mse)
-
-            if not args.incCosVar:
-                hc = Agwb * hc_pred[:,0]
-            elif args.incCosVar:
-                hc = Agwb * (hc_pred[:,0] + np.random.normal(0.0,1.0,len(fqs)) * hc_pred[:,1])
-
-            rho = np.log10( hc**2 / (12.0*np.pi**2.0) / (fqs/86400.0)**3.0 / Tspan )
-
-        if args.dmVar:
-            gwbspec = np.append( 10**rho, np.zeros_like(rho) )
-        else:
-            gwbspec = 10**rho
-
-        if args.incCorr:
-            sig_gwboffdiag = []
-
-    if args.incGWline:
-        
-        rho_line = np.zeros(len(fqs))
-        idx = np.argmin(np.abs(fqs/86400.0 - freq_gwline))
-        rho_line[idx] = 10.0**(2.0*spec_gwline) / Tspan 
-
-        if args.dmVar:
-            gwline_spec = np.append( rho_line, np.zeros_like(rho_line) )
-        else:
-            gwline_spec = rho_line
-
-        if args.incCorr:
-            sig_gwlineoffdiag = []
-        
-
-    for ii in range(npsr):
-        tot = np.zeros(mode_count)
-
-        # diagonal terms
-        tot[0::2] = 10**kappa[ii]
-        tot[1::2] = 10**kappa[ii] 
-
-        if args.incGWB:
+                ORF = np.array(ORF)
+                ORFtot = np.zeros((mode_count,npsr,npsr)) # shouldn't be applying ORF to dmfreqs,
+                                                          # but the projection of GW spec onto dmfreqs
+                                                          # is defined as zero below.
+                ORFtot[0::2] = ORF
+                ORFtot[1::2] = ORF
             
-            if args.incCorr:
-                
-                offdiag = np.zeros(mode_count)
+            elif args.typeCorr == 'spharmAnis':
+            
+                ################################################
+                # Reshaping freq-dependent anis coefficients,
+                # and testing for power distribution physicality.
+            
+                orf_coeffs = orf_coeffs.reshape((tmp_nwins,
+                                                ((args.LMAX+1)**2)-1))
+                clm = np.array([[0.0]*((args.LMAX+1)**2)
+                                for ii in range(tmp_nwins)])
+                clm[:,0] = 2.0*np.sqrt(np.pi)
 
-                # off diagonal terms
-                offdiag[0::2] = gwbspec
-                offdiag[1::2] = gwbspec
+                if args.LMAX!=0:
 
-                # diagonal terms
-                tot[0::2] += ORF[:,ii,ii]*gwbspec
-                tot[1::2] += ORF[:,ii,ii]*gwbspec
+                    for kk in range(tmp_nwins):
+                        for ii in range(1,((args.LMAX+1)**2)):
+                            clm[kk,ii] = orf_coeffs[kk,ii-1]   
 
-                sig_gwboffdiag.append(offdiag)
-                
-            if not args.incCorr:
-                
-                # diagonal terms
-                tot[0::2] += gwbspec
-                tot[1::2] += gwbspec
+                        if not args.noPhysPrior:
+                            # Testing for physicality of power distribution.
+                            if (utils.PhysPrior(clm[kk],harm_sky_vals) == 'Unphysical'):
+                                return -np.inf
+
+                ############################################################
+                # Computing frequency-dependent overlap reduction functions.
+        
+                ORF=[]
+                for ii in range(tmp_nwins): # number of frequency windows
+                    for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
+                        ORF.append( sum(clm[ii,kk]*CorrCoeff[kk]
+                                        for kk in range(len(CorrCoeff))) )
+                if args.dmVar:
+                    for ii in range(tmp_nwins): # number of frequency windows
+                        for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
+                            ORF.append( np.zeros((npsr,npsr)) )
+
+                ORF = np.array(ORF)
+                ORFtot = np.zeros((mode_count,npsr,npsr)) # shouldn't be applying ORF to dmfreqs,
+                                                          # but the projection of GW spec onto dmfreqs
+                                                          # is defined as zero below.
+                ORFtot[0::2] = ORF
+                ORFtot[1::2] = ORF
+            
 
         if args.incGWline:
+    
+            gwline_orf = np.zeros((npsr,npsr))
+
+            Fp = np.zeros(npsr)
+            Fc = np.zeros(npsr)
+            for ii in range(npsr):
+                Fp[ii], Fc[ii] = utils.fplus_fcross(psr[ii], theta_gwline, phi_gwline)
+        
+            for ii in range(npsr):
+                for jj in range(ii,npsr):
+                    gwline_orf[ii,jj] = (3.0/(8.0*np.pi)) * (Fp[ii]*Fp[jj] + Fc[ii]*Fc[jj])
+                    gwline_orf[jj,ii] = gwline_orf[ii,jj]
+
+                    if ii == jj:
+                        # scaling for pulsar-term
+                        gwline_orf[ii,jj] *= 2.0
+
+        ################################################
+        # parameterize intrinsic red noise as power law
+    
+        Tspan = (1/fqs[0])*86400.0
+
+        # parameterize intrinsic red-noise and DM-variations
+        kappa = []
+        for ii in range(npsr):
+        
+            # Construct red noise signal
+            if args.fixRed:
+                Ared_tmp = psr[ii].Redamp
+                gam_red_tmp = psr[ii].Redind
+
+                red_kappa_tmp = np.log10( Ared_tmp**2/12/np.pi**2 * \
+                                    f1yr**(gam_red_tmp-3) * \
+                                    (fqs/86400.0)**(-gam_red_tmp)/Tspan )
             
+            if not args.fixRed:
+                if args.redSpecModel == 'powerlaw':
+                    Ared_tmp = Ared[ii]
+                    gam_red_tmp = gam_red[ii]
+                    
+                    red_kappa_tmp = np.log10( Ared_tmp**2/12/np.pi**2 * \
+                                            f1yr**(gam_red_tmp-3) * \
+                                            (fqs/86400.0)**(-gam_red_tmp)/Tspan )
+                elif args.redSpecModel == 'spectrum':
+                    red_kappa_tmp = np.log10( 10.0**(2.0*red_spec[ii,:]) / Tspan)
+
+            # Construct DM-variations signal (if appropriate)
+            if args.dmVar:
+                if args.dmSpecModel == 'powerlaw':
+                    Adm_tmp = Adm[ii]
+                    gam_dm_tmp = gam_dm[ii]
+                    
+                    dm_kappa_tmp = np.log10( Adm_tmp**2/12/np.pi**2 * \
+                                            f1yr**(gam_dm_tmp-3) * \
+                                            (fqs/86400.0)**(-gam_dm_tmp)/Tspan )
+                elif args.dmSpecModel == 'spectrum':
+                    dm_kappa_tmp = np.log10( 10.0**(2.0*dm_spec[ii,:]) / Tspan)
+
+            if not args.dmVar:
+                dm_kappa_tmp = np.array([])
+
+            # Now create total red signal for each pulsar
+            kappa.append(np.append(red_kappa_tmp,dm_kappa_tmp))
+    
+                
+        ###################################
+        # construct elements of sigma array
+    
+        sigdiag = []
+        if args.incGWB:
+
+            if args.gwbSpecModel == 'powerlaw':
+                rho = np.log10(Agwb**2/12/np.pi**2 * \
+                            f1yr**(gam_gwb-3) * \
+                            (fqs/86400.0)**(-gam_gwb)/Tspan)
+            elif args.gwbSpecModel == 'spectrum':
+                rho = np.log10( 10.0**(2.0*rho_spec) / Tspan )
+            elif args.gwbSpecModel == 'turnover':
+                rho = np.log10(Agwb**2/12/np.pi**2 * \
+                            f1yr**(13.0/3.0-3.0) * \
+                            (fqs/86400.0)**(-13.0/3.0) / \
+                            (1.0+(fbend*86400.0/fqs)**kappaturn)/Tspan)
+            elif args.gwbSpecModel == 'gpEnvInterp':
+                hc_pred = np.zeros((len(fqs),2))
+                for ii,freq in enumerate(fqs):
+                    hc_pred[ii,0], mse = gp[ii].predict(ecc, eval_MSE=True)
+                    hc_pred[ii,1] = np.sqrt(mse)
+
+                if not args.incCosVar:
+                    hc = Agwb * hc_pred[:,0]
+                elif args.incCosVar:
+                    hc = Agwb * (hc_pred[:,0] + np.random.normal(0.0,1.0,len(fqs)) * hc_pred[:,1])
+
+                rho = np.log10( hc**2 / (12.0*np.pi**2.0) / (fqs/86400.0)**3.0 / Tspan )
+
+            if args.dmVar:
+                gwbspec = np.append( 10**rho, np.zeros_like(rho) )
+            else:
+                gwbspec = 10**rho
+
             if args.incCorr:
-                
-                offdiag = np.zeros(mode_count)
+                sig_gwboffdiag = []
 
-                # off diagonal terms
-                offdiag[0::2] = gwline_spec
-                offdiag[1::2] = gwline_spec
-
-                # diagonal terms
-                tot[0::2] += gwline_orf[ii,ii]*gwline_spec
-                tot[1::2] += gwline_orf[ii,ii]*gwline_spec
-
-                sig_gwlineoffdiag.append(offdiag)
-                
-            if not args.incCorr:
-                
-                # diagonal terms
-                tot[0::2] += gwline_spec
-                tot[1::2] += gwline_spec
-                
-        # fill in lists of arrays
-        sigdiag.append(tot)
-
-
-    ###############################################
-    # Computing Phi and Sigma matrices without GWB
+        if args.incGWline:
+        
+            rho_line = np.zeros(len(fqs))
+            idx = np.argmin(np.abs(fqs/86400.0 - freq_gwline))
+            rho_line[idx] = 10.0**(2.0*spec_gwline) / Tspan 
     
-    if not args.incGWB and not args.incGWline:
+            if args.dmVar:
+                gwline_spec = np.append( rho_line, np.zeros_like(rho_line) )
+            else:
+                gwline_spec = rho_line
 
-        for ii,p in enumerate(psr):
-            
-            # compute Phi inverse 
-            red_phi = np.diag(1./sigdiag[ii])
-            logdet_Phi = np.sum(np.log(sigdiag[ii]))
-
-            # now fill in real covariance matrix
-            Phi = np.zeros( TtNT[ii].shape ) 
-            for kk in range(0,mode_count):
-                Phi[kk+p.Gc.shape[1],kk+p.Gc.shape[1]] = red_phi[kk,kk]
-
-            # symmeterize Phi
-            Phi = Phi + Phi.T - np.diag(np.diag(Phi))
-    
-            # compute sigma
-            Sigma = TtNT[ii] + Phi
-
-            # cholesky decomp 
-            try:
-                
-                cf = sl.cho_factor(Sigma)
-                expval2 = sl.cho_solve(cf, dtmp[ii])
-                logdet_Sigma = np.sum(2*np.log(np.diag(cf[0])))
-
-            except np.linalg.LinAlgError:
-                
-                print 'Cholesky Decomposition Failed!!'
-                return -np.inf
-                
-            logLike += -0.5 * (logdet_Phi + logdet_Sigma) + \
-              0.5 * (np.dot(dtmp[ii], expval2))
-
-        logLike += loglike1_tmp
+            if args.incCorr:
+                sig_gwlineoffdiag = []
         
 
-    if args.incGWB or args.incGWline:
+        for ii in range(npsr):
+            tot = np.zeros(mode_count)
 
-        if not args.incCorr:
+            # diagonal terms
+            tot[0::2] = 10**kappa[ii]
+            tot[1::2] = 10**kappa[ii] 
+
+            if args.incGWB:
             
+                if args.incCorr:
+                
+                    offdiag = np.zeros(mode_count)
+
+                    # off diagonal terms
+                    offdiag[0::2] = gwbspec
+                    offdiag[1::2] = gwbspec
+
+                    # diagonal terms
+                    tot[0::2] += ORF[:,ii,ii]*gwbspec
+                    tot[1::2] += ORF[:,ii,ii]*gwbspec
+
+                    sig_gwboffdiag.append(offdiag)
+                
+                if not args.incCorr:
+                    
+                    # diagonal terms
+                    tot[0::2] += gwbspec
+                    tot[1::2] += gwbspec
+
+            if args.incGWline:
+            
+                if args.incCorr:
+                
+                    offdiag = np.zeros(mode_count)
+
+                    # off diagonal terms
+                    offdiag[0::2] = gwline_spec
+                    offdiag[1::2] = gwline_spec
+
+                    # diagonal terms
+                    tot[0::2] += gwline_orf[ii,ii]*gwline_spec
+                    tot[1::2] += gwline_orf[ii,ii]*gwline_spec
+
+                    sig_gwlineoffdiag.append(offdiag)
+                
+                if not args.incCorr:
+                
+                    # diagonal terms
+                    tot[0::2] += gwline_spec
+                    tot[1::2] += gwline_spec
+                
+            # fill in lists of arrays
+            sigdiag.append(tot)
+
+
+        ###############################################
+        # Computing Phi and Sigma matrices without GWB
+    
+        if not args.incGWB and not args.incGWline:
+
             for ii,p in enumerate(psr):
             
                 # compute Phi inverse 
@@ -1173,110 +1142,149 @@ def lnprob(xx):
                     logdet_Sigma = np.sum(2*np.log(np.diag(cf[0])))
 
                 except np.linalg.LinAlgError:
-                    
+                
                     print 'Cholesky Decomposition Failed!!'
                     return -np.inf
                 
                 logLike += -0.5 * (logdet_Phi + logdet_Sigma) + \
-                  0.5 * (np.dot(dtmp[ii], expval2))
+                0.5 * (np.dot(dtmp[ii], expval2))
 
             logLike += loglike1_tmp
-
-        if args.incCorr:
         
-            #####################
-            # compute Phi matrix
 
-            smallMatrix = np.zeros((mode_count, npsr, npsr))
-            for ii in range(npsr):
-                for jj in range(ii,npsr):
-
-                    if ii == jj:
-                        smallMatrix[:,ii,jj] = sigdiag[jj] 
-                    else:
-                        if args.incGWB:
-                            smallMatrix[:,ii,jj] += ORFtot[:,ii,jj] * sig_gwboffdiag[jj]
-                        if args.incGWline:
-                            smallMatrix[:,ii,jj] += sig_gwlineoffdiag[jj]
-                        smallMatrix[:,jj,ii] = smallMatrix[:,ii,jj]
-
-            ###################################
-            # invert Phi matrix frequency-wise
+        if args.incGWB or args.incGWline:
     
-            logdet_Phi = 0
-            for ii in range(mode_count):
-
-                try:
-    
-                    L = sl.cho_factor(smallMatrix[ii,:,:])
-                    smallMatrix[ii,:,:] = sl.cho_solve(L, np.eye(npsr))
-                    logdet_Phi += np.sum(2*np.log(np.diag(L[0])))
-
-                except np.linalg.LinAlgError:
-    
-                    ###################################################
-                    # Break if we have non-positive-definiteness of Phi
+            if not args.incCorr:
             
-                    print 'Cholesky Decomposition Failed!! Rejecting...'
-                    return -np.inf
+                for ii,p in enumerate(psr):
+            
+                    # compute Phi inverse 
+                    red_phi = np.diag(1./sigdiag[ii])
+                    logdet_Phi = np.sum(np.log(sigdiag[ii]))
 
+                    # now fill in real covariance matrix
+                    Phi = np.zeros( TtNT[ii].shape ) 
+                    for kk in range(0,mode_count):
+                        Phi[kk+p.Gc.shape[1],kk+p.Gc.shape[1]] = red_phi[kk,kk]
 
-            bigTtNT = sl.block_diag(*TtNT)
-            Phi = np.zeros_like( bigTtNT )
+                    # symmeterize Phi
+                    Phi = Phi + Phi.T - np.diag(np.diag(Phi))
     
-            # now fill in real covariance matrix
-            ind = [0]
-            ind = np.append(ind,np.cumsum([TtNT[ii].shape[0]
-                                        for ii in range(len(psr))]))
-            ind = [np.arange(ind[ii]+psr[ii].Gc.shape[1],
-                            ind[ii]+psr[ii].Gc.shape[1]+mode_count)
-                            for ii in range(len(ind)-1)]
-            for ii in range(npsr):
-                for jj in range(npsr):
-                    Phi[ind[ii],ind[jj]] = smallMatrix[:,ii,jj]
-            
-            # compute sigma
-            Sigma = bigTtNT + Phi
-            
-            # cholesky decomp for second term in exponential
-            if args.use_gpu:
+                    # compute sigma
+                    Sigma = TtNT[ii] + Phi
 
-                try:
+                    # cholesky decomp 
+                    try:
+                    
+                        cf = sl.cho_factor(Sigma)
+                        expval2 = sl.cho_solve(cf, dtmp[ii])
+                        logdet_Sigma = np.sum(2*np.log(np.diag(cf[0])))
+
+                    except np.linalg.LinAlgError:
+                        
+                        print 'Cholesky Decomposition Failed!!'
+                        return -np.inf
                 
-                    dtmp = np.concatenate(dtmp)
-                    Sigma_gpu = gpuarray.to_gpu( Sigma.astype(np.float64).copy() )
-                    expval2_gpu = gpuarray.to_gpu( dtmp.astype(np.float64).copy() )
-                    culinalg.cho_solve( Sigma_gpu, expval2_gpu ) # in-place linear-algebra:
-                                                                 # Sigma and expval2 overwritten
-                    logdet_Sigma = np.sum(2.0*np.log(np.diag(Sigma_gpu.get())))
+                    logLike += -0.5 * (logdet_Phi + logdet_Sigma) + \
+                    0.5 * (np.dot(dtmp[ii], expval2))
 
-                except cula.culaDataError:
+                logLike += loglike1_tmp
+
+            if args.incCorr:
+        
+                #####################
+                # compute Phi matrix
+
+                smallMatrix = np.zeros((mode_count, npsr, npsr))
+                for ii in range(npsr):
+                    for jj in range(ii,npsr):
+
+                        if ii == jj:
+                            smallMatrix[:,ii,jj] = sigdiag[jj] 
+                        else:
+                            if args.incGWB:
+                                smallMatrix[:,ii,jj] += ORFtot[:,ii,jj] * sig_gwboffdiag[jj]
+                            if args.incGWline:
+                                smallMatrix[:,ii,jj] += sig_gwlineoffdiag[jj]
+                            smallMatrix[:,jj,ii] = smallMatrix[:,ii,jj]
     
-                    print 'Cholesky Decomposition Failed (GPU error!!)'
-                    return -np.inf
+                ###################################
+                # invert Phi matrix frequency-wise
+    
+                logdet_Phi = 0
+                for ii in range(mode_count):
 
-                logLike = -0.5 * (logdet_Phi + logdet_Sigma) + \
-                  0.5 * (np.dot(dtmp, expval2_gpu.get() )) + \
-                  loglike1_tmp
+                    try:
+    
+                        L = sl.cho_factor(smallMatrix[ii,:,:])
+                        smallMatrix[ii,:,:] = sl.cho_solve(L, np.eye(npsr))
+                        logdet_Phi += np.sum(2*np.log(np.diag(L[0])))
+
+                    except np.linalg.LinAlgError:
+    
+                        ###################################################
+                        # Break if we have non-positive-definiteness of Phi
             
-            else:
+                        print 'Cholesky Decomposition Failed!! Rejecting...'
+                        return -np.inf
+
+
+                bigTtNT = sl.block_diag(*TtNT)
+                Phi = np.zeros_like( bigTtNT )
     
-                try:
+                # now fill in real covariance matrix
+                ind = [0]
+                ind = np.append(ind,np.cumsum([TtNT[ii].shape[0]
+                                            for ii in range(len(psr))]))
+                ind = [np.arange(ind[ii]+psr[ii].Gc.shape[1],
+                                ind[ii]+psr[ii].Gc.shape[1]+mode_count)
+                                for ii in range(len(ind)-1)]
+                for ii in range(npsr):
+                    for jj in range(npsr):
+                        Phi[ind[ii],ind[jj]] = smallMatrix[:,ii,jj]
+            
+                # compute sigma
+                Sigma = bigTtNT + Phi
+            
+                # cholesky decomp for second term in exponential
+                if args.use_gpu:
 
-                    dtmp = np.concatenate(dtmp)
-                    cf = sl.cho_factor(Sigma)
-                    expval2 = sl.cho_solve(cf, dtmp)
-                    logdet_Sigma = np.sum(2*np.log(np.diag(cf[0])))
-
-                except np.linalg.LinAlgError:
+                    try:
                 
-                    print 'Cholesky Decomposition Failed second time!! Breaking...'
-                    return -np.inf
+                        dtmp = np.concatenate(dtmp)
+                        Sigma_gpu = gpuarray.to_gpu( Sigma.astype(np.float64).copy() )
+                        expval2_gpu = gpuarray.to_gpu( dtmp.astype(np.float64).copy() )
+                        culinalg.cho_solve( Sigma_gpu, expval2_gpu ) # in-place linear-algebra:
+                                                                     # Sigma and expval2 overwritten
+                        logdet_Sigma = np.sum(2.0*np.log(np.diag(Sigma_gpu.get())))
+
+                    except cula.culaDataError:
+    
+                        print 'Cholesky Decomposition Failed (GPU error!!)'
+                        return -np.inf
+
+                    logLike = -0.5 * (logdet_Phi + logdet_Sigma) + \
+                    0.5 * (np.dot(dtmp, expval2_gpu.get() )) + \
+                    loglike1_tmp
+            
+                else:
+        
+                    try:
+
+                        dtmp = np.concatenate(dtmp)
+                        cf = sl.cho_factor(Sigma)
+                        expval2 = sl.cho_solve(cf, dtmp)
+                        logdet_Sigma = np.sum(2*np.log(np.diag(cf[0])))
+
+                    except np.linalg.LinAlgError:
+                    
+                        print 'Cholesky Decomposition Failed second time!! Breaking...'
+                        return -np.inf
 
 
-                logLike = -0.5 * (logdet_Phi + logdet_Sigma) + \
-                  0.5 * (np.dot(dtmp, expval2)) + \
-                  loglike1_tmp
+                    logLike = -0.5 * (logdet_Phi + logdet_Sigma) + \
+                    0.5 * (np.dot(dtmp, expval2)) + \
+                    loglike1_tmp
 
     
 
@@ -1528,6 +1536,8 @@ if rank==0:
 # Define a unique file tag
 
 file_tag = 'pta'
+if args.constLike:
+    file_tag += '_constLike'
 if args.incGWB:
     if args.gwbSpecModel == 'powerlaw':
         if args.fix_slope:
