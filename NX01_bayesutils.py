@@ -16,7 +16,7 @@ try:
 except ImportError:
     hp = None
 try:
-    from PAL2 import plot
+    import plot
 except ImportError:
     plot = None
 import matplotlib.mlab as ml
