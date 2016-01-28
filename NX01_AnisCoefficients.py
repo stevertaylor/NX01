@@ -46,8 +46,6 @@ def calczeta(phi1, phi2, theta1, theta2):
     return zeta
 
 
-#################################
-
 """
 
 Following functions taken from Gair et. al (2014),
@@ -57,7 +55,7 @@ arbitrarily anisotropic GW background.
 """
 
 
-def Fminus00(qq, mm, ll, zeta):
+def Fminus00(qq, mm,ll,zeta):
     
     integrand = 0.
     
@@ -155,22 +153,22 @@ def arbORF(mm,ll,zeta):
             delta = [2.0*sin(zeta)/3., -2.0*sin(zeta)/5.]
             
             return norm * 0.25*sqrt( (2.0*ll+1.0)*pi )*sqrt( (1.0*factorial(ll-1))/(1.0*factorial(ll+1)) ) * \
-              (delta[ll-1] - (((1.0+cos(zeta))**(3./2.))/((1.0-cos(zeta))**(1./2.)))*Fminus00(1, 1,ll,zeta) - \
-               (((1.0-cos(zeta))**(3./2.))/((1.0+cos(zeta))**(1./2.)))*Fplus01(2, 1,ll,zeta))
+              (delta[ll-1] - ( (1.0+cos(zeta))**(3./2.) / (1.0-cos(zeta))**(1./2.) )*Fminus00(1, 1,ll,zeta) - \
+               ( (1.0-cos(zeta))**(3./2.) / (1.0+cos(zeta))**(1./2.) )*Fplus01(2, 1,ll,zeta))
 
         else:
 
-            return norm*0.25*sqrt( (2.0*ll+1.0)*pi )*sqrt( (1.0*factorial(ll-1))/(1.0*factorial(ll+1)) ) * \
-              ( - (((1.0+cos(zeta))**(3./2.))/((1.0-cos(zeta))**(1./2.)))*Fminus00(1, 1,ll,zeta) - \
-                (((1.0-cos(zeta))**(3./2.))/((1.0+cos(zeta))**(1./2.)))*Fplus01(2, 1,ll,zeta))
+            return norm * 0.25*sqrt( (2.0*ll+1.0)*pi )*sqrt( (1.0*factorial(ll-1))/(1.0*factorial(ll+1)) ) * \
+              ( - ( (1.0+cos(zeta))**(3./2.) / (1.0-cos(zeta))**(1./2.) )*Fminus00(1, 1,ll,zeta) - \
+                ( (1.0-cos(zeta))**(3./2.) / (1.0+cos(zeta))**(1./2.) )*Fplus01(2, 1,ll,zeta))
 
     else:
 
-        return -norm*0.25*sqrt( (2.0*ll+1.0)*pi )*sqrt( (1.0*factorial(ll-mm))/(1.0*factorial(ll+mm)) ) * \
-          ( (((1.0+cos(zeta))**(mm/2. + 1))/((1.0-cos(zeta))**(mm/2.)))*Fminus00(mm, mm,ll,zeta) - \
-            (((1.0+cos(zeta))**(mm/2.))/((1.0-cos(zeta))**(mm/2.-1.)))*Fminus01(mm-1, mm,ll,zeta) + \
-          (((1.0-cos(zeta))**(mm/2. + 1))/((1.0+cos(zeta))**(mm/2.)))*Fplus01(mm+1, mm,ll,zeta) - \
-          (((1.0-cos(zeta))**(mm/2.))/((1.0+cos(zeta))**(mm/2.-1.)))*Fplus00(mm, mm,ll,zeta) )
+        return - norm * 0.25*sqrt( (2.0*ll+1.0)*pi )*sqrt( (1.0*factorial(ll-mm))/(1.0*factorial(ll+mm)) ) * \
+          ( ( (1.0+cos(zeta))**(mm/2. + 1) / (1.0-cos(zeta))**(mm/2.) )*Fminus00(mm, mm,ll,zeta) - \
+            ( (1.0+cos(zeta))**(mm/2.) / (1.0-cos(zeta))**(mm/2. - 1.) )*Fminus01(mm-1, mm,ll,zeta) + \
+          ( (1.0-cos(zeta))**(mm/2. + 1) / (1.0+cos(zeta))**(mm/2.) )*Fplus01(mm+1, mm,ll,zeta) - \
+          ( (1.0-cos(zeta))**(mm/2.) / (1.0+cos(zeta))**(mm/2. - 1.) )*Fplus00(mm, mm,ll,zeta) )
 
 
 def dlmk(l,m,k,theta1):
@@ -180,7 +178,7 @@ def dlmk(l,m,k,theta1):
     
     """
     
-    if m>=k:
+    if m >= k:
         
         factor = sqrt(factorial(l-k)*factorial(l+m)/factorial(l+k)/factorial(l-m))
         part2 = (cos(theta1/2))**(2*l+k-m)*(-sin(theta1/2))**(m-k)/factorial(m-k)
@@ -235,17 +233,20 @@ def arbCompFrame_ORF(mm,ll,zeta):
         if ll>2: 
             return 0.
         elif ll==2:
-            if mm==0: 
-                return 2*0.25*norm*(4./3)*(sqrt(pi/5))*cos(zeta) # pulsar-term doubling
+            if mm==0:
+                # pulsar-term doubling
+                return 2*0.25*norm*(4./3)*(sqrt(pi/5))*cos(zeta) 
             else:
                 return 0.
         elif ll==1:
-            if mm==0: 
-                return -2*0.5*norm*(sqrt(pi/3.))*(1.0+cos(zeta)) # pulsar-term doubling
+            if mm==0:
+                # pulsar-term doubling
+                return -2*0.5*norm*(sqrt(pi/3.))*(1.0+cos(zeta)) 
             else:
                 return 0.
         elif ll==0:
-            return 2.0*norm*0.25*sqrt(pi*4)*(1+(cos(zeta)/3.)) # pulsar-term doubling
+            # pulsar-term doubling
+            return 2.0*norm*0.25*sqrt(pi*4)*(1+(cos(zeta)/3.)) 
             
     elif zeta == pi:
         
@@ -266,8 +267,7 @@ def arbCompFrame_ORF(mm,ll,zeta):
 def rotated_Gamma_ml(m,l,phi1,phi2,theta1,theta2,gamma_ml):
     """
     This function takes any gamma in the computational frame and rotates it to the
-    cosmic frame. Special cases exist for dipole and qudrupole, as these have
-    been found analytically.
+    cosmic frame. 
     
     """
     
@@ -312,7 +312,8 @@ def CorrBasis(psr_locs, lmax):
             for bb in range(aa, len(psr_locs)):
                 
                 rot_Gs=[]
-                plus_gamma_ml = [] # this will hold the list of gammas evaluated at a specific value of phi{1,2}, and theta{1,2}.
+                plus_gamma_ml = [] # this will hold the list of gammas
+                                   # evaluated at a specific value of phi{1,2}, and theta{1,2}.
                 neg_gamma_ml = []
                 gamma_ml = []
                 
@@ -323,12 +324,18 @@ def CorrBasis(psr_locs, lmax):
                                     psr_locs[:,1][aa],psr_locs[:,1][bb])
                     
                     intg_gamma = arbCompFrame_ORF(mm,ll,zeta)
-                    neg_intg_gamma = (-1)**(mm) * intg_gamma  # just (-1)^m Gamma_ml since this is in the computational frame
-                    plus_gamma_ml.append(intg_gamma)     # all of the gammas from Gamma^-m_l --> Gamma ^m_l
-                    neg_gamma_ml.append(neg_intg_gamma)  # get the neg m values via complex conjugates 
+
+                    # just (-1)^m Gamma_ml since this is in the computational frame
+                    neg_intg_gamma = (-1)**(mm) * intg_gamma
+
+                    # all of the gammas from Gamma^-m_l --> Gamma ^m_l
+                    plus_gamma_ml.append(intg_gamma)
+
+                    # get the neg m values via complex conjugates   
+                    neg_gamma_ml.append(neg_intg_gamma)  
                     
-                neg_gamma_ml = neg_gamma_ml[1:]            # this makes sure we don't have 0 twice
-                rev_neg_gamma_ml = neg_gamma_ml[::-1]      # reverse direction of list, now runs from -m .. 0
+                neg_gamma_ml = neg_gamma_ml[1:]         # this makes sure we don't have 0 twice
+                rev_neg_gamma_ml = neg_gamma_ml[::-1]   # reverse direction of list, now runs from -m...0
                 gamma_ml = rev_neg_gamma_ml + plus_gamma_ml
                 
                 mindex = len(corr) - mmodes
