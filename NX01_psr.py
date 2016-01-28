@@ -120,7 +120,8 @@ class PsrObj(object):
             else:
                 epoch = '2000'
             coords = Equatorial(Ecliptic(str(self.T2psr['ELONG'].val*fac),
-                                         str(self.T2psr['ELAT'].val*fac)), epoch=epoch)
+                                         str(self.T2psr['ELAT'].val*fac)),
+                                         epoch=epoch)
             self.psr_locs = [float(repr(coords.ra)),float(repr(coords.dec))]
 
         print "--> Grabbed the pulsar position."
