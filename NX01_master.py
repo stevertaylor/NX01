@@ -170,9 +170,10 @@ if args.jsonModel is not None:
     args.resume = json_data['resume']
     args.incGWB = json_data['incGWB']
     args.gwbSpecModel = json_data['gwbSpecModel']
-    args.incCosVar = json_data['gpPickle']
+    args.gpPickle = json_data['gpPickle']
     args.incCosVar = json_data['incCosVar']
     args.incCorr = json_data['incCorr']
+    args.typeCorr = json_data['typeCorr']
     args.redSpecModel = json_data['redSpecModel']
     args.dmSpecModel = json_data['dmSpecModel']
     args.dirExt = json_data['dirExt']
@@ -416,7 +417,7 @@ if args.det_signal:
 
 gp = None
 if args.incGWB:
-    if args.gwbPrior == 'gaussProc':
+    if args.gwbPrior == 'gaussProc' or args.gwbSpecModel == 'gpEnvInterp':
         gp = pickle.load( open( args.gpPickle, "rb" ) )
 
 #######################################
@@ -1814,10 +1815,10 @@ if args.sampler == 'ptmcmc':
                 ids_gp = [np.arange(param_ct,param_ct+2)]
                 [ind.append(id) for id in ids_gp]
                 param_ct += 2
-            ids_both_low = [np.append(ids_spec[0][0],ids_gp[0])]
-            ids_both_high = [np.append(ids_spec[0][1:],ids_gp[0][0])]
-            [ind.append(id) for id in ids_both_low]
-            [ind.append(id) for id in ids_both_high]
+            #ids_both_low = [np.append(ids_spec[0][0],ids_gp[0])]
+            #ids_both_high = [np.append(ids_spec[0][1:],ids_gp[0][0])]
+            #[ind.append(id) for id in ids_both_low]
+            #[ind.append(id) for id in ids_both_high]
         elif args.gwbSpecModel == 'turnover':
             ids = [np.arange(param_ct,param_ct+3)]
             [ind.append(id) for id in ids]
