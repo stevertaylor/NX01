@@ -123,7 +123,7 @@ def Fplus00(qq, mm,ll,zeta):
     return integrand
 
 
-def ArbORF_calc(mm,ll,zeta):
+def arbORF(mm,ll,zeta):
 
     if mm == 0:
 
@@ -190,7 +190,7 @@ def dlmk(l,m,k,theta1):
     
     else:
         
-        return (-1)**(m-k)*dlmk(l,k,m,theta1)
+        return (-1)**(m-k) * dlmk(l,k,m,theta1)
 
 
 def Dlmk(l,m,k,phi1,phi2,theta1,theta2):
@@ -228,9 +228,9 @@ def gamma(phi1,phi2,theta1,theta2):
         return pi + gamma
 
 
-def ArbCompFrame_ORF(mm,ll,zeta):
+def arbCompFrame_ORF(mm,ll,zeta):
     
-    if zeta==0.:
+    if zeta == 0.:
         
         if ll>2: 
             return 0.
@@ -247,7 +247,7 @@ def ArbCompFrame_ORF(mm,ll,zeta):
         elif ll==0:
             return 2.0*norm*0.25*sqrt(pi*4)*(1+(cos(zeta)/3.)) # pulsar-term doubling
             
-    elif zeta==pi:
+    elif zeta == pi:
         
         if ll>2: 
             return 0.
@@ -256,11 +256,11 @@ def ArbCompFrame_ORF(mm,ll,zeta):
         elif ll==1 and mm!=0: 
             return 0.
         else: 
-            return ArbORF_calc(mm,ll,zeta)
+            return arbORF(mm,ll,zeta)
         
     else:
         
-        return ArbORF_calc(mm,ll,zeta)
+        return arbORF(mm,ll,zeta)
 
 
 def rotated_Gamma_ml(m,l,phi1,phi2,theta1,theta2,gamma_ml):
@@ -312,22 +312,23 @@ def CorrBasis(psr_locs, lmax):
             for bb in range(aa, len(psr_locs)):
                 
                 rot_Gs=[]
-                plus_gamma_ml = [] # this will hold the list of gammas evaluated at a specific value of phi1,2, and theta1,2.
+                plus_gamma_ml = [] # this will hold the list of gammas evaluated at a specific value of phi{1,2}, and theta{1,2}.
                 neg_gamma_ml = []
                 gamma_ml = []
                 
-                # pre-calculate all the gammas so this gets done only once. Need all the values to execute rotation codes.
+                # Pre-calculate all the gammas so this gets done only once.
+                # Need all the values to execute rotation codes.
                 for mm in range(ll+1):
                     zeta = calczeta(psr_locs[:,0][aa],psr_locs[:,0][bb],\
                                     psr_locs[:,1][aa],psr_locs[:,1][bb])
                     
-                    intg_gamma = ArbCompFrame_ORF(mm,ll,zeta)
+                    intg_gamma = arbCompFrame_ORF(mm,ll,zeta)
                     neg_intg_gamma = (-1)**(mm) * intg_gamma  # just (-1)^m Gamma_ml since this is in the computational frame
                     plus_gamma_ml.append(intg_gamma)     # all of the gammas from Gamma^-m_l --> Gamma ^m_l
                     neg_gamma_ml.append(neg_intg_gamma)  # get the neg m values via complex conjugates 
                     
-                neg_gamma_ml=neg_gamma_ml[1:]            # this makes sure we don't have 0 twice
-                rev_neg_gamma_ml=neg_gamma_ml[::-1]      # reverse direction of list, now runs from -m .. 0
+                neg_gamma_ml = neg_gamma_ml[1:]            # this makes sure we don't have 0 twice
+                rev_neg_gamma_ml = neg_gamma_ml[::-1]      # reverse direction of list, now runs from -m .. 0
                 gamma_ml = rev_neg_gamma_ml + plus_gamma_ml
                 
                 mindex = len(corr) - mmodes
