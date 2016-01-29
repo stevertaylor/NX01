@@ -36,11 +36,13 @@ import NX01_AnisCoefficients as anis
 import NX01_utils as utils
 import NX01_psr
 
-import pyximport
-pyximport.install(setup_args={"include_dirs":np.get_include()},
-                  reload_support=True)
-
-import NX01_jitter as jitter
+try:
+    import NX01_jitter as jitter
+except ImportError:
+    import pyximport
+    pyximport.install(setup_args={"include_dirs":np.get_include()},
+                      reload_support=True)
+    import NX01_jitter as jitter
 
 try:
     from mpi4py import MPI
