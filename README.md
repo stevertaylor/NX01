@@ -84,26 +84,30 @@ ephem`.
     execute `python NX01_master.py --from-h5
     --psrlist=./PsrListings_GWB.txt --nmodes=15 --incGWB --fix-slope
     --psrEndIndex=18 --dirExt=./chains_firsttests/`.
-13. This will initiate a run, producing a parent directory
+13. If you get errors with importing `NX01_jitter` then you may need
+    to cythonize this module first. On the command line type `python
+    setup-cython.py build_ext --inplace`. This should build the
+    module, allowing you to repeat (12) without errors.
+14. This will initiate a run, producing a parent directory
     `chains_firsttests`, and run-specific sub-directory.  This
     sub-directory will contain MCMC sample files and many auxillary
     files, amongst which is `parameter_list.txt`. This contains two
     columns; the first is a list of indices corresponding to
     columns of `chain_1.txt` where one can find the parameters of the
     second column.
-14. After identifying the column of `chain_1.txt` which corresponds to
+15. After identifying the column of `chain_1.txt` which corresponds to
     `Agwb`, you can get an x% upper limit by executing
     the following:
 		    
 			import NX01_bayesutils as bu
 			upper_lim = bu.confinterval(Agwb_samples, sigma=x/100, onesided=True)[1]
-15. If you want to make a few summary plots, you can use
+16. If you want to make a few summary plots, you can use
 `NX01_processResults.py`. Execute `python NX01_processResults.py
 --help` to see the options available to you. An example command is
 `python NX01_processResults.py
 --parentpath=/home/user/NX01/chains_firsttests --chaindir=nanograv_gwbdetect_noCorr_gam4p33_reddetectpowerlaw_nmodes15`
-16. [EXTRA] If you want to make use of the NX01 GUI, you will need to install ipython widgets as follows: `conda install ipywidgets`.
-17. [EXTRA] Open `NX01_GUI.ipynb` and execute the cells. This will produce an
+17. [EXTRA] If you want to make use of the NX01 GUI, you will need to install ipython widgets as follows: `conda install ipywidgets`.
+18. [EXTRA] Open `NX01_GUI.ipynb` and execute the cells. This will produce an
     interactive GUI, allowing you to check boxes or enter options for
     your model. Clicking `Store Model` will create a json file called
     `mymodel.json` in the NX01 directory. Clicking `Engage` will begin
