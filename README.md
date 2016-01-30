@@ -64,7 +64,8 @@ information in the pulsar class. Useful for storing array products.
    `git clone https://github.com/jellis18/PTMCMCSampler.git` and
    install with `python setup.py install`.
 7. Install the python `ephem` package by executing `conda install
-ephem`.
+ephem`. Install the python `basemap` package by executing `conda
+install basemap`.
 8. Download [NX01](https://github.com/stevertaylor/NX01.git) by
    cloning the repository -- `git clone
    https://github.com/stevertaylor/NX01.git`.

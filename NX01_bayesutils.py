@@ -895,11 +895,12 @@ def make_all_CDF(sample0, sample1, sample2, sample3, linestyle=None, linewidth=N
 
    plt.title(title, fontsize=20)
 
-def makeSkyMap(samples, lmax, nside=32, tex=True, psrs=None):
+def makeSkyMap(samples, lmax, nside=32, cmap=None, tex=True,
+               psrs=None, axis=None):
+
     if tex == True:
         plt.rcParams['text.usetex'] = True
 
-    #nside=32
     npix = hp.nside2npix(nside)   # number of pixels total
 
     # initialize theta and phi map coordinantes
@@ -919,16 +920,33 @@ def makeSkyMap(samples, lmax, nside=32, tex=True, psrs=None):
 
     pwr = utils.GWpower(samples, harmvals)
 
-    ax = plt.subplot(111, projection='astro mollweide')
-    ax.grid()
-    plot.outline_text(ax)
-    plot.healpix_heatmap(pwr)
-    plt.colorbar(orientation='horizontal')
-    plt.suptitle(r'$\langle P_{\mathrm{GWB}}(\hat\Omega)\rangle$', y=0.1)
+    if axis is None:
+        ax = plt.subplot(111, projection='astro mollweide')
+        ax.grid()
+        plot.outline_text(ax)
+        if cmap is not None:
+            plot.healpix_heatmap(pwr,cmap=cmap)
+        else:
+            plot.healpix_heatmap(pwr)
+        plt.colorbar(orientation='horizontal')
+        plt.suptitle(r'$\langle P_{\mathrm{GWB}}(\hat\Omega)\rangle$', y=0.1)
 
-    # add pulsars locations
-    if psrs is not None:
-        ax.plot(psrs[:,0], psrs[:,1], '*', color='w', markersize=6, mew=1, mec='w')
+        # add pulsars locations
+        if psrs is not None:
+            ax.plot(psrs[:,0], psrs[:,1], '*', color='w',
+                    markersize=6, mew=1, mec='w')
+    elif axis is not None:
+        axis.grid()
+        plot.outline_text(axis)
+        if cmap is not None:
+            plot.healpix_heatmap(pwr,cmap=cmap)
+        else:
+            plot.healpix_heatmap(pwr)
+
+        # add pulsars locations
+        if psrs is not None:
+            axis.plot(psrs[:,0], psrs[:,1], '*', color='w',
+                      markersize=6, mew=1, mec='w')
 
 
 def OSupperLimit(psr, GCGnoiseInv, ORF, OSsmbhb, ul_list=None,

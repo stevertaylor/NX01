@@ -39,10 +39,17 @@ import NX01_psr
 try:
     import NX01_jitter as jitter
 except ImportError:
+    print """You do not have NX01_jitter.so. \
+    Trying to make the .so file now..."""
     import pyximport
     pyximport.install(setup_args={"include_dirs":np.get_include()},
                       reload_support=True)
-    import NX01_jitter as jitter
+    try:
+        import NX01_jitter as jitter
+    except ImportError:
+        print """You need to run: \
+        python setup-cython.py build_ext --inplace"""
+    
 
 try:
     from mpi4py import MPI
@@ -1817,10 +1824,6 @@ if args.sampler == 'ptmcmc':
                 ids_gp = [np.arange(param_ct,param_ct+2)]
                 [ind.append(id) for id in ids_gp]
                 param_ct += 2
-            #ids_both_low = [np.append(ids_spec[0][0],ids_gp[0])]
-            #ids_both_high = [np.append(ids_spec[0][1:],ids_gp[0][0])]
-            #[ind.append(id) for id in ids_both_low]
-            #[ind.append(id) for id in ids_both_high]
         elif args.gwbSpecModel == 'turnover':
             ids = [np.arange(param_ct,param_ct+3)]
             [ind.append(id) for id in ids]
