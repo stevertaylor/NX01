@@ -106,6 +106,10 @@ parser.add_option('--incEph', dest='incEph', action='store_true', default=False,
                   help='Do you want to search for solar system ephemeris errors? (default = False)')
 parser.add_option('--ephSpecModel', dest='ephSpecModel', action='store', type=str, default='powerlaw',
                   help='What kind of spectral model do you want for the solar system ephemeris errors?: powerlaw, spectrum (default = powerlaw)')
+parser.add_option('--incClk', dest='incClock', action='store_true', default=False,
+                  help='Do you want to search for clock errors? (default = False)')
+parser.add_option('--clkSpecModel', dest='clkSpecModel', action='store', type=str, default='powerlaw',
+                  help='What kind of spectral model do you want for the clock errors?: powerlaw, spectrum (default = powerlaw)')
 parser.add_option('--dirExt', dest='dirExt', action='store', type=str, default='./chains_nanoAnalysis/',
                   help='What master directory name do you want to put this run into? (default = ./chains_nanoAnalysis/)')
 parser.add_option('--nwins', dest='nwins', action='store', type=int, default=1,
@@ -128,6 +132,8 @@ parser.add_option('--dmPrior', dest='dmPrior', action='store', type=str, default
                    help='Do you want to use a uniform prior on log_10(Adm) for detection [loguniform], on Adm itself for limits [uniform] (default=\'uniform\')?')
 parser.add_option('--ephPrior', dest='ephPrior', action='store', type=str, default='uniform',
                    help='Do you want to use a uniform prior on log_10(Aephx,y,z) for detection [loguniform], on Aephx,y,z themselves for limits [uniform] (default=\'uniform\')?')
+parser.add_option('--clkPrior', dest='clkPrior', action='store', type=str, default='uniform',
+                   help='Do you want to use a uniform prior on log_10(Aclk) for detection [loguniform], on Aclk itself for limits [uniform] (default=\'uniform\')?')
 parser.add_option('--anis-modefile', dest='anis_modefile', action='store', type=str, default = None,
                    help='Do you want to provide an anisotropy modefile to split band into frequency windows?')
 parser.add_option('--noEcorr', dest='noEcorr', action='store_true', default=False,
@@ -202,12 +208,15 @@ if args.jsonModel is not None:
     args.redPrior = json_data['redPrior']
     args.dmPrior = json_data['dmPrior']
     args.ephPrior = json_data['ephPrior']
+    args.clkPrior = json_data['clkPrior']
     args.anis_modefile = json_data['anis_modefile']
     args.noEcorr = json_data['noEcorr']
     args.fixRed = json_data['fixRed']
     args.fixDM = json_data['fixDM']
     args.incEph = json_data['incEph']
     args.ephSpecModel = json_data['ephSpecModel']
+    args.incClk = json_data['incClk']
+    args.clkSpecModel = json_data['clkSpecModel']
     args.psrStartIndex = json_data['psrStartIndex']
     args.psrEndIndex = json_data['psrEndIndex']
     args.psrIndices = json_data['psrIndices']
@@ -525,6 +534,12 @@ if args.dmVar:
         pmin = np.append(pmin,0.0*np.ones(len(psr)))
     elif args.dmSpecModel == 'spectrum':
         pmin = np.append(pmin,-8.0*np.ones(len(psr)*nmode))
+if args.incClk:
+    if args.clkSpecModel == 'powerlaw':
+        pmin = np.append(pmin,-20.0)
+        pmin = np.append(pmin,0.0)
+    elif args.clkSpecModel == 'spectrum':
+        pmin = np.append(pmin,-8.0*np.ones(nmode))
 if args.incEph:
     if args.ephSpecModel == 'powerlaw':
         pmin = np.append(pmin,np.array([-20.0,-20.0,-20.0]))
@@ -582,6 +597,12 @@ if args.dmVar:
         pmax = np.append(pmax,7.0*np.ones(len(psr)))
     elif args.dmSpecModel == 'spectrum':
         pmax = np.append(pmax,3.0*np.ones(len(psr)*nmode))
+if args.incClk:
+    if args.clkSpecModel == 'powerlaw':
+        pmax = np.append(pmax,-11.0)
+        pmax = np.append(pmax,7.0)
+    elif args.clkSpecModel == 'spectrum':
+        pmax = np.append(pmax,3.0*np.ones(nmode))
 if args.incEph:
     if args.ephSpecModel == 'powerlaw':
         pmax = np.append(pmax,np.array([-11.0,-11.0,-11.0]))
@@ -683,6 +704,18 @@ def lnprob(xx):
         elif args.dmSpecModel == 'spectrum':
             dm_spec = (xx[param_ct:param_ct+nmode*npsr].copy()).reshape((npsr,nmode))
             param_ct += npsr*nmode
+
+    #########################################
+    # Including clock errors
+    
+    if args.incClk:
+        if args.clkSpecModel == 'powerlaw':
+            Aclk = 10.0**xx[param_ct]
+            gam_clk = xx[param_ct+1]
+            param_ct += 2
+        elif args.clkSpecModel == 'spectrum':
+            clk_spec = xx[param_ct:param_ct+nmode].copy()
+            param_ct += nmode
 
     #########################################
     # Including solar-system ephemeris errors
@@ -1172,6 +1205,29 @@ def lnprob(xx):
                 sig_gwlineoffdiag = []
 
 
+        if args.incClk:
+
+            if args.clkSpecModel == 'powerlaw':
+                kappa_clk = np.log10(Aclk**2/12/np.pi**2 * \
+                            f1yr**(gam_clk-3) * \
+                            (fqs/86400.0)**(-gam_clk)/Tspan)
+            elif args.clkSpecModel == 'spectrum':
+                kappa_clk = np.log10( 10.0**(2.0*clk_spec) / Tspan )
+
+
+            if args.dmVar:
+                dm_padding = np.zeros(nmode)
+            elif not args.dmVar:
+                dm_padding = np.array([])
+                
+            if args.incEph:
+                eph_padding = np.zeros(3*nmode)
+            elif not args.incEph:
+                eph_padding = np.array([])
+                    
+            clkspec = np.concatenate( (10**kappa_clk, dm_padding, eph_padding) )
+    
+                
         if args.incEph:
 
             if args.ephSpecModel == 'powerlaw':
@@ -1250,6 +1306,29 @@ def lnprob(xx):
                     # diagonal terms
                     tot[0::2] += gwline_spec
                     tot[1::2] += gwline_spec
+
+            if args.incClk:
+            
+                if args.incCorr:
+                
+                    offdiag = np.zeros(mode_count)
+
+                    # off diagonal terms
+                    # [clock errors are full correlated]
+                    offdiag[0::2] = clkspec
+                    offdiag[1::2] = clkspec
+
+                    # diagonal terms
+                    tot[0::2] += clkspec
+                    tot[1::2] += clkspec
+
+                    sig_gwlineoffdiag.append(offdiag)
+                
+                if not args.incCorr:
+                
+                    # diagonal terms
+                    tot[0::2] += clkspec
+                    tot[1::2] += clkspec
 
             if args.incEph:
 
@@ -1601,6 +1680,23 @@ def lnprob(xx):
         priorfac_dm = 0.0
 
 
+    if args.incClk:
+        ### powerlaw spectral model ###
+        if args.clkSpecModel == 'powerlaw':
+            if args.clkPrior == 'uniform':
+                priorfac_clk = np.log(Aclk * np.log(10.0)) 
+            elif args.clkPrior == 'loguniform':
+                priorfac_clk = 0.0
+        ### free spectral model ###
+        elif args.clkSpecModel == 'spectrum':
+            if args.clkPrior == 'uniform':
+                priorfac_clk = np.log(10.0**clk_spec * np.log(10.0))
+            elif args.clkPrior == 'loguniform':
+                priorfac_clk = 0.0
+    elif not args.incClk:
+        priorfac_clk = 0.0
+        
+
     if args.incEph:
         ### powerlaw spectral model ###
         if args.ephSpecModel == 'powerlaw':
@@ -1626,7 +1722,7 @@ def lnprob(xx):
     # Finally, return the log-likelihood
     
     return logLike + priorfac_gwb + priorfac_gwline + \
-      priorfac_red + priorfac_dm + priorfac_eph
+      priorfac_red + priorfac_dm + priorfac_clk + priorfac_eph
      
 
 
@@ -1652,6 +1748,12 @@ if args.dmVar:
         for ii in range(len(psr)):
             for jj in range(nmode):
                 parameters.append('dmSpec'+'_{0}_'.format(jj+1)+psr[ii].name)
+if args.incClk:
+    if args.clkSpecModel == 'powerlaw':
+        parameters += ['Aclk', 'gam_clk']
+    elif args.clkSpecModel == 'spectrum':
+        for jj in range(nmode):
+            parameters.append('clkSpec'+'_{0}'.format(jj+1))
 if args.incEph:
     if args.ephSpecModel == 'powerlaw':
         parameters += ['Aephx', 'Aephy', 'Aephz']
@@ -1775,11 +1877,15 @@ if args.dmVar:
     dm_tag = '_dm'+args.dmPrior+args.dmSpecModel
 elif not args.dmVar:
     dm_tag = ''
+if args.incClk:
+    clk_tag = '_clk'+args.clkPrior+args.clkSpecModel
+elif not args.incClk:
+    clk_tag = ''
 if args.incEph:
     eph_tag = '_eph'+args.ephPrior+args.ephSpecModel
 elif not args.incEph:
     eph_tag = ''
-file_tag += red_tag+dm_tag+eph_tag+'_nmodes{0}'.format(args.nmodes)
+file_tag += red_tag+dm_tag+clk_tag+eph_tag+'_nmodes{0}'.format(args.nmodes)
 
 
 if rank == 0:
@@ -1854,6 +1960,13 @@ if args.sampler == 'ptmcmc':
             x0 = np.append(x0,np.array([p.Redind for p in psr]))
         elif args.dmSpecModel == 'spectrum':
             x0 = np.append(x0,np.random.uniform(-7.0,-3.0,len(psr)*nmode))
+    if args.incClk:
+        if args.clkSpecModel == 'powerlaw':
+            # starting eph parameters at random positions
+            x0 = np.append(x0,np.random.uniform(-20.0,-11.0))
+            x0 = np.append(x0,np.random.uniform(0.0,7.0))
+        elif args.clkSpecModel == 'spectrum':
+            x0 = np.append(x0,np.random.uniform(-7.0,-3.0,nmode))
     if args.incEph:
         if args.ephSpecModel == 'powerlaw':
             # starting eph parameters at random positions
@@ -1923,6 +2036,11 @@ if args.sampler == 'ptmcmc':
             cov_diag = np.append(cov_diag,0.5*np.ones(len(psr)))
         elif args.dmSpecModel == 'spectrum':
             cov_diag = np.append(cov_diag,0.1*np.ones(len(psr)*nmode))
+    if args.incClk:
+        if args.clkSpecModel == 'powerlaw':
+            cov_diag = np.append(cov_diag,np.array([0.5,0.5]))
+        elif args.clkSpecModel == 'spectrum':
+            cov_diag = np.append(cov_diag,0.1*np.ones(nmode))
     if args.incEph:
         if args.ephSpecModel == 'powerlaw':
             cov_diag = np.append(cov_diag,np.array([0.5,0.5,0.5]))
@@ -1980,7 +2098,6 @@ if args.sampler == 'ptmcmc':
             [ind.append(id) for id in ids if len(id) > 0]
             param_ct += nmode*len(psr)
             
-
     ##### DM noise #####
     if args.dmVar:
         if args.dmSpecModel == 'powerlaw':
@@ -1993,6 +2110,17 @@ if args.sampler == 'ptmcmc':
             ids = np.arange(param_ct,param_ct+nmode*len(psr)).reshape((len(psr),nmode))
             [ind.append(id) for id in ids if len(id) > 0]
             param_ct += nmode*len(psr)
+
+    ##### Clock errors #####
+    if args.incClk:
+        if args.clkSpecModel == 'powerlaw':
+            ids = [[param_ct,param_ct+1]]
+            [ind.append(id) for id in ids if len(id) > 0]
+            param_ct += 2
+        elif args.clkSpecModel == 'spectrum':
+            ids = [np.arange(param_ct,param_ct+nmode)]
+            [ind.append(id) for id in ids if len(id) > 0]
+            param_ct += nmode
 
     ##### Ephemeris errors #####
     if args.incEph:
@@ -2163,10 +2291,12 @@ if args.sampler == 'ptmcmc':
         qxy = 0
 
         npsr = len(psr)
-        if args.redSpecModel == 'powerlaw':
-            pct = 2*npsr
-        elif args.redSpecModel == 'spectrum':
-            pct = npsr*nmode
+        pct = 0
+        if not args.fixRed:
+            if args.redSpecModel == 'powerlaw':
+                pct += 2*npsr
+            elif args.redSpecModel == 'spectrum':
+                pct += npsr*nmode
 
         ind = np.unique(np.random.randint(0, npsr, 1))
 
@@ -2193,10 +2323,12 @@ if args.sampler == 'ptmcmc':
         qxy = 0
 
         npsr = len(psr)
-        if args.redSpecModel == 'powerlaw':
-            pct = 2*npsr
-        elif args.redSpecModel == 'spectrum':
-            pct = npsr*nmode
+        pct = 0
+        if not args.fixRed:
+            if args.redSpecModel == 'powerlaw':
+                pct += 2*npsr
+            elif args.redSpecModel == 'spectrum':
+                pct += npsr*nmode
 
         ind = np.unique(np.random.randint(0, npsr*nmode, 1))
 
@@ -2211,6 +2343,75 @@ if args.sampler == 'ptmcmc':
 
         return q, qxy
 
+    # dm var draws 
+    def drawFromClkNoisePowerlawPrior(parameters, iter, beta):
+
+        # post-jump parameters
+        q = parameters.copy()
+
+        # transition probability
+        qxy = 0
+
+        npsr = len(psr)
+        pct = 0
+        if not args.fixRed:
+            if args.redSpecModel == 'powerlaw':
+                pct += 2*npsr
+            elif args.redSpecModel == 'spectrum':
+                pct += npsr*nmode
+
+        if args.dmVar:
+            if args.dmSpecModel == 'powerlaw':
+                pct += 2*npsr
+            elif args.dmSpecModel == 'spectrum':
+                pct += npsr*nmode
+
+        if args.clkPrior == 'loguniform':
+            q[pct] = np.random.uniform(pmin[pct], pmax[pct])
+            qxy += 0
+        elif args.clkPrior == 'uniform':
+            q[pct] = np.random.uniform(pmin[pct], pmax[pct])
+            qxy += 0
+    
+        q[pct+1] = np.random.uniform(pmin[pct+1], pmax[pct+1])
+        qxy += 0
+
+        return q, qxy
+
+    def drawFromClkNoiseSpectrumPrior(parameters, iter, beta):
+
+        # post-jump parameters
+        q = parameters.copy()
+
+        # transition probability
+        qxy = 0
+
+        npsr = len(psr)
+        pct = 0
+        if not args.fixRed:
+            if args.redSpecModel == 'powerlaw':
+                pct += 2*npsr
+            elif args.redSpecModel == 'spectrum':
+                pct += npsr*nmode
+
+        if args.dmVar:
+            if args.dmSpecModel == 'powerlaw':
+                pct += 2*npsr
+            elif args.dmSpecModel == 'spectrum':
+                pct += npsr*nmode
+
+        ind = np.unique(np.random.randint(0, nmode, 1))
+
+        for ii in ind:
+            # log prior
+            if args.clkPrior == 'loguniform':
+                q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
+                qxy += 0
+            elif args.clkPrior == 'uniform':
+                q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
+                qxy += 0
+
+        return q, qxy
 
     # dm var draws 
     def drawFromEphNoisePowerlawPrior(parameters, iter, beta):
@@ -2234,6 +2435,12 @@ if args.sampler == 'ptmcmc':
                 pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
                 pct += npsr*nmode
+
+        if args.incClk:
+            if args.clkSpecModel == 'powerlaw':
+                pct += 2
+            elif args.clkSpecModel == 'spectrum':
+                pct += nmode
 
         # choose either x,y or z for varying
         ind = np.random.randint(0, 3, 1)
@@ -2274,6 +2481,12 @@ if args.sampler == 'ptmcmc':
             elif args.dmSpecModel == 'spectrum':
                 pct += npsr*nmode
 
+        if args.incClk:
+            if args.clkSpecModel == 'powerlaw':
+                pct += 2
+            elif args.clkSpecModel == 'spectrum':
+                pct += nmode
+
         # choose from full list of x,y,z spectral values
         ind = np.unique(np.random.randint(0, 3*nmode, 1))
 
@@ -2312,6 +2525,12 @@ if args.sampler == 'ptmcmc':
                 pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
                 pct += npsr*nmode
+
+        if args.incClk:
+            if args.clkSpecModel == 'powerlaw':
+                pct += 2
+            elif args.clkSpecModel == 'spectrum':
+                pct += nmode
 
         if args.incEph:
             if args.ephSpecModel == 'powerlaw':
@@ -2368,6 +2587,12 @@ if args.sampler == 'ptmcmc':
             elif args.dmSpecModel == 'spectrum':
                 pct += npsr*nmode
 
+        if args.incClk:
+            if args.clkSpecModel == 'powerlaw':
+                pct += 2
+            elif args.clkSpecModel == 'spectrum':
+                pct += nmode
+
         if args.incEph:
             if args.ephSpecModel == 'powerlaw':
                 pct += 6
@@ -2411,6 +2636,12 @@ if args.sampler == 'ptmcmc':
                 pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
                 pct += npsr*nmode
+
+        if args.incClk:
+            if args.clkSpecModel == 'powerlaw':
+                pct += 2
+            elif args.clkSpecModel == 'spectrum':
+                pct += nmode
 
         if args.incEph:
             if args.ephSpecModel == 'powerlaw':
@@ -2475,6 +2706,12 @@ if args.sampler == 'ptmcmc':
             elif args.dmSpecModel == 'spectrum':
                 pct += npsr*nmode
 
+        if args.incClk:
+            if args.clkSpecModel == 'powerlaw':
+                pct += 2
+            elif args.clkSpecModel == 'spectrum':
+                pct += nmode
+
         if args.incEph:
             if args.ephSpecModel == 'powerlaw':
                 pct += 6
@@ -2533,6 +2770,12 @@ if args.sampler == 'ptmcmc':
             elif args.dmSpecModel == 'spectrum':
                 pct += npsr*nmode
 
+        if args.incClk:
+            if args.clkSpecModel == 'powerlaw':
+                pct += 2
+            elif args.clkSpecModel == 'spectrum':
+                pct += nmode
+
         if args.incEph:
             if args.ephSpecModel == 'powerlaw':
                 pct += 6
@@ -2590,6 +2833,12 @@ if args.sampler == 'ptmcmc':
             elif args.dmSpecModel == 'spectrum':
                 pct += npsr*nmode
 
+        if args.incClk:
+            if args.clkSpecModel == 'powerlaw':
+                pct += 2
+            elif args.clkSpecModel == 'spectrum':
+                pct += nmode
+
         if args.incEph:
             if args.ephSpecModel == 'powerlaw':
                 pct += 6
@@ -2642,6 +2891,12 @@ if args.sampler == 'ptmcmc':
                 pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
                 pct += npsr*nmode
+
+        if args.incClk:
+            if args.clkSpecModel == 'powerlaw':
+                pct += 2
+            elif args.clkSpecModel == 'spectrum':
+                pct += nmode
 
         if args.incEph:
             if args.ephSpecModel == 'powerlaw':
@@ -2700,6 +2955,12 @@ if args.sampler == 'ptmcmc':
                 pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
                 pct += npsr*nmode
+
+        if args.incClk:
+            if args.clkSpecModel == 'powerlaw':
+                pct += 2
+            elif args.clkSpecModel == 'spectrum':
+                pct += nmode
 
         if args.incEph:
             if args.ephSpecModel == 'powerlaw':
@@ -2765,6 +3026,12 @@ if args.sampler == 'ptmcmc':
             elif args.dmSpecModel == 'spectrum':
                 pct += npsr*nmode
 
+        if args.incClk:
+            if args.clkSpecModel == 'powerlaw':
+                pct += 2
+            elif args.clkSpecModel == 'spectrum':
+                pct += nmode
+
         if args.incEph:
             if args.ephSpecModel == 'powerlaw':
                 pct += 6
@@ -2825,6 +3092,12 @@ if args.sampler == 'ptmcmc':
             elif args.dmSpecModel == 'spectrum':
                 pct += npsr*nmode
 
+        if args.incClk:
+            if args.clkSpecModel == 'powerlaw':
+                pct += 2
+            elif args.clkSpecModel == 'spectrum':
+                pct += nmode
+
         if args.incEph:
             if args.ephSpecModel == 'powerlaw':
                 pct += 6
@@ -2874,6 +3147,11 @@ if args.sampler == 'ptmcmc':
             sampler.addProposalToCycle(drawFromDMNoisePowerlawPrior, 10)
         elif args.dmSpecModel == 'spectrum':
             sampler.addProposalToCycle(drawFromDMNoiseSpectrumPrior, 10)
+    if args.incClk:
+        if args.clkSpecModel == 'powerlaw':
+            sampler.addProposalToCycle(drawFromClkNoisePowerlawPrior, 10)
+        elif args.clkSpecModel == 'spectrum':
+            sampler.addProposalToCycle(drawFromClkNoiseSpectrumPrior, 10)
     if args.incEph:
         if args.ephSpecModel == 'powerlaw':
             sampler.addProposalToCycle(drawFromEphNoisePowerlawPrior, 10)
