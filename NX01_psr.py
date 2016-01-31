@@ -34,6 +34,9 @@ class PsrObj(object):
     sysflagdict = None
     Fred = None
     Fdm = None
+    Fephx = None
+    Fephy = None
+    Fephz = None
     Ftot = None
     diag_white = None
     res_prime = None
@@ -60,6 +63,9 @@ class PsrObj(object):
         self.Mmat = None
         self.Fred = None
         self.Fdm = None
+        self.Fephx = None
+        self.Fephy = None
+        self.Fephz = None
         self.Ftot = None
         self.diag_white = None
         self.res_prime = None
@@ -253,6 +259,11 @@ class PsrObj(object):
     def makeFdm(self, nmodes, Ttot):
         
         self.Fdm = utils.createFourierDesignmatrix_dm(self.toas, nmodes, self.obs_freqs, Tspan=Ttot)
+
+    def makeFeph(self, nmodes, Ttot):
+        
+        self.Fephx, self.Fephy, self.Fephz = \
+          utils.createFourierDesignmatrix_eph(self.toas, nmodes, self.psr_locs, Tspan=Ttot)
     
     def makeFtot(self, nmodes, Ttot):
         
@@ -261,15 +272,20 @@ class PsrObj(object):
 
         self.Ftot = np.append(self.Fred, self.Fdm, axis=1)
 
-    def makeTe(self, nmodes, Ttot, makeDM=False):
+    def makeTe(self, nmodes, Ttot, makeDM=False, makeEph=False):
 
         self.Fred = utils.createFourierDesignmatrix_red(self.toas, nmodes, Tspan=Ttot)
 
-        if makeDM==True:
+        if makeDM:
             self.Fdm = utils.createFourierDesignmatrix_dm(self.toas, nmodes, self.obs_freqs, Tspan=Ttot)
             self.Ftot = np.append(self.Fred, self.Fdm, axis=1)
-
-        else:
+        if makeEph:
+            self.Fephx, self.Fephy, self.Fephz = \
+              utils.createFourierDesignmatrix_eph(self.toas, nmodes, self.psr_locs, Tspan=Ttot)
+            self.Ftot = np.append(self.Ftot, self.Fephx, axis=1)
+            self.Ftot = np.append(self.Ftot, self.Fephy, axis=1)
+            self.Ftot = np.append(self.Ftot, self.Fephz, axis=1)
+        if not makeDM and not makeEph:
             self.Ftot = self.Fred
 
         self.Te = np.append(self.Gc, self.Ftot, axis=1)
@@ -311,6 +327,9 @@ class PsrObjFromH5(object):
     sysflagdict = None
     Fred = None
     Fdm = None
+    Fephx = None
+    Fephy = None
+    Fephz = None
     Ftot = None
     diag_white = None
     res_prime = None
@@ -347,6 +366,9 @@ class PsrObjFromH5(object):
         self.Mmat = None
         self.Fred = None
         self.Fdm = None
+        self.Fephx = None
+        self.Fephy = None
+        self.Fephz = None
         self.Ftot = None
         self.diag_white = None
         self.res_prime = None
@@ -502,6 +524,11 @@ class PsrObjFromH5(object):
     def makeFdm(self, nmodes, Ttot):
         
         self.Fdm = utils.createFourierDesignmatrix_dm(self.toas, nmodes, self.obs_freqs, Tspan=Ttot)
+
+    def makeFeph(self, nmodes, Ttot):
+        
+        self.Fephx, self.Fephy, self.Fephz = \
+          utils.createFourierDesignmatrix_eph(self.toas, nmodes, self.psr_locs, Tspan=Ttot)
     
     def makeFtot(self, nmodes, Ttot):
         
@@ -510,15 +537,20 @@ class PsrObjFromH5(object):
 
         self.Ftot = np.append(self.Fred, self.Fdm, axis=1)
 
-    def makeTe(self, nmodes, Ttot, makeDM=False):
+    def makeTe(self, nmodes, Ttot, makeDM=False, makeEph=False):
 
         self.Fred = utils.createFourierDesignmatrix_red(self.toas, nmodes, Tspan=Ttot)
 
-        if makeDM==True:
+        if makeDM:
             self.Fdm = utils.createFourierDesignmatrix_dm(self.toas, nmodes, self.obs_freqs, Tspan=Ttot)
             self.Ftot = np.append(self.Fred, self.Fdm, axis=1)
-
-        else:
+        if makeEph:
+            self.Fephx, self.Fephy, self.Fephz = \
+              utils.createFourierDesignmatrix_eph(self.toas, nmodes, self.psr_locs, Tspan=Ttot)
+            self.Ftot = np.append(self.Ftot, self.Fephx, axis=1)
+            self.Ftot = np.append(self.Ftot, self.Fephy, axis=1)
+            self.Ftot = np.append(self.Ftot, self.Fephz, axis=1)
+        if not makeDM and not makeEph:
             self.Ftot = self.Fred
 
         self.Te = np.append(self.Gc, self.Ftot, axis=1)

@@ -211,7 +211,61 @@ def createFourierDesignmatrix_dm(t, nmodes, obs_freqs, freq=False, Tspan=None):
         return F, fqs
     else:
         return F
+
+def createFourierDesignmatrix_eph(t, nmodes, psr_locs, freq=False, Tspan=None):
+    """
+    Construct fourier design matrix from eq 11 of Lentati et al, 2013
+
+    @param t: vector of time series in seconds
+    @param nmodes: number of fourier coefficients to use
+    @param psr_locs: phi and theta coordinates of pulsar
+    @param Tspan: option to some other Tspan
+
+    @return: F: fourier design matrix along each positional basis vector
+    @return: f: Sampling frequencies (if freq=True)
+
+    """
+
+    N = len(t)
+    Fx = np.zeros((N, 2*nmodes))
+    Fy = np.zeros((N, 2*nmodes))
+    Fz = np.zeros((N, 2*nmodes))
+
+    if Tspan is not None:
+        T = Tspan
+    else:
+        T = t.max() - t.min()
+
+    # define sampling frequencies
+    fqs = np.linspace(1/T, nmodes/T, nmodes)
+
+    # define the pulsar position vector
+    phi = psr_loc[0]
+    theta = np.pi/2. - psr_locs[1]
+    x = np.tile(np.sin(theta)*np.cos(phi), 2*nmodes)
+    y = np.tile(np.sin(theta)*np.sin(phi), 2*nmodes)
+    z = np.tile(np.cos(theta), 2*nmodes)
+
+    # The sine/cosine modes
+    ct = 0
+    for ii in range(0, 2*nmodes-1, 2):
+        
+        Fx[:,ii] = np.cos(2*np.pi*fqs[ct]*t)
+        Fx[:,ii+1] = np.sin(2*np.pi*fqs[ct]*t)
+        Fy[:,ii] = np.cos(2*np.pi*fqs[ct]*t)
+        Fy[:,ii+1] = np.sin(2*np.pi*fqs[ct]*t)
+        Fz[:,ii] = np.cos(2*np.pi*fqs[ct]*t)
+        Fz[:,ii+1] = np.sin(2*np.pi*fqs[ct]*t)
+        ct += 1
+
+    Fx = np.dot(Fx,x)
+    Fy = np.dot(Fy,y)
+    Fz = np.dot(Fz,z)
     
+    if freq:
+        return Fx, Fy, Fz, fqs
+    else:
+        return Fx, Fy, Fz
 
 def quantize_fast(times, dt=1.0, calci=False):
     """ Adapted from libstempo: produce the quantisation matrix fast """

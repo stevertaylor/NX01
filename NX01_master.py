@@ -96,12 +96,16 @@ parser.add_option('--incCosVar', dest='incCosVar', action='store_true', default=
                   help='Do you want to include GP interpolation uncertainties or cosmic variance in your gpEnvInterp model? (default = False)')
 parser.add_option('--incCorr', dest='incCorr', action='store_true', default=False,
                   help='Do you want to include cross-correlations in the GWB model? (default = False)')
-parser.add_option('--typeCorr', dest='typeCorr', action='store', type=str, default='spharmAnis',
-                  help='What type of correlated GW signal do you want to model?: spharmAnis, modelIndep, pointSrc (default = spharmAnis)')
+parser.add_option('--gwbTypeCorr', dest='gwbTypeCorr', action='store', type=str, default='spharmAnis',
+                  help='What type of correlated GW signal do you want to model?: spharmAnis, modelIndep, pointSrc, clock (default = spharmAnis)')
 parser.add_option('--redSpecModel', dest='redSpecModel', action='store', type=str, default='powerlaw',
                   help='What kind of spectral model do you want for red timing-noise?: powerlaw, spectrum (default = powerlaw)')
 parser.add_option('--dmSpecModel', dest='dmSpecModel', action='store', type=str, default='powerlaw',
                   help='What kind of spectral model do you want for DM variations?: powerlaw, spectrum (default = powerlaw)')
+parser.add_option('--incEph', dest='incEph', action='store_true', default=False,
+                  help='Do you want to search for solar system ephemeris errors? (default = False)')
+parser.add_option('--ephSpecModel', dest='ephSpecModel', action='store', type=str, default='powerlaw',
+                  help='What kind of spectral model do you want for the solar system ephemeris errors?: powerlaw, spectrum (default = powerlaw)')
 parser.add_option('--dirExt', dest='dirExt', action='store', type=str, default='./chains_nanoAnalysis/',
                   help='What master directory name do you want to put this run into? (default = ./chains_nanoAnalysis/)')
 parser.add_option('--nwins', dest='nwins', action='store', type=int, default=1,
@@ -122,6 +126,8 @@ parser.add_option('--redPrior', dest='redPrior', action='store', type=str, defau
                    help='Do you want to use a uniform prior on log_10(Ared) for detection [loguniform], on Ared itself for limits [uniform] (default=\'uniform\')?')
 parser.add_option('--dmPrior', dest='dmPrior', action='store', type=str, default='uniform',
                    help='Do you want to use a uniform prior on log_10(Adm) for detection [loguniform], on Adm itself for limits [uniform] (default=\'uniform\')?')
+parser.add_option('--ephPrior', dest='ephPrior', action='store', type=str, default='uniform',
+                   help='Do you want to use a uniform prior on log_10(Aephx,y,z) for detection [loguniform], on Aephx,y,z themselves for limits [uniform] (default=\'uniform\')?')
 parser.add_option('--anis-modefile', dest='anis_modefile', action='store', type=str, default = None,
                    help='Do you want to provide an anisotropy modefile to split band into frequency windows?')
 parser.add_option('--noEcorr', dest='noEcorr', action='store_true', default=False,
@@ -182,7 +188,7 @@ if args.jsonModel is not None:
     args.gpPickle = json_data['gpPickle']
     args.incCosVar = json_data['incCosVar']
     args.incCorr = json_data['incCorr']
-    args.typeCorr = json_data['typeCorr']
+    args.gwbTypeCorr = json_data['gwbTypeCorr']
     args.redSpecModel = json_data['redSpecModel']
     args.dmSpecModel = json_data['dmSpecModel']
     args.dirExt = json_data['dirExt']
@@ -195,10 +201,13 @@ if args.jsonModel is not None:
     args.gwbHyperPrior = json_data['gwbHyperPrior']
     args.redPrior = json_data['redPrior']
     args.dmPrior = json_data['dmPrior']
+    args.ephPrior = json_data['ephPrior']
     args.anis_modefile = json_data['anis_modefile']
     args.noEcorr = json_data['noEcorr']
     args.fixRed = json_data['fixRed']
     args.fixDM = json_data['fixDM']
+    args.incEph = json_data['incEph']
+    args.ephSpecModel = json_data['ephSpecModel']
     args.psrStartIndex = json_data['psrStartIndex']
     args.psrEndIndex = json_data['psrEndIndex']
     args.psrIndices = json_data['psrIndices']
@@ -326,7 +335,7 @@ num_corr_params = 0
 evol_corr_tag = ''
 if args.incGWB and args.incCorr:
     
-    if args.typeCorr == 'modelIndep':
+    if args.gwbTypeCorr == 'modelIndep':
 
         gwfreqs_per_win = int(1.*args.nmodes/(1.*args.nwins)) 
         corr_modefreqs = np.arange(1,args.nmodes+1)
@@ -342,7 +351,7 @@ if args.incGWB and args.incCorr:
         else:
             evol_corr_tag = ''
 
-    elif args.typeCorr == 'pointSrc':
+    elif args.gwbTypeCorr == 'pointSrc':
 
         gwfreqs_per_win = int(1.*args.nmodes/(1.*args.nwins)) 
         corr_modefreqs = np.arange(1,args.nmodes+1)
@@ -358,7 +367,7 @@ if args.incGWB and args.incCorr:
         else:
             evol_corr_tag = ''
         
-    elif args.typeCorr == 'spharmAnis':
+    elif args.gwbTypeCorr == 'spharmAnis':
         
         # Computing all the correlation basis-functions for the array.
         CorrCoeff = np.array(anis.CorrBasis(positions,args.LMAX))
@@ -393,6 +402,10 @@ if args.incGWB and args.incCorr:
             evol_corr_tag = '_evanis'
         else:
             evol_corr_tag = ''
+
+    elif args.gwbTypeCorr == 'clock':
+
+        num_corr_params = 0
               
 #############################################################################
 # GETTING MAXIMUM TIME, COMPUTING FOURIER DESIGN MATRICES, AND GETTING MODES 
@@ -402,7 +415,7 @@ Tmax = np.max([p.toas.max() - p.toas.min() for p in psr])
 
 if args.nmodes:
 
-    [p.makeTe(args.nmodes, Tmax, makeDM=args.dmVar) for p in psr]
+    [p.makeTe(args.nmodes, Tmax, makeDM=args.dmVar, makeEph=args.makeEph) for p in psr]
     # get GW frequencies
     fqs = np.linspace(1/Tmax, args.nmodes/Tmax, args.nmodes)
     nmode = args.nmodes
@@ -410,7 +423,7 @@ if args.nmodes:
 else:
 
     nmode = int(round(0.5*Tmax/args.cadence))
-    [p.makeTe(nmode, Tmax, makeDM=args.dmVar) for p in psr]
+    [p.makeTe(nmode, Tmax, makeDM=args.dmVar, makeEph=args.makeEph) for p in psr]
     # get GW frequencies
     fqs = np.linspace(1/Tmax, nmode/Tmax, nmode)
 
@@ -512,6 +525,12 @@ if args.dmVar:
         pmin = np.append(pmin,0.0*np.ones(len(psr)))
     elif args.dmSpecModel == 'spectrum':
         pmin = np.append(pmin,-8.0*np.ones(len(psr)*nmode))
+if args.incEph:
+    if args.ephSpecModel == 'powerlaw':
+        pmin = np.append(pmin,np.array([-20.0,-20.0,-20.0]))
+        pmin = np.append(pmin,np.array([0.0,0.0,0.0]))
+    elif args.ephSpecModel == 'spectrum':
+        pmin = np.append(pmin,-8.0*np.ones(3*nmode))
 if args.incGWB:
     if args.gwbSpecModel == 'powerlaw':
         pmin = np.append(pmin,-18.0)
@@ -528,11 +547,11 @@ if args.incGWB:
     elif args.gwbSpecModel == 'gpEnvInterp':
         pmin = np.append(pmin,np.array([-18.0,0.0]))
     if args.incCorr:
-        if args.typeCorr == 'modelIndep':
+        if args.gwbTypeCorr == 'modelIndep':
             pmin = np.append(pmin,np.zeros(num_corr_params))
-        elif args.typeCorr == 'pointSrc':
+        elif args.gwbTypeCorr == 'pointSrc':
             pmin = np.append(pmin,np.tile([0.0,-1.0],tmp_nwins))
-        elif args.typeCorr == 'spharmAnis':
+        elif args.gwbTypeCorr == 'spharmAnis':
             pmin = np.append(pmin,-10.0*np.ones(num_corr_params))
 if args.incGWline:
     pmin = np.append(pmin,np.array([-8.0,-10.0,0.0,-1.0]))
@@ -563,6 +582,12 @@ if args.dmVar:
         pmax = np.append(pmax,7.0*np.ones(len(psr)))
     elif args.dmSpecModel == 'spectrum':
         pmax = np.append(pmax,3.0*np.ones(len(psr)*nmode))
+if args.incEph:
+    if args.ephSpecModel == 'powerlaw':
+        pmax = np.append(pmax,np.array([-11.0,-11.0,-11.0]))
+        pmax = np.append(pmax,np.array([7.0,7.0,7.0]))
+    elif args.ephSpecModel == 'spectrum':
+        pmax = np.append(pmax,3.0*np.ones(3*nmode))
 if args.incGWB:
     if args.gwbSpecModel == 'powerlaw':
         pmax = np.append(pmax,-11.0)
@@ -579,11 +604,11 @@ if args.incGWB:
     elif args.gwbSpecModel == 'gpEnvInterp':
         pmax = np.append(pmax,np.array([-11.0,0.9]))
     if args.incCorr:
-        if args.typeCorr == 'modelIndep':
+        if args.gwbTypeCorr == 'modelIndep':
             pmax = np.append(pmax,np.pi*np.ones(num_corr_params))
-        elif args.typeCorr == 'pointSrc':
+        elif args.gwbTypeCorr == 'pointSrc':
             pmax = np.append(pmax,np.tile([2.0*np.pi,1.0],tmp_nwins))
-        elif args.typeCorr == 'spharmAnis':
+        elif args.gwbTypeCorr == 'spharmAnis':
             pmax = np.append(pmax,10.0*np.ones(num_corr_params))
 if args.incGWline:
     pmax = np.append(pmax,np.array([3.0,-7.0,2.0*np.pi,1.0]))
@@ -622,13 +647,22 @@ def lnprob(xx):
     logLike = 0
     loglike1_tmp = loglike1
     dtmp = list(d)
+
+    mode_count = 2*nmode
+    if args.dmVar:
+        mode_count += 2*nmode
+    if args.incEph:
+        # 2*nmode for x,y,z
+        mode_count += 6*nmode
     
     ###############################
     # Splitting up parameter vector
 
     param_ct = 0
     
-    # Pulsar noise parameters
+    ###############################
+    # Including per-pulsar red noise
+    
     if not args.fixRed:
         if args.redSpecModel == 'powerlaw':
             Ared = 10.0**xx[:npsr]
@@ -638,9 +672,10 @@ def lnprob(xx):
             red_spec = (xx[:nmode*npsr].copy()).reshape((npsr,nmode))
             param_ct += npsr*nmode
 
-    mode_count = 2*nmode
+    ####################################
+    # Including per-pulsar DM variations
+    
     if args.dmVar:
-        mode_count = 4*nmode
         if args.dmSpecModel == 'powerlaw':
             Adm = 10.0**xx[param_ct:param_ct+npsr]
             gam_dm = xx[param_ct+npsr:param_ct+2*npsr]
@@ -649,6 +684,25 @@ def lnprob(xx):
             dm_spec = (xx[param_ct:param_ct+nmode*npsr].copy()).reshape((npsr,nmode))
             param_ct += npsr*nmode
 
+    #########################################
+    # Including solar-system ephemeris errors
+    
+    if args.incEph:
+        if args.ephSpecModel == 'powerlaw':
+            Aephx = 10.0**xx[param_ct]
+            gam_ephx = xx[param_ct+1]
+            Aephy = 10.0**xx[param_ct+2]
+            gam_ephy = xx[param_ct+3]
+            Aephz = 10.0**xx[param_ct+4]
+            gam_ephz = xx[param_ct+5]
+            param_ct += 6
+        elif args.ephSpecModel == 'spectrum':
+            eph_spec = (xx[param_ct:param_ct+3*nmode].copy()).reshape((3,nmode))
+            param_ct += 3*nmode
+
+    ############################
+    # Including a GW background
+    
     if args.incGWB:
         # GWB parameters
         if args.gwbSpecModel == 'powerlaw':
@@ -698,6 +752,21 @@ def lnprob(xx):
     ###############################
     # Creating continuous GW signal
 
+    if args.det_signal:
+        if args.cgw_search:
+            cgw_params = xx[param_ct:]
+        if args.bwm_search:
+            if args.bwm_model_select:
+                bwm_params = xx[param_ct:-1]
+                # '0' is noise-only, '1' is BWM
+                nmodel = int(np.rint(xx[-1]))
+            else:
+                bwm_params = xx[param_ct:]
+
+    ############################
+    ############################
+    # Now, evaluating likelihood
+
     if args.constLike:
         
         logLike = 0.0
@@ -707,8 +776,6 @@ def lnprob(xx):
         if args.det_signal:
             if args.cgw_search:
 
-                cgw_params = xx[param_ct:]
-    
                 if args.ecc_search:
                     logmass, qr, logdist, logorbfreq, gwphi,\
                     costheta, cosinc, gwpol, gwgamma0, l0, e0 = cgw_params
@@ -758,12 +825,6 @@ def lnprob(xx):
                         detres.append( p.res - cgw_res[ii] )
 
             if args.bwm_search:
-                if args.bwm_model_select:
-                    bwm_params = xx[param_ct:-1]
-                    # '0' is noise-only, '1' is BWM
-                    nmodel = int(np.rint(xx[-1]))
-                else:
-                    bwm_params = xx[param_ct:]
 
                 bwm_res = []
                 detres = []
@@ -819,7 +880,7 @@ def lnprob(xx):
             
         if args.incGWB and args.incCorr:
             
-            if args.typeCorr == 'modelIndep':
+            if args.gwbTypeCorr == 'modelIndep':
 
                 npairs = npsr*(npsr-1)/2
                 phi_corr = orf_coeffs.reshape((tmp_nwins,npairs))
@@ -862,7 +923,7 @@ def lnprob(xx):
                 ORFtot[0::2] = ORF
                 ORFtot[1::2] = ORF
 
-            elif args.typeCorr == 'pointSrc':
+            elif args.gwbTypeCorr == 'pointSrc':
 
                 orf_coeffs = orf_coeffs.reshape((tmp_nwins,2))
                 gwphi, cosgwtheta = orf_coeffs[:,0], orf_coeffs[:,1]
@@ -905,7 +966,7 @@ def lnprob(xx):
                 ORFtot[0::2] = ORF
                 ORFtot[1::2] = ORF
             
-            elif args.typeCorr == 'spharmAnis':
+            elif args.gwbTypeCorr == 'spharmAnis':
             
                 ################################################
                 # Reshaping freq-dependent anis coefficients,
@@ -947,6 +1008,25 @@ def lnprob(xx):
                                                           # is defined as zero below.
                 ORFtot[0::2] = ORF
                 ORFtot[1::2] = ORF
+
+            elif args.gwbTypeCorr == 'clock':
+
+                ORF=[]
+                for ii in range(tmp_nwins): # number of frequency windows
+                    for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
+                        ORF.append( np.ones((npsr,npsr)) ) # clock signal is completely correlated
+                        
+                if args.dmVar:
+                    for ii in range(tmp_nwins): # number of frequency windows
+                        for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
+                            ORF.append( np.zeros((npsr,npsr)) )
+
+                ORF = np.array(ORF)
+                ORFtot = np.zeros((mode_count,npsr,npsr)) # shouldn't be applying ORF to dmfreqs,
+                                                          # but the projection of GW spec onto dmfreqs
+                                                          # is defined as zero below.
+                ORFtot[0::2] = ORF
+                ORFtot[1::2] = ORF
             
 
         if args.incGWline:
@@ -966,7 +1046,7 @@ def lnprob(xx):
                     if ii == jj:
                         # scaling for pulsar-term
                         gwline_orf[ii,jj] *= 2.0
-
+        
         ################################################
         # parameterize intrinsic red noise as power law
     
@@ -1011,8 +1091,15 @@ def lnprob(xx):
             if not args.dmVar:
                 dm_kappa_tmp = np.array([])
 
+            if args.incEph:
+                eph_padding = np.zeros(3*nmode)
+            elif not args.incEph:
+                eph_padding = np.array([])
+
             # Now create total red signal for each pulsar
-            kappa.append(np.append(red_kappa_tmp,dm_kappa_tmp))
+            kappa.append(np.concatenate((10**red_kappa_tmp,
+                                         10**dm_kappa_tmp,
+                                         eph_padding)))
     
                 
         ###################################
@@ -1045,35 +1132,80 @@ def lnprob(xx):
 
                 rho = np.log10( hc**2 / (12.0*np.pi**2.0) / (fqs/86400.0)**3.0 / Tspan )
 
-            if args.dmVar:
-                gwbspec = np.append( 10**rho, np.zeros_like(rho) )
-            else:
-                gwbspec = 10**rho
 
+            if args.dmVar:
+                dm_padding = np.zeros(nmode)
+            elif not args.dmVar:
+                dm_padding = np.array([])
+                
+            if args.incEph:
+                eph_padding = np.zeros(3*nmode)
+            elif not args.incEph:
+                eph_padding = np.array([])
+                    
+            gwbspec = np.concatenate( (10**rho, dm_padding, eph_padding) )
+            
             if args.incCorr:
                 sig_gwboffdiag = []
 
         if args.incGWline:
         
-            rho_line = np.zeros(len(fqs))
+            rho_line = np.zeros(nmode)
             idx = np.argmin(np.abs(fqs/86400.0 - freq_gwline))
-            rho_line[idx] = 10.0**(2.0*spec_gwline) / Tspan 
-    
-            if args.dmVar:
-                gwline_spec = np.append( rho_line, np.zeros_like(rho_line) )
-            else:
-                gwline_spec = rho_line
+            rho_line[idx] = 10.0**(2.0*spec_gwline) / Tspan
 
+            if args.dmVar:
+                dm_padding = np.zeros(nmode)
+            elif not args.dmVar:
+                dm_padding = np.array([])
+            
+            if args.incEph:
+                eph_padding = np.zeros(3*nmode)
+            elif not args.incEph:
+                eph_padding = np.array([])
+            
+            gwline_spec = np.concatenate( (rho_line,
+                                           dm_padding,
+                                           eph_padding) )
+           
             if args.incCorr:
                 sig_gwlineoffdiag = []
+
+
+        if args.incEph:
+
+            if args.ephSpecModel == 'powerlaw':
+                kappa_ephx = np.log10(Aephx**2/12/np.pi**2 * \
+                                      f1yr**(gam_ephx-3) * \
+                                      (fqs/86400.0)**(-gam_ephx)/Tspan)
+                kappa_ephy = np.log10(Aephy**2/12/np.pi**2 * \
+                                      f1yr**(gam_ephy-3) * \
+                                      (fqs/86400.0)**(-gam_ephy)/Tspan)
+                kappa_ephz = np.log10(Aephz**2/12/np.pi**2 * \
+                                      f1yr**(gam_ephz-3) * \
+                                      (fqs/86400.0)**(-gam_ephz)/Tspan)
+            elif args.ephSpecModel == 'spectrum':
+                kappa_ephx = np.log10( 10.0**(2.0*eph_spec[0,:]) / Tspan )
+                kappa_ephy = np.log10( 10.0**(2.0*eph_spec[1,:]) / Tspan )
+                kappa_ephz = np.log10( 10.0**(2.0*eph_spec[2,:]) / Tspan )
+
+            red_padding = np.zeros(nmode)
+            if args.dmVar:
+                dm_padding = np.zeros(nmode)
+            elif not args.dmVar:
+                dm_padding = np.array([])
+
+            eph_kappa = np.concatenate( (red_padding, dm_padding,
+                                         10**kappa_ephx, 10**kappa_ephy,
+                                         10**kappa_ephz) )
         
 
         for ii in range(npsr):
             tot = np.zeros(mode_count)
 
             # diagonal terms
-            tot[0::2] = 10**kappa[ii]
-            tot[1::2] = 10**kappa[ii] 
+            tot[0::2] = kappa[ii]
+            tot[1::2] = kappa[ii] 
 
             if args.incGWB:
             
@@ -1118,6 +1250,13 @@ def lnprob(xx):
                     # diagonal terms
                     tot[0::2] += gwline_spec
                     tot[1::2] += gwline_spec
+
+            if args.incEph:
+
+                # diagonal terms
+                tot[0::2] += eph_kappa
+                tot[1::2] += eph_kappa
+                
                 
             # fill in lists of arrays
             sigdiag.append(tot)
@@ -1246,7 +1385,7 @@ def lnprob(xx):
                 # now fill in real covariance matrix
                 ind = [0]
                 ind = np.append(ind,np.cumsum([TtNT[ii].shape[0]
-                                            for ii in range(len(psr))]))
+                                            for ii in range(npsr)]))
                 ind = [np.arange(ind[ii]+psr[ii].Gc.shape[1],
                                 ind[ii]+psr[ii].Gc.shape[1]+mode_count)
                                 for ii in range(len(ind)-1)]
@@ -1300,8 +1439,7 @@ def lnprob(xx):
     
 
     ################################################
-    # Multiplying likelihood to correct log-uniform
-    # sampling, thus making a prior of our choice
+    # Multiplying likelihood by appropriate Jacobian
     
     if args.incGWB:
         ### powerlaw spectral model ###
@@ -1461,12 +1599,34 @@ def lnprob(xx):
                 priorfac_dm = 0.0
     elif not args.dmVar:
         priorfac_dm = 0.0
+
+
+    if args.incEph:
+        ### powerlaw spectral model ###
+        if args.ephSpecModel == 'powerlaw':
+            if args.ephPrior == 'uniform':
+                priorfac_eph = np.log(Aephx * np.log(10.0)) + \
+                  np.log(Aephy * np.log(10.0)) + \
+                  np.log(Aephz * np.log(10.0)) 
+            elif args.ephPrior == 'loguniform':
+                priorfac_eph = 0.0
+        ### free spectral model ###
+        elif args.ephSpecModel == 'spectrum':
+            if args.ephPrior == 'uniform':
+                priorfac_eph = np.log(10.0**eph_spec[0,:] * np.log(10.0)) + \
+                  np.log(10.0**eph_kappa[1,:] * np.log(10.0)) + \
+                  np.log(10.0**eph_kappa[2,:] * np.log(10.0))
+            elif args.ephPrior == 'loguniform':
+                priorfac_eph = 0.0
+    elif not args.incEph:
+        priorfac_eph = 0.0
         
 
     #####################################
     # Finally, return the log-likelihood
     
-    return logLike + priorfac_gwb + priorfac_gwline + priorfac_red + priorfac_dm
+    return logLike + priorfac_gwb + priorfac_gwline + \
+      priorfac_red + priorfac_dm + priorfac_eph
      
 
 
@@ -1492,6 +1652,17 @@ if args.dmVar:
         for ii in range(len(psr)):
             for jj in range(nmode):
                 parameters.append('dmSpec'+'_{0}_'.format(jj+1)+psr[ii].name)
+if args.incEph:
+    if args.ephSpecModel == 'powerlaw':
+        parameters += ['Aephx', 'Aephy', 'Aephz']
+        parameters += ['gam_ephx', 'gam_ephy', 'gam_ephz']
+    elif args.ephSpecModel == 'spectrum':
+        for jj in range(nmode):
+            parameters.append('ephxSpec'+'_{0}'.format(jj+1))
+        for jj in range(nmode):
+            parameters.append('ephySpec'+'_{0}'.format(jj+1))
+        for jj in range(nmode):
+            parameters.append('ephzSpec'+'_{0}'.format(jj+1))
 if args.incGWB:
     if args.gwbSpecModel == 'powerlaw':
         parameters.append("Agwb")
@@ -1509,15 +1680,15 @@ if args.incGWB:
     elif args.gwbSpecModel == 'gpEnvInterp':
         parameters += ["Agwb", "ecc"]
     if args.incCorr:
-        if args.typeCorr == 'modelIndep':
+        if args.gwbTypeCorr == 'modelIndep':
             for ii in range(tmp_nwins): 
                 for jj in range(len(psr)*(len(psr)-1)/2):
                     parameters.append('phi_corr_win{0}_val{1}'.format(ii+1,jj+1))
-        elif args.typeCorr == 'pointSrc':
+        elif args.gwbTypeCorr == 'pointSrc':
             for ii in range(tmp_nwins):
                 parameters += ["gwb_phi_win{0}".format(ii+1),
                                "gwb_costheta_win{0}".format(ii+1)]
-        elif args.typeCorr == 'spharmAnis':
+        elif args.gwbTypeCorr == 'spharmAnis':
             for ii in range(tmp_nwins): 
                 for jj in range((args.LMAX+1)**2 - 1):
                     parameters.append('clm_win{0}_val{1}'.format(ii+1,jj+1))
@@ -1568,11 +1739,11 @@ if args.incGWB:
         if args.incCosVar:
             gamma_tag += 'cosvar'
     if args.incCorr:
-        if args.typeCorr == 'modelIndep':
+        if args.gwbTypeCorr == 'modelIndep':
             file_tag += '_gwb{0}_miCorr{1}{2}'.format(args.gwbPrior,evol_corr_tag,gamma_tag)
-        elif args.typeCorr == 'pointSrc':
+        elif args.gwbTypeCorr == 'pointSrc':
             file_tag += '_gwb{0}_pointSrc{1}{2}'.format(args.gwbPrior,evol_corr_tag,gamma_tag)
-        elif args.typeCorr == 'spharmAnis':
+        elif args.gwbTypeCorr == 'spharmAnis':
             if args.noPhysPrior:
                 physprior_tag = '_noPhysPrior'
             elif not args.noPhysPrior:
@@ -1604,7 +1775,11 @@ if args.dmVar:
     dm_tag = '_dm'+args.dmPrior+args.dmSpecModel
 elif not args.dmVar:
     dm_tag = ''
-file_tag += red_tag+dm_tag+'_nmodes{0}'.format(args.nmodes)
+if args.incEph:
+    eph_tag = '_eph'+args.ephPrior+args.ephSpecModel
+elif not args.incEph:
+    eph_tag = ''
+file_tag += red_tag+dm_tag+eph_tag+'_nmodes{0}'.format(args.nmodes)
 
 
 if rank == 0:
@@ -1679,6 +1854,13 @@ if args.sampler == 'ptmcmc':
             x0 = np.append(x0,np.array([p.Redind for p in psr]))
         elif args.dmSpecModel == 'spectrum':
             x0 = np.append(x0,np.random.uniform(-7.0,-3.0,len(psr)*nmode))
+    if args.incEph:
+        if args.ephSpecModel == 'powerlaw':
+            # starting eph parameters at random positions
+            x0 = np.append(x0,np.random.uniform(-20.0,-11.0,3))
+            x0 = np.append(x0,np.random.uniform(0.0,7.0,3))
+        elif args.ephSpecModel == 'spectrum':
+            x0 = np.append(x0,np.random.uniform(-7.0,-3.0,3*nmode))
     if args.incGWB:
         if args.gwbSpecModel == 'powerlaw':
             x0 = np.append(x0,-15.0)
@@ -1705,11 +1887,11 @@ if args.sampler == 'ptmcmc':
         elif args.gwbSpecModel == 'gpEnvInterp':
             x0 = np.append(x0,np.array([-15.0,0.2]))
         if args.incCorr:
-            if args.typeCorr == 'modelIndep':
+            if args.gwbTypeCorr == 'modelIndep':
                 x0 = np.append(x0,np.random.uniform(0.0,np.pi,num_corr_params))
-            elif args.typeCorr == 'pointSrc':
+            elif args.gwbTypeCorr == 'pointSrc':
                 x0 = np.append(x0,np.tile([0.5,0.5],tmp_nwins))
-            elif args.typeCorr == 'spharmAnis':
+            elif args.gwbTypeCorr == 'spharmAnis':
                 x0 = np.append(x0,np.zeros(num_corr_params))
     if args.incGWline:
         x0 = np.append(x0,np.array([-6.0,-8.0,0.5,0.5]))
@@ -1741,6 +1923,12 @@ if args.sampler == 'ptmcmc':
             cov_diag = np.append(cov_diag,0.5*np.ones(len(psr)))
         elif args.dmSpecModel == 'spectrum':
             cov_diag = np.append(cov_diag,0.1*np.ones(len(psr)*nmode))
+    if args.incEph:
+        if args.ephSpecModel == 'powerlaw':
+            cov_diag = np.append(cov_diag,np.array([0.5,0.5,0.5]))
+            cov_diag = np.append(cov_diag,np.array([0.5,0.5,0.5]))
+        elif args.ephSpecModel == 'spectrum':
+            cov_diag = np.append(cov_diag,0.1*np.ones(3*nmode))
     if args.incGWB:
         if args.gwbSpecModel == 'powerlaw':
             cov_diag = np.append(cov_diag,0.5)
@@ -1796,15 +1984,28 @@ if args.sampler == 'ptmcmc':
     ##### DM noise #####
     if args.dmVar:
         if args.dmSpecModel == 'powerlaw':
-            dmamps = [ii for ii in range(len(psr))]
-            dmgam = [ii+len(psr) for ii in dmamps]
+            dmamps = [param_ct+ii for ii in range(len(psr))]
+            dmgam = [param_ct+ii+len(psr) for ii in dmamps]
             ids = [list(aa) for aa in zip(dmamps,dmgam)]
             [ind.append(id) for id in ids if len(id) > 0]
             param_ct += 2*len(psr)
         elif args.dmSpecModel == 'spectrum':
-            ids = np.arange(0,nmode*len(psr)).reshape((len(psr),nmode))
+            ids = np.arange(param_ct,param_ct+nmode*len(psr)).reshape((len(psr),nmode))
             [ind.append(id) for id in ids if len(id) > 0]
             param_ct += nmode*len(psr)
+
+    ##### Ephemeris errors #####
+    if args.incEph:
+        if args.ephSpecModel == 'powerlaw':
+            ephamps = [param_ct,param_ct+1,param_ct+2]
+            ephgam = [param_ct+3,param_ct+4,param_ct+5]
+            ids = [list(aa) for aa in zip(ephamps,ephgam)]
+            [ind.append(id) for id in ids if len(id) > 0]
+            param_ct += 6
+        elif args.ephSpecModel == 'spectrum':
+            ids = np.arange(param_ct,param_ct+3*nmode).reshape((3,nmode))
+            [ind.append(id) for id in ids if len(id) > 0]
+            param_ct += 3*nmode
         
     ##### GWB #####
     if args.incGWB:
@@ -2010,6 +2211,85 @@ if args.sampler == 'ptmcmc':
 
         return q, qxy
 
+
+    # dm var draws 
+    def drawFromEphNoisePowerlawPrior(parameters, iter, beta):
+
+        # post-jump parameters
+        q = parameters.copy()
+
+        # transition probability
+        qxy = 0
+
+        npsr = len(psr)
+        pct = 0
+        if not args.fixRed:
+            if args.redSpecModel == 'powerlaw':
+                pct = 2*npsr
+            elif args.redSpecModel == 'spectrum':
+                pct = npsr*nmode
+    
+        if args.dmVar:
+            if args.dmSpecModel == 'powerlaw':
+                pct += 2*npsr
+            elif args.dmSpecModel == 'spectrum':
+                pct += npsr*nmode
+
+        # choose either x,y or z for varying
+        ind = np.random.randint(0, 3, 1)
+        
+        # amplitude
+        if args.gwbPrior == 'loguniform':
+            q[pct+2*ind] = np.random.uniform(pmin[pct+2*ind], pmax[pct+2*ind])
+            qxy += 0
+        elif args.gwbPrior == 'uniform':
+            q[pct+2*ind] = np.random.uniform(pmin[pct+2*ind], pmax[pct+2*ind])
+            qxy += 0
+
+        # gamma
+        q[pct+2*ind+1] = np.random.uniform(pmin[pct+2*ind+1], pmax[pct+2*ind+1])
+        qxy += 0
+        
+        return q, qxy
+
+    def drawFromEphNoiseSpectrumPrior(parameters, iter, beta):
+
+        # post-jump parameters
+        q = parameters.copy()
+
+        # transition probability
+        qxy = 0
+
+        npsr = len(psr)
+        pct = 0
+        if not args.fixRed:
+            if args.redSpecModel == 'powerlaw':
+                pct = 2*npsr
+            elif args.redSpecModel == 'spectrum':
+                pct = npsr*nmode
+    
+        if args.dmVar:
+            if args.dmSpecModel == 'powerlaw':
+                pct += 2*npsr
+            elif args.dmSpecModel == 'spectrum':
+                pct += npsr*nmode
+
+        # choose from full list of x,y,z spectral values
+        ind = np.unique(np.random.randint(0, 3*nmode, 1))
+
+        for ii in ind:
+            if args.ephPrior == 'loguniform':
+                q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
+                qxy += 0
+            elif args.ephPrior == 'uniform':
+                q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
+                qxy += 0
+            elif args.ephPrior == 'gaussProc':
+                q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
+                qxy += 0
+        
+        return q, qxy
+    
     # gwb draws 
     def drawFromGWBPowerlawPrior(parameters, iter, beta):
 
@@ -2032,6 +2312,12 @@ if args.sampler == 'ptmcmc':
                 pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
                 pct += npsr*nmode
+
+        if args.incEph:
+            if args.ephSpecModel == 'powerlaw':
+                pct += 6
+            elif args.ephSpecModel == 'spectrum':
+                pct += 3*nmode
 
         # amplitude
         if args.gwbPrior == 'loguniform':
@@ -2082,6 +2368,12 @@ if args.sampler == 'ptmcmc':
             elif args.dmSpecModel == 'spectrum':
                 pct += npsr*nmode
 
+        if args.incEph:
+            if args.ephSpecModel == 'powerlaw':
+                pct += 6
+            elif args.ephSpecModel == 'spectrum':
+                pct += 3*nmode
+
         ind = np.unique(np.random.randint(0, nmode, 1))
 
         for ii in ind:
@@ -2119,6 +2411,12 @@ if args.sampler == 'ptmcmc':
                 pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
                 pct += npsr*nmode
+
+        if args.incEph:
+            if args.ephSpecModel == 'powerlaw':
+                pct += 6
+            elif args.ephSpecModel == 'spectrum':
+                pct += 3*nmode
 
         # amplitude
         if args.gwbPrior == 'loguniform':
@@ -2177,6 +2475,12 @@ if args.sampler == 'ptmcmc':
             elif args.dmSpecModel == 'spectrum':
                 pct += npsr*nmode
 
+        if args.incEph:
+            if args.ephSpecModel == 'powerlaw':
+                pct += 6
+            elif args.ephSpecModel == 'spectrum':
+                pct += 3*nmode
+
         # amplitude
         if args.gwbPrior == 'loguniform':
             q[pct] = np.random.uniform(pmin[pct], pmax[pct])
@@ -2229,6 +2533,12 @@ if args.sampler == 'ptmcmc':
             elif args.dmSpecModel == 'spectrum':
                 pct += npsr*nmode
 
+        if args.incEph:
+            if args.ephSpecModel == 'powerlaw':
+                pct += 6
+            elif args.ephSpecModel == 'spectrum':
+                pct += 3*nmode
+
         # adding nmodes of gwb spectrum
         pct += nmode
            
@@ -2280,6 +2590,12 @@ if args.sampler == 'ptmcmc':
             elif args.dmSpecModel == 'spectrum':
                 pct += npsr*nmode
 
+        if args.incEph:
+            if args.ephSpecModel == 'powerlaw':
+                pct += 6
+            elif args.ephSpecModel == 'spectrum':
+                pct += 3*nmode
+
         if args.incGWB:
             if args.gwbSpecModel == 'powerlaw':
                 pct += 1
@@ -2326,6 +2642,12 @@ if args.sampler == 'ptmcmc':
                 pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
                 pct += npsr*nmode
+
+        if args.incEph:
+            if args.ephSpecModel == 'powerlaw':
+                pct += 6
+            elif args.ephSpecModel == 'spectrum':
+                pct += 3*nmode
 
         if args.incGWB:
             if args.gwbSpecModel == 'powerlaw':
@@ -2378,6 +2700,12 @@ if args.sampler == 'ptmcmc':
                 pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
                 pct += npsr*nmode
+
+        if args.incEph:
+            if args.ephSpecModel == 'powerlaw':
+                pct += 6
+            elif args.ephSpecModel == 'spectrum':
+                pct += 3*nmode
 
         if args.incGWB:
             if args.gwbSpecModel == 'powerlaw':
@@ -2437,6 +2765,12 @@ if args.sampler == 'ptmcmc':
             elif args.dmSpecModel == 'spectrum':
                 pct += npsr*nmode
 
+        if args.incEph:
+            if args.ephSpecModel == 'powerlaw':
+                pct += 6
+            elif args.ephSpecModel == 'spectrum':
+                pct += 3*nmode
+
         if args.incGWB:
             if args.gwbSpecModel == 'powerlaw':
                 pct += 1
@@ -2491,6 +2825,12 @@ if args.sampler == 'ptmcmc':
             elif args.dmSpecModel == 'spectrum':
                 pct += npsr*nmode
 
+        if args.incEph:
+            if args.ephSpecModel == 'powerlaw':
+                pct += 6
+            elif args.ephSpecModel == 'spectrum':
+                pct += 3*nmode
+
         if args.incGWB:
             if args.gwbSpecModel == 'powerlaw':
                 pct += 1
@@ -2534,6 +2874,11 @@ if args.sampler == 'ptmcmc':
             sampler.addProposalToCycle(drawFromDMNoisePowerlawPrior, 10)
         elif args.dmSpecModel == 'spectrum':
             sampler.addProposalToCycle(drawFromDMNoiseSpectrumPrior, 10)
+    if args.incEph:
+        if args.ephSpecModel == 'powerlaw':
+            sampler.addProposalToCycle(drawFromEphNoisePowerlawPrior, 10)
+        elif args.ephSpecModel == 'spectrum':
+            sampler.addProposalToCycle(drawFromEphNoiseSpectrumPrior, 10)
     if args.incGWB:
         if args.gwbSpecModel == 'powerlaw':
             sampler.addProposalToCycle(drawFromGWBPowerlawPrior, 10)
