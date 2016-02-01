@@ -434,7 +434,7 @@ Tmax = np.max([p.toas.max() - p.toas.min() for p in psr])
 if args.nmodes:
 
     [p.makeTe(args.nmodes, Tmax, makeDM=args.dmVar,
-              makeEph=args.makeEph) for p in psr]
+              makeEph=args.incEph) for p in psr]
     # get GW frequencies
     fqs = np.linspace(1/Tmax, args.nmodes/Tmax, args.nmodes)
     nmode = args.nmodes
@@ -443,7 +443,7 @@ else:
 
     nmode = int(round(0.5*Tmax/args.cadence))
     [p.makeTe(nmode, Tmax, makeDM=args.dmVar,
-              makeEph=args.makeEph) for p in psr]
+              makeEph=args.incEph) for p in psr]
     # get GW frequencies
     fqs = np.linspace(1/Tmax, nmode/Tmax, nmode)
 
@@ -836,8 +836,33 @@ def lnprob(xx):
     # Now, evaluating likelihood
 
     if args.constLike:
+
+        if args.incGWB and args.incCorr and args.gwbTypeCorr == 'spharmAnis':
+            
+            ################################################
+            # Reshaping freq-dependent anis coefficients,
+            # and testing for power distribution physicality.
+            
+            orf_coeffs = orf_coeffs.reshape((tmp_nwins,
+                                            ((args.LMAX+1)**2)-1))
+            clm = np.array([[0.0]*((args.LMAX+1)**2)
+                            for ii in range(tmp_nwins)])
+            clm[:,0] = 2.0*np.sqrt(np.pi)
+
+            if args.LMAX!=0:
+
+                for kk in range(tmp_nwins):
+                    for ii in range(1,((args.LMAX+1)**2)):
+                        clm[kk,ii] = orf_coeffs[kk,ii-1]   
+
+                    if not args.noPhysPrior:
+                        # Testing for physicality of power distribution.
+                        if (utils.PhysPrior(clm[kk],harm_sky_vals) == 'Unphysical'):
+                            return -np.inf
         
-        logLike = 0.0
+        else:
+
+            logLike = 0.0
         
     elif not args.constLike:
     
@@ -2303,7 +2328,7 @@ if args.sampler == 'ptmcmc':
                 for ll in range(1,args.LMAX+1):
                     ids = [np.arange(mm_ct,mm_ct+(2*ll+1))]
                     [ind.append(id) for id in ids]
-                    tmp_ct += 2*ll+1
+                    mm_ct += 2*ll+1
         param_ct += num_corr_params
         
     ##### GW line #####
