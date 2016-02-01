@@ -2295,9 +2295,17 @@ if args.sampler == 'ptmcmc':
     ##### GWB correlations #####
     if args.incGWB and args.incCorr and num_corr_params>0:
         ids = [np.arange(param_ct,param_ct+num_corr_params)]
-        param_ct += num_corr_params
         [ind.append(id) for id in ids]
-
+        if args.gwbTypeCorr=='spharmAnis' and args.LMAX>0:
+            mm_ct = param_ct
+            # sample group for each multipole at each window
+            for ii in range(args.nwins):
+                for ll in range(1,args.LMAX+1):
+                    ids = [np.arange(mm_ct,mm_ct+(2*ll+1))]
+                    [ind.append(id) for id in ids]
+                    tmp_ct += 2*ll+1
+        param_ct += num_corr_params
+        
     ##### GW line #####
     if args.incGWline:
         ids = [np.arange(param_ct,param_ct+4)]
