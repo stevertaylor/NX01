@@ -433,7 +433,8 @@ Tmax = np.max([p.toas.max() - p.toas.min() for p in psr])
 
 if args.nmodes:
 
-    [p.makeTe(args.nmodes, Tmax, makeDM=args.dmVar, makeEph=args.makeEph) for p in psr]
+    [p.makeTe(args.nmodes, Tmax, makeDM=args.dmVar,
+              makeEph=args.makeEph) for p in psr]
     # get GW frequencies
     fqs = np.linspace(1/Tmax, args.nmodes/Tmax, args.nmodes)
     nmode = args.nmodes
@@ -441,7 +442,8 @@ if args.nmodes:
 else:
 
     nmode = int(round(0.5*Tmax/args.cadence))
-    [p.makeTe(nmode, Tmax, makeDM=args.dmVar, makeEph=args.makeEph) for p in psr]
+    [p.makeTe(nmode, Tmax, makeDM=args.dmVar,
+              makeEph=args.makeEph) for p in psr]
     # get GW frequencies
     fqs = np.linspace(1/Tmax, nmode/Tmax, nmode)
 
