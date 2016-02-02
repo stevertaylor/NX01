@@ -2245,6 +2245,8 @@ if args.sampler == 'ptmcmc':
                 x0 = np.append(x0,np.tile([0.5,0.5],tmp_nwins))
             elif args.gwbTypeCorr == 'spharmAnis':
                 x0 = np.append(x0,np.zeros(num_corr_params))
+            elif args.gwbTypeCorr == 'dipoleOrf':
+                x0 = np.append(x0,np.tile([0.5,0.5,0.5],tmp_nwins))
     if args.incGWline:
         x0 = np.append(x0,np.array([-6.0,-8.0,0.5,0.5]))
     if args.det_signal:
@@ -2425,7 +2427,7 @@ if args.sampler == 'ptmcmc':
     if args.incGWB and args.incCorr and num_corr_params>0:
         ids = [np.arange(param_ct,param_ct+num_corr_params)]
         [ind.append(id) for id in ids]
-        if args.gwbTypeCorr=='spharmAnis' and args.LMAX>0:
+        if args.gwbTypeCorr == 'spharmAnis' and args.LMAX>0:
             mm_ct = param_ct
             # sample group for each multipole at each window
             for ii in range(args.nwins):
@@ -2433,6 +2435,19 @@ if args.sampler == 'ptmcmc':
                     ids = [np.arange(mm_ct,mm_ct+(2*ll+1))]
                     [ind.append(id) for id in ids]
                     mm_ct += 2*ll+1
+        elif args.gwbTypeCorr == 'pointSrc':
+            mm_ct = param_ct
+            for ii in range(args.nwins):
+                ids = [np.array([mm_ct,mm_ct+1])]
+                [ind.append(id) for id in ids]
+                mm_ct += 2
+        elif args.gwbTypeCorr == 'dipoleOrf':
+            mm_ct = param_ct
+            for ii in range(args.nwins):
+                ids = [np.array([mm_ct,mm_ct+1]),
+                       np.array([mm_ct+2])]
+                [ind.append(id) for id in ids]
+                mm_ct += 3
         param_ct += num_corr_params
         
     ##### GW line #####
