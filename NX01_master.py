@@ -113,7 +113,7 @@ parser.add_option('--incCosVar', dest='incCosVar', action='store_true', default=
 parser.add_option('--incCorr', dest='incCorr', action='store_true', default=False,
                   help='Do you want to include cross-correlations in the GWB model? (default = False)')
 parser.add_option('--gwbTypeCorr', dest='gwbTypeCorr', action='store', type=str, default='spharmAnis',
-                  help='What type of correlated GW signal do you want to model?: spharmAnis, modelIndep, pointSrc, clock (default = spharmAnis)')
+                  help='What type of correlated GW signal do you want to model?: spharmAnis, dipoleOrf, modelIndep, pointSrc, clock (default = spharmAnis)')
 parser.add_option('--redSpecModel', dest='redSpecModel', action='store', type=str, default='powerlaw',
                   help='What kind of spectral model do you want for red timing-noise?: powerlaw, spectrum (default = powerlaw)')
 parser.add_option('--dmSpecModel', dest='dmSpecModel', action='store', type=str, default='powerlaw',
@@ -437,6 +437,24 @@ if args.incGWB and args.incCorr:
         else:
             evol_corr_tag = ''
 
+    elif args.gwbTypeCorr == 'dipoleOrf':
+
+        monoOrf = 2.0*np.sqrt(np.pi)*anis.CorrBasis(positions,0)[0]
+
+        gwfreqs_per_win = int(1.*args.nmodes/(1.*args.nwins)) 
+        corr_modefreqs = np.arange(1,args.nmodes+1)
+        corr_modefreqs = np.reshape(corr_modefreqs,
+                                    (args.nwins,gwfreqs_per_win))
+
+        tmp_nwins = args.nwins
+
+        num_corr_params = 3*tmp_nwins
+
+        if tmp_nwins>1:
+            evol_corr_tag = '_evanis'
+        else:
+            evol_corr_tag = ''
+
     elif args.gwbTypeCorr == 'clock':
 
         num_corr_params = 0
@@ -601,6 +619,8 @@ if args.incGWB:
             pmin = np.append(pmin,np.tile([0.0,-1.0],tmp_nwins))
         elif args.gwbTypeCorr == 'spharmAnis':
             pmin = np.append(pmin,-10.0*np.ones(num_corr_params))
+        elif args.gwbTypeCorr == 'dipoleOrf':
+            pmin = np.append(pmin,np.tile([0.0,-1.0,0.0],tmp_nwins))
 if args.incGWline:
     pmin = np.append(pmin,np.array([-8.0,-10.0,0.0,-1.0]))
 if args.det_signal:
@@ -670,6 +690,8 @@ if args.incGWB:
             pmax = np.append(pmax,np.tile([2.0*np.pi,1.0],tmp_nwins))
         elif args.gwbTypeCorr == 'spharmAnis':
             pmax = np.append(pmax,10.0*np.ones(num_corr_params))
+        elif args.gwbTypeCorr == 'dipoleOrf':
+            pmax = np.append(pmax,np.tile([2.0*np.pi,1.0,1.0],tmp_nwins))
 if args.incGWline:
     pmax = np.append(pmax,np.array([3.0,-7.0,2.0*np.pi,1.0]))
 if args.det_signal:
@@ -1106,6 +1128,64 @@ def lnprob(xx):
                     for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
                         ORF.append( sum(clm[ii,kk]*CorrCoeff[kk]
                                         for kk in range(len(CorrCoeff))) )
+                if args.dmVar:
+                    for ii in range(tmp_nwins): # number of frequency windows
+                        for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
+                            ORF.append( np.zeros((npsr,npsr)) )
+
+                ORF = np.array(ORF)
+                ORFtot = np.zeros((mode_count,npsr,npsr)) # shouldn't be applying ORF to dmfreqs,
+                                                          # but the projection of GW spec onto dmfreqs
+                                                          # is defined as zero below.
+                ORFtot[0::2] = ORF
+                ORFtot[1::2] = ORF
+
+            elif args.gwbTypeCorr == 'dipoleOrf':
+            
+                orf_coeffs = orf_coeffs.reshape((tmp_nwins,3))
+                dipphi, dipcostheta, dipwgt = \
+                  orf_coeffs[:,0], orf_coeffs[:,1], orf_coeffs[:,2]
+                diptheta = np.arccos(dipcostheta)
+                dipvec = np.array([np.sin(diptheta)*np.cos(dipphi),
+                                   np.sin(diptheta)*np.sin(dipphi),
+                                   np.cos(diptheta)]).T
+
+                psrvec = np.array([np.sin(positions[:,1])*np.cos(positions[:,0]),
+                                   np.sin(positions[:,1])*np.sin(positions[:,0]),
+                                   np.cos(positions[:,1])]).T
+
+                gammaDip = np.zeros((tmp_nwins,npsr,npsr))
+                for kk in range(tmp_nwins):
+                    for ii in range(npsr):
+                        for jj in range(ii,npsr):
+                            # dot product of psr and dipole position vectors
+                            cpsra = np.dot(psrvec[ii,:],dipvec[kk,:])
+                            cpsrb = np.dot(psrvec[jj,:],dipvec[kk,:])
+                            # angular separation between pulsars
+                            if ii==jj:
+                                zetaab = 0.0
+                            else:
+                                zetaab = np.arccos(np.dot(psrvec[ii,:],psrvec[jj,:]))
+
+                            # maximal-dipole orf expression from Anholm et al. (2009)
+                            gammaDip[kk,ii,jj] = (3.0/8.0) * (cpsra+cpsrb) * \
+                              ( np.cos(zetaab) - (4.0/3.0) - \
+                                4.0*np.tan(zetaab/2.)**2.0*np.log(np.sin(zetaab/2.)) ) 
+                           
+                            gammaDip[kk,jj,ii] = gammaDip[kk,ii,jj]
+
+                            if ii == jj:
+                                # scaling for pulsar-term
+                                gammaDip[kk,ii,jj] *= 2.0
+                
+
+                ############################################################
+                # Computing frequency-dependent overlap reduction functions.
+        
+                ORF=[]
+                for ii in range(tmp_nwins): # number of frequency windows
+                    for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
+                        ORF.append( monoOrf + dipwgt[ii]*gammaDip[ii,:,:] )
                 if args.dmVar:
                     for ii in range(tmp_nwins): # number of frequency windows
                         for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
@@ -1930,6 +2010,11 @@ if args.incGWB:
             for ii in range(tmp_nwins): 
                 for jj in range((args.LMAX+1)**2 - 1):
                     parameters.append('clm_win{0}_val{1}'.format(ii+1,jj+1))
+        elif args.gwbTypeCorr == 'dipoleOrf':
+            for ii in range(tmp_nwins):
+                parameters += ["gwdip_phi_win{0}".format(ii+1),
+                               "gwdip_costheta_win{0}".format(ii+1),
+                               "gwdip_wgt_win{0}".format(ii+1)]
 if args.incGWline:
     parameters += ["spec_gwline", "freq_gwline",
                    "phi_gwline", "costheta_gwline"]
@@ -1991,6 +2076,9 @@ if args.incGWB:
             file_tag += '_gwb{0}_Lmax{1}{2}{3}{4}'.format(args.gwbPrior,
                                                        args.LMAX,physprior_tag,
                                                        evol_corr_tag,gamma_tag)
+        elif args.gwbTypeCorr == 'dipoleOrf':
+            file_tag += '_gwb{0}_dip{1}{2}'.format(args.gwbPrior,
+                                                   evol_corr_tag,gamma_tag)
     else:
         file_tag += '_gwb{0}_noCorr{1}'.format(args.gwbPrior,gamma_tag)
 if args.incGWline:
