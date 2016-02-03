@@ -199,6 +199,7 @@ if 'Lmax0' not in args.chaindir:
     #else:
 
     clm_inds = np.array(['clm' in p for p in param_list[:,1]])
+    clm_inds = np.append(clm_inds,np.array([False,False,False,False]))
     clm = chain[:,clm_inds]
     #clm = chain[var:,-4 - 1*( (LMAX+1)**2 - 1):-4 - 0*( (LMAX+1)**2 - 1)]
 
