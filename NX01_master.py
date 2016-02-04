@@ -627,32 +627,13 @@ if args.incGWB:
 if args.incGWline:
     pmin = np.append(pmin,np.array([-8.0,-10.0,0.0,-1.0]))
 if args.det_signal:
-    if args.cgw_search: #### FIX THIS STUFF
-        cgwpmin = np.array([])
-        if args.cgwPrior == 'uniform':
-            if not args.psrTerm and not args.periEv:
-                cgwpmin = np.array([-20.0,-10.0,0.0,-1.0,
-                                    -1.0,0.0,0.0,0.0])
-                if args.ecc_search:
-                    cgwpmin = np.append(cgwpmin,0.001)
-            if not args.psrTerm and args.periEv:
-                cgwpmin = np.array([6.0,0.1,-20.0,-10.0,0.0,
-                                    -1.0,-1.0,0.0,0.0,0.0])
-                if args.ecc_search:
-                    cgwpmin = np.append(cgwpmin,0.001)
-            if args.psrTerm:
-                # psr distances and psr-term mean anomalies
-                cgwpmin = np.append(cgwpmin,0.001*np.ones(len(psr)))
-                cgwpmin = np.append(cgwpmin,np.zeros(len(psr)))
-                
-        elif args.periEv and not args.psrTerm:
-            pmin = np.append(pmin,np.array([6.0,0.1,0.0,-10.0,
-                                            0.0,-1.0,-1.0,
-                                            0.0,0.0,0.0]))
+    if args.cgw_search:
+        pmin = np.append(pmin,np.array([6.0,0.1,0.0,-20.0,-10.0,
+                                        0.0,-1.0,-1.0,0.0,0.0,0.0]))
         if args.ecc_search:
             pmin = np.append(pmin,0.001)
         if args.psrTerm:
-            # psr distances and psrterm mean anomalies
+            # psr distances and psr-term mean anomalies
             pmin = np.append(pmin,0.001*np.ones(len(psr)))
             pmin = np.append(pmin,np.zeros(len(psr)))
     if args.bwm_search:
@@ -721,14 +702,14 @@ if args.incGWline:
     pmax = np.append(pmax,np.array([3.0,-7.0,2.0*np.pi,1.0]))
 if args.det_signal:
     if args.cgw_search:
-        pmax = np.append(pmax,np.array([10.0,1.0,4.0,-7.0,
-                                        2.0*np.pi,1.0,1.0,
-                                        np.pi,np.pi,2.0*np.pi]))
+        pmax = np.append(pmax,np.array([10.0,1.0,4.0,-11.0,-7.0,2.0*np.pi,
+                                        1.0,1.0,np.pi,np.pi,2.0*np.pi]))
         if args.ecc_search:
             pmax = np.append(pmax,0.9)
         if args.psrTerm:
-            # psr distances
-            pmax = np.append(pmax,5.0*np.ones(len(psr)))
+            # psr distances and psr-term mean anomalies
+            pmax = np.append(pmax,10.0*np.ones(len(psr)))
+            pmax = np.append(pmax,2.0*np.pi*np.ones(len(psr)))
     if args.bwm_search:
         pmax = np.append(pmax,[np.max([np.max(p.toas) for p in psr]),
                                -11.0,2.0*np.pi,1.0,np.pi])
@@ -936,52 +917,48 @@ def lnprob(xx):
             if args.cgw_search:
 
                 if args.ecc_search:
-                    logmass, qr, logdist, logorbfreq, gwphi,\
-                    costheta, cosinc, gwpol, gwgamma0, l0, e0 = cgw_params
+                    logmass, qr, logdist, loghstrain, logorbfreq, gwphi,\
+                      costheta, cosinc, gwpol, gwgamma0, l0, e0 = cgw_params
                 else:
-                    logmass, qr, logdist, logorbfreq, gwphi,\
-                    costheta, cosinc, gwpol, gwgamma0, l0 = cgw_params
+                    logmass, qr, logdist, loghstrain, logorbfreq, gwphi,\
+                      costheta, cosinc, gwpol, gwgamma0, l0 = cgw_params
 
                 mc = 10.0**logmass
                 dist = 10.0**logdist
+                hstrain = 10.0**loghstrain
                 orbfreq = 10.0**logorbfreq
                 gwtheta = np.arccos(costheta)
                 gwinc = np.arccos(cosinc)
             
                 cgw_res = []
                 detres = []
+                
                 if args.ecc_search:
-                    for ii,p in enumerate(psr):
-                    
-                        tmp_res = utils.ecc_cgw_signal(p, gwtheta, gwphi, mc, dist,
-                                                    orbfreq, gwinc, gwpol, gwgamma0,
-                                                    e0, l0, qr, periEv=args.periEv,
-                                                    tref=tref, epochTOAs=args.epochTOAs)
-                    
-                        if args.epochTOAs:
-                            cgw_res.append(np.ones(len(p.toas)))
-                            for cc, swave in enumerate(tmp_res):
-                                cgw_res[ii][p.detsig_Uinds[cc,0]:p.detsig_Uinds[cc,1]] *= swave
-                        elif not args.epochTOAs:
-                            cgw_res[ii] = tmp_res
-                        
-                        detres.append( p.res - cgw_res[ii] )
-                else:
-                    for ii,p in enumerate(psr):
+                    ecc_tmp = e0
+                elif not args.ecc_search:
+                    ecc_tmp = 0.001
 
-                        tmp_res = utils.ecc_cgw_signal(p, gwtheta, gwphi, mc, dist,
-                                                    orbfreq, gwinc, gwpol, gwgamma0,
-                                                    0.001, l0, qr, periEv=args.periEv,
-                                                    tref=tref, epochTOAs=args.epochTOAs)
+                if args.cgwPrior == 'uniform':
+                    hstrain_tmp = hstrain
+                elif args.cgwPrior == 'loguniform':
+                    hstrain_tmp = None
                     
-                        if args.epochTOAs:
-                            cgw_res.append(np.ones(len(p.toas)))
-                            for cc, swave in enumerate(tmp_res):
-                                cgw_res[ii][p.detsig_Uinds[cc,0]:p.detsig_Uinds[cc,1]] *= swave
-                        elif not args.epochTOAs:
-                            cgw_res[ii] = tmp_res
+                for ii,p in enumerate(psr):
                     
-                        detres.append( p.res - cgw_res[ii] )
+                    tmp_res = utils.ecc_cgw_signal(p, gwtheta, gwphi, mc, dist, hstrain_tmp,
+                                                   orbfreq, gwinc, gwpol, gwgamma0,
+                                                   ecc_tmp, l0, qr, periEv=args.periEv,
+                                                   tref=tref, epochTOAs=args.epochTOAs)
+                    
+                    if args.epochTOAs:
+                        cgw_res.append(np.ones(len(p.toas)))
+                        for cc, swave in enumerate(tmp_res):
+                            cgw_res[ii][p.detsig_Uinds[cc,0]:p.detsig_Uinds[cc,1]] *= swave
+                    elif not args.epochTOAs:
+                        cgw_res[ii] = tmp_res
+                        
+                    detres.append( p.res - cgw_res[ii] )
+
 
             if args.bwm_search:
 
@@ -1953,6 +1930,16 @@ def lnprob(xx):
                 priorfac_eph = 0.0
     elif not args.incEph:
         priorfac_eph = 0.0
+
+
+    if args.det_signal:
+        if args.cgw_search:
+            if args.cgwPrior == 'uniform':
+                priorfac_detsig = np.log(hstrain * np.log(10.0))
+            elif args.cgwPrior == 'loguniform':
+                priorfac_detsig = 0.0
+    elif not args.det_signal:
+        priorfac_detsig = 0.0
         
 
     #####################################
@@ -1960,7 +1947,7 @@ def lnprob(xx):
     
     return logLike + priorfac_gwb + priorfac_gwline + \
       priorfac_red + priorfac_dm + priorfac_clk + \
-      priorfac_cm + priorfac_eph
+      priorfac_cm + priorfac_eph + priorfac_detsig
      
 
 
@@ -2048,9 +2035,8 @@ if args.incGWline:
                    "phi_gwline", "costheta_gwline"]
 if args.det_signal:
     if args.cgw_search:
-        parameters += ["chirpmass", "qratio", "dist", "orb-freq",
-                    "phi", "costheta", "cosiota", "gwpol",
-                    "gwgamma", "l0"]
+        parameters += ["chirpmass", "qratio", "dist", "h_strain", "orb-freq",
+                       "phi", "costheta", "cosiota", "gwpol", "gwgamma", "l0"]
         if args.ecc_search:
             parameters.append("ecc")
     if args.bwm_search:
@@ -2117,9 +2103,9 @@ if args.incGWline:
 if args.det_signal:
     if args.cgw_search:
         if args.ecc_search:
-            file_tag += '_ecgw'
+            file_tag += '_ecgw'+args.cgwPrior
         else:
-            file_tag += '_ccgw'
+            file_tag += '_ccgw'+args.cgwPrior
     if args.bwm_search:
         file_tag += '_bwm'+args.bwm_antenna
         if args.bwm_model_select:
@@ -2279,8 +2265,8 @@ if args.sampler == 'ptmcmc':
         x0 = np.append(x0,np.array([-6.0,-8.0,0.5,0.5]))
     if args.det_signal:
         if args.cgw_search:
-            x0 = np.append(x0,np.array([9.0, 0.5, 1.5, -8.0, 0.5,
-                                        0.5, 0.5, 0.5, 0.5, 0.5]))
+            x0 = np.append(x0,np.array([9.0, 0.5, 1.5, -15.0, -8.0,
+                                        0.5, 0.5, 0.5, 0.5, 0.5, 0.5]))
             if args.ecc_search:
                 x0 = np.append(x0,0.1)
         if args.bwm_search:
@@ -2342,7 +2328,7 @@ if args.sampler == 'ptmcmc':
         cov_diag = np.append(cov_diag,np.array([0.1,0.1,0.1,0.1]))
     if args.det_signal:
         if args.cgw_search:
-            cov_diag = np.append(cov_diag,0.2*np.ones(10))
+            cov_diag = np.append(cov_diag,0.2*np.ones(11))
             if args.ecc_search:
                 cov_diag = np.append(cov_diag,0.05)
         if args.bwm_search:
@@ -2489,11 +2475,11 @@ if args.sampler == 'ptmcmc':
         ##### CW #####
         if args.cgw_search:
             if args.ecc_search:
+                ids = [np.arange(param_ct,param_ct+12)]
+                param_ct += 12
+            elif not args.ecc_search:
                 ids = [np.arange(param_ct,param_ct+11)]
                 param_ct += 11
-            elif not args.ecc_search:
-                ids = [np.arange(param_ct,param_ct+10)]
-                param_ct += 10
             [ind.append(id) for id in ids]
         ##### BWM #####
         elif args.bwm_search:
@@ -3441,9 +3427,9 @@ if args.sampler == 'ptmcmc':
         # logmass, qr, logdist, logorbfreq, gwphi,
         # costheta, cosinc, gwpol, gwgamma0, l0
         if args.ecc_search:
+            ind = np.unique(np.random.randint(0, 12, 1))
+        elif not args.ecc_search:
             ind = np.unique(np.random.randint(0, 11, 1))
-        else:
-            ind = np.unique(np.random.randint(0, 10, 1))
 
         for ii in ind:
             q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])

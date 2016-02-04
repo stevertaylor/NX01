@@ -758,7 +758,7 @@ def solve_coupled_ecc_solution(F0, e0, gamma0, phase0, mc, q, t):
     
     return ret
 
-def get_an(n, mc, dl, F, e):
+def get_an(n, mc, dl, h0, F, e):
     
     """
     Compute a_n from Eq. 22 of Taylor et al. (2015).
@@ -778,8 +778,11 @@ def get_an(n, mc, dl, F, e):
     dl *= MPC2S
     
     omega = 2 * np.pi * F
-    
-    amp = n * mc**(5/3) * omega**(2/3) / dl
+
+    if h0 is None:
+        amp = n * mc**(5/3) * omega**(2/3) / dl
+    elif h0 is not None:
+        amp = n * h0 / 2.0
     
     ret = -amp * (ss.jn(n-2,n*e) - 2*e*ss.jn(n-1,n*e) +
                   (2/n)*ss.jn(n,n*e) + 2*e*ss.jn(n+1,n*e) -
@@ -787,7 +790,7 @@ def get_an(n, mc, dl, F, e):
 
     return ret
 
-def get_bn(n, mc, dl, F, e):
+def get_bn(n, mc, dl, h0, F, e):
     """
     Compute b_n from Eq. 22 of Taylor et al. (2015).
     
@@ -806,15 +809,18 @@ def get_bn(n, mc, dl, F, e):
     dl *= MPC2S 
     
     omega = 2 * np.pi * F
-    
-    amp = n * mc**(5/3) * omega**(2/3) / dl
+
+    if h0 is None:
+        amp = n * mc**(5/3) * omega**(2/3) / dl
+    elif h0 is not None:
+        amp = n * h0 / 2.0
         
     ret = -amp * np.sqrt(1-e**2) *(ss.jn(n-2,n*e) - 2*ss.jn(n,n*e) +
                   ss.jn(n+2,n*e)) 
 
     return ret
 
-def get_cn(n, mc, dl, F, e):
+def get_cn(n, mc, dl, h0, F, e):
     
     """
     Compute c_n from Eq. 22 of Taylor et al. (2015).
@@ -834,14 +840,17 @@ def get_cn(n, mc, dl, F, e):
     dl *= MPC2S
     
     omega = 2 * np.pi * F
-    
-    amp = 2 * mc**(5/3) * omega**(2/3) / dl
+
+    if h0 is None:
+        amp = n * mc**(5/3) * omega**(2/3) / dl
+    elif h0 is not None:
+        amp = n * h0 / 2.0
      
     ret = amp * ss.jn(n,n*e) / (n * omega)
 
     return ret
 
-def calculate_splus_scross(nmax, mc, dl, F, e, t, l0, gamma, gammadot, inc):
+def calculate_splus_scross(nmax, mc, dl, h0, F, e, t, l0, gamma, gammadot, inc):
     
     """
     Calculate splus and scross summed over all harmonics. 
@@ -864,9 +873,9 @@ def calculate_splus_scross(nmax, mc, dl, F, e, t, l0, gamma, gammadot, inc):
     n = np.arange(1, nmax)
 
     # time dependent amplitudes
-    an = get_an(n, mc, dl, F, e)
-    bn = get_bn(n, mc, dl, F, e)
-    cn = get_cn(n, mc, dl, F, e)
+    an = get_an(n, mc, dl, h0, F, e)
+    bn = get_bn(n, mc, dl, h0, F, e)
+    cn = get_cn(n, mc, dl, h0, F, e)
 
     # time dependent terms
     omega = 2*np.pi*F
@@ -955,7 +964,7 @@ def fplus_fcross(psr, gwtheta, gwphi):
     return fplus, fcross
 
 
-def ecc_cgw_signal(psr, gwtheta, gwphi, mc, dist, F, inc, psi, gamma0,
+def ecc_cgw_signal(psr, gwtheta, gwphi, mc, dist, h0, F, inc, psi, gamma0,
                    e0, l0, q, nmax=100, nset=None, pd=None, periEv=True,
                    psrTerm=False, tref=0, check=False, useFile=True,
                    epochTOAs=False, dummy_toas=None):
@@ -1058,8 +1067,8 @@ def ecc_cgw_signal(psr, gwtheta, gwphi, mc, dist, F, inc, psi, gamma0,
         nharm = nmax
     
     ##### earth term #####
-    splus, scross = calculate_splus_scross(nharm, mc, dist, F, e0, toas,
-                                           l0, gamma0, gammadot, inc)
+    splus, scross = calculate_splus_scross(nharm, mc, dist, h0, F, e0,
+                                           toas, l0, gamma0, gammadot, inc)
     
     ##### pulsar term #####
     if psrTerm:
@@ -1092,9 +1101,8 @@ def ecc_cgw_signal(psr, gwtheta, gwphi, mc, dist, F, inc, psi, gamma0,
                 nharm = nmax
 
 
-            splusp, scrossp = calculate_splus_scross(nharm, mc, dist, Fp,
-                                                     ep, toas, lp, gp,
-                                                     gammadotp, inc)
+            splusp, scrossp = calculate_splus_scross(nharm, mc, dist, h0, Fp, ep,
+                                                     toas, lp, gp, gammadotp, inc)
 
             rr = (fplus*cos2psi - fcross*sin2psi) * (splusp - splus) + \
                     (fplus*sin2psi + fcross*cos2psi) * (scrossp - scross)
