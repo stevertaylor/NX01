@@ -2170,7 +2170,7 @@ if args.incGWline:
         file_tag += '_gwline{0}_noCorr'.format(args.gwlinePrior)
 if args.det_signal:
     if args.cgw_search:
-        cgwtag = '_'
+        cgwtag = ''
         if args.fixcgwFreq is not None:
             cgwtag += 'fixFreq'
         if args.fixcgwPhi is not None:
