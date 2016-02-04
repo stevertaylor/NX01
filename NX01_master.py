@@ -2170,10 +2170,19 @@ if args.incGWline:
         file_tag += '_gwline{0}_noCorr'.format(args.gwlinePrior)
 if args.det_signal:
     if args.cgw_search:
+        cgwtag = '_'
+        if args.fixcgwFreq is not None:
+            cgwtag += 'fixFreq'
+        if args.fixcgwPhi is not None:
+            cgwtag += 'fixPhi'
+        if args.fixcgwTheta is not None:
+            cgwtag += 'fixTheta'
         if args.ecc_search:
-            file_tag += '_ecgw'+args.cgwPrior
+            if args.fixcgwEcc is not None:
+                cgwtag += 'fixEcc'
+            file_tag += '_ecgw'+args.cgwPrior+cgwtag
         else:
-            file_tag += '_ccgw'+args.cgwPrior
+            file_tag += '_ccgw'+args.cgwPrior+cgwtag
     if args.bwm_search:
         file_tag += '_bwm'+args.bwm_antenna
         if args.bwm_model_select:
