@@ -628,7 +628,7 @@ if args.incGWline:
     pmin = np.append(pmin,np.array([-8.0,-10.0,0.0,-1.0]))
 if args.det_signal:
     if args.cgw_search:
-        pmin = np.append(pmin,np.array([6.0,0.1,0.0,-20.0,-10.0,
+        pmin = np.append(pmin,np.array([8.0,0.1,0.0,-20.0,-9.0,
                                         0.0,-1.0,-1.0,0.0,0.0,0.0]))
         if args.ecc_search:
             pmin = np.append(pmin,0.001)
