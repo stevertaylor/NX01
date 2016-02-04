@@ -982,6 +982,7 @@ def ecc_cgw_signal(psr, gwtheta, gwphi, mc, dist, h0, F, inc, psi, gamma0,
     :param gwphi: Azimuthal angle of GW source in celestial coords [radians]
     :param mc: Chirp mass of SMBMB [solar masses]
     :param dist: Luminosity distance to SMBMB [Mpc]
+    :param h0: Dimensionless strain amplitude
     :param F: Orbital frequency of SMBHB [Hz]
     :param inc: Inclination of GW source [radians]
     :param psi: Polarization of GW source [radians]

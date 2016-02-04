@@ -190,6 +190,14 @@ parser.add_option('--periEv', dest='periEv', action='store_true', default=False,
                   help='Do you want to model the binary periapsis evolution? (default = False)')
 parser.add_option('--cgwPrior', dest='cgwPrior', action='store', type=str, default='uniform',
                   help='By default this puts a [uniform] prior on the strain amplitude, but can also choose [loguniform] which puts separate loguniform priors on mass and distance (default = \'uniform\')')
+parser.add_option('--fixcgwFreq', dest='fixcgwFreq', action='store', type=float, default=None,
+                  help='Fix the cgw orbital frequency to a particular log10 value (default = \'None\')')
+parser.add_option('--fixcgwEcc', dest='fixcgwEcc', action='store', type=float, default=None,
+                  help='Fix the cgw eccentricity to a particular value (default = \'None\')')
+parser.add_option('--fixcgwPhi', dest='fixcgwPhi', action='store', type=float, default=None,
+                  help='Fix the cgw azimuthal sky-location (phi) to a particular value (default = \'None\')')
+parser.add_option('--fixcgwTheta', dest='fixcgwTheta', action='store', type=float, default=None,
+                  help='Fix the cgw polar sky-location (theta) to a particular value (default = \'None\')')
 parser.add_option('--incGWline', dest='incGWline', action='store_true', default=False,
                   help='Do you want to include a single-frequency line in the GW spectrum? (default = False)')
 parser.add_option('--gwlinePrior', dest='gwlinePrior', action='store', type=str, default='uniform',
@@ -257,6 +265,10 @@ if args.jsonModel is not None:
     args.psrTerm = json_data['psrTerm']
     args.periEv = json_data['periEv']
     args.cgwPrior = json_data['cgwPrior']
+    args.fixcgwFreq = json_data['fixcgwFreq']
+    args.fixcgwEcc = json_data['fixcgwEcc']
+    args.fixcgwPhi = json_data['fixcgwPhi']
+    args.fixcgwTheta = json_data['fixcgwTheta']
     args.incGWline = json_data['incGWline']
     args.gwlinePrior = json_data['gwlinePrior']
     args.constLike = json_data['constLike']
@@ -932,9 +944,27 @@ def lnprob(xx):
             
                 cgw_res = []
                 detres = []
+
+                if args.fixcgwFreq is None:
+                    orbfreq_tmp = orbfreq
+                elif args.fixcgwFreq is not None:
+                    orbfreq_tmp = 10**args.fixcgwFreq
+
+                if args.fixcgwPhi is None:
+                    gwphi_tmp = gwphi
+                elif args.fixcgwPhi is not None:
+                    gwphi_tmp = args.fixcgwPhi
+
+                if args.fixcgwTheta is None:
+                    gwtheta_tmp = gwtheta
+                elif args.fixcgwTheta is not None:
+                    gwtheta_tmp = args.fixcgwTheta
                 
                 if args.ecc_search:
-                    ecc_tmp = e0
+                    if args.fixcgwEcc is None:
+                        ecc_tmp = e0
+                    elif args.fixcgwEcc is not None:
+                        ecc_tmp = args.fixcgwEcc
                 elif not args.ecc_search:
                     ecc_tmp = 0.001
 
@@ -945,9 +975,10 @@ def lnprob(xx):
                     
                 for ii,p in enumerate(psr):
                     
-                    tmp_res = utils.ecc_cgw_signal(p, gwtheta, gwphi, mc, dist, hstrain_tmp,
-                                                   orbfreq, gwinc, gwpol, gwgamma0,
-                                                   ecc_tmp, l0, qr, periEv=args.periEv,
+                    tmp_res = utils.ecc_cgw_signal(p, gwtheta_tmp, gwphi_tmp, mc,
+                                                   dist, hstrain_tmp, orbfreq_tmp,
+                                                   gwinc, gwpol, gwgamma0, ecc_tmp,
+                                                   l0, qr, periEv=args.periEv,
                                                    tref=tref, epochTOAs=args.epochTOAs)
                     
                     if args.epochTOAs:
@@ -2474,6 +2505,12 @@ if args.sampler == 'ptmcmc':
     if args.det_signal:
         ##### CW #####
         if args.cgw_search:
+            ids = [np.arange(param_ct,param_ct+5),
+                   [param_ct+4]]
+            [ind.append(id) for id in ids]
+            if args.cgwPrior=='uniform':
+                ids = [np.arange(param_ct+3,param_ct+5)]
+                [ind.append(id) for id in ids]
             if args.ecc_search:
                 ids = [np.arange(param_ct,param_ct+12)]
                 param_ct += 12
