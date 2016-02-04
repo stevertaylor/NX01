@@ -945,6 +945,10 @@ def lnprob(xx):
                 cgw_res = []
                 detres = []
 
+                #########################
+                # Sometimes we might want
+                # to fix cgw parameters
+                
                 if args.fixcgwFreq is None:
                     orbfreq_tmp = orbfreq
                 elif args.fixcgwFreq is not None:
@@ -967,6 +971,8 @@ def lnprob(xx):
                         ecc_tmp = args.fixcgwEcc
                 elif not args.ecc_search:
                     ecc_tmp = 0.001
+
+                ########################
 
                 if args.cgwPrior == 'uniform':
                     hstrain_tmp = hstrain
@@ -1083,6 +1089,12 @@ def lnprob(xx):
                         for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
                             ORF.append( np.zeros((npsr,npsr)) )
 
+                if args.incEph:
+                    for kk in range(3): # x,y,z
+                        for ii in range(tmp_nwins): # number of frequency windows
+                            for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
+                                ORF.append( np.zeros((npsr,npsr)) )
+
                 ORF = np.array(ORF)
                 ORFtot = np.zeros((mode_count,npsr,npsr)) # shouldn't be applying ORF to dmfreqs,
                                                           # but the projection of GW spec onto dmfreqs
@@ -1126,6 +1138,12 @@ def lnprob(xx):
                         for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
                             ORF.append( np.zeros((npsr,npsr)) )
 
+                if args.incEph:
+                    for kk in range(3): # x,y,z
+                        for ii in range(tmp_nwins): # number of frequency windows
+                            for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
+                                ORF.append( np.zeros((npsr,npsr)) )
+
                 ORF = np.array(ORF)
                 ORFtot = np.zeros((mode_count,npsr,npsr)) # shouldn't be applying ORF to dmfreqs,
                                                           # but the projection of GW spec onto dmfreqs
@@ -1168,6 +1186,12 @@ def lnprob(xx):
                     for ii in range(tmp_nwins): # number of frequency windows
                         for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
                             ORF.append( np.zeros((npsr,npsr)) )
+
+                if args.incEph:
+                    for kk in range(3): # x,y,z
+                        for ii in range(tmp_nwins): # number of frequency windows
+                            for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
+                                ORF.append( np.zeros((npsr,npsr)) )
 
                 ORF = np.array(ORF)
                 ORFtot = np.zeros((mode_count,npsr,npsr)) # shouldn't be applying ORF to dmfreqs,
@@ -1222,10 +1246,17 @@ def lnprob(xx):
                 for ii in range(tmp_nwins): # number of frequency windows
                     for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
                         ORF.append( monoOrf + dipwgt[ii]*gammaDip[ii,:,:] )
+                        
                 if args.dmVar:
                     for ii in range(tmp_nwins): # number of frequency windows
                         for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
                             ORF.append( np.zeros((npsr,npsr)) )
+
+                if args.incEph:
+                    for kk in range(3): # x,y,z
+                        for ii in range(tmp_nwins): # number of frequency windows
+                            for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
+                                ORF.append( np.zeros((npsr,npsr)) )
 
                 ORF = np.array(ORF)
                 ORFtot = np.zeros((mode_count,npsr,npsr)) # shouldn't be applying ORF to dmfreqs,
@@ -1245,6 +1276,12 @@ def lnprob(xx):
                     for ii in range(tmp_nwins): # number of frequency windows
                         for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
                             ORF.append( np.zeros((npsr,npsr)) )
+
+                if args.incEph:
+                    for kk in range(3): # x,y,z
+                        for ii in range(tmp_nwins): # number of frequency windows
+                            for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
+                                ORF.append( np.zeros((npsr,npsr)) )
 
                 ORF = np.array(ORF)
                 ORFtot = np.zeros((mode_count,npsr,npsr)) # shouldn't be applying ORF to dmfreqs,
