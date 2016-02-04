@@ -20,6 +20,7 @@ import matplotlib.ticker
 from matplotlib.ticker import FormatStrFormatter, \
      LinearLocator, NullFormatter, NullLocator, \
      AutoMinorLocator
+import newcmaps
 
 import NX01_bayesutils as bu
 
@@ -270,7 +271,7 @@ if 'Lmax0' not in args.chaindir:
     # Make a posterior-averaged skymap
     ###################################
     
-    bu.makeSkyMap(clm, lmax=LMAX)
+    bu.makeSkyMap(clm, lmax=LMAX, cmap=newcmaps.viridis)
     plt.show()
 
     ################################

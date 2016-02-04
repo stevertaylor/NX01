@@ -98,9 +98,9 @@ parser.add_option('--dmVar', dest='dmVar', action='store_true', default=False,
                    help='Search for DM variations in the data (False)? (default=False)')
 parser.add_option('--sampler', dest='sampler', action='store', type=str, default='ptmcmc',
                    help='Which sampler do you want to use: PTMCMC (ptmcmc) or MultiNest (mnest) (default = ptmcmc)')
-parser.add_option('--writeHotChains', dest='writeHotChains', action='store_true', default='False',
+parser.add_option('--writeHotChains', dest='writeHotChains', action='store_true', default=False,
                    help='Given a PTMCMC sampler, do you want to write out the hot chain samples? (default = False)')
-parser.add_option('--resume', dest='resume', action='store_true', default='False',
+parser.add_option('--resume', dest='resume', action='store_true', default=False,
                    help='Do you want to resume the PTMCMC sampler (default = False)')
 parser.add_option('--incGWB', dest='incGWB', action='store_true', default=False,
                   help='Do you want to search for a GWB? (default = False)')
@@ -188,6 +188,8 @@ parser.add_option('--psrTerm', dest='psrTerm', action='store_true', default=Fals
                   help='Do you want to include the pulsar term in the continuous wave search? (default = False)')
 parser.add_option('--periEv', dest='periEv', action='store_true', default=False,
                   help='Do you want to model the binary periapsis evolution? (default = False)')
+parser.add_option('--cgwPrior', dest='cgwPrior', action='store', type=str, default='uniform',
+                  help='By default this puts a [uniform] prior on the strain amplitude, but can also choose [loguniform] which puts separate loguniform priors on mass and distance (default = \'uniform\')')
 parser.add_option('--incGWline', dest='incGWline', action='store_true', default=False,
                   help='Do you want to include a single-frequency line in the GW spectrum? (default = False)')
 parser.add_option('--gwlinePrior', dest='gwlinePrior', action='store', type=str, default='uniform',
@@ -254,6 +256,7 @@ if args.jsonModel is not None:
     args.epochTOAs = json_data['epochTOAs']
     args.psrTerm = json_data['psrTerm']
     args.periEv = json_data['periEv']
+    args.cgwPrior = json_data['cgwPrior']
     args.incGWline = json_data['incGWline']
     args.gwlinePrior = json_data['gwlinePrior']
     args.constLike = json_data['constLike']
@@ -624,12 +627,34 @@ if args.incGWB:
 if args.incGWline:
     pmin = np.append(pmin,np.array([-8.0,-10.0,0.0,-1.0]))
 if args.det_signal:
-    if args.cgw_search:
-        pmin = np.append(pmin,np.array([6.0,0.1,0.0,-10.0,
-                                        0.0,-1.0,-1.0,
-                                        0.0,0.0,0.0]))
+    if args.cgw_search: #### FIX THIS STUFF
+        cgwpmin = np.array([])
+        if args.cgwPrior == 'uniform':
+            if not args.psrTerm and not args.periEv:
+                cgwpmin = np.array([-20.0,-10.0,0.0,-1.0,
+                                    -1.0,0.0,0.0,0.0])
+                if args.ecc_search:
+                    cgwpmin = np.append(cgwpmin,0.001)
+            if not args.psrTerm and args.periEv:
+                cgwpmin = np.array([6.0,0.1,-20.0,-10.0,0.0,
+                                    -1.0,-1.0,0.0,0.0,0.0])
+                if args.ecc_search:
+                    cgwpmin = np.append(cgwpmin,0.001)
+            if args.psrTerm:
+                # psr distances and psr-term mean anomalies
+                cgwpmin = np.append(cgwpmin,0.001*np.ones(len(psr)))
+                cgwpmin = np.append(cgwpmin,np.zeros(len(psr)))
+                
+        elif args.periEv and not args.psrTerm:
+            pmin = np.append(pmin,np.array([6.0,0.1,0.0,-10.0,
+                                            0.0,-1.0,-1.0,
+                                            0.0,0.0,0.0]))
         if args.ecc_search:
             pmin = np.append(pmin,0.001)
+        if args.psrTerm:
+            # psr distances and psrterm mean anomalies
+            pmin = np.append(pmin,0.001*np.ones(len(psr)))
+            pmin = np.append(pmin,np.zeros(len(psr)))
     if args.bwm_search:
         pmin = np.append(pmin,[np.min([np.min(p.toas) for p in psr]),
                                -18.0,0.0,-1.0,0.0])
@@ -701,6 +726,9 @@ if args.det_signal:
                                         np.pi,np.pi,2.0*np.pi]))
         if args.ecc_search:
             pmax = np.append(pmax,0.9)
+        if args.psrTerm:
+            # psr distances
+            pmax = np.append(pmax,5.0*np.ones(len(psr)))
     if args.bwm_search:
         pmax = np.append(pmax,[np.max([np.max(p.toas) for p in psr]),
                                -11.0,2.0*np.pi,1.0,np.pi])
@@ -3141,10 +3169,10 @@ if args.sampler == 'ptmcmc':
         return q, qxy
 
     def drawFromGWBSpectrumHyperPrior(parameters, iter, beta):
-        '''
+        """
         Only for the free spectral model.
 
-        '''
+        """
 
         # post-jump parameters
         q = parameters.copy()
