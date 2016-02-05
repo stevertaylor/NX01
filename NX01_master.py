@@ -1031,7 +1031,8 @@ def lnprob(xx):
                                                    dist, hstrain_tmp, orbfreq_tmp,
                                                    gwinc, gwpol, gwgamma0, ecc_tmp,
                                                    l0, qr, periEv=args.periEv,
-                                                   tref=tref, epochTOAs=args.epochTOAs)
+                                                   psrTerm=args.psrTerm, tref=tref,
+                                                   epochTOAs=args.epochTOAs)
                     
                     if args.epochTOAs:
                         cgw_res.append(np.ones(len(p.toas)))

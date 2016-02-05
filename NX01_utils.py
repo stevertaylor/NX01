@@ -1089,12 +1089,15 @@ def ecc_cgw_signal(psr, gwtheta, gwphi, mc, dist, h0, F, inc, psi, gamma0,
             Fp, ep, gp, lp = y[-1,:]
 
             # get gammadot at pulsar term
-            gammadotp = get_gammadot(Fp, mc, q, ep)
+            if not periEv:
+                gammadotp = 0.0
+            else:
+                gammadotp = get_gammadot(Fp, mc, q, ep)
 
             if useFile:
                 if ep > 0.001 and ep < 0.999:
                     nharm = min(int(ecc_interp(ep)), nmax)
-                elif ep < 0.001:
+                elif ep <= 0.001:
                     nharm = 3
                 else:
                     nharm = nmax
@@ -1109,7 +1112,7 @@ def ecc_cgw_signal(psr, gwtheta, gwphi, mc, dist, h0, F, inc, psi, gamma0,
                     (fplus*sin2psi + fcross*cos2psi) * (scrossp - scross)
 
         else:
-            rr = np.zeros(len(psr.toas))
+            rr = np.zeros(len(toas))
             
     else:
 
