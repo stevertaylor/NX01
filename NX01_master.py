@@ -108,12 +108,14 @@ parser.add_option('--gwbSpecModel', dest='gwbSpecModel', action='store', type=st
                   help='What kind of spectral model do you want for the GWB?: powerlaw, spectrum, turnover, gpEnvInterp (default = powerlaw)')
 parser.add_option('--gpPickle', dest='gpPickle', action='store', type=str, default='/Users/staylor/Research/PapersInProgress/NPDE/gp4ptas/ecc_gp.pkl',
                   help='Provide the pickle file storing the list of GP objects for when gwbSpecModel is gpEnvInterp (default = /Users/staylor/Research/PapersInProgress/NPDE/gp4ptas/ecc_gp.pkl)')
+parser.add_option('--userOrf', dest='userOrf', action='store', type=str, default=None,
+                  help='Provide your own ORF in a numpy array of shape (npsr,npsr) or (nfreqs,npsr,npsr) (default = None)')
 parser.add_option('--incCosVar', dest='incCosVar', action='store_true', default=False,
                   help='Do you want to include GP interpolation uncertainties or cosmic variance in your gpEnvInterp model? (default = False)')
 parser.add_option('--incCorr', dest='incCorr', action='store_true', default=False,
                   help='Do you want to include cross-correlations in the GWB model? (default = False)')
 parser.add_option('--gwbTypeCorr', dest='gwbTypeCorr', action='store', type=str, default='spharmAnis',
-                  help='What type of correlated GW signal do you want to model?: spharmAnis, dipoleOrf, modelIndep, pointSrc, clock (default = spharmAnis)')
+                  help='What type of correlated GW signal do you want to model?: custom, spharmAnis, dipoleOrf, modelIndep, pointSrc, clock (default = spharmAnis)')
 parser.add_option('--redSpecModel', dest='redSpecModel', action='store', type=str, default='powerlaw',
                   help='What kind of spectral model do you want for red timing-noise?: powerlaw, spectrum (default = powerlaw)')
 parser.add_option('--dmSpecModel', dest='dmSpecModel', action='store', type=str, default='powerlaw',
@@ -224,6 +226,7 @@ if args.jsonModel is not None:
     args.incGWB = json_data['incGWB']
     args.gwbSpecModel = json_data['gwbSpecModel']
     args.gpPickle = json_data['gpPickle']
+    args.userOrf = json_data['userOrf']
     args.incCosVar = json_data['incCosVar']
     args.incCorr = json_data['incCorr']
     args.gwbTypeCorr = json_data['gwbTypeCorr']
@@ -469,6 +472,32 @@ if args.incGWB and args.incCorr:
             evol_corr_tag = '_evanis'
         else:
             evol_corr_tag = ''
+
+    elif args.gwbTypeCorr == 'custom':
+
+        if args.userOrf is None:
+            print "WARNING: You requested a custom ORF but" \
+            " didn't give me an array file!"
+            print "WARNING: Proceeding with Hellings and Downs..."
+
+            customOrf = 2.0*np.sqrt(np.pi)*anis.CorrBasis(positions,0)[0]
+            
+        elif args.userOrf is not None:
+
+            if args.userOrf.split('.')[-1] is not 'npy':
+                print 'You are supplying custom pulsar positions, '\
+                'possibly scrambled!'
+                custom_positions = np.genfromtxt(args.userOrf,dtype=str,comments='#')
+                custom_positions = np.double(custom_positions[:,1:])
+                customOrf = 2.0*np.sqrt(np.pi)*anis.CorrBasis(custom_positions,0)[0]
+            elif args.userOrf.split('.')[-1] is 'npy':
+                customOrf = np.load(args.userOrf)
+                if np.atleast_3d(customOrf.T).shape[-1]>1:
+                    print 'You have given me ORFs for all frequencies!'
+                else:
+                    print 'You have given me a broadband ORF!'
+
+        num_corr_params = 0
 
     elif args.gwbTypeCorr == 'clock':
 
@@ -1264,6 +1293,37 @@ def lnprob(xx):
                                                           # is defined as zero below.
                 ORFtot[0::2] = ORF
                 ORFtot[1::2] = ORF
+
+
+            elif args.gwbTypeCorr == 'custom':
+            
+                ############################################################
+                # Computing frequency-dependent overlap reduction functions.
+        
+                ORF=[]
+                for ii in range(nmode): # number of frequencies
+                    if np.atleast_3d(customOrf.T).shape[-1]>1:
+                        ORF.append( customOrf[ii,:,:] )
+                    else:
+                        ORF.append( customOrf )
+                        
+                if args.dmVar:
+                    for ii in range(nmode): # number of frequencies
+                        ORF.append( np.zeros((npsr,npsr)) )
+
+                if args.incEph:
+                    for kk in range(3): # x,y,z
+                        for ii in range(nmode): # number of frequencies
+                            ORF.append( np.zeros((npsr,npsr)) )
+
+                ORF = np.array(ORF)
+                ORFtot = np.zeros((mode_count,npsr,npsr)) # shouldn't be applying ORF to dmfreqs
+                                                          # or ephemeris freqs, but the 
+                                                          # projection of GW spec onto dmfreqs
+                                                          # is defined as zero below.
+                ORFtot[0::2] = ORF
+                ORFtot[1::2] = ORF
+                
 
             elif args.gwbTypeCorr == 'clock':
 
@@ -2161,6 +2221,12 @@ if args.incGWB:
         elif args.gwbTypeCorr == 'dipoleOrf':
             file_tag += '_gwb{0}_dip{1}{2}'.format(args.gwbPrior,
                                                    evol_corr_tag,gamma_tag)
+        elif args.gwbTypeCorr == 'clock':
+            file_tag += '_gwb{0}_fullycorr{1}{2}'.format(args.gwbPrior,
+                                                         evol_corr_tag,gamma_tag)
+        elif args.gwbTypeCorr == 'custom':
+            file_tag += '_gwb{0}_cstmOrf{1}{2}'.format(args.gwbPrior,
+                                                       evol_corr_tag,gamma_tag)
     else:
         file_tag += '_gwb{0}_noCorr{1}'.format(args.gwbPrior,gamma_tag)
 if args.incGWline:

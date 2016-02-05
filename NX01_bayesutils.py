@@ -637,7 +637,7 @@ def upperlimitplot2d(x, y, sigma=0.95, ymin=None, ymax=None, bins=40, log=False,
     else:
         plt.savefig('2dUpperLimit.pdf', bbox_inches='tight')
 
-        """
+"""
 Given an mcmc chain, plot the log-spectrum
 
 """
