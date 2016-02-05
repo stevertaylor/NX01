@@ -322,11 +322,11 @@ if args.use_gpu:
 
 if rank == 0:
     if args.nmodes:
-        print ("\n You've given me the number of frequencies",
-            "to include in the low-rank time-frequency approximation, got it?\n")
+        print "\n You've given me the number of frequencies " \
+          "to include in the low-rank time-frequency approximation, got it?\n"
     else:
-        print ("\n You've given me the sampling cadence for the observations,",
-            "which determines the upper frequency limit and the number of modes, got it?\n")
+        print "\n You've given me the sampling cadence for the observations," \
+          "which determines the upper frequency limit and the number of modes, got it?\n"
 
 if args.sampler == 'mnest':
     import pymultinest
@@ -485,17 +485,34 @@ if args.incGWB and args.incCorr:
         elif args.userOrf is not None:
 
             if args.userOrf.split('.')[-1] is not 'npy':
-                print 'You are supplying custom pulsar positions, '\
-                'possibly scrambled!'
+                print "You are supplying custom pulsar positions, " \
+                "possibly scrambled!"
                 custom_positions = np.genfromtxt(args.userOrf,dtype=str,comments='#')
                 custom_positions = np.double(custom_positions[:,1:])
-                customOrf = 2.0*np.sqrt(np.pi)*anis.CorrBasis(custom_positions,0)[0]
+
+                if len(custom_positions)!=len(psr):
+                    print "ERROR: Number of custom pulsar positions does not match " \
+                      "the number of hdf5 files you gave me!"
+                    print "ERROR: Proceeding with Hellings and Downs instead!"
+                    customOrf = 2.0*np.sqrt(np.pi)*anis.CorrBasis(positions,0)[0]
+                elif len(custom_positions)==len(psr):
+                    customOrf = 2.0*np.sqrt(np.pi)*anis.CorrBasis(custom_positions,0)[0]
+                    
             elif args.userOrf.split('.')[-1] is 'npy':
-                customOrf = np.load(args.userOrf)
+                loadOrf = np.load(args.userOrf)
                 if np.atleast_3d(customOrf.T).shape[-1]>1:
-                    print 'You have given me ORFs for all frequencies!'
+                    print "You have given me ORFs for all frequencies!"
                 else:
-                    print 'You have given me a broadband ORF!'
+                    print "You have given me a broadband ORF!"
+
+                if np.atleast_3d(customOrf.T).shape[0]==len(psr) and
+                    np.atleast_3d(customOrf.T).shape[1]==len(psr):
+                    print "Dimensions match number of pulsars...OK!"
+                    customOrf = loadOrf
+                else:
+                    print "ERROR: Dimensions don't match number of pulsars!"
+                    print "ERROR: Proceeding with Hellings and Downs instead!"
+                    customOrf = 2.0*np.sqrt(np.pi)*anis.CorrBasis(positions,0)[0]
 
         num_corr_params = 0
 
