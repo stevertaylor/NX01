@@ -2681,8 +2681,9 @@ if args.sampler == 'ptmcmc':
             [ind.append(id) for id in ids]
             if args.psrTerm:
                 ids = [np.arange(param_ct,param_ct+len(psr)),
-                       np.arange(param_ct,param_ct+len(psr)),
-                       np.arange(param_ct,param_ct+len(psr))]
+                       np.arange(param_ct+len(psr),param_ct+2*len(psr)),
+                       np.arange(param_ct+2*len(psr),param_ct+3*len(psr))]
+                param_ct += 3*len(psr)
                 [ind.append(id) for id in ids]
         ##### BWM #####
         elif args.bwm_search:
