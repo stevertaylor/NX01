@@ -691,8 +691,9 @@ if args.det_signal:
         if args.ecc_search:
             pmin = np.append(pmin,0.001)
         if args.psrTerm:
-            # psr distances and psr-term mean anomalies
+            # psr distances, pterm-gamm0, pterm-l0
             pmin = np.append(pmin,0.001*np.ones(len(psr)))
+            pmin = np.append(pmin,np.zeros(len(psr)))
             pmin = np.append(pmin,np.zeros(len(psr)))
     if args.bwm_search:
         pmin = np.append(pmin,[np.min([np.min(p.toas) for p in psr]),
@@ -765,8 +766,9 @@ if args.det_signal:
         if args.ecc_search:
             pmax = np.append(pmax,0.9)
         if args.psrTerm:
-            # psr distances and psr-term mean anomalies
+            # psr distances, pterm-gamma0, pterm-l0
             pmax = np.append(pmax,10.0*np.ones(len(psr)))
+            pmax = np.append(pmax,2.0*np.pi*np.ones(len(psr)))
             pmax = np.append(pmax,2.0*np.pi*np.ones(len(psr)))
     if args.bwm_search:
         pmax = np.append(pmax,[np.max([np.max(p.toas) for p in psr]),
@@ -975,11 +977,13 @@ def lnprob(xx):
             if args.cgw_search:
 
                 if args.ecc_search:
+                    binary_params = 12
                     logmass, qr, logdist, loghstrain, logorbfreq, gwphi,\
-                      costheta, cosinc, gwpol, gwgamma0, l0, e0 = cgw_params
+                      costheta, cosinc, gwpol, gwgamma0, l0, e0 = cgw_params[:binary_params]
                 else:
+                    binary_params = 11
                     logmass, qr, logdist, loghstrain, logorbfreq, gwphi,\
-                      costheta, cosinc, gwpol, gwgamma0, l0 = cgw_params
+                      costheta, cosinc, gwpol, gwgamma0, l0 = cgw_params[:binary_params]
 
                 mc = 10.0**logmass
                 dist = 10.0**logdist
@@ -987,6 +991,16 @@ def lnprob(xx):
                 orbfreq = 10.0**logorbfreq
                 gwtheta = np.arccos(costheta)
                 gwinc = np.arccos(cosinc)
+
+                if args.psrTerm:
+                    pterm_params = cgw_params[binary_params:]
+                    psrdists = pterm_params[:npsr]
+                    psrgp0 = pterm_params[npsr:2*npsr]
+                    psrlp0 = pterm_params[2*npsr:]
+                elif not args.psrTerm:
+                    psrdists = np.array([None]*npsr)
+                    psrgp0 = np.array([None]*npsr)
+                    psrlp0 = np.array([None]*npsr)
             
                 cgw_res = []
                 detres = []
@@ -1030,7 +1044,8 @@ def lnprob(xx):
                     tmp_res = utils.ecc_cgw_signal(p, gwtheta_tmp, gwphi_tmp, mc,
                                                    dist, hstrain_tmp, orbfreq_tmp,
                                                    gwinc, gwpol, gwgamma0, ecc_tmp,
-                                                   l0, qr, periEv=args.periEv,
+                                                   l0, qr, pd=psrdists[ii], gpx=psrgp0[ii],
+                                                   lpx=psrlp0[ii], periEv=args.periEv,
                                                    psrTerm=args.psrTerm, tref=tref,
                                                    epochTOAs=args.epochTOAs)
                     
@@ -2185,6 +2200,10 @@ if args.det_signal:
                        "phi", "costheta", "cosiota", "gwpol", "gwgamma", "l0"]
         if args.ecc_search:
             parameters.append("ecc")
+        if args.psrTerm:
+            [parameters.append('pdist_'+p.name) for p in psr]
+            [parameters.append('gp0_'+p.name) for p in psr]
+            [parameters.append('lp0_'+p.name) for p in psr]
     if args.bwm_search:
         parameters += ["burst_mjd", "burst_strain",
                        "phi", "costheta", "gwpol"]
@@ -2267,6 +2286,8 @@ if args.det_signal:
             file_tag += '_ecgw'+args.cgwPrior+cgwtag
         else:
             file_tag += '_ccgw'+args.cgwPrior+cgwtag
+        if args.psrTerm:
+            file_tag += 'psrTerm'
     if args.bwm_search:
         file_tag += '_bwm'+args.bwm_antenna
         if args.bwm_model_select:
@@ -2430,6 +2451,11 @@ if args.sampler == 'ptmcmc':
                                         0.5, 0.5, 0.5, 0.5, 0.5, 0.5]))
             if args.ecc_search:
                 x0 = np.append(x0,0.1)
+            if args.psrTerm:
+                x0 = np.append(x0,np.array([p.h5Obj['pdist'].value
+                                            for p in psr]))
+                x0 = np.append(x0,np.random.uniform(0.0,2.0*np.pi,len(psr)))
+                x0 = np.append(x0,np.random.uniform(0.0,2.0*np.pi,len(psr)))
         if args.bwm_search:
             x0 = np.append(x0,np.array([55100.0,-14.0,0.3,0.5,0.7]))
             if args.bwm_model_select:
@@ -2492,6 +2518,11 @@ if args.sampler == 'ptmcmc':
             cov_diag = np.append(cov_diag,0.2*np.ones(11))
             if args.ecc_search:
                 cov_diag = np.append(cov_diag,0.05)
+            if args.psrTerm:
+                cov_diag = np.append(cov_diag,np.array([p.h5Obj['pdistErr'].value
+                                                        for p in psr])**2.0)
+                cov_diag = np.append(cov_diag,0.2*np.ones(len(psr)))
+                cov_diag = np.append(cov_diag,0.2*np.ones(len(psr)))
         if args.bwm_search:
             cov_diag = np.append(cov_diag,np.array([100.0,0.1,0.1,0.1,0.1]))
             if args.bwm_model_select:
@@ -2648,6 +2679,11 @@ if args.sampler == 'ptmcmc':
                 ids = [np.arange(param_ct,param_ct+11)]
                 param_ct += 11
             [ind.append(id) for id in ids]
+            if args.psrTerm:
+                ids = [np.arange(param_ct,param_ct+len(psr)),
+                       np.arange(param_ct,param_ct+len(psr)),
+                       np.arange(param_ct,param_ct+len(psr))]
+                [ind.append(id) for id in ids]
         ##### BWM #####
         elif args.bwm_search:
             ids = [np.arange(param_ct,param_ct+5)]
@@ -3591,18 +3627,261 @@ if args.sampler == 'ptmcmc':
         if args.incGWline:
             pct += 4
 
-        # logmass, qr, logdist, logorbfreq, gwphi,
-        # costheta, cosinc, gwpol, gwgamma0, l0
+        # logmass, qr, logdist, loghstrain,
+        # logorbfreq, gwphi, costheta, cosinc,
+        # gwpol, gwgamma0, l0
         if args.ecc_search:
-            ind = np.unique(np.random.randint(0, 12, 1))
+            ind = np.unique(np.random.randint(0, 13, 1))
         elif not args.ecc_search:
-            ind = np.unique(np.random.randint(0, 11, 1))
+            ind = np.unique(np.random.randint(0, 12, 1))
 
         for ii in ind:
             q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
             qxy += 0
         
         return q, qxy
+
+    # cgw distance draws 
+    def drawFromPsrDistPrior(parameters, iter, beta):
+
+        # post-jump parameters
+        q = parameters.copy()
+
+        # transition probability
+        qxy = 0
+
+        npsr = len(psr)
+        pct = 0
+        if not args.fixRed:
+            if args.redSpecModel == 'powerlaw':
+                pct = 2*npsr
+            elif args.redSpecModel == 'spectrum':
+                pct = npsr*nmode
+    
+        if args.dmVar:
+            if args.dmSpecModel == 'powerlaw':
+                pct += 2*npsr
+            elif args.dmSpecModel == 'spectrum':
+                pct += npsr*nmode
+
+        if args.incClk:
+            if args.clkSpecModel == 'powerlaw':
+                pct += 2
+            elif args.clkSpecModel == 'spectrum':
+                pct += nmode
+
+        if args.incCm:
+            if args.cmSpecModel == 'powerlaw':
+                pct += 2
+            elif args.cmSpecModel == 'spectrum':
+                pct += nmode
+
+        if args.incEph:
+            if args.ephSpecModel == 'powerlaw':
+                pct += 6
+            elif args.ephSpecModel == 'spectrum':
+                pct += 3*nmode
+
+        if args.incGWB:
+            if args.gwbSpecModel == 'powerlaw':
+                pct += 1
+                if not args.fix_slope:
+                    pct += 1
+            elif args.gwbSpecModel == 'spectrum':
+                pct += nmode
+                if args.gwbPrior == 'gaussProc':
+                    pct += 2
+            elif args.gwbSpecModel == 'turnover':
+                pct += 3
+                if args.gwbPrior == 'gaussProc':
+                    pct += 1
+            elif args.gwbSpecModel == 'gpEnvInterp':
+                pct += 2
+
+            if args.incCorr:
+                pct += num_corr_params
+
+        if args.incGWline:
+            pct += 4
+
+        # logmass, qr, logdist, loghstrain,
+        # logorbfreq, gwphi, costheta, cosinc,
+        # gwpol, gwgamma0, l0
+        if args.ecc_search:
+            pct += 12
+        elif not args.ecc_search:
+            pct += 11
+
+        for ii, p in enumerate(psr):
+            mu = p.h5Obj['pdist'].value
+            sig = p.h5Obj['pdistErr'].value
+            q[pct+ii] = mu + np.random.randn() * sig
+            qxy -= (mu - parameters[pct+ii]) ** 2 / 2 / \
+                sig ** 2 - (mu - q[pct+ii]) ** 2 / 2 / sig ** 2
+        
+        return q, qxy
+
+    # cgw psrterm gamma0
+    def drawFromPtermGamPrior(parameters, iter, beta):
+
+        # post-jump parameters
+        q = parameters.copy()
+
+        # transition probability
+        qxy = 0
+
+        npsr = len(psr)
+        pct = 0
+        if not args.fixRed:
+            if args.redSpecModel == 'powerlaw':
+                pct = 2*npsr
+            elif args.redSpecModel == 'spectrum':
+                pct = npsr*nmode
+    
+        if args.dmVar:
+            if args.dmSpecModel == 'powerlaw':
+                pct += 2*npsr
+            elif args.dmSpecModel == 'spectrum':
+                pct += npsr*nmode
+
+        if args.incClk:
+            if args.clkSpecModel == 'powerlaw':
+                pct += 2
+            elif args.clkSpecModel == 'spectrum':
+                pct += nmode
+
+        if args.incCm:
+            if args.cmSpecModel == 'powerlaw':
+                pct += 2
+            elif args.cmSpecModel == 'spectrum':
+                pct += nmode
+
+        if args.incEph:
+            if args.ephSpecModel == 'powerlaw':
+                pct += 6
+            elif args.ephSpecModel == 'spectrum':
+                pct += 3*nmode
+
+        if args.incGWB:
+            if args.gwbSpecModel == 'powerlaw':
+                pct += 1
+                if not args.fix_slope:
+                    pct += 1
+            elif args.gwbSpecModel == 'spectrum':
+                pct += nmode
+                if args.gwbPrior == 'gaussProc':
+                    pct += 2
+            elif args.gwbSpecModel == 'turnover':
+                pct += 3
+                if args.gwbPrior == 'gaussProc':
+                    pct += 1
+            elif args.gwbSpecModel == 'gpEnvInterp':
+                pct += 2
+
+            if args.incCorr:
+                pct += num_corr_params
+
+        if args.incGWline:
+            pct += 4
+
+        if args.ecc_search:
+            pct += 12
+        elif not args.ecc_search:
+            pct += 11
+
+        # psr distances
+        pct += len(psr)
+
+        ind = np.unique(np.random.randint(0, len(psr), 1))
+
+        for ii in ind:
+            q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
+            qxy += 0
+        
+        return q, qxy
+
+
+    # cgw psrterm gamma0
+    def drawFromPtermEllPrior(parameters, iter, beta):
+
+        # post-jump parameters
+        q = parameters.copy()
+
+        # transition probability
+        qxy = 0
+
+        npsr = len(psr)
+        pct = 0
+        if not args.fixRed:
+            if args.redSpecModel == 'powerlaw':
+                pct = 2*npsr
+            elif args.redSpecModel == 'spectrum':
+                pct = npsr*nmode
+    
+        if args.dmVar:
+            if args.dmSpecModel == 'powerlaw':
+                pct += 2*npsr
+            elif args.dmSpecModel == 'spectrum':
+                pct += npsr*nmode
+
+        if args.incClk:
+            if args.clkSpecModel == 'powerlaw':
+                pct += 2
+            elif args.clkSpecModel == 'spectrum':
+                pct += nmode
+
+        if args.incCm:
+            if args.cmSpecModel == 'powerlaw':
+                pct += 2
+            elif args.cmSpecModel == 'spectrum':
+                pct += nmode
+
+        if args.incEph:
+            if args.ephSpecModel == 'powerlaw':
+                pct += 6
+            elif args.ephSpecModel == 'spectrum':
+                pct += 3*nmode
+
+        if args.incGWB:
+            if args.gwbSpecModel == 'powerlaw':
+                pct += 1
+                if not args.fix_slope:
+                    pct += 1
+            elif args.gwbSpecModel == 'spectrum':
+                pct += nmode
+                if args.gwbPrior == 'gaussProc':
+                    pct += 2
+            elif args.gwbSpecModel == 'turnover':
+                pct += 3
+                if args.gwbPrior == 'gaussProc':
+                    pct += 1
+            elif args.gwbSpecModel == 'gpEnvInterp':
+                pct += 2
+
+            if args.incCorr:
+                pct += num_corr_params
+
+        if args.incGWline:
+            pct += 4
+
+        if args.ecc_search:
+            pct += 12
+        elif not args.ecc_search:
+            pct += 11
+
+        # psr distances
+        pct += len(psr)
+        # psrterm gamma0
+        pct += len(psr)
+
+        ind = np.unique(np.random.randint(0, len(psr), 1))
+
+        for ii in ind:
+            q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
+            qxy += 0
+        
+        return q, qxy
+    
 
     # bwm draws 
     def drawFromBWMPrior(parameters, iter, beta):
@@ -3792,6 +4071,10 @@ if args.sampler == 'ptmcmc':
         sampler.addProposalToCycle(drawFromGWlinePrior, 10)
     if args.det_signal and args.cgw_search:
         sampler.addProposalToCycle(drawFromCWPrior, 10)
+        if args.psrTerm:
+            sampler.addProposalToCycle(drawFromPsrDistPrior, 10)
+            sampler.addProposalToCycle(drawFromPtermGamPrior, 10)
+            sampler.addProposalToCycle(drawFromPtermEllPrior, 10)
     if args.det_signal and args.bwm_search:
         sampler.addProposalToCycle(drawFromBWMPrior, 10)
         if args.bwm_model_select:

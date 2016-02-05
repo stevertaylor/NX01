@@ -965,13 +965,13 @@ def fplus_fcross(psr, gwtheta, gwphi):
 
 
 def ecc_cgw_signal(psr, gwtheta, gwphi, mc, dist, h0, F, inc, psi, gamma0,
-                   e0, l0, q, nmax=100, nset=None, pd=None, periEv=True,
-                   psrTerm=False, tref=0, check=False, useFile=True,
+                   e0, l0, q, nmax=100, nset=None, pd=None, gpx=None, lpx=None,
+                   periEv=True, psrTerm=False, tref=0, check=False, useFile=True,
                    epochTOAs=False, dummy_toas=None):
     
     """
     Simulate GW from eccentric SMBHB. Waveform models from
-    Taylor et al. (2015) and Barack and Cutler (2004).
+    Taylor et al. (2016) and Barack and Cutler (2004).
 
     WARNING: This residual waveform is only accurate if the
     GW frequency is not significantly evolving over the 
@@ -993,6 +993,8 @@ def ecc_cgw_signal(psr, gwtheta, gwphi, mc, dist, h0, F, inc, psi, gamma0,
     :param nmax: Number of harmonics to use in waveform decomposition
     :param nset: Fix the number of harmonics to be injected
     :param pd: Pulsar distance [kpc]
+    :param gpx: Pulsar-term gamm0 [radians]
+    :param lpx: Pulsar-term l0 [radians]
     :param periEv: Evolve the position of periapsis [boolean] 
     :param psrTerm: Option to include pulsar term [boolean] 
     :param tref: Fiducial time at which initial parameters are referenced [s]
@@ -1075,6 +1077,8 @@ def ecc_cgw_signal(psr, gwtheta, gwphi, mc, dist, h0, F, inc, psi, gamma0,
     if psrTerm:
        
         # convert units
+        if pd is None:
+            pd = p.h5Obj['pdist'].value
         pd *= KPC2S   # convert from kpc to seconds
     
         # get pulsar time
@@ -1105,8 +1109,19 @@ def ecc_cgw_signal(psr, gwtheta, gwphi, mc, dist, h0, F, inc, psi, gamma0,
                 nharm = nmax
 
 
+            if gpx is None:
+                gp_tmp = gp
+            elif gpx is not None:
+                gp_tmp = gpx
+
+            if lpx is None:
+                lp_tmp = lp
+            elif lpx is not None:
+                lp_tmp = lpx
+            
             splusp, scrossp = calculate_splus_scross(nharm, mc, dist, h0, Fp, ep,
-                                                     toas, lp, gp, gammadotp, inc)
+                                                     toas, lp_tmp, gp_tmp,
+                                                     gammadotp, inc)
 
             rr = (fplus*cos2psi - fcross*sin2psi) * (splusp - splus) + \
                     (fplus*sin2psi + fcross*cos2psi) * (scrossp - scross)
