@@ -505,8 +505,8 @@ if args.incGWB and args.incCorr:
                 else:
                     print "You have given me a broadband ORF!"
 
-                if np.atleast_3d(customOrf.T).shape[0]==len(psr) and
-                    np.atleast_3d(customOrf.T).shape[1]==len(psr):
+                if (np.atleast_3d(customOrf.T).shape[0]==len(psr) and
+                    np.atleast_3d(customOrf.T).shape[1]==len(psr)):
                     print "Dimensions match number of pulsars...OK!"
                     customOrf = loadOrf
                 else:
@@ -2095,10 +2095,19 @@ def lnprob(xx):
 
     if args.det_signal:
         if args.cgw_search:
+            ### uniform prior ###
             if args.cgwPrior == 'uniform':
                 priorfac_detsig = np.log(hstrain * np.log(10.0))
             elif args.cgwPrior == 'loguniform':
                 priorfac_detsig = 0.0
+            ### pulsar distance prior ###
+            if args.psrTerm:
+                for ii, p in enumerate(psr):
+                    mu = p.h5Obj['pdist'].value
+                    sig = p.h5Obj['pdistErr'].value
+                    priorfac_detsig += \
+                      np.log( np.exp( -0.5 * (psrdists[ii] - mu)**2.0 / sig**2.0) / \
+                              np.sqrt(2.0*np.pi*sig**2.0) )
     elif not args.det_signal:
         priorfac_detsig = 0.0
         
@@ -3632,9 +3641,9 @@ if args.sampler == 'ptmcmc':
         # logorbfreq, gwphi, costheta, cosinc,
         # gwpol, gwgamma0, l0
         if args.ecc_search:
-            ind = np.unique(np.random.randint(0, 13, 1))
-        elif not args.ecc_search:
             ind = np.unique(np.random.randint(0, 12, 1))
+        elif not args.ecc_search:
+            ind = np.unique(np.random.randint(0, 11, 1))
 
         for ii in ind:
             q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
