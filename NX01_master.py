@@ -3802,7 +3802,7 @@ if args.sampler == 'ptmcmc':
         return q, qxy
 
 
-    # cgw psrterm gamma0
+    # cgw psrterm l0
     def drawFromPtermEllPrior(parameters, iter, beta):
 
         # post-jump parameters
