@@ -801,7 +801,7 @@ if args.incGWB:
         elif args.gwbTypeCorr == 'dipoleOrf':
             pmax = np.append(pmax,np.tile([2.0*np.pi,1.0,1.0],tmp_nwins))
         elif args.gwbTypeCorr == 'gwDisk':
-            pmax = np.append(pmax,np.tile([2.0*np.pi,1.0,2.0*np.pi,3.0],tmp_nwins))
+            pmax = np.append(pmax,np.tile([2.0*np.pi,1.0,3.0*np.pi/8.0,3.0],tmp_nwins))
 if args.incGWline:
     pmax = np.append(pmax,np.array([3.0,-7.0,2.0*np.pi,1.0]))
 if args.det_signal:
