@@ -342,3 +342,37 @@ def CorrBasis(psr_locs, lmax, nside=32):
             clmindex += 1
 
     return basis
+
+
+def orfFromMap_fast(psr_locs, usermap):
+    """
+    Calculate the correlation basis matrices using the pixel-space
+    transormations
+
+    @param psr_locs:    Location of the pulsars [phi, theta]
+    @param usermap:     Provide a healpix map for GW power
+
+    Note: GW directions are in direction of GW propagation
+    """
+    npsrs = len(psr_locs)
+    pphi = psr_locs[:,0]
+    ptheta = psr_locs[:,1]
+
+    # Create the pixels
+    nside = hp.npix2nside(len(usermap))
+    npixels = hp.nside2npix(nside)
+    pixels = hp.pix2ang(nside, np.arange(npixels), nest=False)
+    gwtheta = pixels[0]
+    gwphi = pixels[1]
+
+    # Create the signal response matrix
+    F_e = signalResponse_fast(ptheta, pphi, gwtheta, gwphi)
+
+    # Double the power (one for each polarization)
+    sh = np.array([usermap, usermap]).T.flatten()
+
+    # Create the cross-pulsar covariance
+    hdcov_F = np.dot(F_e * sh, F_e.T)
+
+    # The pulsar term is added (only diagonals: uncorrelated)
+    return hdcov_F + np.diag(np.diag(hdcov_F))
