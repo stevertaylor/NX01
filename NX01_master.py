@@ -476,16 +476,38 @@ if args.incGWB and args.incCorr:
 
     elif args.gwbTypeCorr == 'gwDisk':
 
-        monoOrf = 2.0*np.sqrt(np.pi)*anis.CorrBasis(positions,0)[0]
+        tmp_nwins = args.nwins
+        
+        try:
+            import healpy as hp
+            num_corr_params = 4*tmp_nwins
+
+            npsrs = len(positions)
+            pphi = positions[:,0]
+            ptheta = positions[:,1]
+    
+            # Create the pixels
+            nside=32
+            npixels = hp.nside2npix(32)
+            pixels = hp.pix2ang(nside, np.arange(npixels), nest=False)
+            gwtheta = pixels[0]
+            gwphi = pixels[1]
+
+            # Create the signal response matrix
+            F_e = pixAnis.signalResponse_fast(ptheta, pphi, gwtheta, gwphi)
+            
+        except ImportError:
+            print "ERROR: Could not import healpy!"
+            print "WARNING: Defaulting to H&D search..."
+
+            hp = None
+            monoOrf = 2.0*np.sqrt(np.pi)*anis.CorrBasis(positions,0)[0]
+            num_corr_params = 0
 
         gwfreqs_per_win = int(1.*args.nmodes/(1.*args.nwins)) 
         corr_modefreqs = np.arange(1,args.nmodes+1)
         corr_modefreqs = np.reshape(corr_modefreqs,
                                     (args.nwins,gwfreqs_per_win))
-
-        tmp_nwins = args.nwins
-
-        num_corr_params = 4*tmp_nwins
 
         if tmp_nwins>1:
             evol_corr_tag = '_evanis'
@@ -1384,23 +1406,25 @@ def lnprob(xx):
                 ################################################
                 # Reshaping freq-dependent anis coefficients,
                 # and testing for power distribution physicality.
-            
-                orf_coeffs = orf_coeffs.reshape((tmp_nwins,4))
-                diskphi, diskcostheta, diskradius, diskwgt = \
-                  orf_coeffs[:,0], orf_coeffs[:,1], orf_coeffs[:,2], orf_coeffs[:,3]
-                disktheta = np.arccos(diskcostheta)
-                diskvec = np.array([np.sin(disktheta)*np.cos(diskphi),
-                                    np.sin(disktheta)*np.sin(diskphi),
-                                    np.cos(disktheta)]).T
 
-                gammaDisk = np.zeros((tmp_nwins,npsr,npsr))
-                for kk in range(tmp_nwins):
-                    m = np.ones(hp.nside2npix(nside=32))
-                    qd = hp.query_disc(nside=hp.npix2nside(len(m)),
-                                       vec=diskvec[kk,:],
-                                       radius=diskradius[kk])
-                    m[qd] *= 10.0**diskwgt[kk]
-                    gammaDisk[kk,:,:] = pixAnis.orfFromMap_fast(positions, m)
+                if hp is not None:
+                    orf_coeffs = orf_coeffs.reshape((tmp_nwins,4))
+                    diskphi, diskcostheta, diskradius, diskwgt = \
+                      orf_coeffs[:,0], orf_coeffs[:,1], orf_coeffs[:,2], orf_coeffs[:,3]
+                    disktheta = np.arccos(diskcostheta)
+                    diskvec = np.array([np.sin(disktheta)*np.cos(diskphi),
+                                        np.sin(disktheta)*np.sin(diskphi),
+                                        np.cos(disktheta)]).T
+
+                    gammaDisk = np.zeros((tmp_nwins,npsr,npsr))
+                    for kk in range(tmp_nwins):
+                        m = np.ones(hp.nside2npix(nside=32))
+                        qd = hp.query_disc(nside=hp.npix2nside(len(m)),
+                                           vec=diskvec[kk,:],
+                                           radius=diskradius[kk])
+                        m[qd] *= 10.0**diskwgt[kk]
+                        gammaDisk[kk,:,:] = pixAnis.orfFromMap_fast(psr_locs=positions,
+                                                                    usermap=m, response=F_e)
 
                 ############################################################
                 # Computing frequency-dependent overlap reduction functions.
@@ -1408,7 +1432,10 @@ def lnprob(xx):
                 ORF=[]
                 for ii in range(tmp_nwins): # number of frequency windows
                     for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
-                        ORF.append( gammaDisk[ii,:,:] )
+                        if hp is not None:
+                            ORF.append( gammaDisk[ii,:,:] )
+                        elif hp is None:
+                            ORF.append( monoOrf )
                         
                 if args.dmVar:
                     for ii in range(tmp_nwins): # number of frequency windows
