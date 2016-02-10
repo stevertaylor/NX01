@@ -2866,10 +2866,11 @@ if args.sampler == 'ptmcmc':
                 mm_ct += 4
         elif args.gwbTypeCorr == 'psrlocsVary':
             mm_ct = param_ct
+            vphi = []
             for ii in range(args.nwins):
-                varyPhi = [mm_ct+ii for ii in range(len(psr))]
-                varyCtheta = [mm_ct+ii+len(psr) for ii in varyPhi]
-                ids = [list(aa) for aa in zip(varyPhi,varyCtheta)]
+                vphi = [mm_ct+ii for ii in range(len(psr))]
+                vctheta = [ii+len(psr) for ii in vphi]
+                ids = [list(aa) for aa in zip(vphi,vctheta)]
                 [ind.append(id) for id in ids if len(id) > 0]
                 mm_ct += 2*len(psr)
         param_ct += num_corr_params
