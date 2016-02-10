@@ -2864,7 +2864,7 @@ if args.sampler == 'ptmcmc':
                        np.array([mm_ct+3])]
                 [ind.append(id) for id in ids]
                 mm_ct += 4
-        elif args.gwbTypeCorr = 'psrlocsVary':
+        elif args.gwbTypeCorr == 'psrlocsVary':
             mm_ct = param_ct
             for ii in range(args.nwins):
                 varyPhi = [mm_ct+ii for ii in range(len(psr))]
