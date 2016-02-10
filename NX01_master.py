@@ -40,8 +40,8 @@ import NX01_psr
 try:
     import NX01_jitter as jitter
 except ImportError:
-    print """You do not have NX01_jitter.so. \
-    Trying to make the .so file now..."""
+    print "You do not have NX01_jitter.so. " \
+      "Trying to make the .so file now..."
     import pyximport
     pyximport.install(setup_args={"include_dirs":np.get_include()},
                       reload_support=True)
@@ -63,8 +63,8 @@ except ImportError:
         \_____\____/|_|  |_|_|   |_____|______|______|  \____/|_____|  |_|     |_|  |______|_|  \_\
         """
         print error_warning
-        print """You need to run: \
-        python setup-cython.py build_ext --inplace"""
+        print "You need to run: " \
+          "python setup-cython.py build_ext --inplace"
         sys.exit()
     
 
@@ -2457,12 +2457,12 @@ if rank == 0:
 
 if args.sampler == 'mnest':
 
-    #dir_name = './chains_nanoAnalysis/'+file_tag+'_mnest'
     dir_name = args.dirExt+file_tag+'_mnest'
-    if not os.path.exists(dir_name):
-        os.makedirs(dir_name)
 
     if rank == 0:
+        if not os.path.exists(dir_name):
+            os.makedirs(dir_name)
+        
         if args.incCorr:
             # Copy the anisotropy modefile into the results directory
             if args.anis_modefile is not None:
