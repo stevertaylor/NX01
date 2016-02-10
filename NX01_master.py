@@ -2869,7 +2869,7 @@ if args.sampler == 'ptmcmc':
             for ii in range(args.nwins):
                 varyPhi = [mm_ct+ii for ii in range(len(psr))]
                 varyCtheta = [mm_ct+ii+len(psr) for ii in varyPhi]
-                ids = [list(aa) for aa in zip(varyPhi,VaryCtheta)]
+                ids = [list(aa) for aa in zip(varyPhi,varyCtheta)]
                 [ind.append(id) for id in ids if len(id) > 0]
                 mm_ct += 2*len(psr)
         param_ct += num_corr_params
