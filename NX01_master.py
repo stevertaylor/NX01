@@ -99,10 +99,18 @@ parser.add_option('--dmVar', dest='dmVar', action='store_true', default=False,
                    help='Search for DM variations in the data (False)? (default=False)')
 parser.add_option('--sampler', dest='sampler', action='store', type=str, default='ptmcmc',
                    help='Which sampler do you want to use: PTMCMC (ptmcmc) or MultiNest (mnest) (default = ptmcmc)')
+parser.add_option('--ins', dest='ins', action='store_true', default=False,
+                   help='Switch on importance nested sampling for MultiNest (default = False)')
+parser.add_option('--nlive', dest='nlive', action='store', type=int, default=500,
+                   help='Number of live points for MultiNest (default = 500)')
+parser.add_option('--sampleEff', dest='sampleEff', action='store', type=float, default=0.3,
+                   help='Sampling efficiency for MultiNest (default = 0.3)')
+parser.add_option('--constEff', dest='constEff', action='store_true', default=False,
+                   help='Run MultiNest in constant efficiency mode? (default = False)')
+parser.add_option('--resume', dest='resume', action='store_true', default=False,
+                   help='Do you want to resume the sampler (default = False)')
 parser.add_option('--writeHotChains', dest='writeHotChains', action='store_true', default=False,
                    help='Given a PTMCMC sampler, do you want to write out the hot chain samples? (default = False)')
-parser.add_option('--resume', dest='resume', action='store_true', default=False,
-                   help='Do you want to resume the PTMCMC sampler (default = False)')
 parser.add_option('--incGWB', dest='incGWB', action='store_true', default=False,
                   help='Do you want to search for a GWB? (default = False)')
 parser.add_option('--gwbSpecModel', dest='gwbSpecModel', action='store', type=str, default='powerlaw',
@@ -2479,12 +2487,12 @@ if args.sampler == 'mnest':
         return lnprob(xx)        
     
     pymultinest.run(like_func, prior_func, n_params,
-                    importance_nested_sampling = False,
-                    resume = False, verbose = True, 
-                    n_live_points=500,
+                    importance_nested_sampling = args.ins,
+                    resume = args.resume, verbose = True, 
+                    n_live_points = args.nlive,
                     outputfiles_basename=u'{0}/mnest_'.format(dir_name), 
-                    sampling_efficiency=0.3,
-                    const_efficiency_mode=False)
+                    sampling_efficiency = args.sampleEff,
+                    const_efficiency_mode = args.constEff)
 
 if args.sampler == 'ptmcmc':
     
