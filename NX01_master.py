@@ -574,7 +574,7 @@ if args.incGWB and args.incCorr:
 
         tmp_nwins = args.nwins
 
-        num_corr_params = len(psr)*tmp_nwins
+        num_corr_params = 2*len(psr)*tmp_nwins
 
         if tmp_nwins>1:
             evol_corr_tag = '_evanis'
