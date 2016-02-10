@@ -124,7 +124,7 @@ parser.add_option('--incCosVar', dest='incCosVar', action='store_true', default=
 parser.add_option('--incCorr', dest='incCorr', action='store_true', default=False,
                   help='Do you want to include cross-correlations in the GWB model? (default = False)')
 parser.add_option('--gwbTypeCorr', dest='gwbTypeCorr', action='store', type=str, default='spharmAnis',
-                  help='What type of correlated GW signal do you want to model?: custom, spharmAnis, dipoleOrf, modelIndep, pointSrc, clock, gwDisk (default = spharmAnis)')
+                  help='What type of correlated GW signal do you want to model?: custom, spharmAnis, dipoleOrf, modelIndep, pointSrc, clock, gwDisk, psrlocsVary (default = spharmAnis)')
 parser.add_option('--redSpecModel', dest='redSpecModel', action='store', type=str, default='powerlaw',
                   help='What kind of spectral model do you want for red timing-noise?: powerlaw, spectrum (default = powerlaw)')
 parser.add_option('--dmSpecModel', dest='dmSpecModel', action='store', type=str, default='powerlaw',
@@ -565,6 +565,22 @@ if args.incGWB and args.incCorr:
 
         num_corr_params = 0
 
+    elif args.gwbTypeCorr == 'psrlocsVary':
+
+        gwfreqs_per_win = int(1.*args.nmodes/(1.*args.nwins)) 
+        corr_modefreqs = np.arange(1,args.nmodes+1)
+        corr_modefreqs = np.reshape(corr_modefreqs,
+                                    (args.nwins,gwfreqs_per_win))
+
+        tmp_nwins = args.nwins
+
+        num_corr_params = len(psr)*tmp_nwins
+
+        if tmp_nwins>1:
+            evol_corr_tag = '_evanis'
+        else:
+            evol_corr_tag = ''
+
     elif args.gwbTypeCorr == 'clock':
 
         num_corr_params = 0
@@ -733,6 +749,9 @@ if args.incGWB:
             pmin = np.append(pmin,np.tile([0.0,-1.0,0.0],tmp_nwins))
         elif args.gwbTypeCorr == 'gwDisk':
             pmin = np.append(pmin,np.tile([0.0,-1.0,0.0,-2.0],tmp_nwins))
+        elif args.gwbTypeCorr == 'psrlocsVary':
+            pmin = np.append(pmin,np.tile(np.zeros(len(psr)),tmp_nwins))
+            pmin = np.append(pmin,np.tile(-1.0*np.ones(len(psr)),tmp_nwins))
 if args.incGWline:
     pmin = np.append(pmin,np.array([-8.0,-10.0,0.0,-1.0]))
 if args.det_signal:
@@ -810,6 +829,9 @@ if args.incGWB:
             pmax = np.append(pmax,np.tile([2.0*np.pi,1.0,1.0],tmp_nwins))
         elif args.gwbTypeCorr == 'gwDisk':
             pmax = np.append(pmax,np.tile([2.0*np.pi,1.0,3.0*np.pi/8.0,3.0],tmp_nwins))
+        elif args.gwbTypeCorr == 'psrlocsVary':
+            pmax = np.append(pmax,np.tile(2.0*np.pi*np.ones(len(psr)),tmp_nwins))
+            pmax = np.append(pmax,np.tile(np.ones(len(psr),tmp_nwins)))
 if args.incGWline:
     pmax = np.append(pmax,np.array([3.0,-7.0,2.0*np.pi,1.0]))
 if args.det_signal:
@@ -1444,6 +1466,46 @@ def lnprob(xx):
                             ORF.append( gammaDisk[ii,:,:] )
                         elif hp is None:
                             ORF.append( monoOrf )
+                        
+                if args.dmVar:
+                    for ii in range(tmp_nwins): # number of frequency windows
+                        for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
+                            ORF.append( np.zeros((npsr,npsr)) )
+
+                if args.incEph:
+                    for kk in range(3): # x,y,z
+                        for ii in range(tmp_nwins): # number of frequency windows
+                            for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
+                                ORF.append( np.zeros((npsr,npsr)) )
+
+                ORF = np.array(ORF)
+                ORFtot = np.zeros((mode_count,npsr,npsr)) # shouldn't be applying ORF to dmfreqs,
+                                                          # but the projection of GW spec onto dmfreqs
+                                                          # is defined as zero below.
+                ORFtot[0::2] = ORF
+                ORFtot[1::2] = ORF
+
+            elif args.gwbTypeCorr == 'psrlocsVary':
+            
+                ################################################
+                # Reshaping freq-dependent anis coefficients,
+                # and testing for power distribution physicality.
+            
+                orf_coeffs = orf_coeffs.reshape((2,tmp_nwins*len(psr)))
+                varyPhi = orf_coeffs[0,:].reshape((tmp_nwins,len(psr)))
+                varyTheta = np.arccos(orf_coeffs[1,:]).reshape((tmp_nwins,len(psr)))
+
+                ############################################################
+                # Computing frequency-dependent overlap reduction functions.
+        
+                ORF=[]
+                for ii in range(tmp_nwins): # number of frequency windows
+                    varyLocs = np.zeros((len(psr),2))
+                    varyLocs[:,0] = varyPhi[ii,:]
+                    varyLocs[:,1] = varyTheta[ii,:]
+                    monoOrf = 2.0*np.sqrt(np.pi)*anis.CorrBasis(varyLocs,0)[0]
+                    for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
+                        ORF.append( monoOrf )
                         
                 if args.dmVar:
                     for ii in range(tmp_nwins): # number of frequency windows
@@ -2311,6 +2373,13 @@ if args.incGWB:
                                "gwdisk_costheta_win{0}".format(ii+1),
                                "gwdisk_radius_win{0}".format(ii+1),
                                "gwdisk_wgt_win{0}".format(ii+1)]
+        elif args.gwbTypeCorr == 'psrlocsVary':
+            for ii in range(tmp_nwins):
+                for jj in range(len(psr)):
+                    parameters.append("gwphi_win{0}_psr{1}".format(ii+1,jj+1))
+            for ii in range(tmp_nwins):
+                for jj in range(len(psr)):
+                    parameters.append("gwctheta_win{0}_psr{1}".format(ii+1,jj+1))
 if args.incGWline:
     parameters += ["spec_gwline", "freq_gwline",
                    "phi_gwline", "costheta_gwline"]
@@ -2386,7 +2455,10 @@ if args.incGWB:
                                                        evol_corr_tag,gamma_tag)
         elif args.gwbTypeCorr == 'gwDisk':
             file_tag += '_gwb{0}_gwDisk{1}{2}'.format(args.gwbPrior,
-                                                       evol_corr_tag,gamma_tag)
+                                                      evol_corr_tag,gamma_tag)
+        elif args.gwbTypeCorr == 'psrlocsVary':
+            file_tag += '_gwb{0}_psrlocsVary{1}{2}'.format(args.gwbPrior,
+                                                           evol_corr_tag,gamma_tag)
     else:
         file_tag += '_gwb{0}_noCorr{1}'.format(args.gwbPrior,gamma_tag)
 if args.incGWline:
@@ -2568,6 +2640,11 @@ if args.sampler == 'ptmcmc':
                 x0 = np.append(x0,np.tile([0.5,0.5,0.5],tmp_nwins))
             elif args.gwbTypeCorr == 'gwDisk':
                 x0 = np.append(x0,np.tile([0.5,0.5,0.1,0.0],tmp_nwins))
+            elif args.gwbTypeCorr == 'psrlocsVary':
+                x0 = np.append(x0,np.tile(np.random.uniform(0.0,2.0*np.pi,len(psr)),
+                                          tmp_nwins))
+                x0 = np.append(x0,np.tile(np.random.uniform(-1.0,1.0,len(psr)),
+                                          tmp_nwins))
     if args.incGWline:
         x0 = np.append(x0,np.array([-6.0,-8.0,0.5,0.5]))
     if args.det_signal:
@@ -2787,6 +2864,14 @@ if args.sampler == 'ptmcmc':
                        np.array([mm_ct+3])]
                 [ind.append(id) for id in ids]
                 mm_ct += 4
+        elif args.gwbTypeCorr = 'psrlocsVary':
+            mm_ct = param_ct
+            for ii in range(args.nwins):
+                varyPhi = [mm_ct+ii for ii in range(len(psr))]
+                varyCtheta = [mm_ct+ii+len(psr) for ii in varyPhi]
+                ids = [list(aa) for aa in zip(varyPhi,VaryCtheta)]
+                [ind.append(id) for id in ids if len(id) > 0]
+                mm_ct += 2*len(psr)
         param_ct += num_corr_params
         
     ##### GW line #####
