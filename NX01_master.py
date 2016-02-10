@@ -2260,6 +2260,19 @@ def lnprob(xx):
         priorfac_eph = 0.0
 
 
+    ### Gaussian prior on modelled psr positions ###
+    if args.incGWB and args.incCorr and args.gwbTypeCorr == 'psrlocsVary':
+        priorfac_corr = 0.0
+        for ii,p in enumerate(psr):
+            sig = 0.1
+            priorfac_corr += np.log( np.exp( -0.5 * (varyLocs[ii,0] - p.psr_locs[0])**2.0 / sig**2.0) / \
+                                     np.sqrt(2.0*np.pi*sig**2.0) ) + \
+                             np.log( np.exp( -0.5 * (varyLocs[ii,1] - np.pi/2. + p.psr_locs[1])**2.0 / sig**2.0) / \
+                                     np.sqrt(2.0*np.pi*sig**2.0) )
+    else:
+        priorfac_corr = 0.0
+
+    ### Jacobian and prior on cgw properties ###
     if args.det_signal:
         if args.cgw_search:
             ### uniform prior ###
@@ -2284,7 +2297,7 @@ def lnprob(xx):
     
     return logLike + priorfac_gwb + priorfac_gwline + \
       priorfac_red + priorfac_dm + priorfac_clk + \
-      priorfac_cm + priorfac_eph + priorfac_detsig
+      priorfac_cm + priorfac_eph + priorfac_corr + priorfac_detsig
      
 
 
@@ -2641,10 +2654,14 @@ if args.sampler == 'ptmcmc':
             elif args.gwbTypeCorr == 'gwDisk':
                 x0 = np.append(x0,np.tile([0.5,0.5,0.1,0.0],tmp_nwins))
             elif args.gwbTypeCorr == 'psrlocsVary':
+                x0 = np.append(x0,np.tile(positions[:,0],tmp_nwins))
+                x0 = np.append(x0,np.tile(np.cos(positions[:,1]),tmp_nwins))
+                '''
                 x0 = np.append(x0,np.tile(np.random.uniform(0.0,2.0*np.pi,len(psr)),
                                           tmp_nwins))
                 x0 = np.append(x0,np.tile(np.random.uniform(-1.0,1.0,len(psr)),
                                           tmp_nwins))
+                '''
     if args.incGWline:
         x0 = np.append(x0,np.array([-6.0,-8.0,0.5,0.5]))
     if args.det_signal:
