@@ -5,7 +5,7 @@ import math
 import scipy.linalg as sl, scipy.special as ss
 
 """
-Script to compute the correlation absis-functions for various anisotropic
+Script to compute the correlation basis-functions for various anisotropic
 configurations of the GW background energy-density
 
 -- Rutger van Haasteren (June 2014)

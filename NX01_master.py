@@ -405,7 +405,7 @@ if args.incGWB and args.incCorr:
 
         tmp_nwins = args.nwins
 
-        num_corr_params = tmp_nwins*(len(psr)*(len(psr)-1)/2)
+        num_corr_params = tmp_nwins*int(len(psr)*(len(psr)-1)/2)
 
         if tmp_nwins>1:
             evol_corr_tag = '_evanis'
@@ -1019,28 +1019,45 @@ def lnprob(xx):
 
     if args.constLike:
 
-        if args.incGWB and args.incCorr and args.gwbTypeCorr == 'spharmAnis':
+        if args.incGWB and args.incCorr:
+            if args.gwbTypeCorr == 'spharmAnis':
             
-            ################################################
-            # Reshaping freq-dependent anis coefficients,
-            # and testing for power distribution physicality.
+                ################################################
+                # Reshaping freq-dependent anis coefficients,
+                # and testing for power distribution physicality.
             
-            orf_coeffs = orf_coeffs.reshape((tmp_nwins,
-                                            ((args.LMAX+1)**2)-1))
-            clm = np.array([[0.0]*((args.LMAX+1)**2)
-                            for ii in range(tmp_nwins)])
-            clm[:,0] = 2.0*np.sqrt(np.pi)
+                orf_coeffs = orf_coeffs.reshape((tmp_nwins,
+                                                ((args.LMAX+1)**2)-1))
+                clm = np.array([[0.0]*((args.LMAX+1)**2)
+                                for ii in range(tmp_nwins)])
+                clm[:,0] = 2.0*np.sqrt(np.pi)
 
-            if args.LMAX!=0:
+                if args.LMAX!=0:
 
-                for kk in range(tmp_nwins):
-                    for ii in range(1,((args.LMAX+1)**2)):
-                        clm[kk,ii] = orf_coeffs[kk,ii-1]   
+                    for kk in range(tmp_nwins):
+                        for ii in range(1,((args.LMAX+1)**2)):
+                            clm[kk,ii] = orf_coeffs[kk,ii-1]   
 
-                    if not args.noPhysPrior:
-                        # Testing for physicality of power distribution.
-                        if (utils.PhysPrior(clm[kk],harm_sky_vals) == 'Unphysical'):
-                            return -np.inf
+                        if not args.noPhysPrior:
+                            # Testing for physicality of power distribution.
+                            if (utils.PhysPrior(clm[kk],harm_sky_vals) == 'Unphysical'):
+                                return -np.inf
+
+            elif args.gwbTypeCorr == 'psrlocsVary':
+
+                ################################################
+                # Reshaping freq-dependent corr coefficients
+                
+                orf_coeffs = orf_coeffs.reshape((2,tmp_nwins*len(psr)))
+                varyPhi = orf_coeffs[0,:].reshape((tmp_nwins,len(psr)))
+                varyTheta = np.arccos(orf_coeffs[1,:]).reshape((tmp_nwins,len(psr)))
+
+                # constant likelihood for one window only
+                varyLocs = np.zeros((len(psr),2))
+                varyLocs[:,0] = varyPhi[0,:]
+                varyLocs[:,1] = varyTheta[0,:]
+
+                logLike = 0.0
         
         else:
 
@@ -1202,22 +1219,22 @@ def lnprob(xx):
                 for ii in range(tmp_nwins): # number of frequency windows
                     for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
                         upper_triang = np.zeros((npsr,npsr))
-                        phi_els = np.array([[0.0]*ii for ii in range(1,npsr)])
+                        phi_els = np.array([[0.0]*kk for kk in range(1,npsr)])
                         ct=0
-                        for ii in range(len(phi_els)):
-                            for jj in range(len(phi_els[ii])):
-                                phi_els[ii,jj] = phi_corr[ct]
+                        for aa in range(len(phi_els)):
+                            for bb in range(len(phi_els[aa])):
+                                phi_els[aa][bb] = phi_corr[ii,ct]
                                 ct += 1
 
                         upper_triang[0,0] = 1.
-                        for jj in range(1,upper_triang.shape[1]):
-                            upper_triang[0,jj] = np.cos(phi_els[jj-1][0])
-                        for ii in range(1,upper_triang.shape[1]):
-                            upper_triang[ii,ii] = np.prod( np.sin(phi_els[ii-1]) )
-                        for ii in range(1,upper_triang.shape[1]):
-                            for jj in range(ii+1,upper_triang.shape[1]):
-                                upper_triang[ii,jj] = np.cos(phi_els[jj-1][ii]) * \
-                                np.prod( np.sin(np.array(phi_els[jj-1])[0:ii]) )   
+                        for bb in range(1,upper_triang.shape[1]):
+                            upper_triang[0,bb] = np.cos(phi_els[bb-1][0])
+                        for aa in range(1,upper_triang.shape[1]):
+                            upper_triang[aa,aa] = np.prod( np.sin(phi_els[aa-1]) )
+                        for aa in range(1,upper_triang.shape[1]):
+                            for bb in range(aa+1,upper_triang.shape[1]):
+                                upper_triang[aa,bb] = np.cos(phi_els[bb-1][aa]) * \
+                                np.prod( np.sin(np.array(phi_els[bb-1])[0:aa]) )   
 
                         ORF.append(np.dot( upper_triang.T, upper_triang ))
        
@@ -1503,6 +1520,7 @@ def lnprob(xx):
                     varyLocs = np.zeros((len(psr),2))
                     varyLocs[:,0] = varyPhi[ii,:]
                     varyLocs[:,1] = varyTheta[ii,:]
+                    #varyLocs[0,:] = psr[0].psr_locs[0], np.pi/2. - psr[0].psr_locs[1]
                     monoOrf = 2.0*np.sqrt(np.pi)*anis.CorrBasis(varyLocs,0)[0]
                     for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
                         ORF.append( monoOrf )
@@ -2260,15 +2278,24 @@ def lnprob(xx):
         priorfac_eph = 0.0
 
 
-    ### Gaussian prior on modelled psr positions ###
+    ### Gaussian prior on modeled psr positions ###
+    ### Currently assumes only one frequency window ###
+    priorfac_corr = 0.0
     if args.incGWB and args.incCorr and args.gwbTypeCorr == 'psrlocsVary':
         priorfac_corr = 0.0
         for ii,p in enumerate(psr):
-            sig = 0.1
+            '''
+            sig = 0.5
             priorfac_corr += np.log( np.exp( -0.5 * (varyLocs[ii,0] - p.psr_locs[0])**2.0 / sig**2.0) / \
                                      np.sqrt(2.0*np.pi*sig**2.0) ) + \
                              np.log( np.exp( -0.5 * (varyLocs[ii,1] - np.pi/2. + p.psr_locs[1])**2.0 / sig**2.0) / \
                                      np.sqrt(2.0*np.pi*sig**2.0) )
+            '''
+            if np.abs(varyLocs[ii,0] - p.psr_locs[0]) <= 0.5 and \
+              np.abs(varyLocs[ii,1] - np.pi/2. + p.psr_locs[1]) <= 0.5:
+                priorfac_corr += 0.0
+            else:
+                priorfac_corr += -np.inf
     else:
         priorfac_corr = 0.0
 
@@ -2365,7 +2392,7 @@ if args.incGWB:
     if args.incCorr:
         if args.gwbTypeCorr == 'modelIndep':
             for ii in range(tmp_nwins): 
-                for jj in range(len(psr)*(len(psr)-1)/2):
+                for jj in range(int(len(psr)*(len(psr)-1)/2)):
                     parameters.append('phi_corr_win{0}_val{1}'.format(ii+1,jj+1))
         elif args.gwbTypeCorr == 'pointSrc':
             for ii in range(tmp_nwins):
