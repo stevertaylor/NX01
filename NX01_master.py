@@ -740,7 +740,7 @@ if args.incGWB:
         pmin = np.append(pmin,np.array([-18.0,0.0]))
     if args.incCorr:
         if args.gwbTypeCorr == 'modelIndep':
-            pmin = np.append(pmin,np.zeros(num_corr_params))
+            pmin = np.append(pmin,-3.0*np.ones(num_corr_params))
         elif args.gwbTypeCorr == 'pointSrc':
             pmin = np.append(pmin,np.tile([0.0,-1.0],tmp_nwins))
         elif args.gwbTypeCorr == 'spharmAnis':
@@ -820,7 +820,7 @@ if args.incGWB:
         pmax = np.append(pmax,np.array([-11.0,0.9]))
     if args.incCorr:
         if args.gwbTypeCorr == 'modelIndep':
-            pmax = np.append(pmax,np.pi*np.ones(num_corr_params))
+            pmax = np.append(pmax,3.0*np.ones(num_corr_params))
         elif args.gwbTypeCorr == 'pointSrc':
             pmax = np.append(pmax,np.tile([2.0*np.pi,1.0],tmp_nwins))
         elif args.gwbTypeCorr == 'spharmAnis':
@@ -1058,6 +1058,38 @@ def lnprob(xx):
                 varyLocs[:,1] = varyTheta[0,:]
 
                 logLike = 0.0
+
+            elif args.gwbTypeCorr == 'modelIndep':
+
+                npairs = npsr*(npsr-1)/2
+                phi_corr = np.pi * np.exp(orf_coeffs) / (1.0 + np.exp(orf_coeffs))
+                phi_corr = phi_corr.reshape((tmp_nwins,npairs))
+                theta_corr = orf_coeffs.copy().reshape((tmp_nwins,npairs))
+ 
+                for ii in range(tmp_nwins): # number of frequency windows
+                    for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
+                        upper_triang = np.zeros((npsr,npsr))
+                        phi_els = np.array([[0.0]*kk for kk in range(1,npsr)])
+                        theta_els = np.array([[0.0]*kk for kk in range(1,npsr)])
+
+                        ct=0
+                        for aa in range(len(phi_els)):
+                            for bb in range(len(phi_els[aa])):
+                                phi_els[aa][bb] = phi_corr[ii,ct]
+                                theta_els[aa][bb] = theta_corr[ii,ct]
+                                ct += 1
+
+                        upper_triang[0,0] = 1.
+                        for bb in range(1,upper_triang.shape[1]):
+                            upper_triang[0,bb] = np.cos(phi_els[bb-1][0])
+                        for aa in range(1,upper_triang.shape[1]):
+                            upper_triang[aa,aa] = np.prod( np.sin(phi_els[aa-1]) )
+                        for aa in range(1,upper_triang.shape[1]):
+                            for bb in range(aa+1,upper_triang.shape[1]):
+                                upper_triang[aa,bb] = np.cos(phi_els[bb-1][aa]) * \
+                                np.prod( np.sin(np.array(phi_els[bb-1])[0:aa]) )
+
+                logLike = 0.0
         
         else:
 
@@ -1210,7 +1242,9 @@ def lnprob(xx):
             if args.gwbTypeCorr == 'modelIndep':
 
                 npairs = npsr*(npsr-1)/2
-                phi_corr = orf_coeffs.reshape((tmp_nwins,npairs))
+                phi_corr = np.pi * np.exp(orf_coeffs) / (1.0 + np.exp(orf_coeffs))
+                phi_corr = phi_corr.reshape((tmp_nwins,npairs))
+                #phi_corr = orf_coeffs.reshape((tmp_nwins,npairs))
 
                 ############################################################
                 # Computing frequency-dependent overlap reduction functions.
@@ -2280,22 +2314,45 @@ def lnprob(xx):
 
     ### Gaussian prior on modeled psr positions ###
     ### Currently assumes only one frequency window ###
-    priorfac_corr = 0.0
-    if args.incGWB and args.incCorr and args.gwbTypeCorr == 'psrlocsVary':
-        priorfac_corr = 0.0
-        for ii,p in enumerate(psr):
-            '''
-            sig = 0.5
-            priorfac_corr += np.log( np.exp( -0.5 * (varyLocs[ii,0] - p.psr_locs[0])**2.0 / sig**2.0) / \
-                                     np.sqrt(2.0*np.pi*sig**2.0) ) + \
-                             np.log( np.exp( -0.5 * (varyLocs[ii,1] - np.pi/2. + p.psr_locs[1])**2.0 / sig**2.0) / \
-                                     np.sqrt(2.0*np.pi*sig**2.0) )
-            '''
-            if np.abs(varyLocs[ii,0] - p.psr_locs[0]) <= 0.5 and \
-              np.abs(varyLocs[ii,1] - np.pi/2. + p.psr_locs[1]) <= 0.5:
-                priorfac_corr += 0.0
-            else:
-                priorfac_corr += -np.inf
+    if args.incGWB and args.incCorr:
+        if args.gwbTypeCorr == 'modelIndep':
+            jacobian = np.zeros((npairs,npairs))
+            ct = 0
+            for ii in range(len(phi_els)):
+                for jj in range(len(phi_els[ii])):
+
+                    dummy_utriang = upper_triang[jj:,ii+1].copy()
+                    dummy_utriang[0] = -np.sin(phi_els[ii][jj]) * dummy_utriang[0] / np.cos(phi_els[ii][jj])
+                    dummy_utriang[1:] = np.cos(phi_els[ii][jj]) * dummy_utriang[1:] / np.sin(phi_els[ii][jj])
+
+                    dummy_utriang = np.append(np.zeros(len(upper_triang[:jj,ii+1])), dummy_utriang)
+
+                    deriv = np.zeros_like(upper_triang)
+                    deriv[:,ii+1] = np.dot(upper_triang.T, dummy_utriang)
+
+                    jacobian[:,ct] = 2.0 * deriv[np.triu_indices(npsr,k=1)] * \
+                      phi_els[ii][jj] / (1.0 + np.exp(theta_els[ii][jj]))
+                    ct += 1
+                    
+            priorfac_corr += np.linalg.slogdet(jacobian)[1]
+            
+        elif args.gwbTypeCorr == 'psrlocsVary':
+            priorfac_corr = 0.0
+            for ii,p in enumerate(psr):
+                '''
+                sig = 0.5
+                priorfac_corr += np.log( np.exp( -0.5 * (varyLocs[ii,0] - p.psr_locs[0])**2.0 / sig**2.0) / \
+                                 np.sqrt(2.0*np.pi*sig**2.0) ) + \
+                                 np.log( np.exp( -0.5 * (varyLocs[ii,1] - np.pi/2. + p.psr_locs[1])**2.0 / sig**2.0) / \
+                                 np.sqrt(2.0*np.pi*sig**2.0) )
+                '''
+                if np.abs(varyLocs[ii,0] - p.psr_locs[0]) <= 0.5 and \
+                  np.abs(varyLocs[ii,1] - np.pi/2. + p.psr_locs[1]) <= 0.5:
+                    priorfac_corr += 0.0
+                else:
+                    priorfac_corr += -np.inf
+        else:
+            priorfac_corr = 0.0
     else:
         priorfac_corr = 0.0
 
@@ -2671,7 +2728,7 @@ if args.sampler == 'ptmcmc':
             x0 = np.append(x0,np.array([-15.0,0.2]))
         if args.incCorr:
             if args.gwbTypeCorr == 'modelIndep':
-                x0 = np.append(x0,np.random.uniform(0.0,np.pi,num_corr_params))
+                x0 = np.append(x0,np.random.uniform(-3.0,3.0,num_corr_params))
             elif args.gwbTypeCorr == 'pointSrc':
                 x0 = np.append(x0,np.tile([0.5,0.5],tmp_nwins))
             elif args.gwbTypeCorr == 'spharmAnis':
@@ -2879,7 +2936,15 @@ if args.sampler == 'ptmcmc':
     if args.incGWB and args.incCorr and num_corr_params>0:
         ids = [np.arange(param_ct,param_ct+num_corr_params)]
         [ind.append(id) for id in ids]
-        if args.gwbTypeCorr == 'spharmAnis' and args.LMAX>0:
+        if args.gwbTypeCorr == 'modelIndep':
+            mm_ct = param_ct
+            # sample group for each cholesky column at each window
+            for ii in range(args.nwins):
+                for nn in range(1,len(psr)):
+                    ids = [np.arange(mm_ct,mm_ct+nn)]
+                    [ind.append(id) for id in ids]
+                    mm_ct += nn
+        elif args.gwbTypeCorr == 'spharmAnis' and args.LMAX>0:
             mm_ct = param_ct
             # sample group for each multipole at each window
             for ii in range(args.nwins):
@@ -3750,7 +3815,11 @@ if args.sampler == 'ptmcmc':
             elif args.gwbSpecModel == 'gpEnvInterp':
                 pct += 2
 
-        ind = np.unique(np.random.randint(0, num_corr_params, 1))
+        if args.gwbTypeCorr == 'modelIndep':
+            col = np.random.randint(1, npsr, 1)
+            ind = np.unique(np.random.randint(0, num_corr_params, col))
+        else:
+            ind = np.unique(np.random.randint(0, num_corr_params, 1))
 
         for ii in ind:
             q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
