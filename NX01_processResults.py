@@ -11,7 +11,8 @@ Code contributions by Rutger van Haasteren (piccard) and Justin Ellis (PAL/PAL2)
 from __future__ import division
 import numpy as np
 from numpy import *
-import os, optparse, corner
+import os, optparse, corner, json
+import h5py as h5
 
 import matplotlib
 matplotlib.use('macosx')
@@ -23,6 +24,7 @@ from matplotlib.ticker import FormatStrFormatter, \
 import newcmaps
 
 import NX01_bayesutils as bu
+import NX01_psr
 
 import scipy
 import scipy.interpolate as interp
@@ -43,6 +45,8 @@ parser.add_option('--intelburn', dest='intelburn', action='store_true', default=
                    help='Do you want to try intelligent burning-in and chain thinning?')
 parser.add_option('--manualburn', dest='manualburn', action='store', type=int, default=1000,
                    help='How many samples do you want to cut from the start of the chain as burn-in?')
+parser.add_option('--strainAnis', dest='strainAnis', action='store_true', default=False,
+                   help='Do you want to investigate strain anisotropy rather than power anisotropy [default = False]?')
 
 (args, x) = parser.parse_args()
 
@@ -61,6 +65,34 @@ param_list = np.genfromtxt(args.parentpath+'/'+args.chaindir+'/parameter_list.tx
 print param_list
 
 print "Chain has been read-in"
+
+jsonModel = args.parentpath+'/'+args.chaindir+'/run_args.json'
+with open(jsonModel) as json_file:
+    json_data = json.load(json_file)
+    json_file.close()
+
+print "Model has been read-in"
+
+psr_pathinfo = np.genfromtxt(json_data['psrlist'], dtype=str, skip_header=2)
+
+if json_data['from_h5']:
+    tmp_psr = []
+    if json_data['psrIndices'] is not None:
+        psr_inds = [int(item) for item in json_data['psrIndices'].split(',')]
+        for ii,tmp_name in zip(psr_inds,psr_pathinfo[psr_inds,0]):
+            tmp_psr.append(h5.File(psr_pathinfo[ii,1], 'r')[tmp_name])
+    else:
+        for ii,tmp_name in enumerate(psr_pathinfo[json_data['psrStartIndex']:json_data['psrEndIndex'],0],
+                                     start=json_data['psrStartIndex']):
+            tmp_psr.append(h5.File(psr_pathinfo[ii,1], 'r')[tmp_name])
+
+    psr = [NX01_psr.PsrObjFromH5(p) for p in tmp_psr]
+    [p.grab_all_vars() for p in psr]
+
+    psr_positions = [np.array([psr[ii].psr_locs[0],
+                           np.pi/2. - psr[ii].psr_locs[1]])
+                           for ii in range(len(psr))]
+    positions = np.array(psr_positions).copy()
 
 ##################
 # Burn in samples
@@ -202,7 +234,7 @@ if 'Lmax0' not in args.chaindir:
     clm_inds = np.array(['clm' in p for p in param_list[:,1]])
     clm_inds = np.append(clm_inds,np.array([False,False,False,False]))
     clm = chain[:,clm_inds]
-    #clm = chain[var:,-4 - 1*( (LMAX+1)**2 - 1):-4 - 0*( (LMAX+1)**2 - 1)]
+    # clm = chain[var:,-4 - 1*( (LMAX+1)**2 - 1):-4 - 0*( (LMAX+1)**2 - 1)]
 
 
     Cl = [0.0]*(LMAX+1)
@@ -214,6 +246,9 @@ if 'Lmax0' not in args.chaindir:
                            / (2*ll[ii+1]+1.) , axis=1)
 
     Cl = np.array(Cl)
+    if args.strainAnis:
+        Cl = np.array([Cl[ii,:]*(10**(4*Agwb)) for ii in range(Cl.shape[0])])
+        #print Cl.shape
 
     ######################################################
     # Make posterior density map of angular power spectrum
@@ -223,7 +258,10 @@ if 'Lmax0' not in args.chaindir:
     func = np.zeros((len(clm), len(delta_ell)))
 
     for ii in range(len(clm)):
-        tmp = interp1d(ll, Cl[:,ii]/(4.0*np.pi) )
+        if not args.strainAnis:
+            tmp = interp1d(ll, Cl[:,ii]/(4.0*np.pi) )
+        elif args.strainAnis:
+            tmp = interp1d(ll, np.log10((Cl[:,ii]/(4.0*np.pi))**(1./4.)) )
         func[ii,:] = tmp(delta_ell) 
 
     xx = np.tile(delta_ell,len(clm))
@@ -244,8 +282,12 @@ if 'Lmax0' not in args.chaindir:
         func_r[ii-10] = r
 
     # 2D hist of the line distributions
-    H, xedges, yedges = np.histogram2d(xx, yy, bins=(100, 100),
-                                range=([0.0,1.0*LMAX], [0.0,1.0]))
+    if not args.strainAnis:
+        H, xedges, yedges = np.histogram2d(xx, yy, bins=(100, 100),
+                                    range=([0.0,1.0*LMAX], [0.0,1.0]))
+    elif args.strainAnis:
+        H, xedges, yedges = np.histogram2d(xx, yy, bins=(100, 100),
+                                    range=([0.0,1.0*LMAX], [-18.,-11.]))
 
     H = H.transpose()
 
@@ -264,14 +306,21 @@ if 'Lmax0' not in args.chaindir:
     ax.set_xticks(ll)
     plt.tick_params(labelsize=18)
     plt.xlabel('$l$', fontsize=20)
-    plt.ylabel('$C_l/4\pi$', fontsize=20)
+    if not args.strainAnis:
+        plt.ylabel('$C_l/4\pi$', fontsize=20)
+    elif args.strainAnis:
+        plt.ylabel('$(A_h^4 C_l/4\pi)^{1/4}$', fontsize=20)
     plt.show()
 
     ###################################
     # Make a posterior-averaged skymap
     ###################################
-    
-    bu.makeSkyMap(clm, lmax=LMAX, cmap=newcmaps.viridis)
+
+    if args.strainAnis:
+        #strainClm = np.array([clm[:,ii]*(10**(2*Agwb)) for ii in range(clm.shape[1])]).T
+        bu.makeSkyMap(clm, lmax=LMAX, cmap=newcmaps.viridis, strain=Agwb, psrs=positions)
+    else:
+        bu.makeSkyMap(clm, lmax=LMAX, cmap=newcmaps.viridis, psrs=positions)
     plt.show()
 
     ################################

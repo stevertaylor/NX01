@@ -895,7 +895,7 @@ def make_all_CDF(sample0, sample1, sample2, sample3, linestyle=None, linewidth=N
 
    plt.title(title, fontsize=20)
 
-def makeSkyMap(samples, lmax, nside=32, cmap=None, tex=True,
+def makeSkyMap(samples, lmax, nside=32, cmap=None, strain=None, tex=True,
                psrs=None, axis=None):
 
     if tex == True:
@@ -913,28 +913,40 @@ def makeSkyMap(samples, lmax, nside=32, cmap=None, tex=True,
     harmvals = utils.SetupSkymapPlottingGrid(lmax,skypos)
 
     if np.atleast_2d(samples).shape[0]>1:
-        samples = np.mean(samples, axis=0)
-        samples = np.append(2.*np.sqrt(np.pi), samples)
+        if strain is None:
+            samples = np.mean(samples, axis=0)
+            samples = np.append(2.*np.sqrt(np.pi), samples)
+        elif strain is not None:
+            samples = np.mean((samples.T * 10**(2.0*strain)).T, axis=0)
+            samples = np.append(np.mean(10**(2.0*strain) * (2.0*np.sqrt(np.pi))), samples)
     else:
+        #### !!!!!
         samples = np.append(2.*np.sqrt(np.pi), samples)
-
+            
     pwr = utils.GWpower(samples, harmvals)
+    print pwr, samples
 
     if axis is None:
         ax = plt.subplot(111, projection='astro mollweide')
         ax.grid()
         plot.outline_text(ax)
         if cmap is not None:
-            plot.healpix_heatmap(pwr,cmap=cmap)
+            if strain is None:
+                plot.healpix_heatmap(pwr,cmap=cmap)
+            elif strain is not None:
+                plot.healpix_heatmap(pwr,cmap=cmap)
         else:
             plot.healpix_heatmap(pwr)
         plt.colorbar(orientation='horizontal')
-        plt.suptitle(r'$\langle P_{\mathrm{GWB}}(\hat\Omega)\rangle$', y=0.1)
+        if strain is None:
+            plt.suptitle(r'$\langle P_{\mathrm{GWB}}(\hat\Omega)\rangle$', y=0.1)
+        elif strain is not None:
+            plt.suptitle(r'$\langle A_h^2 P_{\mathrm{GWB}}(\hat\Omega)\rangle$', y=0.1)
 
         # add pulsars locations
         if psrs is not None:
-            ax.plot(psrs[:,0], psrs[:,1], '*', color='w',
-                    markersize=6, mew=1, mec='w')
+            ax.plot(psrs[:,0], np.pi/2. - psrs[:,1], '*', color='w',
+                    markersize=15, mew=1, mec='k')
     elif axis is not None:
         axis.grid()
         plot.outline_text(axis)
@@ -945,7 +957,7 @@ def makeSkyMap(samples, lmax, nside=32, cmap=None, tex=True,
 
         # add pulsars locations
         if psrs is not None:
-            axis.plot(psrs[:,0], psrs[:,1], '*', color='w',
+            axis.plot(psrs[:,0], np.pi/2. - psrs[:,1], '*', color='w',
                       markersize=6, mew=1, mec='w')
 
 

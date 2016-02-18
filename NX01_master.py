@@ -740,7 +740,7 @@ if args.incGWB:
         pmin = np.append(pmin,np.array([-18.0,0.0]))
     if args.incCorr:
         if args.gwbTypeCorr == 'modelIndep':
-            pmin = np.append(pmin,-3.0*np.ones(num_corr_params))
+            pmin = np.append(pmin,0.0*np.ones(num_corr_params))
         elif args.gwbTypeCorr == 'pointSrc':
             pmin = np.append(pmin,np.tile([0.0,-1.0],tmp_nwins))
         elif args.gwbTypeCorr == 'spharmAnis':
@@ -820,7 +820,7 @@ if args.incGWB:
         pmax = np.append(pmax,np.array([-11.0,0.9]))
     if args.incCorr:
         if args.gwbTypeCorr == 'modelIndep':
-            pmax = np.append(pmax,3.0*np.ones(num_corr_params))
+            pmax = np.append(pmax,np.pi*np.ones(num_corr_params))
         elif args.gwbTypeCorr == 'pointSrc':
             pmax = np.append(pmax,np.tile([2.0*np.pi,1.0],tmp_nwins))
         elif args.gwbTypeCorr == 'spharmAnis':
@@ -1061,22 +1061,23 @@ def lnprob(xx):
 
             elif args.gwbTypeCorr == 'modelIndep':
 
-                npairs = npsr*(npsr-1)/2
-                phi_corr = np.pi * np.exp(orf_coeffs) / (1.0 + np.exp(orf_coeffs))
-                phi_corr = phi_corr.reshape((tmp_nwins,npairs))
-                theta_corr = orf_coeffs.copy().reshape((tmp_nwins,npairs))
+                npairs = int(npsr*(npsr-1)/2)
+                #phi_corr = np.pi * np.exp(orf_coeffs) / (1.0 + np.exp(orf_coeffs))
+                #phi_corr = phi_corr.reshape((tmp_nwins,npairs))
+                #theta_corr = orf_coeffs.copy().reshape((tmp_nwins,npairs))
+                phi_corr = orf_coeffs.copy().reshape((tmp_nwins,npairs))
  
                 for ii in range(tmp_nwins): # number of frequency windows
                     for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
                         upper_triang = np.zeros((npsr,npsr))
                         phi_els = np.array([[0.0]*kk for kk in range(1,npsr)])
-                        theta_els = np.array([[0.0]*kk for kk in range(1,npsr)])
+                        #theta_els = np.array([[0.0]*kk for kk in range(1,npsr)])
 
                         ct=0
                         for aa in range(len(phi_els)):
                             for bb in range(len(phi_els[aa])):
                                 phi_els[aa][bb] = phi_corr[ii,ct]
-                                theta_els[aa][bb] = theta_corr[ii,ct]
+                                #theta_els[aa][bb] = theta_corr[ii,ct]
                                 ct += 1
 
                         upper_triang[0,0] = 1.
@@ -1241,10 +1242,10 @@ def lnprob(xx):
             
             if args.gwbTypeCorr == 'modelIndep':
 
-                npairs = npsr*(npsr-1)/2
-                phi_corr = np.pi * np.exp(orf_coeffs) / (1.0 + np.exp(orf_coeffs))
-                phi_corr = phi_corr.reshape((tmp_nwins,npairs))
-                #phi_corr = orf_coeffs.reshape((tmp_nwins,npairs))
+                npairs = int(npsr*(npsr-1)/2)
+                #phi_corr = np.pi * np.exp(orf_coeffs) / (1.0 + np.exp(orf_coeffs))
+                #phi_corr = phi_corr.reshape((tmp_nwins,npairs))
+                phi_corr = orf_coeffs.copy().reshape((tmp_nwins,npairs))
 
                 ############################################################
                 # Computing frequency-dependent overlap reduction functions.
@@ -2312,15 +2313,19 @@ def lnprob(xx):
         priorfac_eph = 0.0
 
 
-    ### Gaussian prior on modeled psr positions ###
-    ### Currently assumes only one frequency window ###
     if args.incGWB and args.incCorr:
         if args.gwbTypeCorr == 'modelIndep':
             jacobian = np.zeros((npairs,npairs))
+            '''jacobian[0,0] = -np.sin(phi_els[0][0])
+            jacobian[2,0] = -np.sin(phi_els[0][0])*np.cos(phi_els[1][0]) + np.cos(phi_els[0][0])*np.sin(phi_els[1][0])*np.cos(phi_els[1][1])
+            jacobian[1,1] = -np.sin(phi_els[1][0])
+            jacobian[2,1] = -np.sin(phi_els[1][0])*np.cos(phi_els[0][0]) + np.cos(phi_els[1][0])*np.sin(phi_els[0][0])*np.cos(phi_els[1][1])
+            jacobian[2,2] = -np.sin(phi_els[1][1])*np.sin(phi_els[0][0])*np.sin(phi_els[1][0])'''
+            '''
             ct = 0
             for ii in range(len(phi_els)):
                 for jj in range(len(phi_els[ii])):
-
+                    
                     dummy_utriang = upper_triang[jj:,ii+1].copy()
                     dummy_utriang[0] = -np.sin(phi_els[ii][jj]) * dummy_utriang[0] / np.cos(phi_els[ii][jj])
                     dummy_utriang[1:] = np.cos(phi_els[ii][jj]) * dummy_utriang[1:] / np.sin(phi_els[ii][jj])
@@ -2329,13 +2334,23 @@ def lnprob(xx):
 
                     deriv = np.zeros_like(upper_triang)
                     deriv[:,ii+1] = np.dot(upper_triang.T, dummy_utriang)
+                    deriv = deriv + deriv.T
 
-                    jacobian[:,ct] = 2.0 * deriv[np.triu_indices(npsr,k=1)] * \
-                      phi_els[ii][jj] / (1.0 + np.exp(theta_els[ii][jj]))
+                    jacobian[:,ct] = deriv[np.triu_indices(npsr,k=1)] #2.0 * deriv[np.triu_indices(npsr,k=1)] #* \
+                      #phi_els[ii][jj] / (1.0 + np.exp(theta_els[ii][jj]))
                     ct += 1
-                    
-            priorfac_corr += np.linalg.slogdet(jacobian)[1]
-            
+            '''
+            #tmp_mask = np.where(jacobian >= 0.0 and jacobian <= 1e-10)
+            #jacobian[(jacobian>=0.0) & (jacobian<=1e-5)] = 0.0
+            #tmp = np.linalg.slogdet(jacobian)
+            #if tmp[0] < 0.0:
+            #    priorfac_corr = -np.inf
+            #else:
+            priorfac_corr = np.sum(np.log(np.abs(np.cos(phi_corr))))
+            #priorfac_corr = np.sum(np.log(np.abs(-np.sin(phi_corr)))) + np.sum(np.log(np.abs(np.cos(phi_corr)))) #np.sum([np.log(np.abs(-np.sin(phi_els[ii][0]))) for ii in range(len(phi_els))]) #tmp[1]
+
+        ### Gaussian prior on modeled psr positions ###
+        ### Currently assumes only one frequency window ###
         elif args.gwbTypeCorr == 'psrlocsVary':
             priorfac_corr = 0.0
             for ii,p in enumerate(psr):
@@ -2728,7 +2743,7 @@ if args.sampler == 'ptmcmc':
             x0 = np.append(x0,np.array([-15.0,0.2]))
         if args.incCorr:
             if args.gwbTypeCorr == 'modelIndep':
-                x0 = np.append(x0,np.random.uniform(-3.0,3.0,num_corr_params))
+                x0 = np.append(x0,np.random.uniform(0.0,np.pi,num_corr_params))
             elif args.gwbTypeCorr == 'pointSrc':
                 x0 = np.append(x0,np.tile([0.5,0.5],tmp_nwins))
             elif args.gwbTypeCorr == 'spharmAnis':
