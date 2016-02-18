@@ -125,6 +125,10 @@ parser.add_option('--incCorr', dest='incCorr', action='store_true', default=Fals
                   help='Do you want to include cross-correlations in the GWB model? (default = False)')
 parser.add_option('--gwbTypeCorr', dest='gwbTypeCorr', action='store', type=str, default='spharmAnis',
                   help='What type of correlated GW signal do you want to model?: custom, spharmAnis, dipoleOrf, modelIndep, pointSrc, clock, gwDisk, psrlocsVary (default = spharmAnis)')
+parser.add_option('--corrJacobian', dest='corrJacobian', action='store', type=str, default='simple',
+                  help='What type of Jacobian do you want for the modelIndep ORF element search: simple, full (default = simple)')
+parser.add_option('--psrlocsPrior', dest='psrlocsPrior', action='store', type=str, default='normal',
+                  help='What type of prior do you want on the pulsar locations in the psrlocsVary correlation model: normal, uniform (default = normal)')
 parser.add_option('--redSpecModel', dest='redSpecModel', action='store', type=str, default='powerlaw',
                   help='What kind of spectral model do you want for red timing-noise?: powerlaw, spectrum (default = powerlaw)')
 parser.add_option('--dmSpecModel', dest='dmSpecModel', action='store', type=str, default='powerlaw',
@@ -2316,56 +2320,61 @@ def lnprob(xx):
     if args.incGWB and args.incCorr:
         if args.gwbTypeCorr == 'modelIndep':
             jacobian = np.zeros((npairs,npairs))
-            '''jacobian[0,0] = -np.sin(phi_els[0][0])
-            jacobian[2,0] = -np.sin(phi_els[0][0])*np.cos(phi_els[1][0]) + np.cos(phi_els[0][0])*np.sin(phi_els[1][0])*np.cos(phi_els[1][1])
+            '''
+            jacobian[0,0] = -np.sin(phi_els[0][0])
+            jacobian[2,0] = -np.sin(phi_els[0][0])*np.cos(phi_els[1][0]) + \
+              np.cos(phi_els[0][0])*np.sin(phi_els[1][0])*np.cos(phi_els[1][1])
             jacobian[1,1] = -np.sin(phi_els[1][0])
-            jacobian[2,1] = -np.sin(phi_els[1][0])*np.cos(phi_els[0][0]) + np.cos(phi_els[1][0])*np.sin(phi_els[0][0])*np.cos(phi_els[1][1])
-            jacobian[2,2] = -np.sin(phi_els[1][1])*np.sin(phi_els[0][0])*np.sin(phi_els[1][0])'''
+            jacobian[2,1] = -np.sin(phi_els[1][0])*np.cos(phi_els[0][0]) + \
+              np.cos(phi_els[1][0])*np.sin(phi_els[0][0])*np.cos(phi_els[1][1])
+            jacobian[2,2] = -np.sin(phi_els[1][1])*np.sin(phi_els[0][0])*np.sin(phi_els[1][0])
             '''
-            ct = 0
-            for ii in range(len(phi_els)):
-                for jj in range(len(phi_els[ii])):
-                    
-                    dummy_utriang = upper_triang[jj:,ii+1].copy()
-                    dummy_utriang[0] = -np.sin(phi_els[ii][jj]) * dummy_utriang[0] / np.cos(phi_els[ii][jj])
-                    dummy_utriang[1:] = np.cos(phi_els[ii][jj]) * dummy_utriang[1:] / np.sin(phi_els[ii][jj])
+            if args.corrJacobian == 'full':
+                ct = 0
+                for ii in range(len(phi_els)):
+                    for jj in range(len(phi_els[ii])):
+                        
+                        dummy_utriang = upper_triang[jj:,ii+1].copy()
+                        dummy_utriang[0] = -np.sin(phi_els[ii][jj]) * dummy_utriang[0] / np.cos(phi_els[ii][jj])
+                        dummy_utriang[1:] = np.cos(phi_els[ii][jj]) * dummy_utriang[1:] / np.sin(phi_els[ii][jj])
+    
+                        dummy_utriang = np.append(np.zeros(len(upper_triang[:jj,ii+1])), dummy_utriang)
+    
+                        deriv = np.zeros_like(upper_triang)
+                        deriv[:,ii+1] = np.dot(upper_triang.T, dummy_utriang)
+                        deriv = deriv + deriv.T
 
-                    dummy_utriang = np.append(np.zeros(len(upper_triang[:jj,ii+1])), dummy_utriang)
+                        jacobian[:,ct] = deriv[np.triu_indices(npsr,k=1)] #2.0 * deriv[np.triu_indices(npsr,k=1)] #* \
+                                                                          #phi_els[ii][jj] / (1.0 + np.exp(theta_els[ii][jj]))
+                        ct += 1
 
-                    deriv = np.zeros_like(upper_triang)
-                    deriv[:,ii+1] = np.dot(upper_triang.T, dummy_utriang)
-                    deriv = deriv + deriv.T
-
-                    jacobian[:,ct] = deriv[np.triu_indices(npsr,k=1)] #2.0 * deriv[np.triu_indices(npsr,k=1)] #* \
-                      #phi_els[ii][jj] / (1.0 + np.exp(theta_els[ii][jj]))
-                    ct += 1
-            '''
-            #tmp_mask = np.where(jacobian >= 0.0 and jacobian <= 1e-10)
-            #jacobian[(jacobian>=0.0) & (jacobian<=1e-5)] = 0.0
-            #tmp = np.linalg.slogdet(jacobian)
-            #if tmp[0] < 0.0:
-            #    priorfac_corr = -np.inf
-            #else:
-            priorfac_corr = np.sum(np.log(np.abs(np.cos(phi_corr))))
-            #priorfac_corr = np.sum(np.log(np.abs(-np.sin(phi_corr)))) + np.sum(np.log(np.abs(np.cos(phi_corr)))) #np.sum([np.log(np.abs(-np.sin(phi_els[ii][0]))) for ii in range(len(phi_els))]) #tmp[1]
+                tmp = np.linalg.slogdet(jacobian)
+                priorfac_corr = 0.5*tmp[1]
+            elif args.corrJacobian == 'simple':
+                priorfac_corr = np.sum(np.log(np.abs(np.array([-np.sin(phi_els[ii][0])
+                                                               for ii in range(len(phi_els))]))))
+            else:
+                priorfac_corr = 0.0
 
         ### Gaussian prior on modeled psr positions ###
         ### Currently assumes only one frequency window ###
         elif args.gwbTypeCorr == 'psrlocsVary':
             priorfac_corr = 0.0
             for ii,p in enumerate(psr):
-                '''
-                sig = 0.5
-                priorfac_corr += np.log( np.exp( -0.5 * (varyLocs[ii,0] - p.psr_locs[0])**2.0 / sig**2.0) / \
-                                 np.sqrt(2.0*np.pi*sig**2.0) ) + \
-                                 np.log( np.exp( -0.5 * (varyLocs[ii,1] - np.pi/2. + p.psr_locs[1])**2.0 / sig**2.0) / \
-                                 np.sqrt(2.0*np.pi*sig**2.0) )
-                '''
-                if np.abs(varyLocs[ii,0] - p.psr_locs[0]) <= 0.5 and \
-                  np.abs(varyLocs[ii,1] - np.pi/2. + p.psr_locs[1]) <= 0.5:
-                    priorfac_corr += 0.0
+                if args.psrlocsPrior == 'normal':
+                    sig = 0.5
+                    priorfac_corr += np.log( np.exp( -0.5 * (varyLocs[ii,0] - p.psr_locs[0])**2.0 / sig**2.0) / \
+                                    np.sqrt(2.0*np.pi*sig**2.0) ) + \
+                                    np.log( np.exp( -0.5 * (varyLocs[ii,1] - np.pi/2. + p.psr_locs[1])**2.0 / sig**2.0) / \
+                                    np.sqrt(2.0*np.pi*sig**2.0) )
+                elif args.psrlocsPrior == 'uniform':
+                    if np.abs(varyLocs[ii,0] - p.psr_locs[0]) <= 0.5 and \
+                      np.abs(varyLocs[ii,1] - np.pi/2. + p.psr_locs[1]) <= 0.5:
+                        priorfac_corr += 0.0
+                    else:
+                        priorfac_corr += -np.inf
                 else:
-                    priorfac_corr += -np.inf
+                    priorfac_corr = 0.0
         else:
             priorfac_corr = 0.0
     else:
