@@ -2344,8 +2344,7 @@ def lnprob(xx):
                         deriv[:,ii+1] = np.dot(upper_triang.T, dummy_utriang)
                         deriv = deriv + deriv.T
 
-                        jacobian[:,ct] = deriv[np.triu_indices(npsr,k=1)] #2.0 * deriv[np.triu_indices(npsr,k=1)] #* \
-                                                                          #phi_els[ii][jj] / (1.0 + np.exp(theta_els[ii][jj]))
+                        jacobian[:,ct] = deriv[np.triu_indices(npsr,k=1)] 
                         ct += 1
 
                 tmp = np.linalg.slogdet(jacobian)
