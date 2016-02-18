@@ -587,6 +587,12 @@ if args.incGWB and args.incCorr:
 
     elif args.gwbTypeCorr == 'clock':
 
+        gwfreqs_per_win = args.nmodes
+        corr_modefreqs = np.arange(1,args.nmodes+1)
+        corr_modefreqs = np.reshape(corr_modefreqs,
+                                    (args.nwins,gwfreqs_per_win))
+
+        tmp_nwins = args.nwins
         num_corr_params = 0
               
 #############################################################################
