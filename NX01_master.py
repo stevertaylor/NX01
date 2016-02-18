@@ -2401,6 +2401,8 @@ def lnprob(xx):
                     priorfac_detsig += \
                       np.log( np.exp( -0.5 * (psrdists[ii] - mu)**2.0 / sig**2.0) / \
                               np.sqrt(2.0*np.pi*sig**2.0) )
+        else:
+            priorfac_detsig = 0.0
     elif not args.det_signal:
         priorfac_detsig = 0.0
         
@@ -2886,7 +2888,7 @@ if args.sampler == 'ptmcmc':
     if args.dmVar:
         if args.dmSpecModel == 'powerlaw':
             dmamps = [param_ct+ii for ii in range(len(psr))]
-            dmgam = [param_ct+ii+len(psr) for ii in dmamps]
+            dmgam = [ii+len(psr) for ii in dmamps]
             ids = [list(aa) for aa in zip(dmamps,dmgam)]
             [ind.append(id) for id in ids if len(id) > 0]
             param_ct += 2*len(psr)

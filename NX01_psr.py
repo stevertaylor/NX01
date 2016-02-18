@@ -96,6 +96,7 @@ class PsrObj(object):
         self.obs_freqs = np.double(self.T2psr.ssbfreqs())
         self.Mmat = np.double(self.T2psr.designmatrix())
 
+        isort, iisort = None, None
         if 'pta' in self.T2psr.flags():
             if 'NANOGrav' in list(set(self.T2psr.flagvals('pta'))):
                 # now order everything
@@ -145,8 +146,12 @@ class PsrObj(object):
                     sys_uflagvals = list(set(self.T2psr.flagvals(systm)))
                     self.sysflagdict[systm] = OrderedDict.fromkeys(sys_uflagvals)
                     for kk,subsys in enumerate(sys_uflagvals):
-                        self.sysflagdict[systm][subsys] = \
-                          np.where(self.T2psr.flagvals(systm)[isort] == sys_uflagvals[kk])
+                        if isort is not None:
+                            self.sysflagdict[systm][subsys] = \
+                              np.where(self.T2psr.flagvals(systm)[isort] == sys_uflagvals[kk])
+                        elif isort is None:
+                            self.sysflagdict[systm][subsys] = \
+                              np.where(self.T2psr.flagvals(systm) == sys_uflagvals[kk])
             except KeyError:
                 pass
 
