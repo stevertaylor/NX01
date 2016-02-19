@@ -791,7 +791,8 @@ if not args.fixRed:
         pmax = np.append(pmax,3.0*np.ones(len(psr)*nmode))
 if args.dmVar:
     if args.dmSpecModel == 'powerlaw':
-        pmax = np.append(pmax,-11.0*np.ones(len(psr)))
+        # slightly higher than red due to normalisation
+        pmax = np.append(pmax,-10.0*np.ones(len(psr)))
         pmax = np.append(pmax,7.0*np.ones(len(psr)))
     elif args.dmSpecModel == 'spectrum':
         pmax = np.append(pmax,3.0*np.ones(len(psr)*nmode))

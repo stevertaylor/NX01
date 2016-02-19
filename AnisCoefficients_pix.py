@@ -9,6 +9,7 @@ Script to compute the correlation basis-functions for various anisotropic
 configurations of the GW background energy-density
 
 -- Rutger van Haasteren (June 2014)
+-- Stephen Taylor (modifications, February 2016)
 
 """
 
