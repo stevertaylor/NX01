@@ -33,7 +33,7 @@ from ephem import *
 import libstempo as T2
 
 import NX01_AnisCoefficients as anis
-import AnisCoefficients_pix as pixAnis
+#import AnisCoefficients_pix as pixAnis
 import NX01_utils as utils
 import NX01_psr
 
@@ -492,6 +492,7 @@ if args.incGWB and args.incCorr:
         
         try:
             import healpy as hp
+            import AnisCoefficients_pix as pixAnis
             num_corr_params = 4*tmp_nwins
 
             npsrs = len(positions)
