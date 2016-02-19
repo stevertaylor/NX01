@@ -775,10 +775,13 @@ def makePostPlots_show(chain, ndim, labels):
         fig = plt.figure(figsize=(10,4))
 
         ax = fig.add_subplot(121)
-        acl = acor.acor(chain[:,ii])[0]
-        neff = len(chain[:,ii]) / acl * 10
-        ax.plot(chain[:,ii])
-        plt.title('Neff = {0}'.format(int(neff)))
+        try:
+            acl = acor.acor(chain[:,ii])[0]
+            neff = len(chain[:,ii]) / acl * 10
+            ax.plot(chain[:,ii])
+            plt.title('Neff = {0}'.format(int(neff)))
+        except:
+            ax.plot(chain[:,ii])
         plt.ylabel(labels[ii])
         majorFormatter = FormatStrFormatter('%d')
         ax.xaxis.set_major_formatter(majorFormatter)
