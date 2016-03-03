@@ -767,7 +767,7 @@ if args.incGWline:
     pmin = np.append(pmin,np.array([-8.0,-10.0,0.0,-1.0]))
 if args.det_signal:
     if args.cgw_search:
-        pmin = np.append(pmin,np.array([8.0,0.1,0.0,-20.0,-9.0,
+        pmin = np.append(pmin,np.array([7.0,0.1,0.0,-17.0,-9.301,
                                         0.0,-1.0,-1.0,0.0,0.0,0.0]))
         if args.ecc_search:
             pmin = np.append(pmin,0.001)
@@ -848,7 +848,7 @@ if args.incGWline:
     pmax = np.append(pmax,np.array([3.0,-7.0,2.0*np.pi,1.0]))
 if args.det_signal:
     if args.cgw_search:
-        pmax = np.append(pmax,np.array([10.0,1.0,4.0,-11.0,-7.0,2.0*np.pi,
+        pmax = np.append(pmax,np.array([10.0,1.0,4.0,-11.0,-7.301,2.0*np.pi,
                                         1.0,1.0,np.pi,np.pi,2.0*np.pi]))
         if args.ecc_search:
             pmax = np.append(pmax,0.9)
@@ -1167,7 +1167,7 @@ def lnprob(xx):
                     elif args.fixcgwEcc is not None:
                         ecc_tmp = args.fixcgwEcc
                 elif not args.ecc_search:
-                    ecc_tmp = 0.001
+                    ecc_tmp = 0.0
 
                 ########################
 
@@ -1191,7 +1191,7 @@ def lnprob(xx):
                         for cc, swave in enumerate(tmp_res):
                             cgw_res[ii][p.detsig_Uinds[cc,0]:p.detsig_Uinds[cc,1]] *= swave
                     elif not args.epochTOAs:
-                        cgw_res[ii] = tmp_res
+                        cgw_res.append(tmp_res)
                         
                     detres.append( p.res - cgw_res[ii] )
 
@@ -1567,7 +1567,7 @@ def lnprob(xx):
                     varyLocs = np.zeros((len(psr),2))
                     varyLocs[:,0] = varyPhi[ii,:]
                     varyLocs[:,1] = varyTheta[ii,:]
-                    #varyLocs[0,:] = psr[0].psr_locs[0], np.pi/2. - psr[0].psr_locs[1]
+                    varyLocs[0,:] = psr[0].psr_locs[0], np.pi/2. - psr[0].psr_locs[1]
                     monoOrf = 2.0*np.sqrt(np.pi)*anis.CorrBasis(varyLocs,0)[0]
                     for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
                         ORF.append( monoOrf )
@@ -2375,8 +2375,8 @@ def lnprob(xx):
                                     np.log( np.exp( -0.5 * (varyLocs[ii,1] - np.pi/2. + p.psr_locs[1])**2.0 / sig**2.0) / \
                                     np.sqrt(2.0*np.pi*sig**2.0) )
                 elif args.psrlocsPrior == 'uniform':
-                    if np.abs(varyLocs[ii,0] - p.psr_locs[0]) <= 0.5 and \
-                      np.abs(varyLocs[ii,1] - np.pi/2. + p.psr_locs[1]) <= 0.5:
+                    if np.abs(varyLocs[ii,0] - p.psr_locs[0]) <= 1.0 and \
+                      np.abs(varyLocs[ii,1] - np.pi/2. + p.psr_locs[1]) <= 1.0:
                         priorfac_corr += 0.0
                     else:
                         priorfac_corr += -np.inf
@@ -2384,7 +2384,7 @@ def lnprob(xx):
                     priorfac_corr = 0.0
         else:
             priorfac_corr = 0.0
-    else:
+    elif not args.incGWB and not args.incCorr:
         priorfac_corr = 0.0
 
     ### Jacobian and prior on cgw properties ###
