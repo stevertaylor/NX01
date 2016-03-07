@@ -693,6 +693,32 @@ def get_gammadot(F, mc, q, e):
 
     return dgdt
 
+def get_coupled_constecc_eqns(y, t, mc, e0):
+    
+    """
+    Computes the coupled system of differential
+    equations from Peters (1964) and Barack &
+    Cutler (2004). This is a system of three variables:
+    
+    F: Orbital frequency [Hz]
+    phase0: Orbital phase [rad]
+    
+    :param y: Vector of input parameters [F, e, gamma]
+    :param t: Time [s]
+    :param mc: Chirp mass of binary [Solar Mass]
+    
+    :returns: array of derivatives [dF/dt, dphase/dt]
+    """
+    
+    F = y[0]
+    phase = y[1]
+    
+    dFdt = get_Fdot(F, mc, e0)
+    dphasedt = 2*np.pi*F
+     
+    return np.array([dFdt, dphasedt])
+
+
 def get_coupled_ecc_eqns(y, t, mc, q):
     
     """
@@ -729,6 +755,33 @@ def get_coupled_ecc_eqns(y, t, mc, q):
     return np.array([dFdt, dedt, dgdt, dphasedt])
 
 
+def solve_coupled_constecc_solution(F0, e0, phase0, mc, t):
+    
+    """
+    Compute the solution to the coupled system of equations
+    from from Peters (1964) and Barack & Cutler (2004) at 
+    a given time.
+    
+    :param F0: Initial orbital frequency [Hz]
+    :param mc: Chirp mass of binary [Solar Mass]
+    :param t: Time at which to evaluate solution [s]
+    
+    :returns: (F(t), phase(t))
+    
+    """
+    
+    y0 = np.array([F0, phase0])
+
+    y, infodict = odeint(get_coupled_constecc_eqns, y0, t, args=(mc,e0), full_output=True)
+    
+    if infodict['message'] == 'Integration successful.':
+        ret = y
+    else:
+        ret = 0
+    
+    return ret
+
+
 def solve_coupled_ecc_solution(F0, e0, gamma0, phase0, mc, q, t):
     
     """
@@ -757,6 +810,7 @@ def solve_coupled_ecc_solution(F0, e0, gamma0, phase0, mc, q, t):
         ret = 0
     
     return ret
+
 
 def get_an(n, mc, dl, h0, F, e):
     
@@ -869,7 +923,11 @@ def calculate_splus_scross(nmax, mc, dl, h0, F, e, t, l0, gamma, gammadot, inc):
     :param inc: Inclination angle [rad]
 
     """ 
-    
+    '''if e < 0.001:
+        n = np.array([2])
+        nmax = 2
+    else:
+        n = np.arange(1, nmax)'''
     n = np.arange(1, nmax)
 
     # time dependent amplitudes
@@ -967,7 +1025,7 @@ def fplus_fcross(psr, gwtheta, gwphi):
 def ecc_cgw_signal(psr, gwtheta, gwphi, mc, dist, h0, F, inc, psi, gamma0,
                    e0, l0, q, nmax=100, nset=None, pd=None, gpx=None, lpx=None,
                    periEv=True, psrTerm=False, tref=0, check=False, useFile=True,
-                   epochTOAs=False, dummy_toas=None):
+                   epochTOAs=False, noEccEvolve=False, dummy_toas=None):
     
     """
     Simulate GW from eccentric SMBHB. Waveform models from
@@ -1000,6 +1058,9 @@ def ecc_cgw_signal(psr, gwtheta, gwphi, mc, dist, h0, F, inc, psi, gamma0,
     :param tref: Fiducial time at which initial parameters are referenced [s]
     :param check: Check if frequency evolves significantly over obs. time
     :param useFile: Use pre-computed table of number of harmonics vs eccentricity
+    :param epochTOAs: Use epoch averaged TOAs to reduce the waveform evaluation time
+    :param noEccEvolve: Prevent eccentricity evolving over Earth-pulsar separation
+    :param dummy_toas: Instead of actual pulsar TOAs, just use some user-defined timestamps
 
     :returns: Vector of induced residuals
     """
@@ -1085,12 +1146,21 @@ def ecc_cgw_signal(psr, gwtheta, gwphi, mc, dist, h0, F, inc, psi, gamma0,
         tp = toas - pd * (1-cosMu)
 
         # solve coupled system of equations to get pulsar term values
-        y = solve_coupled_ecc_solution(F, e0, gamma0, l0, mc, q,
-                                       np.array([0.0, tp.min()]))
+        if noEccEvolve:
+            y = solve_coupled_constecc_solution(F, e0, l0, mc,
+                                            np.array([0.0, tp.min()]))
+        elif not noEccEvolve:
+            y = solve_coupled_ecc_solution(F, e0, gamma0, l0, mc, q,
+                                           np.array([0.0, tp.min()]))
         
         # get pulsar term values
         if np.any(y):
-            Fp, ep, gp, lp = y[-1,:]
+            if noEccEvolve:
+                Fp, lp = y[-1,:]
+                ep = e0
+                gp = gamma0
+            elif not noEccEvolve:
+                Fp, ep, gp, lp = y[-1,:]
 
             # get gammadot at pulsar term
             if not periEv:

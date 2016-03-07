@@ -213,6 +213,8 @@ parser.add_option('--fixcgwPhi', dest='fixcgwPhi', action='store', type=float, d
                   help='Fix the cgw azimuthal sky-location (phi) to a particular value (default = \'None\')')
 parser.add_option('--fixcgwTheta', dest='fixcgwTheta', action='store', type=float, default=None,
                   help='Fix the cgw polar sky-location (theta) to a particular value (default = \'None\')')
+parser.add_option('--noEccEvolve', dest='noEccEvolve', action='store_true', default=False,
+                  help='Do not allow eccentricity to evolve between pulsar- and Earth-term (default = \'False\')')
 parser.add_option('--incGWline', dest='incGWline', action='store_true', default=False,
                   help='Do you want to include a single-frequency line in the GW spectrum? (default = False)')
 parser.add_option('--gwlinePrior', dest='gwlinePrior', action='store', type=str, default='uniform',
@@ -285,6 +287,7 @@ if args.jsonModel is not None:
     args.fixcgwEcc = json_data['fixcgwEcc']
     args.fixcgwPhi = json_data['fixcgwPhi']
     args.fixcgwTheta = json_data['fixcgwTheta']
+    args.noEccEvolve = json_data['noEccEvolve']
     args.incGWline = json_data['incGWline']
     args.gwlinePrior = json_data['gwlinePrior']
     args.constLike = json_data['constLike']
@@ -1166,8 +1169,10 @@ def lnprob(xx):
                         ecc_tmp = e0
                     elif args.fixcgwEcc is not None:
                         ecc_tmp = args.fixcgwEcc
+                    gwgamma_tmp = gwgamma0
                 elif not args.ecc_search:
                     ecc_tmp = 0.0
+                    gwgamma_tmp = gwgamma0
 
                 ########################
 
@@ -1180,11 +1185,12 @@ def lnprob(xx):
                     
                     tmp_res = utils.ecc_cgw_signal(p, gwtheta_tmp, gwphi_tmp, mc,
                                                    dist, hstrain_tmp, orbfreq_tmp,
-                                                   gwinc, gwpol, gwgamma0, ecc_tmp,
+                                                   gwinc, gwpol, gwgamma_tmp, ecc_tmp,
                                                    l0, qr, pd=psrdists[ii], gpx=psrgp0[ii],
                                                    lpx=psrlp0[ii], periEv=args.periEv,
                                                    psrTerm=args.psrTerm, tref=tref,
-                                                   epochTOAs=args.epochTOAs)
+                                                   epochTOAs=args.epochTOAs,
+                                                   noEccEvolve=args.noEccEvolve)
                     
                     if args.epochTOAs:
                         cgw_res.append(np.ones(len(p.toas)))
