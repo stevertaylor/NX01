@@ -773,7 +773,7 @@ if args.det_signal:
         pmin = np.append(pmin,np.array([7.0,0.1,0.0,-17.0,-9.301,
                                         0.0,-1.0,-1.0,0.0,0.0,0.0]))
         if args.ecc_search:
-            pmin = np.append(pmin,0.001)
+            pmin = np.append(pmin,0.0)
         if args.psrTerm:
             # psr distances, pterm-gamm0, pterm-l0
             pmin = np.append(pmin,0.001*np.ones(len(psr)))
