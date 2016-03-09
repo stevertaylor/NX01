@@ -33,7 +33,6 @@ from ephem import *
 import libstempo as T2
 
 import NX01_AnisCoefficients as anis
-#import AnisCoefficients_pix as pixAnis
 import NX01_utils as utils
 import NX01_psr
 
@@ -743,8 +742,10 @@ if args.incGWB:
         if not args.fix_slope:
             pmin = np.append(pmin,0.0)
     elif args.gwbSpecModel == 'spectrum':
-        pmin = np.append(pmin,-8.0*np.ones(nmode))
-        if args.gwbPrior == 'gaussProc':
+        if args.gwbPrior != 'gaussProc':
+            pmin = np.append(pmin,-8.0*np.ones(nmode))
+        elif args.gwbPrior == 'gaussProc':
+            pmin = np.append(pmin,-5.0*np.ones(nmode))
             pmin = np.append(pmin,np.array([-18.0,0.0]))
     elif args.gwbSpecModel == 'turnover':
         pmin = np.append(pmin,np.array([-18.0,0.0,-9.0]))
@@ -824,8 +825,10 @@ if args.incGWB:
         if not args.fix_slope:
             pmax = np.append(pmax,7.0)
     elif args.gwbSpecModel == 'spectrum':
-        pmax = np.append(pmax,3.0*np.ones(nmode))
-        if args.gwbPrior == 'gaussProc':
+        if args.gwbPrior != 'gaussProc':
+            pmax = np.append(pmax,3.0*np.ones(nmode))
+        elif args.gwbPrior == 'gaussProc':
+            pmax = np.append(pmax,5.0*np.ones(nmode))
             pmax = np.append(pmax,np.array([-11.0,0.9]))
     elif args.gwbSpecModel == 'turnover':
         pmax = np.append(pmax,np.array([-11.0,7.0,-7.0]))
@@ -1077,22 +1080,17 @@ def lnprob(xx):
             elif args.gwbTypeCorr == 'modelIndep':
 
                 npairs = int(npsr*(npsr-1)/2)
-                #phi_corr = np.pi * np.exp(orf_coeffs) / (1.0 + np.exp(orf_coeffs))
-                #phi_corr = phi_corr.reshape((tmp_nwins,npairs))
-                #theta_corr = orf_coeffs.copy().reshape((tmp_nwins,npairs))
                 phi_corr = orf_coeffs.copy().reshape((tmp_nwins,npairs))
  
                 for ii in range(tmp_nwins): # number of frequency windows
                     for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
                         upper_triang = np.zeros((npsr,npsr))
                         phi_els = np.array([[0.0]*kk for kk in range(1,npsr)])
-                        #theta_els = np.array([[0.0]*kk for kk in range(1,npsr)])
 
                         ct=0
                         for aa in range(len(phi_els)):
                             for bb in range(len(phi_els[aa])):
                                 phi_els[aa][bb] = phi_corr[ii,ct]
-                                #theta_els[aa][bb] = theta_corr[ii,ct]
                                 ct += 1
 
                         upper_triang[0,0] = 1.
@@ -1261,8 +1259,6 @@ def lnprob(xx):
             if args.gwbTypeCorr == 'modelIndep':
 
                 npairs = int(npsr*(npsr-1)/2)
-                #phi_corr = np.pi * np.exp(orf_coeffs) / (1.0 + np.exp(orf_coeffs))
-                #phi_corr = phi_corr.reshape((tmp_nwins,npairs))
                 phi_corr = orf_coeffs.copy().reshape((tmp_nwins,npairs))
 
                 ############################################################
@@ -1706,7 +1702,19 @@ def lnprob(xx):
                             f1yr**(gam_gwb-3) * \
                             (fqs/86400.0)**(-gam_gwb)/Tspan)
             elif args.gwbSpecModel == 'spectrum':
-                rho = np.log10( 10.0**(2.0*rho_spec) / Tspan )
+                if args.gwbPrior != 'gaussProc':
+                    rho = np.log10( 10.0**(2.0*rho_spec) / Tspan )
+                elif args.gwbPrior == 'gaussProc':
+                    hc_pred = np.zeros((len(fqs),2))
+                    for ii,freq in enumerate(fqs):
+                        hc_pred[ii,0], mse = gp[ii].predict(ecc, eval_MSE=True)
+                        hc_pred[ii,1] = np.sqrt(mse)
+                        
+                    psd_mean = Agwb**2.0 * hc_pred[:,0]**2.0 / (12.0*np.pi**2.0) / (fqs/86400.0)**3.0 / Tspan
+                    psd_std = 2.0 * psd_mean * hc_pred[:,1] / hc_pred[:,0]
+                    # transforming from zero-mean unit-variance variable to rho
+                    rho = np.log10( rho_spec*psd_std + psd_mean )
+                    
             elif args.gwbSpecModel == 'turnover':
                 rho = np.log10(Agwb**2/12/np.pi**2 * \
                             f1yr**(13.0/3.0-3.0) * \
@@ -2141,6 +2149,7 @@ def lnprob(xx):
             elif args.gwbPrior == 'loguniform':
                 priorfac_gwb = 0.0
             elif args.gwbPrior == 'gaussProc':
+                '''
                 hc_pred = np.zeros((len(fqs),2))
                 for ii,freq in enumerate(fqs):
                     hc_pred[ii,0], mse = gp[ii].predict(ecc, eval_MSE=True)
@@ -2151,6 +2160,8 @@ def lnprob(xx):
                 priorfac_gwb = np.sum( np.log(2.0 * 10.0**rho * np.log(10.0))
                                        - 0.5*np.log(2.0 * np.pi * psd_std**2.0)
                                        - 0.5*(10.0**rho - psd_mean)**2.0 / psd_std**2.0  )
+                '''
+                priorfac_gwb = np.sum( - 0.5*np.log(2.0 * np.pi) - 0.5 * rho_spec**2.0)
 
                 ### adding hyper prior on strain amplitude ###
                 if args.gwbHyperPrior == 'uniform':
@@ -2186,6 +2197,7 @@ def lnprob(xx):
                 priorfac_gwb = np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
                                     / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
             elif args.gwbPrior == 'gaussProc':
+                '''
                 hc_pred = np.zeros((len(fqs),2))
                 for ii,freq in enumerate(fqs):
                     hc_pred[ii,0], mse = gp[ii].predict(ecc, eval_MSE=True)
@@ -2195,6 +2207,7 @@ def lnprob(xx):
                         
                 priorfac_gwb = np.sum( np.log( np.exp(-0.5 * (hc_pred[:,0]-hc_turn)**2.0 / hc_pred[:,1]**2.0)
                                                / np.sqrt(2.0*np.pi*hc_pred[:,1]**2.0) ) )
+                '''
 
                 ### adding hyper prior on strain amplitude ###
                 if args.gwbHyperPrior == 'uniform':
@@ -2330,19 +2343,10 @@ def lnprob(xx):
     elif not args.incEph:
         priorfac_eph = 0.0
 
-
+    priorfac_corr = 0.0
     if args.incGWB and args.incCorr:
         if args.gwbTypeCorr == 'modelIndep':
             jacobian = np.zeros((npairs,npairs))
-            '''
-            jacobian[0,0] = -np.sin(phi_els[0][0])
-            jacobian[2,0] = -np.sin(phi_els[0][0])*np.cos(phi_els[1][0]) + \
-              np.cos(phi_els[0][0])*np.sin(phi_els[1][0])*np.cos(phi_els[1][1])
-            jacobian[1,1] = -np.sin(phi_els[1][0])
-            jacobian[2,1] = -np.sin(phi_els[1][0])*np.cos(phi_els[0][0]) + \
-              np.cos(phi_els[1][0])*np.sin(phi_els[0][0])*np.cos(phi_els[1][1])
-            jacobian[2,2] = -np.sin(phi_els[1][1])*np.sin(phi_els[0][0])*np.sin(phi_els[1][0])
-            '''
             if args.corrJacobian == 'full':
                 ct = 0
                 for ii in range(len(phi_els)):
@@ -2746,8 +2750,9 @@ if args.sampler == 'ptmcmc':
             if not args.fix_slope:
                 x0 = np.append(x0,13./3.)
         elif args.gwbSpecModel == 'spectrum':
-            x0 = np.append(x0,np.random.uniform(-7.0,-3.0,nmode))
-            if args.gwbPrior == 'gaussProc':
+            if args.gwbPrior != 'gaussProc':
+                x0 = np.append(x0,np.random.uniform(-7.0,-3.0,nmode))
+            elif args.gwbPrior == 'gaussProc':
                 '''
                 gpstart = np.array([-15.0,0.2])
                 hc_start = np.zeros(len(fqs))
@@ -2758,6 +2763,7 @@ if args.sampler == 'ptmcmc':
                 x0 = np.append(x0,rho_start)
                 x0 = np.append(x0,gpstart)
                 '''
+                x0 = np.append(x0,np.random.uniform(-5.0,5.0,nmode))
                 x0 = np.append(x0,np.array([-15.0,0.8]))
         elif args.gwbSpecModel == 'turnover':
             x0 = np.append(x0,np.array([-15.0,13./3.,-8.0]))
@@ -2951,10 +2957,13 @@ if args.sampler == 'ptmcmc':
                 param_ct += 2
             [ind.append(id) for id in ids]
         elif args.gwbSpecModel == 'spectrum':
-            ids_spec = [np.arange(param_ct,param_ct+nmode)]
+            #spec_inds = range(param_ct,param_ct+nmode)
+            #if args.gwbPrior != 'gaussProc':
+            ids_spec = [np.array(spec_inds)]
             [ind.append(id) for id in ids_spec]
             param_ct += nmode
-            if args.gwbPrior == 'gaussProc':
+            elif args.gwbPrior == 'gaussProc':
+                param_ct += nmode
                 ids_gp = [np.arange(param_ct,param_ct+2)]
                 [ind.append(id) for id in ids_gp]
                 param_ct += 2
@@ -3059,7 +3068,10 @@ if args.sampler == 'ptmcmc':
             [ind.append(id) for id in ids]
         
     ##### all parameters #####
-    ind.insert(0, range(len(x0)))
+    all_inds = range(len(x0))
+    #if args.incGWB and args.gwbPrior == 'gaussProc':
+    #    all_inds = sorted(list(set(all_inds).difference(set(spec_inds))))
+    ind.insert(0, all_inds)
     if rank == 0:
         print "Your parameter index groupings for sampling are {0}".format(ind)
 
@@ -3568,7 +3580,23 @@ if args.sampler == 'ptmcmc':
             elif args.ephSpecModel == 'spectrum':
                 pct += 3*nmode
 
-        ind = np.unique(np.random.randint(0, nmode, 1))
+        if args.gwbPrior == 'gaussProc':
+            ind = np.arange(0, nmode)
+
+            '''
+            Agwb = q[pct+nmode]
+            ecc = q[pct+nmode+1]
+                
+            hc_pred = np.zeros((len(fqs),2))
+            for ii,freq in enumerate(fqs):
+                hc_pred[ii,0], mse = gp[ii].predict(ecc, eval_MSE=True)
+                hc_pred[ii,1] = np.sqrt(mse)
+            psd_mean = Agwb**2.0 * hc_pred[:,0]**2.0 / \
+              (12.0*np.pi**2.0) / (fqs/86400.0)**3.0 / Tmax
+            psd_std = 2.0 * psd_mean * hc_pred[:,1] / hc_pred[:,0]
+            '''
+        else:
+            ind = np.unique(np.random.randint(0, nmode, 1))
 
         for ii in ind:
             if args.gwbPrior == 'loguniform':
@@ -3578,9 +3606,12 @@ if args.sampler == 'ptmcmc':
                 q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
                 qxy += 0
             elif args.gwbPrior == 'gaussProc':
-                q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
-                qxy += 0
-        
+                mu = 0.0 #0.5 * np.log10(psd_mean[ii])
+                sig = 1.0 #0.5 * np.log10(psd_std[ii])
+                q[pct+ii] = mu + np.random.randn() * sig
+                qxy -= (mu - parameters[pct+ii]) ** 2 / 2 / \
+                  sig ** 2 - (mu - q[pct+ii]) ** 2 / 2 / sig ** 2
+                
         return q, qxy
 
 
@@ -4432,7 +4463,7 @@ if args.sampler == 'ptmcmc':
         elif args.gwbSpecModel == 'spectrum':
             sampler.addProposalToCycle(drawFromGWBSpectrumPrior, 10)
             if args.gwbPrior == 'gaussProc':
-                sampler.addProposalToCycle(drawFromGWBSpectrumHyperPrior, 10)
+                sampler.addProposalToCycle(drawFromGWBSpectrumHyperPrior, 5)
         elif args.gwbSpecModel == 'turnover':
             sampler.addProposalToCycle(drawFromGWBTurnoverPrior, 10)
         elif args.gwbSpecModel == 'gpEnvInterp':
