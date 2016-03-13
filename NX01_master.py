@@ -115,7 +115,7 @@ parser.add_option('--incGWB', dest='incGWB', action='store_true', default=False,
 parser.add_option('--gwbSpecModel', dest='gwbSpecModel', action='store', type=str, default='powerlaw',
                   help='What kind of spectral model do you want for the GWB?: powerlaw, spectrum, turnover, gpEnvInterp (default = powerlaw)')
 parser.add_option('--gpPickle', dest='gpPickle', action='store', type=str, default='/Users/staylor/Research/PapersInProgress/NPDE/gp4ptas/ecc_gp.pkl',
-                  help='Provide the pickle file storing the list of GP objects for when gwbSpecModel is gpEnvInterp (default = /Users/staylor/Research/PapersInProgress/NPDE/gp4ptas/ecc_gp.pkl)')
+                  help='Provide the pickle file storing the list of GP objects for when gwbSpecModel is gpEnvInterp or when gwbPrior is gaussProc. Must contain either ecc, stars, or acc in an underscore delimited filename (default = /Users/staylor/Research/PapersInProgress/NPDE/gp4ptas/stars_gaussproc.pkl)')
 parser.add_option('--userOrf', dest='userOrf', action='store', type=str, default=None,
                   help='Provide your own ORF in a numpy array of shape (npsr,npsr) or (nfreqs,npsr,npsr) (default = None)')
 parser.add_option('--incCosVar', dest='incCosVar', action='store_true', default=False,
@@ -630,10 +630,29 @@ if args.det_signal:
 # READ IN PICKLED GAUSSIAN PROCESS INSTANCE
 ############################################
 
-gp = None
+gp = []
 if args.incGWB:
-    if args.gwbPrior == 'gaussProc' or args.gwbSpecModel == 'gpEnvInterp':
-        gp = pickle.load( open( args.gpPickle, "rb" ) )
+    if args.gwbPrior == 'gaussProc' or \
+      args.gwbSpecModel == 'gpEnvInterp':
+        
+        import george
+        import NX01_gaussproc
+        from NX01_gaussproc import gaussproc
+        
+        gppkl = pickle.load( open( args.gpPickle, "rb" ) )
+        # Set george kernel parameters to previously-trained MAP
+        # Compute factorisation of kernel based on sampled points
+        for ii in range(len(gppkl)):
+            gp_kparams = np.exp(gppkl[ii].emcee_kernel_map)
+            gp.append( george.GP( gp_kparams[0] * \
+                                  george.kernels.ExpSquaredKernel(gp_kparams[1]) ) )
+            gp[ii].compute(gppkl[ii].x)
+
+        gwb_popparam = args.gpPickle.split('/')[-1].split('_')
+        for word in gwb_popparam:
+            if word in ['stars','ecc','acc']:
+                gwb_popparam = word
+                break
 
 #######################################
 # PRE-COMPUTING WHITE NOISE PROPERTIES 
@@ -746,7 +765,13 @@ if args.incGWB:
             pmin = np.append(pmin,-8.0*np.ones(nmode))
         elif args.gwbPrior == 'gaussProc':
             pmin = np.append(pmin,-5.0*np.ones(nmode))
-            pmin = np.append(pmin,np.array([-18.0,0.0]))
+            pmin = np.append(pmin,-18.0) # Agwb
+            if gwb_popparam == 'ecc':
+                pmin = np.append(pmin,0.0)
+            elif gwb_popparam == 'stars':
+                pmin = np.append(pmin,2.0)
+            elif gwb_popparam == 'acc':
+                pmin = np.append(pmin,-3.0)
     elif args.gwbSpecModel == 'turnover':
         pmin = np.append(pmin,np.array([-18.0,0.0,-9.0]))
         if args.gwbPrior == 'gaussProc':
@@ -829,7 +854,13 @@ if args.incGWB:
             pmax = np.append(pmax,3.0*np.ones(nmode))
         elif args.gwbPrior == 'gaussProc':
             pmax = np.append(pmax,5.0*np.ones(nmode))
-            pmax = np.append(pmax,np.array([-11.0,0.9]))
+            pmax = np.append(pmax,-11.0) # Agwb
+            if gwb_popparam == 'ecc':
+                pmax = np.append(pmax,0.9)
+            elif gwb_popparam == 'stars':
+                pmax = np.append(pmax,6.0)
+            elif gwb_popparam == 'acc':
+                pmax = np.append(pmax,2.0)
     elif args.gwbSpecModel == 'turnover':
         pmax = np.append(pmax,np.array([-11.0,7.0,-7.0]))
         if args.gwbPrior == 'gaussProc':
@@ -986,7 +1017,7 @@ def lnprob(xx):
             param_ct += nmode
             if args.gwbPrior == 'gaussProc':
                 Agwb = 10.0**xx[param_ct]
-                ecc = xx[param_ct+1]
+                env_param = xx[param_ct+1]
                 param_ct += 2
         elif args.gwbSpecModel == 'turnover':
             Agwb = 10.0**xx[param_ct]
@@ -994,7 +1025,7 @@ def lnprob(xx):
             fbend = 10.0**xx[param_ct+2]
             param_ct += 3
             if args.gwbPrior == 'gaussProc':
-                ecc = xx[param_ct]
+                env_param = xx[param_ct]
                 param_ct += 1
         elif args.gwbSpecModel == 'gpEnvInterp':
             Agwb = 10.0**xx[param_ct]
@@ -1705,15 +1736,16 @@ def lnprob(xx):
                 if args.gwbPrior != 'gaussProc':
                     rho = np.log10( 10.0**(2.0*rho_spec) / Tspan )
                 elif args.gwbPrior == 'gaussProc':
-                    hc_pred = np.zeros((len(fqs),2))
+                    rho_pred = np.zeros((len(fqs),2))
                     for ii,freq in enumerate(fqs):
-                        hc_pred[ii,0], mse = gp[ii].predict(ecc, eval_MSE=True)
-                        hc_pred[ii,1] = np.sqrt(mse)
-                        
-                    psd_mean = Agwb**2.0 * hc_pred[:,0]**2.0 / (12.0*np.pi**2.0) / (fqs/86400.0)**3.0 / Tspan
-                    psd_std = 2.0 * psd_mean * hc_pred[:,1] / hc_pred[:,0]
+                        mu_pred, cov_pred = gp[ii].predict(gppkl[ii].y, env_param)
+                        if np.diag(cov_pred) < 0.0:
+                            rho_pred[ii,0], rho_pred[ii,1] = mu_pred, 1e-5 * mu_pred
+                        else:
+                            rho_pred[ii,0], rho_pred[ii,1] = mu_pred, np.sqrt(np.diag(cov_pred))
+
                     # transforming from zero-mean unit-variance variable to rho
-                    rho = np.log10( rho_spec*psd_std + psd_mean )
+                    rho = 2.0*np.log10(Agwb) - np.log10(Tspan) + rho_spec*rho_pred[:,1] + rho_pred[:,0]
                     
             elif args.gwbSpecModel == 'turnover':
                 rho = np.log10(Agwb**2/12/np.pi**2 * \
@@ -1721,9 +1753,10 @@ def lnprob(xx):
                             (fqs/86400.0)**(-13.0/3.0) / \
                             (1.0+(fbend*86400.0/fqs)**kappaturn)/Tspan)
             elif args.gwbSpecModel == 'gpEnvInterp':
+                '''
                 hc_pred = np.zeros((len(fqs),2))
                 for ii,freq in enumerate(fqs):
-                    hc_pred[ii,0], mse = gp[ii].predict(ecc, eval_MSE=True)
+                    hc_pred[ii,0], mse = gp[ii].gp.predict(ecc, eval_MSE=True)
                     hc_pred[ii,1] = np.sqrt(mse)
 
                 if not args.incCosVar:
@@ -1732,6 +1765,8 @@ def lnprob(xx):
                     hc = Agwb * (hc_pred[:,0] + np.random.normal(0.0,1.0,len(fqs)) * hc_pred[:,1])
 
                 rho = np.log10( hc**2 / (12.0*np.pi**2.0) / (fqs/86400.0)**3.0 / Tspan )
+
+                '''
 
 
             if args.dmVar:
@@ -2482,7 +2517,7 @@ if args.incGWB:
         for ii in range(nmode):
             parameters.append('gwbSpec_{0}'.format(ii+1))
         if args.gwbPrior == 'gaussProc':
-            parameters += ["Agwb", "ecc"]
+            parameters += ["Agwb",gwb_popparam]
     elif args.gwbSpecModel == 'turnover':
         parameters += ["Agwb", "kappa", "fbend"]
         if args.gwbPrior == 'gaussProc':
@@ -2560,13 +2595,13 @@ if args.incGWB:
     elif args.gwbSpecModel == 'spectrum':
         gamma_tag = '_gwbSpec'
         if args.gwbPrior == 'gaussProc':
-            gamma_tag += 'Hyper{0}'.format(args.gwbHyperPrior)
+            gamma_tag += gwb_popparam+'Hyper{0}'.format(args.gwbHyperPrior)
     elif args.gwbSpecModel == 'turnover':
         gamma_tag = '_gwbTurnover'
         if args.gwbPrior == 'gaussProc':
-            gamma_tag += 'Hyper{0}'.format(args.gwbHyperPrior)
+            gamma_tag += gwb_popparam+'Hyper{0}'.format(args.gwbHyperPrior)
     elif args.gwbSpecModel == 'gpEnvInterp':
-        gamma_tag = '_gwbGP'
+        gamma_tag = '_gwbGP'+gwb_popparam
         if args.incCosVar:
             gamma_tag += 'cosvar'
     if args.incCorr:
@@ -2753,18 +2788,14 @@ if args.sampler == 'ptmcmc':
             if args.gwbPrior != 'gaussProc':
                 x0 = np.append(x0,np.random.uniform(-7.0,-3.0,nmode))
             elif args.gwbPrior == 'gaussProc':
-                '''
-                gpstart = np.array([-15.0,0.2])
-                hc_start = np.zeros(len(fqs))
-                for ii,freq in enumerate(fqs):
-                    hc_start[ii], mse = gp[ii].predict(gpstart[1], eval_MSE=True)
-                hc_start *= 10.0**gpstart[0]
-                rho_start = np.log10( np.sqrt(hc_start**2 / (12.0*np.pi**2.0) / (fqs/86400.0)**3.0) )
-                x0 = np.append(x0,rho_start)
-                x0 = np.append(x0,gpstart)
-                '''
                 x0 = np.append(x0,np.random.uniform(-5.0,5.0,nmode))
-                x0 = np.append(x0,np.array([-15.0,0.8]))
+                x0 = np.append(x0,-15.0)
+                if gwb_popparam == 'ecc':
+                    x0 = np.append(x0,0.8)
+                elif gwb_popparam == 'stars':
+                    x0 = np.append(x0,5.0)
+                elif gwb_popparam == 'acc':
+                    x0 = np.append(x0,0.0)
         elif args.gwbSpecModel == 'turnover':
             x0 = np.append(x0,np.array([-15.0,13./3.,-8.0]))
             if args.gwbPrior == 'gaussProc':
@@ -2850,7 +2881,8 @@ if args.sampler == 'ptmcmc':
         elif args.gwbSpecModel == 'spectrum':
             cov_diag = np.append(cov_diag,0.5*np.ones(nmode))
             if args.gwbPrior == 'gaussProc':
-                cov_diag = np.append(cov_diag,np.array([0.5,0.05]))
+                # covariance is appropriate for all physical mechanisms
+                cov_diag = np.append(cov_diag,np.array([0.5,0.05])) 
         elif args.gwbSpecModel == 'turnover':
             cov_diag = np.append(cov_diag,np.array([0.5,0.5,0.1]))
             if args.gwbPrior == 'gaussProc':
@@ -2957,13 +2989,13 @@ if args.sampler == 'ptmcmc':
                 param_ct += 2
             [ind.append(id) for id in ids]
         elif args.gwbSpecModel == 'spectrum':
-            #spec_inds = range(param_ct,param_ct+nmode)
+            spec_inds = range(param_ct,param_ct+nmode)
             #if args.gwbPrior != 'gaussProc':
             ids_spec = [np.array(spec_inds)]
             [ind.append(id) for id in ids_spec]
             param_ct += nmode
-            elif args.gwbPrior == 'gaussProc':
-                param_ct += nmode
+            if args.gwbPrior == 'gaussProc':
+                #param_ct += nmode
                 ids_gp = [np.arange(param_ct,param_ct+2)]
                 [ind.append(id) for id in ids_gp]
                 param_ct += 2
