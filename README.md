@@ -4,6 +4,10 @@ NX01
 Python code to perform isotropic, anisotropic (non-evolving/evolving)
 searches for gravitational-waves via pulsar-timing.
 
+[![DOI](https://zenodo.org/badge/20913/stevertaylor/NX01.svg)](https://zenodo.org/badge/latestdoi/20913/stevertaylor/NX01)
+
+If you use this code then please [cite it](https://zenodo.org/badge/latestdoi/20913/stevertaylor/NX01). 
+
 Perhaps you want the [webpage](http://stevertaylor.github.io/NX01/)?
 
 ## Code list
