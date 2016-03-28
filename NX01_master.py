@@ -1237,9 +1237,9 @@ def lnprob(xx):
                 detres = []
                 for ii,p in enumerate(psr):
                     if args.bwm_model_select:
-                        if nmodel==0:
+                        if nmodel == 0:
                             bwm_res.append( np.zeros(len(p.toas)) )
-                        elif nmodel==1:
+                        elif nmodel == 1:
                             bwm_res.append( utils.bwmsignal(bwm_params,p,
                                                             antennaPattern=args.bwm_antenna) )
                     else:
@@ -1753,6 +1753,7 @@ def lnprob(xx):
                             (fqs/86400.0)**(-13.0/3.0) / \
                             (1.0+(fbend*86400.0/fqs)**kappaturn)/Tspan)
             elif args.gwbSpecModel == 'gpEnvInterp':
+                #### CURRENTLY OUT OF USAGE ####
                 '''
                 hc_pred = np.zeros((len(fqs),2))
                 for ii,freq in enumerate(fqs):
@@ -2132,8 +2133,8 @@ def lnprob(xx):
                         return -np.inf
 
                     logLike = -0.5 * (logdet_Phi + logdet_Sigma) + \
-                    0.5 * (np.dot(dtmp, expval2_gpu.get() )) + \
-                    loglike1_tmp
+                      0.5 * (np.dot(dtmp, expval2_gpu.get() )) + \
+                      loglike1_tmp
             
                 else:
         
@@ -2151,8 +2152,8 @@ def lnprob(xx):
 
 
                     logLike = -0.5 * (logdet_Phi + logdet_Sigma) + \
-                    0.5 * (np.dot(dtmp, expval2)) + \
-                    loglike1_tmp
+                      0.5 * (np.dot(dtmp, expval2)) + \
+                      loglike1_tmp
 
     
 
@@ -2232,6 +2233,7 @@ def lnprob(xx):
                 priorfac_gwb = np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
                                     / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
             elif args.gwbPrior == 'gaussProc':
+                #### CURRENTLY OUT OF USAGE ####
                 '''
                 hc_pred = np.zeros((len(fqs),2))
                 for ii,freq in enumerate(fqs):
@@ -2262,6 +2264,8 @@ def lnprob(xx):
 
         ### gp interpolation spectral model ###
         elif args.gwbSpecModel == 'gpEnvInterp':
+            #### CURRENTLY OUT OF USAGE ####
+            '''
             if args.gwbPrior == 'uniform':
                 priorfac_gwb = np.log(Agwb * np.log(10.0))
             elif args.gwbPrior == 'loguniform':
@@ -2276,6 +2280,7 @@ def lnprob(xx):
                 sig = 0.26
                 priorfac_gwb = np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
                                     / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
+            '''
                 
     elif not args.incGWB:
         priorfac_gwb = 0.0
@@ -2401,7 +2406,7 @@ def lnprob(xx):
                         ct += 1
 
                 tmp = np.linalg.slogdet(jacobian)
-                priorfac_corr = 0.5*tmp[1]
+                priorfac_corr = 0.5*tmp[1] 
             elif args.corrJacobian == 'simple':
                 priorfac_corr = np.sum(np.log(np.abs(np.array([-np.sin(phi_els[ii][0])
                                                                for ii in range(len(phi_els))]))))
@@ -2720,6 +2725,9 @@ if args.sampler == 'mnest':
         for ii,parm in enumerate(parameters):
             print >>fil, ii, parm
         fil.close()
+
+        # Printing out the array of frequencies in the rank-reduced spectrum
+        np.save(args.dirExt+file_tag+'/freq_array.npy', fqs/86400.0)
 
         # Saving command-line arguments to file
         with open(dir_name+'/run_args.json', 'w') as fp:
