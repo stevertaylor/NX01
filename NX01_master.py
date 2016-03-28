@@ -3153,7 +3153,7 @@ if args.sampler == 'ptmcmc':
         psr_phaseshifts = OrderedDict.fromkeys([p.name for p in psr])
         for ii,name in enumerate(psr_phaseshifts):
             psr_phaseshifts[name] = list(psr[ii].ranphase)
-        with open(dir_name+'/psr_phaseshifts.json', 'w') as fp:
+        with open(args.dirExt+file_tag+'/psr_phaseshifts.json', 'w') as fp:
             json.dump(psr_phaseshifts, fp)
         fp.close()
 
