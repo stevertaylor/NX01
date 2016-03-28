@@ -38,6 +38,7 @@ class PsrObj(object):
     Fephy = None
     Fephz = None
     Ftot = None
+    ranphase = None
     diag_white = None
     res_prime = None
     Ftot_prime = None
@@ -67,6 +68,7 @@ class PsrObj(object):
         self.Fephy = None
         self.Fephz = None
         self.Ftot = None
+        self.ranphase = None
         self.diag_white = None
         self.res_prime = None
         self.Ftot_prime = None
@@ -257,9 +259,10 @@ class PsrObj(object):
 
         print "--> Done reading in pulsar :-) \n"
 
-    def makeFred(self, nmodes, Ttot):
+    def makeFred(self, nmodes, Ttot, phaseshift=False):
         
-        self.Fred = utils.createFourierDesignmatrix_red(self.toas, nmodes, Tspan=Ttot)
+        self.Fred, self.ranphase = utils.createFourierDesignmatrix_red(self.toas, nmodes=nmodes,
+                                                                       pshift=phaseshift, Tspan=Ttot)
 
     def makeFdm(self, nmodes, Ttot):
         
@@ -270,16 +273,18 @@ class PsrObj(object):
         self.Fephx, self.Fephy, self.Fephz = \
           utils.createFourierDesignmatrix_eph(self.toas, nmodes, self.psr_locs, Tspan=Ttot)
     
-    def makeFtot(self, nmodes, Ttot):
+    def makeFtot(self, nmodes, Ttot, phaseshift=False):
         
-        self.Fred = utils.createFourierDesignmatrix_red(self.toas, nmodes, Tspan=Ttot)
+        self.Fred, self.ranphase = utils.createFourierDesignmatrix_red(self.toas, nmodes=nmodes,
+                                                                       pshift=phaseshift, Tspan=Ttot)
         self.Fdm = utils.createFourierDesignmatrix_dm(self.toas, nmodes, self.obs_freqs, Tspan=Ttot)
 
         self.Ftot = np.append(self.Fred, self.Fdm, axis=1)
 
-    def makeTe(self, nmodes, Ttot, makeDM=False, makeEph=False):
+    def makeTe(self, nmodes, Ttot, makeDM=False, makeEph=False, phaseshift=False):
 
-        self.Fred = utils.createFourierDesignmatrix_red(self.toas, nmodes, Tspan=Ttot)
+        self.Fred, self.ranphase = utils.createFourierDesignmatrix_red(self.toas, nmodes=nmodes,
+                                                                       pshift=phaseshift, Tspan=Ttot)
 
         if makeDM:
             self.Fdm = utils.createFourierDesignmatrix_dm(self.toas, nmodes, self.obs_freqs, Tspan=Ttot)
@@ -336,6 +341,7 @@ class PsrObjFromH5(object):
     Fephy = None
     Fephz = None
     Ftot = None
+    ranphase = None
     diag_white = None
     res_prime = None
     Ftot_prime = None
@@ -375,6 +381,7 @@ class PsrObjFromH5(object):
         self.Fephy = None
         self.Fephz = None
         self.Ftot = None
+        self.ranphase = None
         self.diag_white = None
         self.res_prime = None
         self.Ftot_prime = None
@@ -522,9 +529,10 @@ class PsrObjFromH5(object):
 
         print "--> Done extracting pulsar from hdf5 file :-) \n"
 
-    def makeFred(self, nmodes, Ttot):
+    def makeFred(self, nmodes, Ttot, phaseshift=False):
         
-        self.Fred = utils.createFourierDesignmatrix_red(self.toas, nmodes, Tspan=Ttot)
+        self.Fred, self.ranphase = utils.createFourierDesignmatrix_red(self.toas, nmodes=nmodes,
+                                                                       pshift=phaseshift, Tspan=Ttot)
 
     def makeFdm(self, nmodes, Ttot):
         
@@ -535,16 +543,18 @@ class PsrObjFromH5(object):
         self.Fephx, self.Fephy, self.Fephz = \
           utils.createFourierDesignmatrix_eph(self.toas, nmodes, self.psr_locs, Tspan=Ttot)
     
-    def makeFtot(self, nmodes, Ttot):
+    def makeFtot(self, nmodes, Ttot, phaseshift=False):
         
-        self.Fred = utils.createFourierDesignmatrix_red(self.toas, nmodes, Tspan=Ttot)
+        self.Fred, self.ranphase = utils.createFourierDesignmatrix_red(self.toas, nmodes=nmodes,
+                                                                       pshift=phaseshift, Tspan=Ttot)
         self.Fdm = utils.createFourierDesignmatrix_dm(self.toas, nmodes, self.obs_freqs, Tspan=Ttot)
 
         self.Ftot = np.append(self.Fred, self.Fdm, axis=1)
 
-    def makeTe(self, nmodes, Ttot, makeDM=False, makeEph=False):
+    def makeTe(self, nmodes, Ttot, makeDM=False, makeEph=False, phaseshift=False):
 
-        self.Fred = utils.createFourierDesignmatrix_red(self.toas, nmodes, Tspan=Ttot)
+        self.Fred, self.ranphase = utils.createFourierDesignmatrix_red(self.toas, nmodes=nmodes,
+                                                                       pshift=phaseshift, Tspan=Ttot)
 
         if makeDM:
             self.Fdm = utils.createFourierDesignmatrix_dm(self.toas, nmodes, self.obs_freqs, Tspan=Ttot)

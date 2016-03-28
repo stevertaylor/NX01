@@ -118,6 +118,8 @@ parser.add_option('--gpPickle', dest='gpPickle', action='store', type=str, defau
                   help='Provide the pickle file storing the list of GP objects for when gwbSpecModel is gpEnvInterp or when gwbPrior is gaussProc. Must contain either ecc, stars, or acc in an underscore delimited filename (default = /Users/staylor/Research/PapersInProgress/NPDE/gp4ptas/stars_gaussproc.pkl)')
 parser.add_option('--userOrf', dest='userOrf', action='store', type=str, default=None,
                   help='Provide your own ORF in a numpy array of shape (npsr,npsr) or (nfreqs,npsr,npsr) (default = None)')
+parser.add_option('--pshift', dest='pshift', action='store_true', default=False,
+                  help='Do you want to include random phase shifts in the Fourier design matrices? (default = False)')
 parser.add_option('--incCosVar', dest='incCosVar', action='store_true', default=False,
                   help='Do you want to include GP interpolation uncertainties or cosmic variance in your gpEnvInterp model? (default = False)')
 parser.add_option('--incCorr', dest='incCorr', action='store_true', default=False,
@@ -241,6 +243,7 @@ if args.jsonModel is not None:
     args.gwbSpecModel = json_data['gwbSpecModel']
     args.gpPickle = json_data['gpPickle']
     args.userOrf = json_data['userOrf']
+    args.pshift = json_data['pshift']
     args.incCosVar = json_data['incCosVar']
     args.incCorr = json_data['incCorr']
     args.gwbTypeCorr = json_data['gwbTypeCorr']
@@ -607,7 +610,7 @@ Tmax = np.max([p.toas.max() - p.toas.min() for p in psr])
 if args.nmodes:
 
     [p.makeTe(args.nmodes, Tmax, makeDM=args.dmVar,
-              makeEph=args.incEph) for p in psr]
+              makeEph=args.incEph, phaseshift=args.pshift) for p in psr]
     # get GW frequencies
     fqs = np.linspace(1/Tmax, args.nmodes/Tmax, args.nmodes)
     nmode = args.nmodes
@@ -616,7 +619,7 @@ else:
 
     nmode = int(round(0.5*Tmax/args.cadence))
     [p.makeTe(nmode, Tmax, makeDM=args.dmVar,
-              makeEph=args.incEph) for p in psr]
+              makeEph=args.incEph, phaseshift=args.pshift) for p in psr]
     # get GW frequencies
     fqs = np.linspace(1/Tmax, nmode/Tmax, nmode)
 
@@ -2729,9 +2732,18 @@ if args.sampler == 'mnest':
         # Printing out the array of frequencies in the rank-reduced spectrum
         np.save(args.dirExt+file_tag+'/freq_array.npy', fqs/86400.0)
 
+        # Printing out the array of random phase shifts
+        psr_phaseshifts = OrderedDict.fromkeys([p.name for p in psr])
+        for ii,name in enumerate(psr_phaseshifts):
+            psr_phaseshifts[name] = list(psr[ii].ranphase)
+        with open(dir_name+'/psr_phaseshifts.json', 'w') as fp:
+            json.dump(psr_phaseshifts, fp)
+        fp.close()
+
         # Saving command-line arguments to file
-        with open(dir_name+'/run_args.json', 'w') as fp:
-            json.dump(vars(args), fp)
+        with open(dir_name+'/run_args.json', 'w') as frun:
+            json.dump(vars(args), frun)
+        frun.close
 
     def prior_func(xx,ndim,nparams):
         for ii in range(nparams):
@@ -3137,9 +3149,18 @@ if args.sampler == 'ptmcmc':
         # Printing out the array of frequencies in the rank-reduced spectrum
         np.save(args.dirExt+file_tag+'/freq_array.npy', fqs/86400.0)
 
+        # Printing out the array of random phase shifts
+        psr_phaseshifts = OrderedDict.fromkeys([p.name for p in psr])
+        for ii,name in enumerate(psr_phaseshifts):
+            psr_phaseshifts[name] = list(psr[ii].ranphase)
+        with open(dir_name+'/psr_phaseshifts.json', 'w') as fp:
+            json.dump(psr_phaseshifts, fp)
+        fp.close()
+
         # Saving command-line arguments to file
-        with open(args.dirExt+file_tag+'/run_args.json', 'w') as fp:
-            json.dump(vars(args), fp)
+        with open(args.dirExt+file_tag+'/run_args.json', 'w') as frun:
+            json.dump(vars(args), frun)
+        frun.close()
 
     #####################################
     # MCMC jump proposals

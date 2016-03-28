@@ -131,13 +131,15 @@ def makeDmTDcov(psr, Adm, gam_dm, tm):
     return Cdm
 
 
-def createFourierDesignmatrix_red(t, nmodes, freq=False, Tspan=None):
+def createFourierDesignmatrix_red(t, nmodes, freq=False,
+                                  pshift=False, Tspan=None):
     """
     Construct fourier design matrix from eq 11 of Lentati et al, 2013
 
     @param t: vector of time series in seconds
     @param nmodes: number of fourier coefficients to use
     @param freq: option to output frequencies
+    @param pshift: option to add random phase shift
     @param Tspan: option to some other Tspan
 
     @return: F: fourier design matrix
@@ -155,19 +157,29 @@ def createFourierDesignmatrix_red(t, nmodes, freq=False, Tspan=None):
 
     # define sampling frequencies
     fqs = np.linspace(1/T, nmodes/T, nmodes)
+    
+    if pshift:
+        ranphase = np.random.uniform(0.0, 2.0*np.pi, nmodes)
+    elif not pshift:
+        ranphase = np.zeros(nmodes)
 
     # The sine/cosine modes
     ct = 0
     for ii in range(0, 2*nmodes-1, 2):
-        
-        F[:,ii] = np.cos(2*np.pi*fqs[ct]*t)
-        F[:,ii+1] = np.sin(2*np.pi*fqs[ct]*t)
+
+        if pshift:
+            F[:,ii] = np.cos(2*np.pi*fqs[ct]*t + ranphase[ct])
+            F[:,ii+1] = np.sin(2*np.pi*fqs[ct]*t + ranphase[ct])
+        elif not pshift:
+            F[:,ii] = np.cos(2*np.pi*fqs[ct]*t)
+            F[:,ii+1] = np.sin(2*np.pi*fqs[ct]*t)
+            
         ct += 1
-    
+
     if freq:
-        return F, fqs
+        return F, fqs, ranphase
     else:
-        return F
+        return F, ranphase
 
 def createFourierDesignmatrix_dm(t, nmodes, obs_freqs, freq=False, Tspan=None):
     """
