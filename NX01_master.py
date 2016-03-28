@@ -2617,7 +2617,7 @@ if args.incGWB:
             file_tag += '_gwb{0}_miCorr{1}{2}'.format(args.gwbPrior,
                                                       evol_corr_tag,gamma_tag)
         elif args.gwbTypeCorr == 'pointSrc':
-            file_tag += '_gwb{0}_pointSrc{1}{2}'.format(args.gwbPrior,
+            file_tag += '_gwb{0}_pntSrc{1}{2}'.format(args.gwbPrior,
                                                         evol_corr_tag,gamma_tag)
         elif args.gwbTypeCorr == 'spharmAnis':
             if args.noPhysPrior:
@@ -2631,7 +2631,7 @@ if args.incGWB:
             file_tag += '_gwb{0}_dip{1}{2}'.format(args.gwbPrior,
                                                    evol_corr_tag,gamma_tag)
         elif args.gwbTypeCorr == 'clock':
-            file_tag += '_gwb{0}_fullycorr{1}{2}'.format(args.gwbPrior,
+            file_tag += '_gwb{0}_fulcorr{1}{2}'.format(args.gwbPrior,
                                                          evol_corr_tag,gamma_tag)
         elif args.gwbTypeCorr == 'custom':
             file_tag += '_gwb{0}_cstmOrf{1}{2}'.format(args.gwbPrior,
@@ -2640,10 +2640,12 @@ if args.incGWB:
             file_tag += '_gwb{0}_gwDisk{1}{2}'.format(args.gwbPrior,
                                                       evol_corr_tag,gamma_tag)
         elif args.gwbTypeCorr == 'psrlocsVary':
-            file_tag += '_gwb{0}_psrlocsVary{1}{2}'.format(args.gwbPrior,
+            file_tag += '_gwb{0}_psrlocVar{1}{2}'.format(args.gwbPrior,
                                                            evol_corr_tag,gamma_tag)
     else:
         file_tag += '_gwb{0}_noCorr{1}'.format(args.gwbPrior,gamma_tag)
+if args.pshift:
+    file_tag += '_pshift'
 if args.incGWline:
     if args.incCorr:
         file_tag += '_gwline{0}'.format(args.gwlinePrior)
@@ -2730,7 +2732,7 @@ if args.sampler == 'mnest':
         fil.close()
 
         # Printing out the array of frequencies in the rank-reduced spectrum
-        np.save(args.dirExt+file_tag+'/freq_array.npy', fqs/86400.0)
+        np.save(dir_name+'/freq_array.npy', fqs/86400.0)
 
         # Printing out the array of random phase shifts
         psr_phaseshifts = OrderedDict.fromkeys([p.name for p in psr])
@@ -2743,7 +2745,7 @@ if args.sampler == 'mnest':
         # Saving command-line arguments to file
         with open(dir_name+'/run_args.json', 'w') as frun:
             json.dump(vars(args), frun)
-        frun.close
+        frun.close()
 
     def prior_func(xx,ndim,nparams):
         for ii in range(nparams):
