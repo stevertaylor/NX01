@@ -880,7 +880,7 @@ if args.incGWB:
         elif args.gwbTypeCorr == 'dipoleOrf':
             pmax = np.append(pmax,np.tile([2.0*np.pi,1.0,1.0],tmp_nwins))
         elif args.gwbTypeCorr == 'gwDisk':
-            pmax = np.append(pmax,np.tile([2.0*np.pi,1.0,0.5*np.pi,6.0],tmp_nwins))
+            pmax = np.append(pmax,np.tile([2.0*np.pi,1.0,np.pi,6.0],tmp_nwins))
         elif args.gwbTypeCorr == 'psrlocsVary':
             pmax = np.append(pmax,np.tile(2.0*np.pi*np.ones(len(psr)),tmp_nwins))
             pmax = np.append(pmax,np.tile(np.ones(len(psr)),tmp_nwins))
