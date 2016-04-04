@@ -4548,5 +4548,5 @@ if args.sampler == 'ptmcmc':
 
     sampler.sample(p0=x0, Niter=5e6, thin=10,
                 covUpdate=1000, AMweight=20,
-                SCAMweight=30, DEweight=50, KDEweight=0,
+                SCAMweight=30, DEweight=50,
                 writeHotChains=args.writeHotChains)
