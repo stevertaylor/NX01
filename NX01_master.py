@@ -1357,8 +1357,8 @@ def lnprob(xx):
                 for kk in range(tmp_nwins):
                     for ii in range(npsr):
                         for jj in range(ii,npsr):
-                            corr_curve[kk,ii,jj] = (3.0/(8.0*np.pi)) * \
-                            (Fp[kk,ii]*Fp[kk,jj] + Fc[kk,ii]*Fc[kk,jj])
+                            corr_curve[kk,ii,jj] = 4.0*np.pi * (3.0/(8.0*np.pi)) * \
+                              (Fp[kk,ii]*Fp[kk,jj] + Fc[kk,ii]*Fc[kk,jj])
                             corr_curve[kk,jj,ii] = corr_curve[kk,ii,jj]
 
                             if ii == jj:
@@ -1553,6 +1553,7 @@ def lnprob(xx):
                                            vec=diskvec[kk,:],
                                            radius=diskradius[kk])
                         m[qd] *= 10.0**diskwgt[kk]
+                        m /= np.mean(m)
                         gammaDisk[kk,:,:] = pixAnis.orfFromMap_fast(psr_locs=positions,
                                                                     usermap=m, response=F_e)
 
