@@ -470,13 +470,13 @@ def greedy_bin_sky(skypos, skycarts):
 
     N = len(skycarts) 
     skycarts = np.array(skycarts)
-    bins = np.zeros(N) 
+    bins = np.zeros(N)
     for raSample, decSample in skypos: 
         sampcart = pol2cart(raSample, decSample) 
         dx = np.dot(skycarts, sampcart)
         maxdx = np.argmax(dx)
-        bins[maxdx] += 1 
-
+        bins[maxdx] += 1
+        
     # fill in skymap
     histIndices = np.argsort(bins)[::-1]    # in decreasing order
     NSamples = len(skypos)

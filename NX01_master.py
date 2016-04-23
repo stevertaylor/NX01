@@ -110,6 +110,10 @@ parser.add_option('--resume', dest='resume', action='store_true', default=False,
                    help='Do you want to resume the sampler (default = False)')
 parser.add_option('--writeHotChains', dest='writeHotChains', action='store_true', default=False,
                    help='Given a PTMCMC sampler, do you want to write out the hot chain samples? (default = False)')
+parser.add_option('--hotChain', dest='hotChain', action='store_true', default=False,
+                   help='Given a PTMCMC sampler, do you want to use a T=1e80 hot chain? (default = False)')
+parser.add_option('--softParam', dest='softParam', action='store', type=float, default=1.0,
+                   help='Artifical temperature by which to soften likelihood (default = 1.0)')
 parser.add_option('--incGWB', dest='incGWB', action='store_true', default=False,
                   help='Do you want to search for a GWB? (default = False)')
 parser.add_option('--gwbSpecModel', dest='gwbSpecModel', action='store', type=str, default='powerlaw',
@@ -126,6 +130,8 @@ parser.add_option('--incCorr', dest='incCorr', action='store_true', default=Fals
                   help='Do you want to include cross-correlations in the GWB model? (default = False)')
 parser.add_option('--gwbTypeCorr', dest='gwbTypeCorr', action='store', type=str, default='spharmAnis',
                   help='What type of correlated GW signal do you want to model?: custom, spharmAnis, dipoleOrf, modelIndep, pointSrc, clock, gwDisk, psrlocsVary (default = spharmAnis)')
+parser.add_option('--gwbModelSelect', dest='gwbModelSelect', action='store_true', default=False,
+                  help='Perform model selection between correlated and uncorrelated GWB model? (default = False)')
 parser.add_option('--corrJacobian', dest='corrJacobian', action='store', type=str, default='simple',
                   help='What type of Jacobian do you want for the modelIndep ORF element search: simple, full (default = simple)')
 parser.add_option('--psrlocsPrior', dest='psrlocsPrior', action='store', type=str, default='normal',
@@ -158,6 +164,8 @@ parser.add_option('--use-gpu', dest='use_gpu', action='store_true', default=Fals
                   help='Do you want to use the GPU for accelerated linear algebra? (default = False)')
 parser.add_option('--fix-slope', dest='fix_slope', action='store_true', default=False,
                   help='Do you want to fix the slope of the GWB spectrum? (default = False)')
+parser.add_option('--gwbAmpRange', dest='gwbAmpRange', action='store', type=str, default=None,
+                  help='Provide a lower and upper log_10(Agwb) range as a comma delimited string (default = None)')
 parser.add_option('--gwbPrior', dest='gwbPrior', action='store', type=str, default='uniform',
                    help='Do you want to use a uniform prior on log_10(amplitude) for detection [loguniform], on amplitudes themselves for limits [uniform], an astrophysical prior (only when the amplitude is Agwb: for powerlaw, turnover, gpEnvInterp models) [sesana, mcwilliams], or a gaussian process prior [gaussProc] (default=\'uniform\')?')
 parser.add_option('--gwbHyperPrior', dest='gwbHyperPrior', action='store', type=str, default='uniform',
@@ -193,7 +201,7 @@ parser.add_option('--bwm-search', dest='bwm_search', action='store_true', defaul
 parser.add_option('--bwm-antenna', dest='bwm_antenna', action='store', type=str, default='quad',
                   help='What kind of antenna pattern do you want to use for a BWM? (default = quad)')
 parser.add_option('--bwm-model-select', dest='bwm_model_select', action='store_true', default=False,
-                  help='Do you want to compute the Bayes Factor for BWM+noise verus noise-only? (default = False)')
+                  help='Do you want to compute the Bayes Factor for BWM+noise versus noise-only? (default = False)')
 parser.add_option('--cgw-search', dest='cgw_search', action='store_true', default=False,
                   help='Do you want to search for a single continuous GW signal? (default = False)')
 parser.add_option('--ecc-search', dest='ecc_search', action='store_true', default=False,
@@ -727,6 +735,10 @@ for ii,p in enumerate(psr):
 # SETTING UP PRIOR RANGES
 ##########################
 
+if args.gwbAmpRange is not None:
+    amp_range = np.array([float(item) for item \
+                          in args.gwbAmpRange.split(',')])
+
 pmin = np.array([])
 if not args.fixRed:
     if args.redSpecModel == 'powerlaw':
@@ -760,7 +772,10 @@ if args.incEph:
         pmin = np.append(pmin,-8.0*np.ones(3*nmode))
 if args.incGWB:
     if args.gwbSpecModel == 'powerlaw':
-        pmin = np.append(pmin,-18.0)
+        if args.gwbAmpRange is None:
+            pmin = np.append(pmin,-18.0)
+        elif args.gwbAmpRange is not None:
+            pmin = np.append(pmin,amp_range[0])
         if not args.fix_slope:
             pmin = np.append(pmin,0.0)
     elif args.gwbSpecModel == 'spectrum':
@@ -795,6 +810,8 @@ if args.incGWB:
         elif args.gwbTypeCorr == 'psrlocsVary':
             pmin = np.append(pmin,np.tile(np.zeros(len(psr)),tmp_nwins))
             pmin = np.append(pmin,np.tile(-1.0*np.ones(len(psr)),tmp_nwins))
+        if args.gwbModelSelect:
+            pmin = np.append(pmin,-0.5)
 if args.incGWline:
     pmin = np.append(pmin,np.array([-8.0,-10.0,0.0,-1.0]))
 if args.det_signal:
@@ -849,7 +866,10 @@ if args.incEph:
         pmax = np.append(pmax,3.0*np.ones(3*nmode))
 if args.incGWB:
     if args.gwbSpecModel == 'powerlaw':
-        pmax = np.append(pmax,-11.0)
+        if args.gwbAmpRange is None:
+            pmax = np.append(pmax,-11.0)
+        elif args.gwbAmpRange is not None:
+            pmax = np.append(pmax,amp_range[1])
         if not args.fix_slope:
             pmax = np.append(pmax,7.0)
     elif args.gwbSpecModel == 'spectrum':
@@ -884,6 +904,8 @@ if args.incGWB:
         elif args.gwbTypeCorr == 'psrlocsVary':
             pmax = np.append(pmax,np.tile(2.0*np.pi*np.ones(len(psr)),tmp_nwins))
             pmax = np.append(pmax,np.tile(np.ones(len(psr)),tmp_nwins))
+        if args.gwbModelSelect:
+            pmax = np.append(pmax,1.5)
 if args.incGWline:
     pmax = np.append(pmax,np.array([3.0,-7.0,2.0*np.pi,1.0]))
 if args.det_signal:
@@ -1035,11 +1057,18 @@ def lnprob(xx):
             ecc = xx[param_ct+1]
             param_ct += 2
 
+        gwb_modindex = 0
         if args.incCorr:
             # Anisotropy parameters
             orf_coeffs = xx[param_ct:param_ct+num_corr_params]
+            param_ct += num_corr_params
 
-    param_ct += num_corr_params
+            if args.gwbModelSelect:
+                # '0' is uncorrelated GWB, '1' is correlated GWB
+                gwb_modindex = int(np.rint(xx[param_ct]))
+                param_ct += 1
+            elif not args.gwbModelSelect:
+                gwb_modindex = 1
 
     ###############################
     # Including a single GW line
@@ -1288,7 +1317,7 @@ def lnprob(xx):
         
 
             
-        if args.incGWB and args.incCorr:
+        if args.incGWB and args.incCorr and gwb_modindex==1:
             
             if args.gwbTypeCorr == 'modelIndep':
 
@@ -1901,7 +1930,7 @@ def lnprob(xx):
 
             if args.incGWB:
             
-                if args.incCorr:
+                if args.incCorr and gwb_modindex==1:
                 
                     offdiag = np.zeros(mode_count)
 
@@ -1915,7 +1944,7 @@ def lnprob(xx):
 
                     sig_gwboffdiag.append(offdiag)
                 
-                if not args.incCorr:
+                if not args.incCorr or gwb_modindex==0:
                     
                     # diagonal terms
                     tot[0::2] += gwbspec
@@ -2025,7 +2054,8 @@ def lnprob(xx):
 
         if args.incGWB or args.incGWline or args.incClk:
     
-            if not args.incCorr:
+            if not args.incCorr or (args.incCorr and args.incGWB and gwb_modindex==0
+                                    and not args.incGWline and not args.incClk):
             
                 for ii,p in enumerate(psr):
             
@@ -2061,7 +2091,7 @@ def lnprob(xx):
 
                 logLike += loglike1_tmp
 
-            if args.incCorr:
+            elif args.incCorr:
         
                 #####################
                 # compute Phi matrix
@@ -2073,7 +2103,7 @@ def lnprob(xx):
                         if ii == jj:
                             smallMatrix[:,ii,jj] = sigdiag[jj] 
                         else:
-                            if args.incGWB:
+                            if args.incGWB and gwb_modindex==1:
                                 smallMatrix[:,ii,jj] += ORFtot[:,ii,jj] * sig_gwboffdiag[jj]
                             if args.incGWline:
                                 smallMatrix[:,ii,jj] += sig_gwlineoffdiag[jj]
@@ -2466,9 +2496,9 @@ def lnprob(xx):
     #####################################
     # Finally, return the log-likelihood
     
-    return logLike + priorfac_gwb + priorfac_gwline + \
-      priorfac_red + priorfac_dm + priorfac_clk + \
-      priorfac_cm + priorfac_eph + priorfac_corr + priorfac_detsig
+    return (1.0/args.softParam) * (logLike + priorfac_gwb + priorfac_gwline + \
+                                   priorfac_red + priorfac_dm + priorfac_clk + \
+                                   priorfac_cm + priorfac_eph + priorfac_corr + priorfac_detsig)
      
 
 
@@ -2564,6 +2594,8 @@ if args.incGWB:
             for ii in range(tmp_nwins):
                 for jj in range(len(psr)):
                     parameters.append("gwctheta_win{0}_psr{1}".format(ii+1,jj+1))
+        if args.gwbModelSelect:
+            parameters.append("gwb_modindex")
 if args.incGWline:
     parameters += ["spec_gwline", "freq_gwline",
                    "phi_gwline", "costheta_gwline"]
@@ -2643,6 +2675,8 @@ if args.incGWB:
         elif args.gwbTypeCorr == 'psrlocsVary':
             file_tag += '_gwb{0}_psrlocVar{1}{2}'.format(args.gwbPrior,
                                                            evol_corr_tag,gamma_tag)
+        if args.gwbModelSelect:
+            file_tag += 'ModSct'
     else:
         file_tag += '_gwb{0}_noCorr{1}'.format(args.gwbPrior,gamma_tag)
 if args.pshift:
@@ -2672,7 +2706,7 @@ if args.det_signal:
     if args.bwm_search:
         file_tag += '_bwm'+args.bwm_antenna
         if args.bwm_model_select:
-            file_tag += 'ModelSelect'
+            file_tag += 'ModSct'
 if args.fixRed:
     red_tag = '_redFix'
 elif not args.fixRed:
@@ -2845,6 +2879,8 @@ if args.sampler == 'ptmcmc':
                 x0 = np.append(x0,np.tile(np.random.uniform(-1.0,1.0,len(psr)),
                                           tmp_nwins))
                 '''
+            if args.gwbModelSelect:
+                x0 = np.append(x0,0.5)
     if args.incGWline:
         x0 = np.append(x0,np.array([-6.0,-8.0,0.5,0.5]))
     if args.det_signal:
@@ -2914,6 +2950,8 @@ if args.sampler == 'ptmcmc':
             cov_diag = np.append(cov_diag,np.array([0.5,0.05]))
         if args.incCorr:
             cov_diag = np.append(cov_diag,0.05*np.ones(num_corr_params))
+            if args.gwbModelSelect:
+                cov_diag = np.append(cov_diag,0.1)
     if args.incGWline:
         cov_diag = np.append(cov_diag,np.array([0.1,0.1,0.1,0.1]))
     if args.det_signal:
@@ -3086,7 +3124,13 @@ if args.sampler == 'ptmcmc':
                 [ind.append(id) for id in ids if len(id) > 0]
                 mm_ct += 2*len(psr)
         param_ct += num_corr_params
-        
+
+    ##### GW model select #####
+    if args.incGWB and args.incCorr and args.gwbModelSelect:
+        ids = [[param_ct]]
+        [ind.append(id) for id in ids]
+        param_ct += 1
+            
     ##### GW line #####
     if args.incGWline:
         ids = [np.arange(param_ct,param_ct+4)]
@@ -3124,8 +3168,6 @@ if args.sampler == 'ptmcmc':
         
     ##### all parameters #####
     all_inds = range(len(x0))
-    #if args.incGWB and args.gwbPrior == 'gaussProc':
-    #    all_inds = sorted(list(set(all_inds).difference(set(spec_inds))))
     ind.insert(0, all_inds)
     if rank == 0:
         print "Your parameter index groupings for sampling are {0}".format(ind)
@@ -3961,6 +4003,71 @@ if args.sampler == 'ptmcmc':
 
         return q, qxy
 
+    # gwb model index draws
+    def drawFromGWBModSelectPrior(parameters, iter, beta):
+
+        # post-jump parameters
+        q = parameters.copy()
+
+        # transition probability
+        qxy = 0
+
+        npsr = len(psr)
+        pct = 0
+        if not args.fixRed:
+            if args.redSpecModel == 'powerlaw':
+                pct = 2*npsr
+            elif args.redSpecModel == 'spectrum':
+                pct = npsr*nmode
+    
+        if args.dmVar:
+            if args.dmSpecModel == 'powerlaw':
+                pct += 2*npsr
+            elif args.dmSpecModel == 'spectrum':
+                pct += npsr*nmode
+
+        if args.incClk:
+            if args.clkSpecModel == 'powerlaw':
+                pct += 2
+            elif args.clkSpecModel == 'spectrum':
+                pct += nmode
+
+        if args.incCm:
+            if args.cmSpecModel == 'powerlaw':
+                pct += 2
+            elif args.cmSpecModel == 'spectrum':
+                pct += nmode
+
+        if args.incEph:
+            if args.ephSpecModel == 'powerlaw':
+                pct += 6
+            elif args.ephSpecModel == 'spectrum':
+                pct += 3*nmode
+
+        if args.incGWB:
+            if args.gwbSpecModel == 'powerlaw':
+                pct += 1
+                if not args.fix_slope:
+                    pct += 1
+            elif args.gwbSpecModel == 'spectrum':
+                pct += nmode
+                if args.gwbPrior == 'gaussProc':
+                    pct += 2
+            elif args.gwbSpecModel == 'turnover':
+                pct += 3
+                if args.gwbPrior == 'gaussProc':
+                    pct += 1
+            elif args.gwbSpecModel == 'gpEnvInterp':
+                pct += 2
+
+            if args.incCorr:
+                pct += num_corr_params
+                if args.gwbModelSelect:
+                    q[pct] = np.random.uniform(pmin[pct], pmax[pct])
+                    qxy += 0
+
+        return q, qxy
+
     # gwline draws 
     def drawFromGWlinePrior(parameters, iter, beta):
 
@@ -4020,6 +4127,8 @@ if args.sampler == 'ptmcmc':
 
             if args.incCorr:
                 pct += num_corr_params
+                if args.gwbModelSelect:
+                    pct += 1
 
         # logspec_line, logfreq_line,
         # phi_line, costheta_line
@@ -4090,6 +4199,8 @@ if args.sampler == 'ptmcmc':
 
             if args.incCorr:
                 pct += num_corr_params
+                if args.gwbModelSelect:
+                    pct += 1
 
         if args.incGWline:
             pct += 4
@@ -4167,6 +4278,8 @@ if args.sampler == 'ptmcmc':
 
             if args.incCorr:
                 pct += num_corr_params
+                if args.gwbModelSelect:
+                    pct += 1
 
         if args.incGWline:
             pct += 4
@@ -4247,6 +4360,8 @@ if args.sampler == 'ptmcmc':
 
             if args.incCorr:
                 pct += num_corr_params
+                if args.gwbModelSelect:
+                    pct += 1
 
         if args.incGWline:
             pct += 4
@@ -4327,6 +4442,8 @@ if args.sampler == 'ptmcmc':
 
             if args.incCorr:
                 pct += num_corr_params
+                if args.gwbModelSelect:
+                    pct += 1
 
         if args.incGWline:
             pct += 4
@@ -4409,6 +4526,8 @@ if args.sampler == 'ptmcmc':
 
             if args.incCorr:
                 pct += num_corr_params
+                if args.gwbModelSelect:
+                    pct += 1
 
         if args.incGWline:
             pct += 4
@@ -4481,6 +4600,8 @@ if args.sampler == 'ptmcmc':
 
             if args.incCorr:
                 pct += num_corr_params
+                if args.gwbModelSelect:
+                    pct += 1
 
         if args.incGWline:
             pct += 4
@@ -4532,8 +4653,11 @@ if args.sampler == 'ptmcmc':
             sampler.addProposalToCycle(drawFromGWBTurnoverPrior, 10)
         elif args.gwbSpecModel == 'gpEnvInterp':
             sampler.addProposalToCycle(drawFromGWBGaussProcPrior, 10)
-        if args.incCorr and num_corr_params>0:
-            sampler.addProposalToCycle(drawFromGWBcorrPrior, 10)
+        if args.incCorr:
+            if num_corr_params>0:
+                sampler.addProposalToCycle(drawFromGWBcorrPrior, 10)
+            if args.gwbModelSelect:
+                sampler.addProposalToCycle(drawFromGWBModSelectPrior, 10)
     if args.incGWline:
         sampler.addProposalToCycle(drawFromGWlinePrior, 10)
     if args.det_signal and args.cgw_search:
@@ -4550,4 +4674,5 @@ if args.sampler == 'ptmcmc':
     sampler.sample(p0=x0, Niter=5e6, thin=10,
                 covUpdate=1000, AMweight=20,
                 SCAMweight=30, DEweight=50,
-                writeHotChains=args.writeHotChains)
+                writeHotChains=args.writeHotChains,
+                hotChain=args.hotChain)
