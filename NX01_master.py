@@ -132,6 +132,8 @@ parser.add_option('--gwbTypeCorr', dest='gwbTypeCorr', action='store', type=str,
                   help='What type of correlated GW signal do you want to model?: custom, spharmAnis, dipoleOrf, modelIndep, pointSrc, clock, gwDisk, psrlocsVary (default = spharmAnis)')
 parser.add_option('--gwbModelSelect', dest='gwbModelSelect', action='store_true', default=False,
                   help='Perform model selection between correlated and uncorrelated GWB model? (default = False)')
+parser.add_option('--gwbCorrModWgt', dest='gwbCorrModWgt', action='store', type=float, default=1.0,
+                  help='Provide estimate of Bayes factor in favor of correlated model to get better model mixing (default = 1.0)')
 parser.add_option('--corrJacobian', dest='corrJacobian', action='store', type=str, default='simple',
                   help='What type of Jacobian do you want for the modelIndep ORF element search: simple, full (default = simple)')
 parser.add_option('--psrlocsPrior', dest='psrlocsPrior', action='store', type=str, default='normal',
@@ -2471,6 +2473,17 @@ def lnprob(xx):
     elif not args.incGWB and not args.incCorr:
         priorfac_corr = 0.0
 
+    ### Reweighting corr-vs-uncorr GWB models ###
+    ### to ensure proper mixing ###
+    priorfac_gwbmod = 0.0
+    if args.incGWB and args.incCorr and args.gwbModelSelect:
+        if gwb_modindex == 0:
+            priorfac_gwbmod = ( np.log( args.gwbCorrModWgt / (1.0 + args.gwbCorrModWgt) )
+                                - np.log(1.0/2.0) )
+        elif gwb_modindex == 1:
+            priorfac_gwbmod = ( np.log( 1.0 / (1.0 + args.gwbCorrModWgt) )
+                                - np.log(1.0/2.0) )
+        
     ### Jacobian and prior on cgw properties ###
     if args.det_signal:
         if args.cgw_search:
@@ -2496,7 +2509,7 @@ def lnprob(xx):
     #####################################
     # Finally, return the log-likelihood
     
-    return (1.0/args.softParam) * (logLike + priorfac_gwb + priorfac_gwline + \
+    return (1.0/args.softParam) * (logLike + priorfac_gwb + priorfac_gwbmod + priorfac_gwline + \
                                    priorfac_red + priorfac_dm + priorfac_clk + \
                                    priorfac_cm + priorfac_eph + priorfac_corr + priorfac_detsig)
      
