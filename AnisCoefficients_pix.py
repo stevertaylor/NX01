@@ -98,9 +98,7 @@ def createSignalResponse_pol(pphi, ptheta, gwphi, gwtheta, plus=True, norm=True)
     
     # There is a factor of 3/2 difference between the Hellings & Downs
     # integral, and the one presented in Jenet et al. (2005; also used by Gair
-    # et al. 2014). This factor 'normalises' the correlation matrix, but I don't
-    # see why I have to pull this out of my ass here. My antennae patterns are
-    # correct, so does this mean our strain amplitude is re-scaled. Check this.
+    # et al. 2014). This factor 'normalises' the correlation matrix.
     npixels = Omega.shape[2]
     if norm:
         # Add extra factor of 3/2
