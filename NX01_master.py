@@ -794,8 +794,6 @@ if args.incGWB:
                 pmin = np.append(pmin,-3.0)
     elif args.gwbSpecModel == 'turnover':
         pmin = np.append(pmin,np.array([-18.0,0.0,-9.0]))
-        if args.gwbPrior == 'gaussProc':
-            pmin = np.append(pmin,0.0)
     elif args.gwbSpecModel == 'gpEnvInterp':
         pmin = np.append(pmin,np.array([-18.0,0.0]))
     if args.incCorr:
@@ -888,8 +886,6 @@ if args.incGWB:
                 pmax = np.append(pmax,2.0)
     elif args.gwbSpecModel == 'turnover':
         pmax = np.append(pmax,np.array([-11.0,7.0,-7.0]))
-        if args.gwbPrior == 'gaussProc':
-            pmax = np.append(pmax,0.9)
     elif args.gwbSpecModel == 'gpEnvInterp':
         pmax = np.append(pmax,np.array([-11.0,0.9]))
     if args.incCorr:
@@ -1051,9 +1047,6 @@ def lnprob(xx):
             kappaturn = xx[param_ct+1]
             fbend = 10.0**xx[param_ct+2]
             param_ct += 3
-            if args.gwbPrior == 'gaussProc':
-                env_param = xx[param_ct]
-                param_ct += 1
         elif args.gwbSpecModel == 'gpEnvInterp':
             Agwb = 10.0**xx[param_ct]
             ecc = xx[param_ct+1]
@@ -2268,35 +2261,7 @@ def lnprob(xx):
                 sig = 0.26
                 priorfac_gwb = np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
                                     / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
-            elif args.gwbPrior == 'gaussProc':
-                #### CURRENTLY OUT OF USAGE ####
-                '''
-                hc_pred = np.zeros((len(fqs),2))
-                for ii,freq in enumerate(fqs):
-                    hc_pred[ii,0], mse = gp[ii].predict(ecc, eval_MSE=True)
-                    hc_pred[ii,1] = np.sqrt(mse)
-                    
-                hc_turn = (fqs/86400.0/f1yr)**(-2./3.) / np.sqrt(1.0+(fbend*86400.0/fqs)**kappaturn)
-                        
-                priorfac_gwb = np.sum( np.log( np.exp(-0.5 * (hc_pred[:,0]-hc_turn)**2.0 / hc_pred[:,1]**2.0)
-                                               / np.sqrt(2.0*np.pi*hc_pred[:,1]**2.0) ) )
-                '''
-
-                ### adding hyper prior on strain amplitude ###
-                if args.gwbHyperPrior == 'uniform':
-                    priorfac_gwb += np.log(Agwb * np.log(10.0))
-                elif args.gwbHyperPrior == 'loguniform':
-                    priorfac_gwb += 0.0
-                elif args.gwbHyperPrior == 'sesana':
-                    mu = -15.0
-                    sig = 0.22
-                    priorfac_gwb += np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
-                                        / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
-                elif args.gwbHyperPrior == 'mcwilliams':
-                    mu = -14.4
-                    sig = 0.26
-                    priorfac_gwb += np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
-                                        / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
+            
 
         ### gp interpolation spectral model ###
         elif args.gwbSpecModel == 'gpEnvInterp':
@@ -2572,8 +2537,6 @@ if args.incGWB:
             parameters += ["Agwb",gwb_popparam]
     elif args.gwbSpecModel == 'turnover':
         parameters += ["Agwb", "kappa", "fbend"]
-        if args.gwbPrior == 'gaussProc':
-            parameters.append("ecc")
     elif args.gwbSpecModel == 'gpEnvInterp':
         parameters += ["Agwb", "ecc"]
     if args.incCorr:
@@ -2652,8 +2615,6 @@ if args.incGWB:
             gamma_tag += gwb_popparam+'Hyper{0}'.format(args.gwbHyperPrior)
     elif args.gwbSpecModel == 'turnover':
         gamma_tag = '_gwbTurnover'
-        if args.gwbPrior == 'gaussProc':
-            gamma_tag += gwb_popparam+'Hyper{0}'.format(args.gwbHyperPrior)
     elif args.gwbSpecModel == 'gpEnvInterp':
         gamma_tag = '_gwbGP'+gwb_popparam
         if args.incCosVar:
@@ -2868,8 +2829,6 @@ if args.sampler == 'ptmcmc':
                     x0 = np.append(x0,0.0)
         elif args.gwbSpecModel == 'turnover':
             x0 = np.append(x0,np.array([-15.0,13./3.,-8.0]))
-            if args.gwbPrior == 'gaussProc':
-                x0 = np.append(x0,0.6)
         elif args.gwbSpecModel == 'gpEnvInterp':
             x0 = np.append(x0,np.array([-15.0,0.2]))
         if args.incCorr:
@@ -2886,12 +2845,6 @@ if args.sampler == 'ptmcmc':
             elif args.gwbTypeCorr == 'psrlocsVary':
                 x0 = np.append(x0,np.tile(positions[:,0],tmp_nwins))
                 x0 = np.append(x0,np.tile(np.cos(positions[:,1]),tmp_nwins))
-                '''
-                x0 = np.append(x0,np.tile(np.random.uniform(0.0,2.0*np.pi,len(psr)),
-                                          tmp_nwins))
-                x0 = np.append(x0,np.tile(np.random.uniform(-1.0,1.0,len(psr)),
-                                          tmp_nwins))
-                '''
             if args.gwbModelSelect:
                 x0 = np.append(x0,0.5)
     if args.incGWline:
@@ -2957,8 +2910,6 @@ if args.sampler == 'ptmcmc':
                 cov_diag = np.append(cov_diag,np.array([0.5,0.05])) 
         elif args.gwbSpecModel == 'turnover':
             cov_diag = np.append(cov_diag,np.array([0.5,0.5,0.1]))
-            if args.gwbPrior == 'gaussProc':
-                cov_diag = np.append(cov_diag,0.05)
         elif args.gwbSpecModel == 'gpEnvInterp':
             cov_diag = np.append(cov_diag,np.array([0.5,0.05]))
         if args.incCorr:
@@ -3077,10 +3028,6 @@ if args.sampler == 'ptmcmc':
             ids = [np.arange(param_ct,param_ct+3)]
             [ind.append(id) for id in ids]
             param_ct += 3
-            if args.gwbPrior == 'gaussProc':
-                ids = [[param_ct]]
-                [ind.append(id) for id in ids]
-                param_ct += 1
         elif args.gwbSpecModel == 'gpEnvInterp':
             ids = [np.arange(param_ct,param_ct+2)]
             [ind.append(id) for id in ids]
@@ -3801,11 +3748,6 @@ if args.sampler == 'ptmcmc':
         # fbend
         q[pct+2] = np.random.uniform(pmin[pct+2], pmax[pct+2])
         qxy += 0
-
-        # eccentricity
-        if args.gwbPrior == 'gaussProc':
-            q[pct+3] = np.random.uniform(pmin[pct+3], pmax[pct+3])
-            qxy += 0
             
         return q, qxy
 
@@ -3999,8 +3941,6 @@ if args.sampler == 'ptmcmc':
                     pct += 2
             elif args.gwbSpecModel == 'turnover':
                 pct += 3
-                if args.gwbPrior == 'gaussProc':
-                    pct += 1
             elif args.gwbSpecModel == 'gpEnvInterp':
                 pct += 2
 
@@ -4068,8 +4008,6 @@ if args.sampler == 'ptmcmc':
                     pct += 2
             elif args.gwbSpecModel == 'turnover':
                 pct += 3
-                if args.gwbPrior == 'gaussProc':
-                    pct += 1
             elif args.gwbSpecModel == 'gpEnvInterp':
                 pct += 2
 
@@ -4133,8 +4071,6 @@ if args.sampler == 'ptmcmc':
                     pct += 2
             elif args.gwbSpecModel == 'turnover':
                 pct += 3
-                if args.gwbPrior == 'gaussProc':
-                    pct += 1
             elif args.gwbSpecModel == 'gpEnvInterp':
                 pct += 2
 
@@ -4205,8 +4141,6 @@ if args.sampler == 'ptmcmc':
                     pct += 2
             elif args.gwbSpecModel == 'turnover':
                 pct += 3
-                if args.gwbPrior == 'gaussProc':
-                    pct += 1
             elif args.gwbSpecModel == 'gpEnvInterp':
                 pct += 2
 
@@ -4284,8 +4218,6 @@ if args.sampler == 'ptmcmc':
                     pct += 2
             elif args.gwbSpecModel == 'turnover':
                 pct += 3
-                if args.gwbPrior == 'gaussProc':
-                    pct += 1
             elif args.gwbSpecModel == 'gpEnvInterp':
                 pct += 2
 
@@ -4366,8 +4298,6 @@ if args.sampler == 'ptmcmc':
                     pct += 2
             elif args.gwbSpecModel == 'turnover':
                 pct += 3
-                if args.gwbPrior == 'gaussProc':
-                    pct += 1
             elif args.gwbSpecModel == 'gpEnvInterp':
                 pct += 2
 
@@ -4448,8 +4378,6 @@ if args.sampler == 'ptmcmc':
                     pct += 2
             elif args.gwbSpecModel == 'turnover':
                 pct += 3
-                if args.gwbPrior == 'gaussProc':
-                    pct += 1
             elif args.gwbSpecModel == 'gpEnvInterp':
                 pct += 2
 
@@ -4532,8 +4460,6 @@ if args.sampler == 'ptmcmc':
                     pct += 2
             elif args.gwbSpecModel == 'turnover':
                 pct += 3
-                if args.gwbPrior == 'gaussProc':
-                    pct += 1
             elif args.gwbSpecModel == 'gpEnvInterp':
                 pct += 2
 
@@ -4606,8 +4532,6 @@ if args.sampler == 'ptmcmc':
                     pct += 2
             elif args.gwbSpecModel == 'turnover':
                 pct += 3
-                if args.gwbPrior == 'gaussProc':
-                    pct += 1
             elif args.gwbSpecModel == 'gpEnvInterp':
                 pct += 2
 
