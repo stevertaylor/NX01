@@ -2898,7 +2898,7 @@ if args.sampler == 'ptmcmc':
                     x0 = np.append(x0,5.0)
                 elif args.gwb_fb2env == 'gas':
                     x0 = np.append(x0,0.0)
-           elif args.gwb_fb2env is None:
+            elif args.gwb_fb2env is None:
                x0 = np.append(x0,np.array([13./3.,-8.0]))
         elif args.gwbSpecModel == 'gpEnvInterp':
             x0 = np.append(x0,np.array([-15.0,0.2]))
@@ -2982,7 +2982,7 @@ if args.sampler == 'ptmcmc':
         elif args.gwbSpecModel == 'turnover':
             cov_diag = np.append(cov_diag,0.5)
             if args.gwb_fb2env is not None:
-                cov_diag = np.append(cov,0.2)
+                cov_diag = np.append(cov_diag,0.2)
             elif args.gwb_fb2env is None:
                 cov_diag = np.append(cov_diag,np.array([0.5,0.1]))
         elif args.gwbSpecModel == 'gpEnvInterp':
