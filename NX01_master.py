@@ -143,6 +143,10 @@ parser.add_option('--corrJacobian', dest='corrJacobian', action='store', type=st
                   help='What type of Jacobian do you want for the modelIndep ORF element search: simple, full (default = simple)')
 parser.add_option('--psrlocsPrior', dest='psrlocsPrior', action='store', type=str, default='normal',
                   help='What type of prior do you want on the pulsar locations in the psrlocsVary correlation model: normal, uniform (default = normal)')
+parser.add_option('--fixPointSrcPhi', dest='fixPointSrcPhi', action='store', type=float, default=None,
+                  help='Fix the azimuthal sky-location (phi) of a stochastic point-source to a particular value (default = \'None\')')
+parser.add_option('--fixPointSrcTheta', dest='fixPointSrcTheta', action='store', type=float, default=None,
+                  help='Fix the polar sky-location (theta) of a stochastic point-source to a particular value (default = \'None\')')
 parser.add_option('--redSpecModel', dest='redSpecModel', action='store', type=str, default='powerlaw',
                   help='What kind of spectral model do you want for red timing-noise?: powerlaw, spectrum (default = powerlaw)')
 parser.add_option('--dmSpecModel', dest='dmSpecModel', action='store', type=str, default='powerlaw',
@@ -445,7 +449,10 @@ if args.incGWB and args.incCorr:
 
         tmp_nwins = args.nwins
 
-        num_corr_params = 2*tmp_nwins
+        if args.fixPointSrcPhi is not None and args.fixPointSrcTheta is not None:
+            num_corr_params = 0
+        else:
+            num_corr_params = 2*tmp_nwins
 
         if tmp_nwins>1:
             evol_corr_tag = '_evanis'
@@ -845,7 +852,8 @@ if args.incGWB:
         if args.gwbTypeCorr == 'modelIndep':
             pmin = np.append(pmin,0.0*np.ones(num_corr_params))
         elif args.gwbTypeCorr == 'pointSrc':
-            pmin = np.append(pmin,np.tile([0.0,-1.0],tmp_nwins))
+            if args.fixPointSrcPhi is None and args.fixPointSrcTheta is None:
+                pmin = np.append(pmin,np.tile([0.0,-1.0],tmp_nwins))
         elif args.gwbTypeCorr == 'spharmAnis':
             pmin = np.append(pmin,-10.0*np.ones(num_corr_params))
         elif args.gwbTypeCorr == 'dipoleOrf':
@@ -945,7 +953,8 @@ if args.incGWB:
         if args.gwbTypeCorr == 'modelIndep':
             pmax = np.append(pmax,np.pi*np.ones(num_corr_params))
         elif args.gwbTypeCorr == 'pointSrc':
-            pmax = np.append(pmax,np.tile([2.0*np.pi,1.0],tmp_nwins))
+            if args.fixPointSrcPhi is None and args.fixPointSrcTheta is None:
+                pmax = np.append(pmax,np.tile([2.0*np.pi,1.0],tmp_nwins))
         elif args.gwbTypeCorr == 'spharmAnis':
             pmax = np.append(pmax,10.0*np.ones(num_corr_params))
         elif args.gwbTypeCorr == 'dipoleOrf':
@@ -1300,10 +1309,10 @@ def lnprob(xx):
                     tmp_res = utils.ecc_cgw_signal(p, gwtheta_tmp, gwphi_tmp, mc,
                                                    dist, hstrain_tmp, orbfreq_tmp,
                                                    gwinc, gwpol, gwgamma_tmp, ecc_tmp,
-                                                   l0, qr, pd=psrdists[ii], gpx=psrgp0[ii],
-                                                   lpx=psrlp0[ii], periEv=args.periEv,
-                                                   psrTerm=args.psrTerm, tref=tref,
-                                                   epochTOAs=args.epochTOAs,
+                                                   l0, qr, nmax=10000, pd=psrdists[ii],
+                                                   gpx=psrgp0[ii], lpx=psrlp0[ii],
+                                                   periEv=args.periEv, psrTerm=args.psrTerm,
+                                                   tref=tref, epochTOAs=args.epochTOAs,
                                                    noEccEvolve=args.noEccEvolve)
                     
                     if args.epochTOAs:
@@ -1423,9 +1432,13 @@ def lnprob(xx):
 
             elif args.gwbTypeCorr == 'pointSrc':
 
-                orf_coeffs = orf_coeffs.reshape((tmp_nwins,2))
-                gwphi, cosgwtheta = orf_coeffs[:,0], orf_coeffs[:,1]
-                gwtheta = np.arccos(cosgwtheta)
+                if args.fixPointSrcPhi is not None and args.fixPointSrcTheta is not None:
+                    gwphi = np.tile(args.fixPointSrcPhi,tmp_nwins)
+                    gwtheta = np.tile(args.fixPointSrcTheta,tmp_nwins)
+                else:
+                    orf_coeffs = orf_coeffs.reshape((tmp_nwins,2))
+                    gwphi, cosgwtheta = orf_coeffs[:,0], orf_coeffs[:,1]
+                    gwtheta = np.arccos(cosgwtheta)
 
                 corr_curve=np.zeros((tmp_nwins,npsr,npsr))
 
@@ -2607,9 +2620,10 @@ if args.incGWB:
                 for jj in range(int(len(psr)*(len(psr)-1)/2)):
                     parameters.append('phi_corr_win{0}_val{1}'.format(ii+1,jj+1))
         elif args.gwbTypeCorr == 'pointSrc':
-            for ii in range(tmp_nwins):
-                parameters += ["gwb_phi_win{0}".format(ii+1),
-                               "gwb_costheta_win{0}".format(ii+1)]
+            if args.fixPointSrcPhi is None and args.fixPointSrcTheta is None:
+                for ii in range(tmp_nwins):
+                    parameters += ["gwb_phi_win{0}".format(ii+1),
+                                   "gwb_costheta_win{0}".format(ii+1)]
         elif args.gwbTypeCorr == 'spharmAnis':
             for ii in range(tmp_nwins): 
                 for jj in range((args.LMAX+1)**2 - 1):
@@ -2688,8 +2702,12 @@ if args.incGWB:
             file_tag += '_gwb{0}_miCorr{1}{2}'.format(args.gwbPrior,
                                                       evol_corr_tag,gamma_tag)
         elif args.gwbTypeCorr == 'pointSrc':
-            file_tag += '_gwb{0}_pntSrc{1}{2}'.format(args.gwbPrior,
-                                                        evol_corr_tag,gamma_tag)
+            if args.fixPointSrcPhi is not None and args.fixPointSrcTheta is not None:
+                dummy_fixpsrc = 'Fix'
+            else:
+                dummy_fixpsrc = ''
+            file_tag += '_gwb{0}_pntSrc{1}{2}{3}'.format(args.gwbPrior,dummy_fixpsrc,
+                                                         evol_corr_tag,gamma_tag)
         elif args.gwbTypeCorr == 'spharmAnis':
             if args.noPhysPrior:
                 physprior_tag = '_noPhysPrior'
@@ -2906,7 +2924,8 @@ if args.sampler == 'ptmcmc':
             if args.gwbTypeCorr == 'modelIndep':
                 x0 = np.append(x0,np.random.uniform(0.0,np.pi,num_corr_params))
             elif args.gwbTypeCorr == 'pointSrc':
-                x0 = np.append(x0,np.tile([0.5,0.5],tmp_nwins))
+                if args.fixPointSrcPhi is None and args.fixPointSrcTheta is None:
+                    x0 = np.append(x0,np.tile([0.5,0.5],tmp_nwins))
             elif args.gwbTypeCorr == 'spharmAnis':
                 x0 = np.append(x0,np.zeros(num_corr_params))
             elif args.gwbTypeCorr == 'dipoleOrf':
@@ -2917,7 +2936,7 @@ if args.sampler == 'ptmcmc':
                 x0 = np.append(x0,np.tile(positions[:,0],tmp_nwins))
                 x0 = np.append(x0,np.tile(np.cos(positions[:,1]),tmp_nwins))
             if args.gwbModelSelect:
-                x0 = np.append(x0,0.5)
+                x0 = np.append(x0,0.2)
     if args.incGWline:
         x0 = np.append(x0,np.array([-6.0,-8.0,0.5,0.5]))
     if args.det_signal:
@@ -3133,7 +3152,8 @@ if args.sampler == 'ptmcmc':
                     ids = [np.arange(mm_ct,mm_ct+(2*ll+1))]
                     [ind.append(id) for id in ids]
                     mm_ct += 2*ll+1
-        elif args.gwbTypeCorr == 'pointSrc':
+        elif args.gwbTypeCorr == 'pointSrc' and \
+          args.fixPointSrcPhi is None and args.fixPointSrcTheta is None:
             mm_ct = param_ct
             for ii in range(args.nwins):
                 ids = [np.array([mm_ct,mm_ct+1])]
