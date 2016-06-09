@@ -95,8 +95,8 @@ parser.add_option('--nmodes', dest='nmodes', action='store', type=int,
                    help='Number of modes in low-rank time-frequency approximation')
 parser.add_option('--cadence', dest='cadence', action='store', type=float,
                    help='Instead of nmodes, provide the observational cadence.')
-parser.add_option('--dmVar', dest='dmVar', action='store_true', default=False,
-                   help='Search for DM variations in the data (False)? (default=False)')
+parser.add_option('--incDM', dest='incDM', action='store_true', default=False,
+                   help='Search for DM variations in the data as a Gaussian process (False)? (default=False)')
 parser.add_option('--sampler', dest='sampler', action='store', type=str, default='ptmcmc',
                    help='Which sampler do you want to use: PTMCMC (ptmcmc) or MultiNest (mnest) (default = ptmcmc)')
 parser.add_option('--ins', dest='ins', action='store_true', default=False,
@@ -254,7 +254,7 @@ if args.jsonModel is not None:
     args.psrlist = json_data['psrlist']
     args.nmodes = json_data['nmodes']
     args.cadence = json_data['cadence']
-    args.dmVar = json_data['dmVar']
+    args.incDM = json_data['incDM']
     args.sampler = json_data['sampler']
     args.writeHotChains = json_data['writeHotChains']
     args.resume = json_data['resume']
@@ -631,7 +631,7 @@ Tmax = np.max([p.toas.max() - p.toas.min() for p in psr])
 
 if args.nmodes:
 
-    [p.makeTe(args.nmodes, Tmax, makeDM=args.dmVar,
+    [p.makeTe(args.nmodes, Tmax, makeDM=args.incDM,
               makeEph=args.incEph, phaseshift=args.pshift) for p in psr]
     # get GW frequencies
     fqs = np.linspace(1/Tmax, args.nmodes/Tmax, args.nmodes)
@@ -640,7 +640,7 @@ if args.nmodes:
 else:
 
     nmode = int(round(0.5*Tmax/args.cadence))
-    [p.makeTe(nmode, Tmax, makeDM=args.dmVar,
+    [p.makeTe(nmode, Tmax, makeDM=args.incDM,
               makeEph=args.incEph, phaseshift=args.pshift) for p in psr]
     # get GW frequencies
     fqs = np.linspace(1/Tmax, nmode/Tmax, nmode)
@@ -792,7 +792,7 @@ if not args.fixRed:
         pmin = np.append(pmin,0.0*np.ones(len(psr)))
     elif args.redSpecModel == 'spectrum':
         pmin = np.append(pmin,-8.0*np.ones(len(psr)*nmode))
-if args.dmVar:
+if args.incDM and not args.fixDM:
     if args.dmSpecModel == 'powerlaw':
         pmin = np.append(pmin,-20.0*np.ones(len(psr)))
         pmin = np.append(pmin,0.0*np.ones(len(psr)))
@@ -833,7 +833,7 @@ if args.incGWB:
             if gwb_popparam == 'ecc':
                 pmin = np.append(pmin,0.0)
             elif gwb_popparam == 'stars':
-                pmin = np.append(pmin,2.0)
+                pmin = np.append(pmin,0.0)
             elif gwb_popparam == 'gas':
                 pmin = np.append(pmin,-3.0)
     elif args.gwbSpecModel == 'turnover':
@@ -892,7 +892,7 @@ if not args.fixRed:
         pmax = np.append(pmax,7.0*np.ones(len(psr)))
     elif args.redSpecModel == 'spectrum':
         pmax = np.append(pmax,3.0*np.ones(len(psr)*nmode))
-if args.dmVar:
+if args.incDM and not args.fixDM:
     if args.dmSpecModel == 'powerlaw':
         # slightly higher than red due to normalisation
         pmax = np.append(pmax,-10.0*np.ones(len(psr)))
@@ -1009,7 +1009,7 @@ def lnprob(xx):
     dtmp = list(d)
 
     mode_count = 2*nmode
-    if args.dmVar:
+    if args.incDM:
         mode_count += 2*nmode
     if args.incEph:
         # 2*nmode for x,y,z
@@ -1035,7 +1035,7 @@ def lnprob(xx):
     ####################################
     # Including per-pulsar DM variations
     
-    if args.dmVar:
+    if args.incDM and not args.fixDM:
         if args.dmSpecModel == 'powerlaw':
             Adm = 10.0**xx[param_ct:param_ct+npsr]
             gam_dm = xx[param_ct+npsr:param_ct+2*npsr]
@@ -1412,7 +1412,7 @@ def lnprob(xx):
 
                         ORF.append(np.dot( upper_triang.T, upper_triang ))
        
-                if args.dmVar:
+                if args.incDM:
                     for ii in range(tmp_nwins): # number of frequency windows
                         for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
                             ORF.append( np.zeros((npsr,npsr)) )
@@ -1465,7 +1465,7 @@ def lnprob(xx):
                     for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
                         ORF.append( corr_curve[ii,:,:] )
                     
-                if args.dmVar:
+                if args.incDM:
                     for ii in range(tmp_nwins): # number of frequency windows
                         for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
                             ORF.append( np.zeros((npsr,npsr)) )
@@ -1514,7 +1514,7 @@ def lnprob(xx):
                     for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
                         ORF.append( sum(clm[ii,kk]*CorrCoeff[kk]
                                         for kk in range(len(CorrCoeff))) )
-                if args.dmVar:
+                if args.incDM:
                     for ii in range(tmp_nwins): # number of frequency windows
                         for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
                             ORF.append( np.zeros((npsr,npsr)) )
@@ -1579,7 +1579,7 @@ def lnprob(xx):
                     for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
                         ORF.append( monoOrf + dipwgt[ii]*gammaDip[ii,:,:] )
                         
-                if args.dmVar:
+                if args.incDM:
                     for ii in range(tmp_nwins): # number of frequency windows
                         for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
                             ORF.append( np.zeros((npsr,npsr)) )
@@ -1609,7 +1609,7 @@ def lnprob(xx):
                     else:
                         ORF.append( customOrf )
                         
-                if args.dmVar:
+                if args.incDM:
                     for ii in range(nmode): # number of frequencies
                         ORF.append( np.zeros((npsr,npsr)) )
 
@@ -1663,7 +1663,7 @@ def lnprob(xx):
                         elif hp is None:
                             ORF.append( monoOrf )
                         
-                if args.dmVar:
+                if args.incDM:
                     for ii in range(tmp_nwins): # number of frequency windows
                         for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
                             ORF.append( np.zeros((npsr,npsr)) )
@@ -1704,7 +1704,7 @@ def lnprob(xx):
                     for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
                         ORF.append( monoOrf )
                         
-                if args.dmVar:
+                if args.incDM:
                     for ii in range(tmp_nwins): # number of frequency windows
                         for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
                             ORF.append( np.zeros((npsr,npsr)) )
@@ -1729,7 +1729,7 @@ def lnprob(xx):
                     for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
                         ORF.append( np.ones((npsr,npsr)) ) # clock signal is completely correlated
                         
-                if args.dmVar:
+                if args.incDM:
                     for ii in range(tmp_nwins): # number of frequency windows
                         for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
                             ORF.append( np.zeros((npsr,npsr)) )
@@ -1796,18 +1796,27 @@ def lnprob(xx):
                     red_kappa_tmp = np.log10( 10.0**(2.0*red_spec[ii,:]) / Tspan)
 
             # Construct DM-variations signal (if appropriate)
-            if args.dmVar:
-                if args.dmSpecModel == 'powerlaw':
-                    Adm_tmp = Adm[ii]
-                    gam_dm_tmp = gam_dm[ii]
+            if args.incDM:
+                if args.fixDM:
+                    Adm_tmp = psr[ii].DMamp
+                    gam_dm_tmp = psr[ii].DMind
                     
                     dm_kappa_tmp = np.log10( Adm_tmp**2/12/np.pi**2 * \
                                             f1yr**(gam_dm_tmp-3) * \
                                             (fqs/86400.0)**(-gam_dm_tmp)/Tspan )
-                elif args.dmSpecModel == 'spectrum':
-                    dm_kappa_tmp = np.log10( 10.0**(2.0*dm_spec[ii,:]) / Tspan)
 
-            if not args.dmVar:
+                if not args.fixDM:
+                    if args.dmSpecModel == 'powerlaw':
+                        Adm_tmp = Adm[ii]
+                        gam_dm_tmp = gam_dm[ii]
+                    
+                        dm_kappa_tmp = np.log10( Adm_tmp**2/12/np.pi**2 * \
+                                                f1yr**(gam_dm_tmp-3) * \
+                                                (fqs/86400.0)**(-gam_dm_tmp)/Tspan )
+                    elif args.dmSpecModel == 'spectrum':
+                        dm_kappa_tmp = np.log10( 10.0**(2.0*dm_spec[ii,:]) / Tspan)
+
+            if not args.incDM:
                 dm_kappa_tmp = np.array([])
 
             if args.incEph:
@@ -1869,9 +1878,9 @@ def lnprob(xx):
                 '''
 
 
-            if args.dmVar:
+            if args.incDM:
                 dm_padding = np.zeros(nmode)
-            elif not args.dmVar:
+            elif not args.incDM:
                 dm_padding = np.array([])
                 
             if args.incEph:
@@ -1890,9 +1899,9 @@ def lnprob(xx):
             idx = np.argmin(np.abs(fqs/86400.0 - freq_gwline))
             rho_line[idx] = 10.0**(2.0*spec_gwline) / Tspan
 
-            if args.dmVar:
+            if args.incDM:
                 dm_padding = np.zeros(nmode)
-            elif not args.dmVar:
+            elif not args.incDM:
                 dm_padding = np.array([])
             
             if args.incEph:
@@ -1918,9 +1927,9 @@ def lnprob(xx):
                 kappa_clk = np.log10( 10.0**(2.0*clk_spec) / Tspan )
 
 
-            if args.dmVar:
+            if args.incDM:
                 dm_padding = np.zeros(nmode)
-            elif not args.dmVar:
+            elif not args.incDM:
                 dm_padding = np.array([])
                 
             if args.incEph:
@@ -1946,9 +1955,9 @@ def lnprob(xx):
                 kappa_cm = np.log10( 10.0**(2.0*cm_spec) / Tspan )
 
 
-            if args.dmVar:
+            if args.incDM:
                 dm_padding = np.zeros(nmode)
-            elif not args.dmVar:
+            elif not args.incDM:
                 dm_padding = np.array([])
                 
             if args.incEph:
@@ -1977,9 +1986,9 @@ def lnprob(xx):
                 kappa_ephz = np.log10( 10.0**(2.0*eph_spec[2,:]) / Tspan )
 
             red_padding = np.zeros(nmode)
-            if args.dmVar:
+            if args.incDM:
                 dm_padding = np.zeros(nmode)
-            elif not args.dmVar:
+            elif not args.incDM:
                 dm_padding = np.array([])
 
             eph_kappa = np.concatenate( (red_padding, dm_padding,
@@ -2384,7 +2393,7 @@ def lnprob(xx):
         priorfac_red = 0.0
         
 
-    if args.dmVar:
+    if args.incDM and not args.fixDM:
         ### powerlaw spectral model ###
         if args.dmSpecModel == 'powerlaw':
             if args.dmPrior == 'uniform':
@@ -2397,7 +2406,7 @@ def lnprob(xx):
                 priorfac_dm = np.sum(np.log(10.0**dm_spec * np.log(10.0)))
             elif args.dmPrior == 'loguniform':
                 priorfac_dm = 0.0
-    elif not args.dmVar:
+    elif not args.incDM:
         priorfac_dm = 0.0
 
 
@@ -2565,7 +2574,7 @@ if not args.fixRed:
         for ii in range(len(psr)):
             for jj in range(nmode):
                 parameters.append('redSpec'+'_{0}_'.format(jj+1)+psr[ii].name)
-if args.dmVar:
+if args.incDM and not args.fixDM:
     if args.dmSpecModel == 'powerlaw':
         [parameters.append('Adm_'+p.name) for p in psr]
         [parameters.append('gam_dm_'+p.name) for p in psr]
@@ -2767,9 +2776,12 @@ if args.fixRed:
     red_tag = '_redFix'
 elif not args.fixRed:
     red_tag = '_red'+args.redPrior+args.redSpecModel
-if args.dmVar:
-    dm_tag = '_dm'+args.dmPrior+args.dmSpecModel
-elif not args.dmVar:
+if args.incDM:
+    if args.fixDM:
+        dm_tag = 'dmFix'
+    elif not args.fixDM:
+        dm_tag = '_dm'+args.dmPrior+args.dmSpecModel
+elif not args.incDM:
     dm_tag = ''
 if args.incClk:
     clk_tag = '_clk'+args.clkPrior+args.clkSpecModel
@@ -2864,11 +2876,11 @@ if args.sampler == 'ptmcmc':
             x0 = np.append(x0,np.array([p.Redind for p in psr]))
         elif args.redSpecModel == 'spectrum':
             x0 = np.append(x0,np.random.uniform(-7.0,-3.0,len(psr)*nmode))
-    if args.dmVar:
+    if args.incDM and not args.fixDM:
         if args.dmSpecModel == 'powerlaw':
-            # starting dm parameters at red noise parameters
-            x0 = np.append(x0,np.log10(np.array([p.Redamp for p in psr])))
-            x0 = np.append(x0,np.array([p.Redind for p in psr]))
+            # starting dm parameters at DM noise parameters
+            x0 = np.append(x0,np.log10(np.array([p.DMamp for p in psr])))
+            x0 = np.append(x0,np.array([p.DMind for p in psr]))
         elif args.dmSpecModel == 'spectrum':
             x0 = np.append(x0,np.random.uniform(-7.0,-3.0,len(psr)*nmode))
     if args.incClk:
@@ -2966,7 +2978,7 @@ if args.sampler == 'ptmcmc':
             cov_diag = np.append(cov_diag,0.5*np.ones(len(psr)))
         elif args.redSpecModel == 'spectrum':
             cov_diag = np.append(cov_diag,0.1*np.ones(len(psr)*nmode))
-    if args.dmVar:
+    if args.incDM and not args.fixDM:
         if args.dmSpecModel == 'powerlaw':
             cov_diag = np.append(cov_diag,0.5*np.ones(len(psr)))
             cov_diag = np.append(cov_diag,0.5*np.ones(len(psr)))
@@ -3050,7 +3062,7 @@ if args.sampler == 'ptmcmc':
             param_ct += nmode*len(psr)
             
     ##### DM noise #####
-    if args.dmVar:
+    if args.incDM and not args.fixDM:
         if args.dmSpecModel == 'powerlaw':
             dmamps = [param_ct+ii for ii in range(len(psr))]
             dmgam = [ii+len(psr) for ii in dmamps]
@@ -3401,7 +3413,7 @@ if args.sampler == 'ptmcmc':
             elif args.redSpecModel == 'spectrum':
                 pct += npsr*nmode
 
-        if args.dmVar:
+        if args.incDM and not args.fixDM:
             if args.dmSpecModel == 'powerlaw':
                 pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
@@ -3435,7 +3447,7 @@ if args.sampler == 'ptmcmc':
             elif args.redSpecModel == 'spectrum':
                 pct += npsr*nmode
 
-        if args.dmVar:
+        if args.incDM and not args.fixDM:
             if args.dmSpecModel == 'powerlaw':
                 pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
@@ -3471,7 +3483,7 @@ if args.sampler == 'ptmcmc':
             elif args.redSpecModel == 'spectrum':
                 pct += npsr*nmode
 
-        if args.dmVar:
+        if args.incDM and not args.fixDM:
             if args.dmSpecModel == 'powerlaw':
                 pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
@@ -3511,7 +3523,7 @@ if args.sampler == 'ptmcmc':
             elif args.redSpecModel == 'spectrum':
                 pct += npsr*nmode
 
-        if args.dmVar:
+        if args.incDM and not args.fixDM:
             if args.dmSpecModel == 'powerlaw':
                 pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
@@ -3553,7 +3565,7 @@ if args.sampler == 'ptmcmc':
             elif args.redSpecModel == 'spectrum':
                 pct = npsr*nmode
     
-        if args.dmVar:
+        if args.incDM and not args.fixDM:
             if args.dmSpecModel == 'powerlaw':
                 pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
@@ -3604,7 +3616,7 @@ if args.sampler == 'ptmcmc':
             elif args.redSpecModel == 'spectrum':
                 pct = npsr*nmode
     
-        if args.dmVar:
+        if args.incDM and not args.fixDM:
             if args.dmSpecModel == 'powerlaw':
                 pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
@@ -3655,7 +3667,7 @@ if args.sampler == 'ptmcmc':
             elif args.redSpecModel == 'spectrum':
                 pct = npsr*nmode
     
-        if args.dmVar:
+        if args.incDM and not args.fixDM:
             if args.dmSpecModel == 'powerlaw':
                 pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
@@ -3722,7 +3734,7 @@ if args.sampler == 'ptmcmc':
             elif args.redSpecModel == 'spectrum':
                 pct = npsr*nmode
     
-        if args.dmVar:
+        if args.incDM and not args.fixDM:
             if args.dmSpecModel == 'powerlaw':
                 pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
@@ -3797,7 +3809,7 @@ if args.sampler == 'ptmcmc':
             elif args.redSpecModel == 'spectrum':
                 pct = npsr*nmode
     
-        if args.dmVar:
+        if args.incDM and not args.fixDM:
             if args.dmSpecModel == 'powerlaw':
                 pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
@@ -3873,7 +3885,7 @@ if args.sampler == 'ptmcmc':
             elif args.redSpecModel == 'spectrum':
                 pct = npsr*nmode
     
-        if args.dmVar:
+        if args.incDM and not args.fixDM:
             if args.dmSpecModel == 'powerlaw':
                 pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
@@ -3943,7 +3955,7 @@ if args.sampler == 'ptmcmc':
             elif args.redSpecModel == 'spectrum':
                 pct = npsr*nmode
     
-        if args.dmVar:
+        if args.incDM and not args.fixDM:
             if args.dmSpecModel == 'powerlaw':
                 pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
@@ -4012,7 +4024,7 @@ if args.sampler == 'ptmcmc':
             elif args.redSpecModel == 'spectrum':
                 pct = npsr*nmode
     
-        if args.dmVar:
+        if args.incDM and not args.fixDM:
             if args.dmSpecModel == 'powerlaw':
                 pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
@@ -4082,7 +4094,7 @@ if args.sampler == 'ptmcmc':
             elif args.redSpecModel == 'spectrum':
                 pct = npsr*nmode
     
-        if args.dmVar:
+        if args.incDM and not args.fixDM:
             if args.dmSpecModel == 'powerlaw':
                 pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
@@ -4148,7 +4160,7 @@ if args.sampler == 'ptmcmc':
             elif args.redSpecModel == 'spectrum':
                 pct = npsr*nmode
     
-        if args.dmVar:
+        if args.incDM and not args.fixDM:
             if args.dmSpecModel == 'powerlaw':
                 pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
@@ -4221,7 +4233,7 @@ if args.sampler == 'ptmcmc':
             elif args.redSpecModel == 'spectrum':
                 pct = npsr*nmode
     
-        if args.dmVar:
+        if args.incDM and not args.fixDM:
             if args.dmSpecModel == 'powerlaw':
                 pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
@@ -4301,7 +4313,7 @@ if args.sampler == 'ptmcmc':
             elif args.redSpecModel == 'spectrum':
                 pct = npsr*nmode
     
-        if args.dmVar:
+        if args.incDM and not args.fixDM:
             if args.dmSpecModel == 'powerlaw':
                 pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
@@ -4384,7 +4396,7 @@ if args.sampler == 'ptmcmc':
             elif args.redSpecModel == 'spectrum':
                 pct = npsr*nmode
     
-        if args.dmVar:
+        if args.incDM and not args.fixDM:
             if args.dmSpecModel == 'powerlaw':
                 pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
@@ -4467,7 +4479,7 @@ if args.sampler == 'ptmcmc':
             elif args.redSpecModel == 'spectrum':
                 pct = npsr*nmode
     
-        if args.dmVar:
+        if args.incDM and not args.fixDM:
             if args.dmSpecModel == 'powerlaw':
                 pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
@@ -4552,7 +4564,7 @@ if args.sampler == 'ptmcmc':
             elif args.redSpecModel == 'spectrum':
                 pct = npsr*nmode
     
-        if args.dmVar:
+        if args.incDM and not args.fixDM:
             if args.dmSpecModel == 'powerlaw':
                 pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
@@ -4627,7 +4639,7 @@ if args.sampler == 'ptmcmc':
             elif args.redSpecModel == 'spectrum':
                 pct = npsr*nmode
     
-        if args.dmVar:
+        if args.incDM and not args.fixDM:
             if args.dmSpecModel == 'powerlaw':
                 pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
@@ -4692,7 +4704,7 @@ if args.sampler == 'ptmcmc':
             sampler.addProposalToCycle(drawFromRedNoisePowerlawPrior, 10)
         elif args.redSpecModel == 'spectrum':
             sampler.addProposalToCycle(drawFromRedNoiseSpectrumPrior, 10)
-    if args.dmVar:
+    if args.incDM and not args.fixDM:
         if args.dmSpecModel == 'powerlaw':
             sampler.addProposalToCycle(drawFromDMNoisePowerlawPrior, 10)
         elif args.dmSpecModel == 'spectrum':

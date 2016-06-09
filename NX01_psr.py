@@ -362,6 +362,8 @@ class PsrObjFromH5(object):
     ecorrs = None
     Redamp = None
     Redind = None
+    DMamp = None
+    DMind = None
 
     def __init__(self, h5Obj):
         self.h5Obj = h5Obj
@@ -405,6 +407,8 @@ class PsrObjFromH5(object):
         self.ecorrs = None
         self.Redamp = None
         self.Redind = None
+        self.DMamp = None
+        self.DMind = None
 
     """
     Read data from hdf5 file into pulsar object
@@ -481,6 +485,8 @@ class PsrObjFromH5(object):
         # Let's also find single pulsar analysis EFACS, EQUADS, ECORRS
         self.Redamp = 1e-20
         self.Redind = 0.0
+        self.DMamp = 1e-20
+        self.DMind = 0.0
         if self.noisefile is not None:
             noiselines = self.h5Obj['noisefile'].value.split('\n')
             efacs = []
@@ -501,14 +507,26 @@ class PsrObjFromH5(object):
             # Let's get the red noise properties from single-pulsar analysis
             self.Redamp = 1e-20
             self.Redind = 0.0
+            self.DMamp = 1e-20
+            self.DMind = 0.0
             for ll in noiselines:
                 if 'RN-Amplitude' in ll:
                     self.Redamp = 10.0**np.double(ll.split()[1]) # 1e-6 * f1yr * np.sqrt(12.0*np.pi**2.0) * np.double(ll.split()[1]) 
                 if 'RN-spectral-index' in ll:
                     self.Redind = np.double(ll.split()[1])
+                if 'DM-Amplitude' in ll:
+                    self.DMamp = 10.0**np.double(ll.split()[1]) 
+                if 'DM-spectral-index' in ll:
+                    self.DMind = np.double(ll.split()[1])
 
             # Time to rescale the TOA uncertainties by single-pulsar EFACS and EQUADS
-            systems = self.sysflagdict['f']
+            if self.sysflagdict['f'] is not None:
+                # for nanograv
+                systems = self.sysflagdict['f']
+            elif self.sysflagdict['f'] is None and self.sysflagdict['sys'] is not None:
+                # for the epta
+                systems = self.sysflagdict['sys']
+                
             if rescale==True:
                 tmp_errs = self.toaerrs.copy()
 
