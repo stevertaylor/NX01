@@ -1379,7 +1379,8 @@ def lnprob(xx):
         
 
             
-        if args.incGWB and args.incCorr and gwb_modindex==1:
+        if args.incGWB and args.incCorr:
+            ## (option to de-restrict clms by phys prior)... and gwb_modindex==1:
             
             if args.gwbTypeCorr == 'modelIndep':
 
