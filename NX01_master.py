@@ -668,10 +668,10 @@ if args.incGWB:
         # Set george kernel parameters to previously-trained MAP
         # Compute factorisation of kernel based on sampled points
         for ii in range(len(gppkl)):
-            gp_kparams = np.exp(gppkl[ii].emcee_kernel_map)
+            gp_kparams = np.exp(gppkl[ii].kernel_map)
             gp.append( george.GP( gp_kparams[0] * \
                                   george.kernels.ExpSquaredKernel(gp_kparams[1]) ) )
-            gp[ii].compute(gppkl[ii].x)
+            gp[ii].compute(gppkl[ii].x, gppkl[ii].yerr)
 
         gwb_popparam = args.gpPickle.split('/')[-1].split('_')
         for word in gwb_popparam:

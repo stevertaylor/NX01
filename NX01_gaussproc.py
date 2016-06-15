@@ -12,9 +12,9 @@ class gaussproc(object):
         
         self.pmax = np.array([20.0, 50.0])
         self.pmin = np.array([-20.0, -20.0])
-        self.emcee_flatchain = None
-        self.emcee_flatlnprob = None
-        self.emcee_kernel_map = None
+        self.chain = None
+        self.lnprob = None
+        self.kernel_map = None
     
     def lnprior(self, p):
     
