@@ -565,7 +565,7 @@ if args.incGWB and args.incCorr:
             
         elif args.userOrf is not None:
 
-            if args.userOrf.split('.')[-1] is not 'npy':
+            if args.userOrf.split('.')[-1] != 'npy':
                 print "You are supplying custom pulsar positions, " \
                 "possibly scrambled!"
                 custom_positions = np.genfromtxt(args.userOrf,dtype=str,comments='#')
@@ -579,15 +579,15 @@ if args.incGWB and args.incCorr:
                 elif len(custom_positions)==len(psr):
                     customOrf = 2.0*np.sqrt(np.pi)*anis.CorrBasis(custom_positions,0)[0]
                     
-            elif args.userOrf.split('.')[-1] is 'npy':
+            elif args.userOrf.split('.')[-1] == 'npy':
                 loadOrf = np.load(args.userOrf)
-                if np.atleast_3d(customOrf.T).shape[-1]>1:
+                if np.atleast_3d(loadOrf.T).shape[-1]>1:
                     print "You have given me ORFs for all frequencies!"
                 else:
                     print "You have given me a broadband ORF!"
 
-                if (np.atleast_3d(customOrf.T).shape[0]==len(psr) and
-                    np.atleast_3d(customOrf.T).shape[1]==len(psr)):
+                if (np.atleast_3d(loadOrf.T).shape[0]==len(psr) and
+                    np.atleast_3d(loadOrf.T).shape[1]==len(psr)):
                     print "Dimensions match number of pulsars...OK!"
                     customOrf = loadOrf
                 else:
