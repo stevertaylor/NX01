@@ -1728,7 +1728,7 @@ def lnprob(xx):
                 ORF=[]
                 for ii in range(tmp_nwins): # number of frequency windows
                     for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
-                        ORF.append( np.ones((npsr,npsr)) ) # clock signal is completely correlated
+                        ORF.append( np.ones((npsr,npsr)) + 1e-5*np.diag(np.ones(npsr)) ) # clock signal is completely correlated
                         
                 if args.incDM:
                     for ii in range(tmp_nwins): # number of frequency windows
