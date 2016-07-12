@@ -1,0 +1,41 @@
+# INFO on pulsarDistances.txt data
+# all data from Matthews et al. (arXiv:1509.08982) unless noted
+# DM distances assumed ~25% uncert (NE2001)
+# when plx_low_lim > DM, use plx_low_lim w/ uncert to include DM
+J0023+0923 plx_low_lim+DM
+J0030+0451 parallax
+J0340+4130 DM-Guillemot_etal_2016
+J0613−0200 parallax
+J0645+5158 parallax
+J0931−1902 DM-Guillemot_etal_2016
+J1012+5307 DM
+J1024−0719 plx_low_lim+DM
+J1455−3330 plx_low_lim+DM
+J1600−3053 parallax
+J1614−2230 parallax
+J1640+2224 plx_low_lim+DM
+J1643−1224 DM
+J1713+0747 parallax
+J1738+0333 DM
+J1741+1351 plx_low_lim+DM
+J1744−1134 parallax
+J1747−4036 DM-Kerr_etal_2012
+J1832−0836 DM-ATNF_Catalogue
+J1853+1303 DM
+B1855+09 plx_low_lim+DM
+J1903+0327 plx_low_lim+DM
+J1909−3744 parallax
+J1910+1256 DM
+J1918−0642 parallax
+J1923+2515 DM
+B1937+21 DM
+J1944+0907 DM
+J1949+3106 DM-ATNF_Catalogue
+B1953+29 DM
+J2010−1323 plx_low_lim+DM
+J2017+0603 parallax-Guillemot_etal_2016
+J2043+1711 parallax
+J2145−0750 parallax
+J2214+3000 parallax-Guillemot_etal_2016
+J2302+4442 DM-Guillemot_etal_2016
+J2317+1439 parallax
