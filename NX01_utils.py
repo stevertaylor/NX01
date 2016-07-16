@@ -1321,6 +1321,26 @@ def bwmsignal_psr(parameters, t):
     return amp * s * heaviside(t - epoch) * (t - epoch)
 
 
+def glitch_signal(psr, epoch, amp):
+    """
+    Like pulsar term BWM event, but now differently parameterized: an
+    amplitude (log-amp) parameter, and an epoch. [source: piccard]
+    
+    :param psr: pulsar object
+    :param epoch: TOA time (MJD) the burst hits the earth
+    :param amp: amplitude of the glitch
+    """
+    
+    # Define the heaviside function
+    heaviside = lambda x: 0.5 * (np.sign(x) + 1)
+
+    # Glitches are spontaneous spin-up events.
+    # Thus TOAs will be advanced, and resiudals will be negative.
+    
+    return  -10.0**amp * heaviside(psr.toas - epoch) * \
+      (psr.toas - epoch)*86400.0
+
+
 def real_sph_harm(ll, mm, phi, theta):
     """
     The real-valued spherical harmonics

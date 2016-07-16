@@ -10,6 +10,12 @@ If you use this code then please [cite it](https://zenodo.org/badge/latestdoi/20
 
 Perhaps you want the [webpage](http://stevertaylor.github.io/NX01/)?
 
+## Contributors
+
+* Justin Ellis
+* Rutger van Haasteren
+* Paul Baker
+
 ## Code list
 
 * **NX01_master.py**: performs a full evolving-anisotropy GWB and
