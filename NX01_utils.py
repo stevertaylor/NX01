@@ -908,9 +908,9 @@ def get_cn(n, mc, dl, h0, F, e):
     omega = 2 * np.pi * F
 
     if h0 is None:
-        amp = n * mc**(5/3) * omega**(2/3) / dl
+        amp = 2 * mc**(5/3) * omega**(2/3) / dl
     elif h0 is not None:
-        amp = n * h0 / 2.0
+        amp = h0
      
     ret = amp * ss.jn(n,n*e) / (n * omega)
 

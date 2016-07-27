@@ -224,7 +224,7 @@ parser.add_option('--psrTerm', dest='psrTerm', action='store_true', default=Fals
 parser.add_option('--periEv', dest='periEv', action='store_true', default=False,
                   help='Do you want to model the binary periapsis evolution? (default = False)')
 parser.add_option('--cgwPrior', dest='cgwPrior', action='store', type=str, default='uniform',
-                  help='By default this puts a [uniform] prior on the strain amplitude, but can also choose [loguniform] which puts separate loguniform priors on mass and distance (default = \'uniform\')')
+                  help='By default this puts a [uniform] prior on the strain amplitude, but can also choose [loguniform] on strain amplitude, or [mdloguniform] which puts separate loguniform priors on mass and distance (default = \'uniform\')')
 parser.add_option('--fixcgwFreq', dest='fixcgwFreq', action='store', type=float, default=None,
                   help='Fix the cgw orbital frequency to a particular log10 value (default = \'None\')')
 parser.add_option('--fixcgwEcc', dest='fixcgwEcc', action='store', type=float, default=None,
@@ -1299,9 +1299,9 @@ def lnprob(xx):
 
                 ########################
 
-                if args.cgwPrior == 'uniform':
+                if args.cgwPrior == 'uniform' or args.cgwPrior == 'loguniform':
                     hstrain_tmp = hstrain
-                elif args.cgwPrior == 'loguniform':
+                elif args.cgwPrior == 'mdloguniform':
                     hstrain_tmp = None
                     
                 for ii,p in enumerate(psr):
