@@ -751,7 +751,7 @@ for ii,p in enumerate(psr):
         else:
             
             d.append(np.dot(p.Te.T, p.res/( new_err**2.0 )))
-        
+            
             N = 1./( new_err**2.0 )
             right = (N*p.Te.T).T
             TtNT.append(np.dot(p.Te.T, right))
@@ -1778,8 +1778,8 @@ def lnprob(xx):
         
             # Construct red noise signal
             if args.fixRed:
-                Ared_tmp = psr[ii].Redamp
-                gam_red_tmp = psr[ii].Redind
+                Ared_tmp = np.max([psr[ii].Redamp, psr[ii].parRedamp])
+                gam_red_tmp = np.max([psr[ii].Redind, psr[ii].parRedind])
 
                 red_kappa_tmp = np.log10( Ared_tmp**2/12/np.pi**2 * \
                                     f1yr**(gam_red_tmp-3) * \
@@ -1799,8 +1799,8 @@ def lnprob(xx):
             # Construct DM-variations signal (if appropriate)
             if args.incDM:
                 if args.fixDM:
-                    Adm_tmp = psr[ii].DMamp
-                    gam_dm_tmp = psr[ii].DMind
+                    Adm_tmp = np.max([psr[ii].DMamp, psr[ii].parDMamp])
+                    gam_dm_tmp = np.max([psr[ii].DMind, psr[ii].parDMind])
                     
                     dm_kappa_tmp = np.log10( Adm_tmp**2/12/np.pi**2 * \
                                             f1yr**(gam_dm_tmp-3) * \
@@ -2109,7 +2109,7 @@ def lnprob(xx):
     
                 # compute sigma
                 Sigma = TtNT[ii] + Phi
-
+                
                 # cholesky decomp 
                 try:
                     
@@ -2407,7 +2407,7 @@ def lnprob(xx):
                 priorfac_dm = np.sum(np.log(10.0**dm_spec * np.log(10.0)))
             elif args.dmPrior == 'loguniform':
                 priorfac_dm = 0.0
-    elif not args.incDM:
+    elif args.fixDM or not args.incDM:
         priorfac_dm = 0.0
 
 
