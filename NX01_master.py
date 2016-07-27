@@ -895,7 +895,7 @@ if not args.fixRed:
 if args.incDM and not args.fixDM:
     if args.dmSpecModel == 'powerlaw':
         # slightly higher than red due to normalisation
-        pmax = np.append(pmax,-10.0*np.ones(len(psr)))
+        pmax = np.append(pmax,-8.0*np.ones(len(psr)))
         pmax = np.append(pmax,7.0*np.ones(len(psr)))
     elif args.dmSpecModel == 'spectrum':
         pmax = np.append(pmax,3.0*np.ones(len(psr)*nmode))
@@ -2873,15 +2873,20 @@ if args.sampler == 'ptmcmc':
     x0 = np.array([])
     if not args.fixRed:
         if args.redSpecModel == 'powerlaw':
-            x0 = np.append(x0,np.log10(np.array([p.Redamp for p in psr])))
-            x0 = np.append(x0,np.array([p.Redind for p in psr]))
+            # starting red parameters at single pulsar values
+            startRedamp = np.log10(np.array([np.max([p.parRedamp, p.Redamp]) for p in psr]))
+            startRedind = np.array([np.max([p.parRedind, p.Redind]) for p in psr])
+            x0 = np.append(x0,startRedamp)
+            x0 = np.append(x0,startRedind)
         elif args.redSpecModel == 'spectrum':
             x0 = np.append(x0,np.random.uniform(-7.0,-3.0,len(psr)*nmode))
     if args.incDM and not args.fixDM:
         if args.dmSpecModel == 'powerlaw':
-            # starting dm parameters at DM noise parameters
-            x0 = np.append(x0,np.log10(np.array([p.DMamp for p in psr])))
-            x0 = np.append(x0,np.array([p.DMind for p in psr]))
+            # starting dm parameters at single pulsar values
+            startDMamp = np.log10(np.array([np.max([p.parDMamp, p.DMamp]) for p in psr]))
+            startDMind = np.array([np.max([p.parDMind, p.DMind]) for p in psr])
+            x0 = np.append(x0,startDMamp)
+            x0 = np.append(x0,startDMind)
         elif args.dmSpecModel == 'spectrum':
             x0 = np.append(x0,np.random.uniform(-7.0,-3.0,len(psr)*nmode))
     if args.incClk:

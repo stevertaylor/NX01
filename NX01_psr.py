@@ -357,6 +357,8 @@ class PsrObjFromH5(object):
     t2ecorrs = None
     parRedamp = None
     parRedind = None
+    parDMamp = None
+    parDMind = None
     efacs = None
     equads = None
     ecorrs = None
@@ -402,6 +404,8 @@ class PsrObjFromH5(object):
         self.t2ecorrs = None
         self.parRedamp = None
         self.parRedind = None
+        self.parDMamp = None
+        self.parDMind = None
         self.efacs = None
         self.equads = None
         self.ecorrs = None
@@ -473,14 +477,26 @@ class PsrObjFromH5(object):
         self.t2equads = OrderedDict(t2equads)
         self.t2ecorrs = OrderedDict(t2ecorrs)
 
-        # Let's rip out the red noise properties if present
+        # Let's rip out the red-noise/DM properties if present
         self.parRedamp = 1e-20
         self.parRedind = 0.0
+        self.parDMamp = 1e-20
+        self.parDMind = 0.0
         for ll in parlines:
             if 'RNAMP' in ll:
-                self.parRedamp = ll.split()[1] # 1e-6 * f1yr * np.sqrt(12.0*np.pi**2.0) * np.double(ll.split()[1]) 
+                self.parRedamp = np.double(ll.split()[1]) # 1e-6 * f1yr * np.sqrt(12.0*np.pi**2.0) * np.double(ll.split()[1])
+            elif 'TNRedAmp' in ll:
+                self.parRedamp = 10.0**np.double(ll.split()[1])
+
             if 'RNIDX' in ll:
                 self.parRedind = -np.double(ll.split()[1])
+            elif 'TNRedGam' in ll:
+                self.parRedind = np.double(ll.split()[1])
+
+            if 'TNDMAmp' in ll:
+                self.parDMamp = 10.0**np.double(ll.split()[1]) * np.sqrt(12.0*np.pi**2.0)
+            if 'TNDMGam' in ll:
+                self.parDMind = np.double(ll.split()[1])
 
         # Let's also find single pulsar analysis EFACS, EQUADS, ECORRS
         self.Redamp = 1e-20
