@@ -1314,17 +1314,6 @@ def lnprob(xx):
                     hstrain_tmp = hstrain
                 elif args.cgwPrior == 'mdloguniform':
                     hstrain_tmp = None
-
-                    if args.bwm_model_select:
-                        if nmodel == 0:
-                            bwm_res.append( np.zeros(len(p.toas)) )
-                        elif nmodel == 1:
-                            bwm_res.append( utils.bwmsignal(bwm_params,p,
-                                                            antennaPattern=args.bwm_antenna) )
-                    else:
-                        bwm_res.append( utils.bwmsignal(bwm_params,p,
-                                                        antennaPattern=args.bwm_antenna) )
-                    detres.append( p.res - bwm_res[ii] )
                     
                 for ii,p in enumerate(psr):
 
