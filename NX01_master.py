@@ -215,6 +215,8 @@ parser.add_option('--bwm_model_select', dest='bwm_model_select', action='store_t
                   help='Do you want to compute the Bayes Factor for BWM+noise versus noise-only? (default = False)')
 parser.add_option('--cgw_search', dest='cgw_search', action='store_true', default=False,
                   help='Do you want to search for a single continuous GW signal? (default = False)')
+parser.add_option('--cgwModelSelect', dest='cgwModelSelect', action='store_true', default=False,
+                  help='Do you want to compute the Bayes factor for CGW+noise versus noise-only? (default = False)')
 parser.add_option('--ecc_search', dest='ecc_search', action='store_true', default=False,
                   help='Do you want to search for an eccentric binary? (default = False)')
 parser.add_option('--epochTOAs', dest='epochTOAs', action='store_true', default=False,
@@ -878,7 +880,9 @@ if args.det_signal:
             pmin = np.append(pmin,0.001*np.ones(len(psr)))
             pmin = np.append(pmin,np.zeros(len(psr)))
             pmin = np.append(pmin,np.zeros(len(psr)))
-    if args.bwm_search:
+        if args.cgwModelSelect:
+            pmin = np.append(pmin,-0.5)
+    elif args.bwm_search:
         pmin = np.append(pmin,[np.min([np.min(p.toas) for p in psr]),
                                -18.0,0.0,-1.0,0.0])
         if args.bwm_model_select:
@@ -979,7 +983,9 @@ if args.det_signal:
             pmax = np.append(pmax,10.0*np.ones(len(psr)))
             pmax = np.append(pmax,2.0*np.pi*np.ones(len(psr)))
             pmax = np.append(pmax,2.0*np.pi*np.ones(len(psr)))
-    if args.bwm_search:
+        if args.cgwModelSelect:
+            pmax = np.append(pmax,1.5)
+    elif args.bwm_search:
         pmax = np.append(pmax,[np.max([np.max(p.toas) for p in psr]),
                                -11.0,2.0*np.pi,1.0,np.pi])
         if args.bwm_model_select:
@@ -1147,8 +1153,13 @@ def lnprob(xx):
 
     if args.det_signal:
         if args.cgw_search:
-            cgw_params = xx[param_ct:]
-        if args.bwm_search:
+            if args.cgwModelSelect:
+                cgw_params = xx[param_ct:-1]
+                # '0' is noise-only, '1' is CGW
+                nmodel = int(np.rint(xx[-1]))
+            else:
+                cgw_params = xx[param_ct:]
+        elif args.bwm_search:
             if args.bwm_model_select:
                 bwm_params = xx[param_ct:-1]
                 # '0' is noise-only, '1' is BWM
@@ -1303,29 +1314,46 @@ def lnprob(xx):
                     hstrain_tmp = hstrain
                 elif args.cgwPrior == 'mdloguniform':
                     hstrain_tmp = None
+
+                    if args.bwm_model_select:
+                        if nmodel == 0:
+                            bwm_res.append( np.zeros(len(p.toas)) )
+                        elif nmodel == 1:
+                            bwm_res.append( utils.bwmsignal(bwm_params,p,
+                                                            antennaPattern=args.bwm_antenna) )
+                    else:
+                        bwm_res.append( utils.bwmsignal(bwm_params,p,
+                                                        antennaPattern=args.bwm_antenna) )
+                    detres.append( p.res - bwm_res[ii] )
                     
                 for ii,p in enumerate(psr):
+
+                    if args.cgwModelSelect and nmodel == 0:
+                        
+                        cgw_res.append( np.zeros(len(p.toas)) )
+                        
+                    elif (args.cgwModelSelect and nmodel == 1) or not args.cgwModelSelect:
+                           
+                        tmp_res = utils.ecc_cgw_signal(p, gwtheta_tmp, gwphi_tmp, mc,
+                                                    dist, hstrain_tmp, orbfreq_tmp,
+                                                    gwinc, gwpol, gwgamma_tmp, ecc_tmp,
+                                                    l0, qr, nmax=10000, pd=psrdists[ii],
+                                                    gpx=psrgp0[ii], lpx=psrlp0[ii],
+                                                    periEv=args.periEv, psrTerm=args.psrTerm,
+                                                    tref=tref, epochTOAs=args.epochTOAs,
+                                                    noEccEvolve=args.noEccEvolve)
                     
-                    tmp_res = utils.ecc_cgw_signal(p, gwtheta_tmp, gwphi_tmp, mc,
-                                                   dist, hstrain_tmp, orbfreq_tmp,
-                                                   gwinc, gwpol, gwgamma_tmp, ecc_tmp,
-                                                   l0, qr, nmax=10000, pd=psrdists[ii],
-                                                   gpx=psrgp0[ii], lpx=psrlp0[ii],
-                                                   periEv=args.periEv, psrTerm=args.psrTerm,
-                                                   tref=tref, epochTOAs=args.epochTOAs,
-                                                   noEccEvolve=args.noEccEvolve)
-                    
-                    if args.epochTOAs:
-                        cgw_res.append(np.ones(len(p.toas)))
-                        for cc, swave in enumerate(tmp_res):
-                            cgw_res[ii][p.detsig_Uinds[cc,0]:p.detsig_Uinds[cc,1]] *= swave
-                    elif not args.epochTOAs:
-                        cgw_res.append(tmp_res)
+                        if args.epochTOAs:
+                            cgw_res.append(np.ones(len(p.toas)))
+                            for cc, swave in enumerate(tmp_res):
+                                cgw_res[ii][p.detsig_Uinds[cc,0]:p.detsig_Uinds[cc,1]] *= swave
+                        elif not args.epochTOAs:
+                            cgw_res.append(tmp_res)
                         
                     detres.append( p.res - cgw_res[ii] )
 
 
-            if args.bwm_search:
+            elif args.bwm_search:
 
                 bwm_res = []
                 detres = []
@@ -2671,7 +2699,9 @@ if args.det_signal:
             [parameters.append('pdist_'+p.name) for p in psr]
             [parameters.append('gp0_'+p.name) for p in psr]
             [parameters.append('lp0_'+p.name) for p in psr]
-    if args.bwm_search:
+        if args.cgwModelSelect:
+            parameters.append("nmodel")
+    elif args.bwm_search:
         parameters += ["burst_mjd", "burst_strain",
                        "phi", "costheta", "gwpol"]
         if args.bwm_model_select:
@@ -2769,7 +2799,9 @@ if args.det_signal:
             file_tag += '_ccgw'+args.cgwPrior+cgwtag
         if args.psrTerm:
             file_tag += 'psrTerm'
-    if args.bwm_search:
+        if args.cgwModelSelect:
+            file_tag += 'ModSct'
+    elif args.bwm_search:
         file_tag += '_bwm'+args.bwm_antenna
         if args.bwm_model_select:
             file_tag += 'ModSct'
@@ -2968,7 +3000,9 @@ if args.sampler == 'ptmcmc':
                                             for p in psr]))
                 x0 = np.append(x0,np.random.uniform(0.0,2.0*np.pi,len(psr)))
                 x0 = np.append(x0,np.random.uniform(0.0,2.0*np.pi,len(psr)))
-        if args.bwm_search:
+            if args.cgwModelSelect:
+                x0 = np.append(x0,0.4)
+        elif args.bwm_search:
             x0 = np.append(x0,np.array([55100.0,-14.0,0.3,0.5,0.7]))
             if args.bwm_model_select:
                 x0 = np.append(x0,0.4)
@@ -3040,7 +3074,9 @@ if args.sampler == 'ptmcmc':
                                                         for p in psr])**2.0)
                 cov_diag = np.append(cov_diag,0.2*np.ones(len(psr)))
                 cov_diag = np.append(cov_diag,0.2*np.ones(len(psr)))
-        if args.bwm_search:
+            if args.cgwModelSelect:
+                cov_diag = np.append(cov_diag,0.1)
+        elif args.bwm_search:
             cov_diag = np.append(cov_diag,np.array([100.0,0.1,0.1,0.1,0.1]))
             if args.bwm_model_select:
                 cov_diag = np.append(cov_diag,0.1)
@@ -4551,6 +4587,90 @@ if args.sampler == 'ptmcmc':
             qxy += 0
         
         return q, qxy
+
+    # cgw psrterm l0
+    def drawFromCGWModelIndexPrior(parameters, iter, beta):
+
+        # post-jump parameters
+        q = parameters.copy()
+
+        # transition probability
+        qxy = 0
+
+        npsr = len(psr)
+        pct = 0
+        if not args.fixRed:
+            if args.redSpecModel == 'powerlaw':
+                pct = 2*npsr
+            elif args.redSpecModel == 'spectrum':
+                pct = npsr*nmode
+    
+        if args.incDM and not args.fixDM:
+            if args.dmSpecModel == 'powerlaw':
+                pct += 2*npsr
+            elif args.dmSpecModel == 'spectrum':
+                pct += npsr*nmode
+
+        if args.incClk:
+            if args.clkSpecModel == 'powerlaw':
+                pct += 2
+            elif args.clkSpecModel == 'spectrum':
+                pct += nmode
+
+        if args.incCm:
+            if args.cmSpecModel == 'powerlaw':
+                pct += 2
+            elif args.cmSpecModel == 'spectrum':
+                pct += nmode
+
+        if args.incEph:
+            if args.ephSpecModel == 'powerlaw':
+                pct += 6
+            elif args.ephSpecModel == 'spectrum':
+                pct += 3*nmode
+
+        if args.incGWB:
+            if args.gwbSpecModel == 'powerlaw':
+                pct += 1
+                if not args.fix_slope:
+                    pct += 1
+            elif args.gwbSpecModel == 'spectrum':
+                pct += nmode
+                if args.gwbPrior == 'gaussProc':
+                    pct += 2
+            elif args.gwbSpecModel == 'turnover':
+                if args.gwb_fb2env is not None:
+                    pct += 2
+                elif args.gwb_fb2env is None:
+                    pct += 3
+            elif args.gwbSpecModel == 'gpEnvInterp':
+                pct += 2
+
+            if args.incCorr:
+                pct += num_corr_params
+                if args.gwbModelSelect:
+                    pct += 1
+
+        if args.incGWline:
+            pct += 4
+
+        if args.ecc_search:
+            pct += 12
+        elif not args.ecc_search:
+            pct += 11
+
+        if args.psrTerm:
+            # psr distances
+            pct += len(psr)
+            # psrterm gamma0
+            pct += len(psr)
+            # psrterm l0
+            pct += len(psr)
+
+        q[pct] = np.random.uniform(pmin[pct], pmax[pct])
+        qxy += 0
+        
+        return q, qxy
     
 
     # bwm draws 
@@ -4629,7 +4749,7 @@ if args.sampler == 'ptmcmc':
         return q, qxy
 
     # bwm model index draws 
-    def drawFromModelIndexPrior(parameters, iter, beta):
+    def drawFromBWMModelIndexPrior(parameters, iter, beta):
 
         # post-jump parameters
         q = parameters.copy()
@@ -4754,10 +4874,12 @@ if args.sampler == 'ptmcmc':
             sampler.addProposalToCycle(drawFromPsrDistPrior, 10)
             sampler.addProposalToCycle(drawFromPtermGamPrior, 10)
             sampler.addProposalToCycle(drawFromPtermEllPrior, 10)
-    if args.det_signal and args.bwm_search:
+        if args.cgwModelSelect:
+            sampler.addProposalToCycle(drawFromCGWModelIndexPrior, 5)
+    elif args.det_signal and args.bwm_search:
         sampler.addProposalToCycle(drawFromBWMPrior, 10)
         if args.bwm_model_select:
-            sampler.addProposalToCycle(drawFromModelIndexPrior, 5)
+            sampler.addProposalToCycle(drawFromBWMModelIndexPrior, 5)
 
     sampler.sample(p0=x0, Niter=5e6, thin=10,
                 covUpdate=1000, AMweight=20,
