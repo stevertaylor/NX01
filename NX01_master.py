@@ -91,6 +91,8 @@ parser.add_option('--from-h5', dest='from_h5', action='store_true', default = Fa
                    help='Do you want to read in pulsars from hdf5 files instead of directly via libstempo? (default = False)')
 parser.add_option('--psrlist', dest='psrlist', action='store', type=str, default = None,
                    help='Provide path to file containing list of pulsars and their respective par/tim paths')
+parser.add_option('--sysflag_target', dest='sysflag_target', action='store', type=str, default = 'f',
+                   help='If you are supplying pulsar noise files, then specify which system flag you want to target (default = f)')
 parser.add_option('--nmodes', dest='nmodes', action='store', type=int,
                    help='Number of modes in low-rank time-frequency approximation')
 parser.add_option('--cadence', dest='cadence', action='store', type=float,
@@ -414,7 +416,7 @@ else:
 
 
 # Grab all the pulsar quantities
-[p.grab_all_vars() for p in psr]
+[p.grab_all_vars(rescale=True, sysflag_target=args.sysflag_target) for p in psr]
 
 # Now, grab the positions and compute the ORF basis functions
 psr_positions = [np.array([psr[ii].psr_locs[0],

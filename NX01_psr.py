@@ -417,7 +417,7 @@ class PsrObjFromH5(object):
     """
     Read data from hdf5 file into pulsar object
     """
-    def grab_all_vars(self, rescale=True): 
+    def grab_all_vars(self, rescale=True, sysflag_target=None): 
 
         print "--> Extracting {0} from hdf5 file".format(self.h5Obj['name'].value)
         
@@ -536,26 +536,28 @@ class PsrObjFromH5(object):
                     self.DMind = np.double(ll.split()[1])
 
             # Time to rescale the TOA uncertainties by single-pulsar EFACS and EQUADS
-            if self.sysflagdict['f'] is not None:
-                # for nanograv
-                systems = self.sysflagdict['f']
-            elif self.sysflagdict['f'] is None and self.sysflagdict['sys'] is not None:
-                # for the epta
-                systems = self.sysflagdict['sys']
+            if sysflag_target is not None:
+                systems = self.sysflagdict[sysflag_target]
+            else:
+                if self.sysflagdict['group'] is not None:
+                    # for nanograv/ipta
+                    systems = self.sysflagdict['group']
+                elif self.sysflagdict['f'] is not None:
+                    # for nanograv
+                    systems = self.sysflagdict['f']
+                elif self.sysflagdict['sys'] is not None:
+                    # for the epta
+                    systems = self.sysflagdict['sys']
                 
-            if rescale==True:
+            if rescale:
                 tmp_errs = self.toaerrs.copy()
 
                 for sysname in systems:
                     tmp_errs[systems[sysname]] *= self.efacs[sysname] 
 
-                ###
-
                 t2equad_bit = np.ones(len(tmp_errs))
                 for sysname in systems:
                     t2equad_bit[systems[sysname]] *= self.equads[sysname]
-
-                ###
 
                 tmp_errs = np.sqrt( tmp_errs**2.0 + t2equad_bit**2.0 )
                 self.toaerrs = tmp_errs
