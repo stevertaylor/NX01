@@ -531,7 +531,8 @@ class PsrObjFromH5(object):
                 if 'RN-spectral-index' in ll:
                     self.Redind = np.double(ll.split()[1])
                 if 'DM-Amplitude' in ll:
-                    self.DMamp = 10.0**np.double(ll.split()[1]) 
+                    # special edit below since AP's DM-amps use TN convention
+                    self.DMamp = 10.0**np.double(ll.split()[1]) * np.sqrt(12.0*np.pi**2.0)
                 if 'DM-spectral-index' in ll:
                     self.DMind = np.double(ll.split()[1])
 

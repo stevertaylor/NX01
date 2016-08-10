@@ -217,6 +217,8 @@ parser.add_option('--bwm_model_select', dest='bwm_model_select', action='store_t
                   help='Do you want to compute the Bayes Factor for BWM+noise versus noise-only? (default = False)')
 parser.add_option('--cgw_search', dest='cgw_search', action='store_true', default=False,
                   help='Do you want to search for a single continuous GW signal? (default = False)')
+parser.add_option('--cgwFreqRange', dest='cgwFreqRange', action='store', type=str, default=None,
+                  help='Provide a lower and upper log_10(f_orb) range as a comma delimited string (default = None)')
 parser.add_option('--cgwModelSelect', dest='cgwModelSelect', action='store_true', default=False,
                   help='Do you want to compute the Bayes factor for CGW+noise versus noise-only? (default = False)')
 parser.add_option('--ecc_search', dest='ecc_search', action='store_true', default=False,
@@ -788,6 +790,9 @@ for ii,p in enumerate(psr):
 if args.gwbAmpRange is not None:
     amp_range = np.array([float(item) for item \
                           in args.gwbAmpRange.split(',')])
+if args.cgwFreqRange is not None:
+    cgw_orbfreq_range = np.array([float(item) for item \
+                                  in args.cgwFreqRange.split(',')])
 
 pmin = np.array([])
 if not args.fixRed:
@@ -873,8 +878,12 @@ if args.incGWline:
     pmin = np.append(pmin,np.array([-8.0,-10.0,0.0,-1.0]))
 if args.det_signal:
     if args.cgw_search:
-        pmin = np.append(pmin,np.array([7.0,0.1,0.0,-17.0,-9.301,
-                                        0.0,-1.0,-1.0,0.0,0.0,0.0]))
+        if args.cgwFreqRange is None:
+            pmin = np.append(pmin,np.array([7.0,0.1,0.0,-17.0,-9.301,
+                                            0.0,-1.0,-1.0,0.0,0.0,0.0]))
+        elif args.cgwFreqRange is not None:
+            pmin = np.append(pmin,np.array([7.0,0.1,0.0,-17.0,cgw_orbfreq_range[0],
+                                            0.0,-1.0,-1.0,0.0,0.0,0.0]))
         if args.ecc_search:
             pmin = np.append(pmin,0.0)
         if args.psrTerm:
@@ -976,8 +985,12 @@ if args.incGWline:
     pmax = np.append(pmax,np.array([3.0,-7.0,2.0*np.pi,1.0]))
 if args.det_signal:
     if args.cgw_search:
-        pmax = np.append(pmax,np.array([10.0,1.0,4.0,-11.0,-7.301,2.0*np.pi,
-                                        1.0,1.0,np.pi,np.pi,2.0*np.pi]))
+        if args.cgwFreqRange is None:
+            pmax = np.append(pmax,np.array([10.0,1.0,4.0,-11.0,-7.301,2.0*np.pi,
+                                            1.0,1.0,np.pi,np.pi,2.0*np.pi]))
+        elif args.cgwFreqRange is not None:
+            pmax = np.append(pmax,np.array([10.0,1.0,4.0,-11.0,cgw_orbfreq_range[1],2.0*np.pi,
+                                            1.0,1.0,np.pi,np.pi,2.0*np.pi]))
         if args.ecc_search:
             pmax = np.append(pmax,0.9)
         if args.psrTerm:
