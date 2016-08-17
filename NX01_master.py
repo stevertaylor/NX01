@@ -100,15 +100,17 @@ parser.add_option('--cadence', dest='cadence', action='store', type=float,
 parser.add_option('--incDM', dest='incDM', action='store_true', default=False,
                    help='Search for DM variations in the data as a Gaussian process (False)? (default=False)')
 parser.add_option('--sampler', dest='sampler', action='store', type=str, default='ptmcmc',
-                   help='Which sampler do you want to use: PTMCMC (ptmcmc) or MultiNest (mnest) (default = ptmcmc)')
+                   help='Which sampler do you want to use: PTMCMC (ptmcmc), MultiNest (mnest), or Polychord (pchord) (default = ptmcmc)')
 parser.add_option('--ins', dest='ins', action='store_true', default=False,
                    help='Switch on importance nested sampling for MultiNest (default = False)')
 parser.add_option('--nlive', dest='nlive', action='store', type=int, default=500,
-                   help='Number of live points for MultiNest (default = 500)')
+                   help='Number of live points for MultiNest or Polychord (default = 500)')
 parser.add_option('--sampleEff', dest='sampleEff', action='store', type=float, default=0.3,
                    help='Sampling efficiency for MultiNest (default = 0.3)')
 parser.add_option('--constEff', dest='constEff', action='store_true', default=False,
                    help='Run MultiNest in constant efficiency mode? (default = False)')
+parser.add_option('--nchords', dest='nchords', action='store', type=int, default=1,
+                   help='Number of chords for Polychord (default = 1)')
 parser.add_option('--resume', dest='resume', action='store_true', default=False,
                    help='Do you want to resume the sampler (default = False)')
 parser.add_option('--writeHotChains', dest='writeHotChains', action='store_true', default=False,
@@ -373,6 +375,8 @@ if rank == 0:
 
 if args.sampler == 'mnest':
     import pymultinest
+elif args.sampler == 'pchord':
+    import pypolychord
 elif args.sampler == 'ptmcmc':
     import PTMCMCSampler
     from PTMCMCSampler import PTMCMCSampler as ptmcmc
@@ -2903,7 +2907,58 @@ if args.sampler == 'mnest':
                     sampling_efficiency = args.sampleEff,
                     const_efficiency_mode = args.constEff)
 
-if args.sampler == 'ptmcmc':
+elif args.sampler == 'pchord':
+
+    dir_name = args.dirExt+file_tag+'_pchord'
+
+    if rank == 0:
+        if not os.path.exists(dir_name):
+            os.makedirs(dir_name)
+
+        if not os.path.exists(dir_name+'/clusters'):
+            os.mkdir(dir_name+'/clusters')
+        
+        if args.incCorr:
+            # Copy the anisotropy modefile into the results directory
+            if args.anis_modefile is not None:
+                os.system('cp {0} {1}'.format(args.anis_modefile,dir_name))
+
+        # Printing out the list of searched parameters
+        fil = open(dir_name+'/parameter_list.txt','w')
+        for ii,parm in enumerate(parameters):
+            print >>fil, ii, parm
+        fil.close()
+
+        # Printing out the array of frequencies in the rank-reduced spectrum
+        np.save(dir_name+'/freq_array.npy', fqs/86400.0)
+
+        # Printing out the array of random phase shifts
+        psr_phaseshifts = OrderedDict.fromkeys([p.name for p in psr])
+        for ii,name in enumerate(psr_phaseshifts):
+            psr_phaseshifts[name] = list(psr[ii].ranphase)
+        with open(dir_name+'/psr_phaseshifts.json', 'w') as fp:
+            json.dump(psr_phaseshifts, fp)
+        fp.close()
+
+        # Saving command-line arguments to file
+        with open(dir_name+'/run_args.json', 'w') as frun:
+            json.dump(vars(args), frun)
+        frun.close()
+
+    def prior_func(xx):
+        for ii in range(len(xx)):
+            xx[ii] = pmin[ii] + xx[ii]*(pmax[ii]-pmin[ii])
+        return xx
+            
+    def like_func(xx):
+        xx = np.array([xx[ii] for ii in range(len(xx))])
+        return lnprob(xx)
+
+    pypolychord.run(like_func, prior_func, n_params,
+                    n_live = args.nlive, n_chords = args.nchords,
+                    output_basename='{0}/pchord_'.format(dir_name))
+
+elif args.sampler == 'ptmcmc':
     
     # Start the sampling off with some reasonable parameter choices
     x0 = np.array([])
