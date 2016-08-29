@@ -189,7 +189,7 @@ def createFourierDesignmatrix_dm(t, nmodes, obs_freqs, freq=False, Tspan=None):
     @param nmodes: number of fourier coefficients to use
     @param freq: option to output frequencies
     @param Tspan: option to some other Tspan
-    @param pbs_freqs: pulsar observing frequencies
+    @param obs_freqs: pulsar observing frequencies
 
     @return: F: fourier design matrix
     @return: f: Sampling frequencies (if freq=True)
@@ -254,9 +254,9 @@ def createFourierDesignmatrix_eph(t, nmodes, psr_locs, freq=False, Tspan=None):
     # define the pulsar position vector
     phi = psr_loc[0]
     theta = np.pi/2. - psr_locs[1]
-    x = np.tile(np.sin(theta)*np.cos(phi), 2*nmodes)
-    y = np.tile(np.sin(theta)*np.sin(phi), 2*nmodes)
-    z = np.tile(np.cos(theta), 2*nmodes)
+    x = np.sin(theta)*np.cos(phi)
+    y = np.sin(theta)*np.sin(phi)
+    z = np.cos(theta)
 
     # The sine/cosine modes
     ct = 0
@@ -270,9 +270,9 @@ def createFourierDesignmatrix_eph(t, nmodes, psr_locs, freq=False, Tspan=None):
         Fz[:,ii+1] = np.sin(2*np.pi*fqs[ct]*t)
         ct += 1
 
-    Fx = np.dot(Fx,x)
-    Fy = np.dot(Fy,y)
-    Fz = np.dot(Fz,z)
+    Fx = Fx * x
+    Fy = Fy * y
+    Fz = Fz * z
     
     if freq:
         return Fx, Fy, Fz, fqs
@@ -280,7 +280,9 @@ def createFourierDesignmatrix_eph(t, nmodes, psr_locs, freq=False, Tspan=None):
         return Fx, Fy, Fz
 
 def quantize_fast(times, dt=1.0, calci=False):
-    """ Adapted from libstempo: produce the quantisation matrix fast """
+    """
+    Adapted from libstempo: produce the quantisation matrix fast
+    """
     isort = np.argsort(times)
     
     bucket_ref = [times[isort[0]]]
@@ -581,8 +583,9 @@ def quantreduce(U, eat, flags, calci=False):
     return rv
 
 def dailyAve(times, res, err, ecorr, dt=1, flags=None):
-    # Does not work yet in NX01"
-
+    """
+    !!!!! Does not work yet in NX01 !!!!
+    """
     isort = np.argsort(times)
     
     bucket_ref = [times[isort[0]]]
