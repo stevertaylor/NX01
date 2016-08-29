@@ -938,11 +938,6 @@ def calculate_splus_scross(nmax, mc, dl, h0, F, e, t, l0, gamma, gammadot, inc):
     :param inc: Inclination angle [rad]
 
     """ 
-    '''if e < 0.001:
-        n = np.array([2])
-        nmax = 2
-    else:
-        n = np.arange(1, nmax)'''
     n = np.arange(1, nmax)
 
     # time dependent amplitudes
@@ -958,23 +953,6 @@ def calculate_splus_scross(nmax, mc, dl, h0, F, e, t, l0, gamma, gammadot, inc):
     # tiled phase
     phase1 = n * np.tile(lt, (nmax-1,1)).T
     phase2 = np.tile(gt, (nmax-1,1)).T
-    #phasep = phase1 + 2*phase2
-    #phasem = phase1 - 2*phase2
-
-    # intermediate terms
-    #sp = np.sin(phasem)/(n*omega-2*gammadot) + \
-    #        np.sin(phasep)/(n*omega+2*gammadot)
-    #sm = np.sin(phasem)/(n*omega-2*gammadot) - \
-    #        np.sin(phasep)/(n*omega+2*gammadot)
-    #cp = np.cos(phasem)/(n*omega-2*gammadot) + \
-    #        np.cos(phasep)/(n*omega+2*gammadot)
-    #cm = np.cos(phasem)/(n*omega-2*gammadot) - \
-    #        np.cos(phasep)/(n*omega+2*gammadot)
-    #
-    #
-    #splus_n = -0.5 * (1+np.cos(inc)**2) * (an*sp - bn*sm) + \
-    #        (1-np.cos(inc)**2)*cn * np.sin(phase1)
-    #scross_n = np.cos(inc) * (an*cm - bn*cp)
 
     sinp1 = np.sin(phase1)
     cosp1 = np.cos(phase1)
