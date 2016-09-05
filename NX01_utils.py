@@ -131,33 +131,39 @@ def makeDmTDcov(psr, Adm, gam_dm, tm):
     return Cdm
 
 
-def createFourierDesignmatrix_red(t, nmodes, freq=False,
-                                  pshift=False, Tspan=None):
+def createFourierDesignmatrix_red(t, nmodes, output_freqs=False, pshift=False,
+                                  Tspan=None, input_freqs=None):
     """
     Construct fourier design matrix from eq 11 of Lentati et al, 2013
 
     @param t: vector of time series in seconds
     @param nmodes: number of fourier coefficients to use
-    @param freq: option to output frequencies
+    @param output_freqs: option to output frequencies
     @param pshift: option to add random phase shift
     @param Tspan: option to some other Tspan
+    @param input_freqs: user-defined sampling frequencies
+                        (number must match nmodes)
 
     @return: F: fourier design matrix
-    @return: f: Sampling frequencies (if freq=True)
+    @return: f: Sampling frequencies (if output_freqs=True)
 
     """
 
     N = len(t)
     F = np.zeros((N, 2*nmodes))
 
-    if Tspan is not None:
-        T = Tspan
-    else:
-        T = t.max() - t.min()
-
     # define sampling frequencies
-    fqs = np.linspace(1/T, nmodes/T, nmodes)
-    
+    if input_freqs is None:
+        if Tspan is not None:
+            T = Tspan
+        else:
+            T = t.max() - t.min()
+        fqs = np.linspace(1/T, nmodes/T, nmodes)
+    elif input_freqs is not None:
+        fqs = np.array([float(item) for item \
+                        in input_freqs.split(',')])
+
+    # add random phase shift to basis functions
     if pshift:
         ranphase = np.random.uniform(0.0, 2.0*np.pi, nmodes)
     elif not pshift:
@@ -176,36 +182,42 @@ def createFourierDesignmatrix_red(t, nmodes, freq=False,
             
         ct += 1
 
-    if freq:
+    if output_freqs:
         return F, fqs, ranphase
     else:
         return F, ranphase
 
-def createFourierDesignmatrix_dm(t, nmodes, obs_freqs, freq=False, Tspan=None):
+def createFourierDesignmatrix_dm(t, nmodes, obs_freqs, output_freqs=False,
+                                 Tspan=None, input_freqs=None):
     """
     Construct fourier design matrix from eq 11 of Lentati et al, 2013
 
     @param t: vector of time series in seconds
     @param nmodes: number of fourier coefficients to use
-    @param freq: option to output frequencies
+    @param obs_freqs: pulsar radio observing frequencies
+    @param output_freqs: option to output frequencies
     @param Tspan: option to some other Tspan
-    @param obs_freqs: pulsar observing frequencies
+    @param input_freqs: user-defined sampling frequencies
+                        (number must match nmodes)
 
     @return: F: fourier design matrix
-    @return: f: Sampling frequencies (if freq=True)
+    @return: f: Sampling frequencies (if output_freqs=True)
 
     """
 
     N = len(t)
     F = np.zeros((N, 2*nmodes))
 
-    if Tspan is not None:
-        T = Tspan
-    else:
-        T = t.max() - t.min()
-
     # define sampling frequencies
-    fqs = np.linspace(1/T, nmodes/T, nmodes)
+    if input_freqs is None:
+        if Tspan is not None:
+            T = Tspan
+        else:
+            T = t.max() - t.min()
+        fqs = np.linspace(1/T, nmodes/T, nmodes)
+    elif input_freqs is not None:
+        fqs = np.array([float(item) for item \
+                        in input_freqs.split(',')])
 
     # compute the DM-variation vectors
     K = 2.41 * 10.0**(-16.0)
@@ -219,22 +231,26 @@ def createFourierDesignmatrix_dm(t, nmodes, obs_freqs, freq=False, Tspan=None):
         F[:,ii+1] = np.multiply(np.sin(2*np.pi*fqs[ct]*t),Dm)
         ct += 1
     
-    if freq:
+    if output_freqs:
         return F, fqs
     else:
         return F
 
-def createFourierDesignmatrix_eph(t, nmodes, psr_locs, freq=False, Tspan=None):
+def createFourierDesignmatrix_eph(t, nmodes, psr_locs, output_freqs=False,
+                                  Tspan=None, input_freqs=None):
     """
     Construct fourier design matrix from eq 11 of Lentati et al, 2013
 
     @param t: vector of time series in seconds
     @param nmodes: number of fourier coefficients to use
     @param psr_locs: phi and theta coordinates of pulsar
+    @param output_freqs: option to output frequencies
     @param Tspan: option to some other Tspan
+    @param input_freqs: user-defined sampling frequencies
+                        (number must match nmodes)
 
     @return: F: fourier design matrix along each positional basis vector
-    @return: f: Sampling frequencies (if freq=True)
+    @return: f: Sampling frequencies (if output_freqs=True)
 
     """
 
@@ -243,16 +259,19 @@ def createFourierDesignmatrix_eph(t, nmodes, psr_locs, freq=False, Tspan=None):
     Fy = np.zeros((N, 2*nmodes))
     Fz = np.zeros((N, 2*nmodes))
 
-    if Tspan is not None:
-        T = Tspan
-    else:
-        T = t.max() - t.min()
-
     # define sampling frequencies
-    fqs = np.linspace(1/T, nmodes/T, nmodes)
+    if input_freqs is None:
+        if Tspan is not None:
+            T = Tspan
+        else:
+            T = t.max() - t.min()
+        fqs = np.linspace(1/T, nmodes/T, nmodes)
+    elif input_freqs is not None:
+        fqs = np.array([float(item) for item \
+                        in input_freqs.split(',')])
 
     # define the pulsar position vector
-    phi = psr_loc[0]
+    phi = psr_locs[0]
     theta = np.pi/2. - psr_locs[1]
     x = np.sin(theta)*np.cos(phi)
     y = np.sin(theta)*np.sin(phi)
@@ -274,7 +293,7 @@ def createFourierDesignmatrix_eph(t, nmodes, psr_locs, freq=False, Tspan=None):
     Fy = Fy * y
     Fz = Fz * z
     
-    if freq:
+    if output_freqs:
         return Fx, Fy, Fz, fqs
     else:
         return Fx, Fy, Fz
