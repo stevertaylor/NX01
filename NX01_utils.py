@@ -292,7 +292,7 @@ def createFourierDesignmatrix_eph(t, nmodes, psr_locs, output_freqs=False,
     Fx = Fx * x
     Fy = Fy * y
     Fz = Fz * z
-    
+    print t
     if output_freqs:
         return Fx, Fy, Fz, fqs
     else:
