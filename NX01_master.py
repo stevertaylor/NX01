@@ -950,7 +950,7 @@ if args.incEph:
         pmax = np.append(pmax,np.array([-11.0,-11.0,-11.0]))
         pmax = np.append(pmax,np.array([7.0,7.0,7.0]))
     elif args.ephSpecModel == 'spectrum':
-        pmax = np.append(pmax,10.0*np.ones(3*nmodes_eph))
+        pmax = np.append(pmax,20.0*np.ones(3*nmodes_eph))
 if args.incGWB:
     if args.gwbSpecModel == 'powerlaw':
         if args.gwbAmpRange is None:
