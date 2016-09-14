@@ -843,7 +843,7 @@ if args.incEph:
         pmin = np.append(pmin,np.array([-20.0,-20.0,-20.0]))
         pmin = np.append(pmin,np.array([0.0,0.0,0.0]))
     elif args.ephSpecModel == 'spectrum':
-        pmin = np.append(pmin,-15.0*np.ones(3*nmodes_eph))
+        pmin = np.append(pmin,-30.0*np.ones(3*nmodes_eph))
 if args.incGWB:
     if args.gwbSpecModel == 'powerlaw':
         if args.gwbAmpRange is None:
@@ -950,7 +950,7 @@ if args.incEph:
         pmax = np.append(pmax,np.array([-11.0,-11.0,-11.0]))
         pmax = np.append(pmax,np.array([7.0,7.0,7.0]))
     elif args.ephSpecModel == 'spectrum':
-        pmax = np.append(pmax,20.0*np.ones(3*nmodes_eph))
+        pmax = np.append(pmax,-3.0*np.ones(3*nmodes_eph))
 if args.incGWB:
     if args.gwbSpecModel == 'powerlaw':
         if args.gwbAmpRange is None:
@@ -2019,9 +2019,9 @@ def lnprob(xx):
                                       f1yr**(gam_ephz-3) * \
                                       (fqs_eph/86400.0)**(-gam_ephz)/Tspan)
             elif args.ephSpecModel == 'spectrum':
-                kappa_ephx = np.log10( 10.0**(2.0*eph_spec[0,:]) / Tspan )
-                kappa_ephy = np.log10( 10.0**(2.0*eph_spec[1,:]) / Tspan )
-                kappa_ephz = np.log10( 10.0**(2.0*eph_spec[2,:]) / Tspan )
+                kappa_ephx = np.log10( 10.0**(2.0*eph_spec[0,:]))
+                kappa_ephy = np.log10( 10.0**(2.0*eph_spec[1,:]))
+                kappa_ephz = np.log10( 10.0**(2.0*eph_spec[2,:]))
 
             red_padding = np.zeros(nmodes_red)
             if args.incDM:

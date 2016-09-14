@@ -619,7 +619,7 @@ class PsrObjFromH5(object):
             self.Ftot = np.append(self.Ftot, self.Fephx, axis=1)
             self.Ftot = np.append(self.Ftot, self.Fephy, axis=1)
             self.Ftot = np.append(self.Ftot, self.Fephz, axis=1)
-        print self.Fred.shape, self.Fephx.shape, self.Fephy.shape, self.Fephz.shape, self.Ftot.shape
+        
         self.Te = np.append(self.Gc, self.Ftot, axis=1)
 
     def two_comp_noise(self, mlerrors):
