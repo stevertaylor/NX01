@@ -843,7 +843,7 @@ if args.incEph:
         pmin = np.append(pmin,np.array([-20.0,-20.0,-20.0]))
         pmin = np.append(pmin,np.array([0.0,0.0,0.0]))
     elif args.ephSpecModel == 'spectrum':
-        pmin = np.append(pmin,-8.0*np.ones(3*nmodes_eph))
+        pmin = np.append(pmin,-15.0*np.ones(3*nmodes_eph))
 if args.incGWB:
     if args.gwbSpecModel == 'powerlaw':
         if args.gwbAmpRange is None:
@@ -950,7 +950,7 @@ if args.incEph:
         pmax = np.append(pmax,np.array([-11.0,-11.0,-11.0]))
         pmax = np.append(pmax,np.array([7.0,7.0,7.0]))
     elif args.ephSpecModel == 'spectrum':
-        pmax = np.append(pmax,3.0*np.ones(3*nmodes_eph))
+        pmax = np.append(pmax,10.0*np.ones(3*nmodes_eph))
 if args.incGWB:
     if args.gwbSpecModel == 'powerlaw':
         if args.gwbAmpRange is None:
