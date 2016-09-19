@@ -2458,7 +2458,7 @@ def lnprob(xx):
         ### free spectral model ###
         elif args.clkSpecModel == 'spectrum':
             if args.clkPrior == 'uniform':
-                priorfac_clk = np.log(10.0**clk_spec * np.log(10.0))
+                priorfac_clk = np.sum(np.log(10.0**clk_spec * np.log(10.0)))
             elif args.clkPrior == 'loguniform':
                 priorfac_clk = 0.0
     elif not args.incClk:
@@ -2475,7 +2475,7 @@ def lnprob(xx):
         ### free spectral model ###
         elif args.cmSpecModel == 'spectrum':
             if args.cmPrior == 'uniform':
-                priorfac_cm = np.log(10.0**cm_spec * np.log(10.0))
+                priorfac_cm = np.sum(np.log(10.0**cm_spec * np.log(10.0)))
             elif args.cmPrior == 'loguniform':
                 priorfac_cm = 0.0
     elif not args.incCm:
@@ -2494,9 +2494,9 @@ def lnprob(xx):
         ### free spectral model ###
         elif args.ephSpecModel == 'spectrum':
             if args.ephPrior == 'uniform':
-                priorfac_eph = np.log(10.0**eph_spec[0,:] * np.log(10.0)) + \
-                  np.log(10.0**eph_spec[1,:] * np.log(10.0)) + \
-                  np.log(10.0**eph_spec[2,:] * np.log(10.0))
+                priorfac_eph = np.sum(np.log(10.0**eph_spec[0,:] * np.log(10.0))) + \
+                  np.sum(np.log(10.0**eph_spec[1,:] * np.log(10.0))) + \
+                  np.sum(np.log(10.0**eph_spec[2,:] * np.log(10.0)))
             elif args.ephPrior == 'loguniform':
                 priorfac_eph = 0.0
     elif not args.incEph:
