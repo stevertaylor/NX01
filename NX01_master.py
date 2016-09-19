@@ -2495,8 +2495,8 @@ def lnprob(xx):
         elif args.ephSpecModel == 'spectrum':
             if args.ephPrior == 'uniform':
                 priorfac_eph = np.log(10.0**eph_spec[0,:] * np.log(10.0)) + \
-                  np.log(10.0**eph_kappa[1,:] * np.log(10.0)) + \
-                  np.log(10.0**eph_kappa[2,:] * np.log(10.0))
+                  np.log(10.0**eph_spec[1,:] * np.log(10.0)) + \
+                  np.log(10.0**eph_spec[2,:] * np.log(10.0))
             elif args.ephPrior == 'loguniform':
                 priorfac_eph = 0.0
     elif not args.incEph:
