@@ -249,6 +249,8 @@ parser.add_option('--fixcgwTheta', dest='fixcgwTheta', action='store', type=floa
                   help='Fix the cgw polar sky-location (theta) to a particular value (default = \'None\')')
 parser.add_option('--noEccEvolve', dest='noEccEvolve', action='store_true', default=False,
                   help='Do not allow eccentricity to evolve between pulsar- and Earth-term (default = \'False\')')
+parser.add_option('--eph_quadratic', dest='eph_quadratic', action='store_true', default=False,
+                  help='Do you want to include a deterministic quadratic in the ephemeris model? (default = False)')
 parser.add_option('--incGWline', dest='incGWline', action='store_true', default=False,
                   help='Do you want to include a single-frequency line in the GW spectrum? (default = False)')
 parser.add_option('--gwlinePrior', dest='gwlinePrior', action='store', type=str, default='uniform',
@@ -917,7 +919,10 @@ if args.det_signal:
                                -18.0,0.0,-1.0,0.0])
         if args.bwm_model_select:
             pmin = np.append(pmin,-0.5)
-
+    if args.eph_quadratic:
+        pmin = np.append(pmin,np.tile([-10.0,-10.0],3)) # amps
+        pmin = np.append(pmin,np.tile([-1.0,-1.0],3)) # signs
+        
 
 pmax = np.array([])
 if not args.fixRed:
@@ -1024,6 +1029,9 @@ if args.det_signal:
                                -11.0,2.0*np.pi,1.0,np.pi])
         if args.bwm_model_select:
             pmax = np.append(pmax,1.5)
+    if args.eph_quadratic:
+        pmax = np.append(pmax,np.tile([0.0,0.0],3)) # amps
+        pmax = np.append(pmax,np.tile([1.0,1.0],3)) # signs
 
 ##################################################################################
 
@@ -1200,7 +1208,15 @@ def lnprob(xx):
                 nmodel = int(np.rint(xx[-1]))
             else:
                 bwm_params = xx[param_ct:]
-
+        # fix this for single GW signals as well as eph_quadratic
+        if args.eph_quadratic:
+            xquad1_amp, xquad2_amp, \
+              yquad1_amp, yquad2_amp, \
+              zquad1_amp, zquad2_amp = xx[param_ct:param_ct+6]
+            xquad1_sign, xquad2_sign, \
+              yquad1_sign, yquad2_sign, \
+              zquad1_sign, zquad2_sign = xx[param_ct+6:param_ct+12]
+            
     ############################
     ############################
     # Now, evaluating likelihood
@@ -1391,7 +1407,29 @@ def lnprob(xx):
                         bwm_res.append( utils.bwmsignal(bwm_params,p,
                                                         antennaPattern=args.bwm_antenna) )
                     detres.append( p.res - bwm_res[ii] )
-            
+
+            if args.eph_quadratic:
+
+                detres = []
+                for ii, p in enumerate(psr):
+
+                    # define the pulsar position vector
+                    pphi = p.psr_locs[0]
+                    ptheta = np.pi/2. - p.psr_locs[1]
+                    x = np.sin(ptheta)*np.cos(pphi)
+                    y = np.sin(ptheta)*np.sin(pphi)
+                    z = np.cos(ptheta)
+
+                    normtime = (p.toas - tref)/365.25
+                    x_quad = (np.sign(xquad1_sign) * 10.0**xquad1_amp * normtime + \
+                              np.sign(xquad2_sign) * 10.0**xquad2_amp * normtime**2.0) * x
+                    y_quad = (np.sign(yquad1_sign) * 10.0**yquad1_amp * normtime + \
+                              np.sign(yquad2_sign) * 10.0**yquad2_amp * normtime**2.0) * y
+                    z_quad = (np.sign(zquad1_sign) * 10.0**zquad1_amp * normtime + \
+                              np.sign(zquad2_sign) * 10.0**zquad2_amp * normtime**2.0) * z
+
+                    # need to alter this if you want a single GW source also
+                    detres.append( p.res - x_quad - y_quad - z_quad )
 
             #############################################################
             # Recomputing some noise quantities involving 'residuals'.
@@ -2715,6 +2753,11 @@ if args.det_signal:
                        "phi", "costheta", "gwpol"]
         if args.bwm_model_select:
             parameters.append("nmodel")
+    if args.eph_quadratic:
+        parameters += ["eph_xquad1amp", "eph_xquad2amp", "eph_yquad1amp",
+                       "eph_yquad2amp", "eph_zquad1amp", "eph_zquad2amp",
+                       "eph_xquad1sign", "eph_xquad2sign", "eph_yquad1sign",
+                       "eph_yquad2sign", "eph_zquad1sign", "eph_zquad2sign"]
 
 
 n_params = len(parameters)
@@ -2814,6 +2857,8 @@ if args.det_signal:
         file_tag += '_bwm'+args.bwm_antenna
         if args.bwm_model_select:
             file_tag += 'ModSct'
+    if args.eph_quadratic:
+        file_tag += '_ephquad'
 if args.fixRed:
     red_tag = '_redFix'+'nm{0}'.format(nmodes_red)
 elif not args.fixRed:
@@ -3074,6 +3119,9 @@ elif args.sampler == 'ptmcmc':
             x0 = np.append(x0,np.array([55100.0,-14.0,0.3,0.5,0.7]))
             if args.bwm_model_select:
                 x0 = np.append(x0,0.4)
+        if args.eph_quadratic:
+            x0 = np.append(x0,np.array(np.tile([-7.0],6)))
+            x0 = np.append(x0,np.random.uniform(-1.0,1.0,6))
 
     if rank==0:
         print "\n Your initial parameters are {0}\n".format(x0)
@@ -3148,6 +3196,9 @@ elif args.sampler == 'ptmcmc':
             cov_diag = np.append(cov_diag,np.array([100.0,0.1,0.1,0.1,0.1]))
             if args.bwm_model_select:
                 cov_diag = np.append(cov_diag,0.1)
+        if args.eph_quadratic:
+            cov_diag = np.append(cov_diag,np.tile(0.1,6))
+            cov_diag = np.append(cov_diag,np.tile(0.1,6))
 
     if rank==0:
         print "\n Running a quick profile on the likelihood to estimate evaluation speed...\n"
@@ -3347,7 +3398,17 @@ elif args.sampler == 'ptmcmc':
             ids = [np.arange(param_ct,param_ct+5)]
             param_ct += 5
             [ind.append(id) for id in ids]
-        
+        ##### EPHEMERIS QUADRATIC #####
+        if args.eph_quadratic:
+            # amplitudes
+            ids = [np.arange(param_ct,param_ct+6)]
+            param_ct += 6
+            [ind.append(id) for id in ids]
+            # signs
+            ids = [np.arange(param_ct,param_ct+6)]
+            param_ct += 6
+            [ind.append(id) for id in ids]
+            
     ##### all parameters #####
     all_inds = range(len(x0))
     ind.insert(0, all_inds)
