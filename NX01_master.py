@@ -2343,7 +2343,7 @@ def lnprob(xx):
                             expval2 = sl.cho_solve(cf, dtmp)
                             logdet_Sigma = np.sum(2*np.log(np.diag(cf[0])))
 
-                    except np.linalg.LinAlgError:
+                    except np.linalg.LinAlgError or sks.CholmodError:
                     
                         print 'Cholesky Decomposition Failed second time!! Breaking...'
                         return -np.inf
