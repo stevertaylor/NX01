@@ -181,8 +181,10 @@ parser.add_option('--lmax', dest='LMAX', action='store', type=int, default=0,
                    help='Maximum multipole in anisotropic search (default = 0, i.e. isotropic-search)')
 parser.add_option('--noPhysPrior', dest='noPhysPrior', action='store_true', default=False,
                    help='Switch off test for physicality of anisotropic coefficient sampling (default = False)')
-parser.add_option('--use-gpu', dest='use_gpu', action='store_true', default=False,
+parser.add_option('--use_gpu', dest='use_gpu', action='store_true', default=False,
                   help='Do you want to use the GPU for accelerated linear algebra? (default = False)')
+parser.add_option('--sparse_cholesky', dest='sparse_cholesky', action='store_true', default=False,
+                  help='Do you want to use a sparse cholesky solver? (default = False)')
 parser.add_option('--fix_slope', dest='fix_slope', action='store_true', default=False,
                   help='Do you want to fix the slope of the GWB spectrum? (default = False)')
 parser.add_option('--gwbAmpRange', dest='gwbAmpRange', action='store', type=str, default=None,
@@ -372,6 +374,10 @@ if args.use_gpu:
     import scikits.cuda.misc as cumisc
 
     culinalg.init()
+
+if args.sparse_cholesky:
+    import scipy.sparse as sps
+    import scikits.sparse.cholmod as sks
 
 if args.sampler == 'mnest':
     import pymultinest
@@ -1462,7 +1468,8 @@ def lnprob(xx):
         
                     dtmp[ii] = np.dot(p.Te.T, detres[ii]/( new_err**2.0 ))
                     dtNdt.append(np.sum(detres[ii]**2.0/( new_err**2.0 )))
-        
+
+                #print np.any(np.isnan(dtmp[ii])), np.any(np.isnan(dtNdt[ii]))
                 loglike1_tmp += -0.5 * (logdet_N[ii] + dtNdt[ii])
         
         
@@ -2187,7 +2194,7 @@ def lnprob(xx):
                 
                 # cholesky decomp 
                 try:
-                    
+                    #print p.name, np.any(np.isnan(p.Mmat)), np.any(np.isnan(Phi)), np.any(np.isnan(Sigma))
                     cf = sl.cho_factor(Sigma)
                     expval2 = sl.cho_solve(cf, dtmp[ii])
                     logdet_Sigma = np.sum(2*np.log(np.diag(cf[0])))
@@ -2326,9 +2333,15 @@ def lnprob(xx):
                     try:
 
                         dtmp = np.concatenate(dtmp)
-                        cf = sl.cho_factor(Sigma)
-                        expval2 = sl.cho_solve(cf, dtmp)
-                        logdet_Sigma = np.sum(2*np.log(np.diag(cf[0])))
+                        if args.sparse_cholesky:
+                            sparseSigma = sps.csc_matrix(Sigma)
+                            cf = sks.cholesky(sparseSigma)
+                            expval2 = cf(dtmp)
+                            logdet_Sigma = cf.logdet()
+                        else:
+                            cf = sl.cho_factor(Sigma)
+                            expval2 = sl.cho_solve(cf, dtmp)
+                            logdet_Sigma = np.sum(2*np.log(np.diag(cf[0])))
 
                     except np.linalg.LinAlgError:
                     
