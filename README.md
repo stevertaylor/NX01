@@ -15,6 +15,15 @@ Perhaps you want the [webpage](http://stevertaylor.github.io/NX01/)?
 * Justin Ellis
 * Rutger van Haasteren
 * Paul Baker
+* Arian Azin
+* Patrick Dean Mullen
+* Mark Dewing
+* Daniel George
+* Miguel Holgado
+* Michael Katolik
+* Wei-Ting Liao
+* Patrick Mullen
+* Kedar Phadke
 
 ## Code list
 
