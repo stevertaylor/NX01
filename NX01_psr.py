@@ -106,8 +106,12 @@ class PsrObj(object):
                     isort, iisort = utils.argsortTOAs(self.toas, self.T2psr.flagvals('group'),
                                                       which='jitterext', dt=jitterbin/86400.)
                 except KeyError:
-                    isort, iisort = utils.argsortTOAs(self.toas, self.T2psr.flagvals('f'),
-                                                      which='jitterext', dt=jitterbin/86400.)
+                    try:
+                        isort, iisort = utils.argsortTOAs(self.toas, self.T2psr.flagvals('f'),
+                                                        which='jitterext', dt=jitterbin/86400.)
+                    except KeyError:
+                        isort, iisort = utils.argsortTOAs(self.toas, self.T2psr.flagvals('be'),
+                                                        which='jitterext', dt=jitterbin/86400.)
         
                 # sort data
                 self.toas = self.toas[isort]
@@ -137,7 +141,7 @@ class PsrObj(object):
         ################################################################################################
             
         # These are all the relevant system flags used by the PTAs.
-        system_flags = ['group','sys','i','f']
+        system_flags = ['group','sys','i','f','be']
         self.sysflagdict = OrderedDict.fromkeys(system_flags)
 
         # Put the systems into a dictionary which 
@@ -175,13 +179,22 @@ class PsrObj(object):
                           np.where(self.T2psr.flagvals('group')[isort] == nano_flags[kk])
                     self.sysflagdict.update(nanoflagdict)
                 except KeyError:
-                    nanoflagdict = OrderedDict.fromkeys(['nano-f'])
-                    nano_flags = list(set(self.T2psr.flagvals('f')[pta_maskdict['NANOGrav']]))
-                    nanoflagdict['nano-f'] = OrderedDict.fromkeys(nano_flags)
-                    for kk,subsys in enumerate(nano_flags):
-                        nanoflagdict['nano-f'][subsys] = \
-                          np.where(self.T2psr.flagvals('f')[isort] == nano_flags[kk])
-                    self.sysflagdict.update(nanoflagdict)
+                    try:
+                        nanoflagdict = OrderedDict.fromkeys(['nano-f'])
+                        nano_flags = list(set(self.T2psr.flagvals('f')[pta_maskdict['NANOGrav']]))
+                        nanoflagdict['nano-f'] = OrderedDict.fromkeys(nano_flags)
+                        for kk,subsys in enumerate(nano_flags):
+                            nanoflagdict['nano-f'][subsys] = \
+                              np.where(self.T2psr.flagvals('f')[isort] == nano_flags[kk])
+                        self.sysflagdict.update(nanoflagdict)
+                    except KeyError:
+                        nanoflagdict = OrderedDict.fromkeys(['nano-f'])
+                        nano_flags = list(set(self.T2psr.flagvals('be')[pta_maskdict['NANOGrav']]))
+                        nanoflagdict['nano-f'] = OrderedDict.fromkeys(nano_flags)
+                        for kk,subsys in enumerate(nano_flags):
+                            nanoflagdict['nano-f'][subsys] = \
+                              np.where(self.T2psr.flagvals('be')[isort] == nano_flags[kk])
+                        self.sysflagdict.update(nanoflagdict)
                     
         
         # If there are really no relevant flags,
@@ -203,9 +216,12 @@ class PsrObj(object):
                     #which='jitterext', dt=jitterbin/86400.)
                     flags = self.T2psr.flagvals('group')[isort]
                 except KeyError:
+                    try:
                     #isort_b, iisort_b = utils.argsortTOAs(self.toas, self.T2psr.flagvals('f')[isort],
                     #which='jitterext', dt=jitterbin/86400.)
-                    flags = self.T2psr.flagvals('f')[isort]
+                        flags = self.T2psr.flagvals('f')[isort]
+                    except KeyError:
+                        flags = self.T2psr.flagvals('be')[isort]
         
                 # sort data
                 #self.toas = self.toas[isort_b]
@@ -549,6 +565,9 @@ class PsrObjFromH5(object):
                 elif self.sysflagdict['sys'] is not None:
                     # for the epta
                     systems = self.sysflagdict['sys']
+                elif self.sysflagdict['be'] is not None:
+                    # for nanograv 5-yr
+                    systems = self.sysflagdict['be']
                 
             if rescale:
                 tmp_errs = self.toaerrs.copy()

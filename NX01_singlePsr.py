@@ -84,6 +84,18 @@ parser = optparse.OptionParser(description = "NX01 - It's been a long road, gett
 ############################
 ############################
 
+parser.add_option('--sampler', dest='sampler', action='store', type=str, default='ptmcmc',
+                   help='Which sampler do you want to use: PTMCMC (ptmcmc), MultiNest (mnest), or Polychord (pchord) (default = ptmcmc)')
+parser.add_option('--ins', dest='ins', action='store_true', default=False,
+                   help='Switch on importance nested sampling for MultiNest (default = False)')
+parser.add_option('--nlive', dest='nlive', action='store', type=int, default=500,
+                   help='Number of live points for MultiNest or Polychord (default = 500)')
+parser.add_option('--sampleEff', dest='sampleEff', action='store', type=float, default=0.3,
+                   help='Sampling efficiency for MultiNest (default = 0.3)')
+parser.add_option('--constEff', dest='constEff', action='store_true', default=False,
+                   help='Run MultiNest in constant efficiency mode? (default = False)')
+parser.add_option('--resume', dest='resume', action='store_true', default=False,
+                   help='Do you want to resume the sampler (default = False)')
 parser.add_option('--nmodes', dest='nmodes', action='store', type=int,
                    help='Number of modes in low-rank time-frequency approximation')
 parser.add_option('--cadence', dest='cadence', action='store', type=float, default=14.0,
@@ -108,6 +120,12 @@ parser.add_option('--jitterbin', dest='jitterbin', action='store', type=float, d
                    help='What time duration do you want a jitter bin to be? (default = 1.0)')
 parser.add_option('--mnest', dest='mnest', action='store_true', default=False,
                    help='Do you want to sample using MultiNest? (default=False)')
+parser.add_option('--writeHotChains', dest='writeHotChains', action='store_true', default=False,
+                   help='Do you want to store hot PTMCMC chains? (default=False)')
+parser.add_option('--hotChain', dest='hotChain', action='store_true', default=False,
+                   help='Do you want to include a very hot chain? (default=False)')
+parser.add_option('--dirExt', dest='dirExt', action='store', type=str, default='./chains_nanoAnalysis/',
+                  help='What master directory name do you want to put this run into? (default = ./chains_nanoAnalysis/)')
 
 (args, x) = parser.parse_args()
 
@@ -151,9 +169,9 @@ else:
            "which determines the upper frequency limit and the number of modes, got it?\n")
 
 
-if args.mnest:
+if args.sampler == 'mnest':
     import pymultinest
-else:
+elif args.sampler == 'ptmcmc':
     import PTMCMCSampler
     from PTMCMCSampler import PTMCMCSampler as ptmcmc
     
@@ -211,11 +229,11 @@ pmin = np.append(pmin,0.001*np.ones(len(systems)))
 pmax = np.append(pmax,10.0*np.ones(len(systems)))
 if args.fullN:
     pmin = np.append(pmin,-10.0*np.ones(len(systems)))
-    pmax = np.append(pmax,-5.0*np.ones(len(systems)))
+    pmax = np.append(pmax,-3.0*np.ones(len(systems)))
     if 'pta' in t2psr.flags():
         if len(psr.sysflagdict['nano-f'].keys())>0:
-            pmin = np.append(pmin, -8.5*np.ones(len(psr.sysflagdict['nano-f'].keys())))
-            pmax = np.append(pmax, -5.0*np.ones(len(psr.sysflagdict['nano-f'].keys())))
+            pmin = np.append(pmin, -10.0*np.ones(len(psr.sysflagdict['nano-f'].keys())))
+            pmax = np.append(pmax, -3.0*np.ones(len(psr.sysflagdict['nano-f'].keys())))
 if args.incGlitch:
     pmin = np.append(pmin,[np.min(psr.toas),-18.0])
     pmax = np.append(pmax,[np.max(psr.toas),-11.0])
@@ -282,7 +300,7 @@ def ln_prob(xx):
 
     if args.incGlitch:
         model_res = psr.res - utils.glitch_signal(psr, glitch_epoch, glitch_lamp)
-    elif not incGlitch:
+    elif not args.incGlitch:
         model_res = psr.res
 
     # compute ( T.T * N^-1 * T )
@@ -380,11 +398,12 @@ def ln_prob(xx):
         logdet_Sigma = np.sum(2*np.log(np.diag(cf[0])))
 
     except np.linalg.LinAlgError:
-        print 'Cholesky Decomposition Failed second time!! Using SVD instead'
-        u,s,v = sl.svd(Sigma)
-        expval2 = np.dot(v.T, 1/s*np.dot(u.T, d))
-        logdet_Sigma = np.sum(np.log(s))
-
+        #print 'Cholesky Decomposition Failed second time!! Using SVD instead'
+        #u,s,v = sl.svd(Sigma)
+        #expval2 = np.dot(v.T, 1/s*np.dot(u.T, d))
+        #logdet_Sigma = np.sum(np.log(s))
+        print 'Cholesky Decomposition Failed second time!! Getting outta here...'
+        return -np.inf
 
     logLike = -0.5 * (logdet_Phi + logdet_Sigma) + \
       0.5 * (np.dot(d, expval2)) + loglike1
@@ -455,10 +474,11 @@ if rank == 0:
 # Define function wrappers
 ###########################
 
-if args.mnest:
+if args.sampler == 'mnest':
 
     #dir_name = './chains_nanoAnalysis/nano_singlePsr/'+file_tag+'_mnest'
-    dir_name = './chn_eptapsr/'+file_tag+'_mnest'
+    #dir_name = './chn_eptapsr/'+file_tag+'_mnest'
+    dir_name = args.dirExt+file_tag+'_mnest'
     if not os.path.exists(dir_name):
         os.makedirs(dir_name)
 
@@ -483,14 +503,14 @@ if args.mnest:
         return ln_prob(xx)        
     
     pymultinest.run(like_func, prior_func, n_params,
-                    importance_nested_sampling = False,
-                    resume = False, verbose = True, 
-                    n_live_points=5000,
+                    importance_nested_sampling = args.ins,
+                    resume = args.resume, verbose = True, 
+                    n_live_points=args.nlive,
                     outputfiles_basename=u'{0}/mnest_'.format(dir_name), 
-                    sampling_efficiency=0.3,
-                    const_efficiency_mode=False)
+                    sampling_efficiency=args.sampleEff,
+                    const_efficiency_mode=args.constEff)
 
-if not args.mnest:
+if args.sampler == 'ptmcmc':
     
     x0 = np.array([-15.0,2.0])
     cov_diag = np.array([0.5,0.5])
