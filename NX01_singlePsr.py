@@ -532,7 +532,7 @@ if args.sampler == 'ptmcmc':
     if rank == 0:
         print "\n Your initial parameters are {0}\n".format(x0)
 
-    dir_name = './chains_nanoAnalysis/nano_singlePsr/'+file_tag+'_ptmcmc'
+    dir_name = args.dirExt+file_tag+'_ptmcmc'
     if not os.path.exists(dir_name):
         os.makedirs(dir_name)
 
