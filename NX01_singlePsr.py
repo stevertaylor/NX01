@@ -551,7 +551,7 @@ if args.sampler == 'ptmcmc':
     sampler = ptmcmc.PTSampler(ndim = n_params, logl = ln_prob,
                             logp = my_prior, cov = np.diag(cov_diag),
                             outDir='./{0}'.format(dir_name),
-                            resume = False)
+                            resume = args.resume)
 
     def drawFromRedNoisePrior(parameters, iter, beta):
 
