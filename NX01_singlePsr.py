@@ -262,14 +262,13 @@ def ln_prob(xx):
     if args.dmVar:
         Adm = 10.0**xx[ct]
         gam_dm = xx[ct+1]
-
         ct = 4
 
     EFAC = xx[ct:ct+len(systems)]
     ct += len(systems)
     
     if args.fullN:
-        EQUAD = 10.0**xx[ct+len(systems):ct+2*len(systems)]
+        EQUAD = 10.0**xx[ct:ct+len(systems)]
         ct += len(systems)
 
         if 'pta' in t2psr.flags():
