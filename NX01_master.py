@@ -189,6 +189,10 @@ parser.add_option('--fix_slope', dest='fix_slope', action='store_true', default=
                   help='Do you want to fix the slope of the GWB spectrum? (default = False)')
 parser.add_option('--gwbAmpRange', dest='gwbAmpRange', action='store', type=str, default=None,
                   help='Provide a lower and upper log_10(Agwb) range as a comma delimited string (default = None)')
+parser.add_option('--gwbStarsRange', dest='gwbStarsRange', action='store', type=str, default=None,
+                  help='Provide a lower and upper log_10(rho_stars) range as a comma delimited string (default = None)')
+parser.add_option('--gwbEccRange', dest='gwbEccRange', action='store', type=str, default=None,
+                  help='Provide a lower and upper e0 range as a comma delimited string (default = None)')
 parser.add_option('--gwbPrior', dest='gwbPrior', action='store', type=str, default='uniform',
                    help='Do you want to use a uniform prior on log_10(amplitude) for detection [loguniform], on amplitudes themselves for limits [uniform], an astrophysical prior (only when the amplitude is Agwb: for powerlaw, turnover, gpEnvInterp models) [sesana, mcwilliams], or a gaussian process prior [gaussProc] (default=\'uniform\')?')
 parser.add_option('--gwbHyperPrior', dest='gwbHyperPrior', action='store', type=str, default='uniform',
@@ -703,12 +707,13 @@ if args.incGWB:
         for ii in range(len(gppkl)):
             gp_kparams = np.exp(gppkl[ii].kernel_map)
             gp.append( george.GP( gp_kparams[0] * \
-                                  george.kernels.ExpSquaredKernel(gp_kparams[1]) ) )
+                                  george.kernels.ExpSquaredKernel(gp_kparams[1:],ndim=len(gp_kparams[1:])) ) )
             gp[ii].compute(gppkl[ii].x, gppkl[ii].yerr)
+            gwb_popparam_ndims = len(gp_kparams[1:])
 
         gwb_popparam = args.gpPickle.split('/')[-1].split('_')
         for word in gwb_popparam:
-            if word in ['stars','ecc','gas']:
+            if word in ['stars','ecc','gas','starsecc']:
                 gwb_popparam = word
                 break
 
@@ -817,6 +822,12 @@ for ii,p in enumerate(psr):
 if args.gwbAmpRange is not None:
     amp_range = np.array([float(item) for item \
                           in args.gwbAmpRange.split(',')])
+if args.gwbStarsRange is not None:
+    stars_range = np.array([float(item) for item \
+                          in args.gwbStarsRange.split(',')])
+if args.gwbEccRange is not None:
+    ecc_range = np.array([float(item) for item \
+                          in args.gwbEccRange.split(',')])
 if args.cgwFreqRange is not None:
     cgw_orbfreq_range = np.array([float(item) for item \
                                   in args.cgwFreqRange.split(',')])
@@ -866,12 +877,21 @@ if args.incGWB:
         elif args.gwbPrior == 'gaussProc':
             pmin = np.append(pmin,-5.0*np.ones(nmodes_red))
             pmin = np.append(pmin,-18.0) # Agwb
-            if gwb_popparam == 'ecc':
-                pmin = np.append(pmin,0.0)
-            elif gwb_popparam == 'stars':
-                pmin = np.append(pmin,0.0)
-            elif gwb_popparam == 'gas':
-                pmin = np.append(pmin,-3.0)
+            if gwb_popparam_ndims == 1:
+                if gwb_popparam == 'stars' and args.gwbStarsRange is not None:
+                    pmin = np.append(pmin,stars_range[0])
+                elif gwb_popparam == 'ecc' and args.gwbEccRange is not None:
+                    pmin = np.append(pmin,ecc_range[0])
+                else:
+                    pmin = np.append(pmin,gppkl[0].x.min())
+            else:
+                if gwb_popparam == 'starsecc' and args.gwbStarsRange is not None \
+                  and args.gwbEccRange is not None:
+                    pmin = np.append(pmin,stars_range[0])
+                    pmin = np.append(pmin,ecc_range[0])
+                else:
+                    for col in range(gppkl[0].x.shape[1]):
+                        pmin = np.append(pmin,gppkl[0].x[:,col].min())
     elif args.gwbSpecModel == 'turnover':
         pmin = np.append(pmin,-18.0) # Agwb
         if args.gwb_fb2env is not None:
@@ -976,12 +996,21 @@ if args.incGWB:
         elif args.gwbPrior == 'gaussProc':
             pmax = np.append(pmax,5.0*np.ones(nmodes_red))
             pmax = np.append(pmax,-11.0) # Agwb
-            if gwb_popparam == 'ecc':
-                pmax = np.append(pmax,0.9)
-            elif gwb_popparam == 'stars':
-                pmax = np.append(pmax,6.0)
-            elif gwb_popparam == 'gas':
-                pmax = np.append(pmax,2.0)
+            if gwb_popparam_ndims == 1:
+                if gwb_popparam == 'stars' and args.gwbStarsRange is not None:
+                    pmax = np.append(pmax,stars_range[1])
+                elif gwb_popparam == 'ecc' and args.gwbEccRange is not None:
+                    pmax = np.append(pmax,ecc_range[1])
+                else:
+                    pmax = np.append(pmax,gppkl[0].x.max())
+            else:
+                if gwb_popparam == 'starsecc' and args.gwbStarsRange is not None \
+                  and args.gwbEccRange is not None:
+                    pmax = np.append(pmax,stars_range[1])
+                    pmax = np.append(pmax,ecc_range[1])
+                else:
+                    for col in range(gppkl[0].x.shape[1]):
+                        pmax = np.append(pmax,gppkl[0].x[:,col].max())
     elif args.gwbSpecModel == 'turnover':
         pmax = np.append(pmax,-11.0) # Agwb
         if args.gwb_fb2env is not None:
@@ -1156,8 +1185,8 @@ def lnprob(xx):
             param_ct += nmodes_red
             if args.gwbPrior == 'gaussProc':
                 Agwb = 10.0**xx[param_ct]
-                env_param = xx[param_ct+1]
-                param_ct += 2
+                env_param = xx[param_ct+1:param_ct+1+gwb_popparam_ndims]
+                param_ct += 1 + gwb_popparam_ndims
         elif args.gwbSpecModel == 'turnover':
             Agwb = 10.0**xx[param_ct]
             if args.gwb_fb2env is not None:
@@ -1927,16 +1956,29 @@ def lnprob(xx):
                 if args.gwbPrior != 'gaussProc':
                     rho = np.log10( 10.0**(2.0*rho_spec) / Tspan )
                 elif args.gwbPrior == 'gaussProc':
-                    rho_pred = np.zeros((len(fqs_red),2))
-                    for ii,freq in enumerate(fqs_red):
-                        mu_pred, cov_pred = gp[ii].predict(gppkl[ii].y, env_param)
-                        if np.diag(cov_pred) < 0.0:
-                            rho_pred[ii,0], rho_pred[ii,1] = mu_pred, 1e-5 * mu_pred
-                        else:
-                            rho_pred[ii,0], rho_pred[ii,1] = mu_pred, np.sqrt(np.diag(cov_pred))
+                    if gwb_popparam == 'starsecc':
+                        rho_pred = np.zeros((len(fqs_red),2))
+                        for ii,freq in enumerate(fqs_red):
+                            mu_pred, cov_pred = gp[ii].predict(gppkl[ii].y, [env_param])
+                            if np.diag(cov_pred) < 0.0:
+                                rho_pred[ii,0], rho_pred[ii,1] = mu_pred, 1e-5 * mu_pred
+                            else:
+                                rho_pred[ii,0], rho_pred[ii,1] = mu_pred, np.sqrt(np.diag(cov_pred))
 
-                    # transforming from zero-mean unit-variance variable to rho
-                    rho = 2.0*np.log10(Agwb) - np.log10(Tspan) + rho_spec*rho_pred[:,1] + rho_pred[:,0]
+                        # transforming from zero-mean unit-variance variable to rho
+                        rho = 2.0*np.log10(Agwb) - np.log10(12.0 * np.pi**2.0 * (fqs_red/86400.0)**3.0 * Tspan) + \
+                          rho_spec*rho_pred[:,1] + rho_pred[:,0]
+                    else: 
+                        rho_pred = np.zeros((len(fqs_red),2))
+                        for ii,freq in enumerate(fqs_red):
+                            mu_pred, cov_pred = gp[ii].predict(gppkl[ii].y, env_param)
+                            if np.diag(cov_pred) < 0.0:
+                                rho_pred[ii,0], rho_pred[ii,1] = mu_pred, 1e-5 * mu_pred
+                            else:
+                                rho_pred[ii,0], rho_pred[ii,1] = mu_pred, np.sqrt(np.diag(cov_pred))
+
+                        # transforming from zero-mean unit-variance variable to rho
+                        rho = 2.0*np.log10(Agwb) - np.log10(Tspan) + rho_spec*rho_pred[:,1] + rho_pred[:,0]
                     
             elif args.gwbSpecModel == 'turnover':
                 rho = np.log10(Agwb**2/12/np.pi**2 * \
@@ -2703,7 +2745,10 @@ if args.incGWB:
         for ii in range(nmodes_red):
             parameters.append('gwbSpec_{0}'.format(ii+1))
         if args.gwbPrior == 'gaussProc':
-            parameters += ["Agwb",gwb_popparam]
+            if gwb_popparam == 'starsecc':
+                parameters += ["Agwb","stars","ecc"]
+            else:
+                parameters += ["Agwb",gwb_popparam]
     elif args.gwbSpecModel == 'turnover':
         parameters += ["Agwb"]
         if args.gwb_fb2env is not None:
@@ -3085,6 +3130,8 @@ elif args.sampler == 'ptmcmc':
                     x0 = np.append(x0,5.0)
                 elif gwb_popparam == 'gas':
                     x0 = np.append(x0,0.0)
+                elif gwb_popparam == 'starsecc':
+                    x0 = np.append(x0,np.array([2.0,0.5]))
         elif args.gwbSpecModel == 'turnover':
             x0 = np.append(x0,-15.0)
             if args.gwb_fb2env is not None:
@@ -3178,7 +3225,10 @@ elif args.sampler == 'ptmcmc':
             cov_diag = np.append(cov_diag,0.5*np.ones(nmodes_red))
             if args.gwbPrior == 'gaussProc':
                 # covariance is appropriate for all physical mechanisms
-                cov_diag = np.append(cov_diag,np.array([0.5,0.05])) 
+                if gwb_popparam == 'starsecc':
+                    cov_diag = np.append(cov_diag,np.array([0.5,0.05,0.05]))
+                else:
+                    cov_diag = np.append(cov_diag,np.array([0.5,0.05])) 
         elif args.gwbSpecModel == 'turnover':
             cov_diag = np.append(cov_diag,0.5)
             if args.gwb_fb2env is not None:
@@ -3295,15 +3345,13 @@ elif args.sampler == 'ptmcmc':
             [ind.append(id) for id in ids]
         elif args.gwbSpecModel == 'spectrum':
             spec_inds = range(param_ct,param_ct+nmodes_red)
-            #if args.gwbPrior != 'gaussProc':
             ids_spec = [np.array(spec_inds)]
             [ind.append(id) for id in ids_spec]
             param_ct += nmodes_red
             if args.gwbPrior == 'gaussProc':
-                #param_ct += nmode
-                ids_gp = [np.arange(param_ct,param_ct+2)]
+                ids_gp = [np.arange(param_ct,param_ct+1+gwb_popparam_ndims)]
                 [ind.append(id) for id in ids_gp]
-                param_ct += 2
+                param_ct += 1 + gwb_popparam_ndims
         elif args.gwbSpecModel == 'turnover':
             if args.gwb_fb2env is not None:
                 ids = [np.arange(param_ct,param_ct+2)]
@@ -4190,9 +4238,10 @@ elif args.sampler == 'ptmcmc':
             qxy -= (mu - parameters[pct]) ** 2 / 2 / \
               sig ** 2 - (mu - q[pct]) ** 2 / 2 / sig ** 2
 
-        # hyper priors on spectral parameters: eccentricity
-        q[pct+1] = np.random.uniform(pmin[pct+1], pmax[pct+1])
-        qxy += 0
+        # hyper priors on spectral parameters: 
+        for ii in range(gwb_popparam_ndims):
+            q[pct+1+ii] = np.random.uniform(pmin[pct+1+ii], pmax[pct+1+ii])
+            qxy += 0
         
         return q, qxy
     
@@ -4244,7 +4293,7 @@ elif args.sampler == 'ptmcmc':
             elif args.gwbSpecModel == 'spectrum':
                 pct += nmodes_red
                 if args.gwbPrior == 'gaussProc':
-                    pct += 2
+                    pct += 1 + gwb_popparam_ndims
             elif args.gwbSpecModel == 'turnover':
                 if args.gwb_fb2env is not None:
                     pct += 2
@@ -4314,7 +4363,7 @@ elif args.sampler == 'ptmcmc':
             elif args.gwbSpecModel == 'spectrum':
                 pct += nmodes_red
                 if args.gwbPrior == 'gaussProc':
-                    pct += 2
+                    pct += 1 + gwb_popparam_ndims
             elif args.gwbSpecModel == 'turnover':
                 if args.gwb_fb2env is not None:
                     pct += 2
@@ -4380,7 +4429,7 @@ elif args.sampler == 'ptmcmc':
             elif args.gwbSpecModel == 'spectrum':
                 pct += nmodes_red
                 if args.gwbPrior == 'gaussProc':
-                    pct += 2
+                    pct += 1+ gwb_popparam_ndims
             elif args.gwbSpecModel == 'turnover':
                 if args.gwb_fb2env is not None:
                     pct += 2
@@ -4453,7 +4502,7 @@ elif args.sampler == 'ptmcmc':
             elif args.gwbSpecModel == 'spectrum':
                 pct += nmodes_red
                 if args.gwbPrior == 'gaussProc':
-                    pct += 2
+                    pct += 1 + gwb_popparam_ndims
             elif args.gwbSpecModel == 'turnover':
                 if args.gwb_fb2env is not None:
                     pct += 2
@@ -4533,7 +4582,7 @@ elif args.sampler == 'ptmcmc':
             elif args.gwbSpecModel == 'spectrum':
                 pct += nmodes_red
                 if args.gwbPrior == 'gaussProc':
-                    pct += 2
+                    pct += 1 + gwb_popparam_ndims
             elif args.gwbSpecModel == 'turnover':
                 if args.gwb_fb2env is not None:
                     pct += 2
@@ -4616,7 +4665,7 @@ elif args.sampler == 'ptmcmc':
             elif args.gwbSpecModel == 'spectrum':
                 pct += nmodes_red
                 if args.gwbPrior == 'gaussProc':
-                    pct += 2
+                    pct += 1 + gwb_popparam_ndims
             elif args.gwbSpecModel == 'turnover':
                 if args.gwb_fb2env is not None:
                     pct += 2
@@ -4699,7 +4748,7 @@ elif args.sampler == 'ptmcmc':
             elif args.gwbSpecModel == 'spectrum':
                 pct += nmodes_red
                 if args.gwbPrior == 'gaussProc':
-                    pct += 2
+                    pct += 1 + gwb_popparam_ndims
             elif args.gwbSpecModel == 'turnover':
                 if args.gwb_fb2env is not None:
                     pct += 2
@@ -4783,7 +4832,7 @@ elif args.sampler == 'ptmcmc':
             elif args.gwbSpecModel == 'spectrum':
                 pct += nmodes_red
                 if args.gwbPrior == 'gaussProc':
-                    pct += 2
+                    pct += 1 + gwb_popparam_ndims
             elif args.gwbSpecModel == 'turnover':
                 if args.gwb_fb2env is not None:
                     pct += 2
@@ -4868,7 +4917,7 @@ elif args.sampler == 'ptmcmc':
             elif args.gwbSpecModel == 'spectrum':
                 pct += nmodes_red
                 if args.gwbPrior == 'gaussProc':
-                    pct += 2
+                    pct += 1 + gwb_popparam_ndims
             elif args.gwbSpecModel == 'turnover':
                 if args.gwb_fb2env is not None:
                     pct += 2
@@ -4943,7 +4992,7 @@ elif args.sampler == 'ptmcmc':
             elif args.gwbSpecModel == 'spectrum':
                 pct += nmodes_red
                 if args.gwbPrior == 'gaussProc':
-                    pct += 2
+                    pct += 1 + gwb_popparam_ndims
             elif args.gwbSpecModel == 'turnover':
                 if args.gwb_fb2env is not None:
                     pct += 2
