@@ -49,6 +49,7 @@ class PsrObj(object):
     epflags = None
     detsig_avetoas = None
     detsig_Uinds = None
+    planet_ssb = None
 
     def __init__(self, t2obj):
         self.T2psr = t2obj
@@ -82,6 +83,7 @@ class PsrObj(object):
         self.epflags = None
         self.detsig_avetoas = None
         self.detsig_Uinds = None
+        self.planet_ssb = None
 
     """
     Initialise the libstempo object.
@@ -138,6 +140,16 @@ class PsrObj(object):
             self.psr_locs = [float(repr(coords.ra)),float(repr(coords.dec))]
 
         print "--> Grabbed the pulsar position."
+
+        # get the position vectors of the planets
+        for ii in range(1,10):
+            tag = 'DMASSPLANET'+str(ii)
+            self.T2psr[tag].val = 0.0
+        self.T2psr.formbats()
+        self.planet_ssb = self.T2psr.planet_ssb
+
+        print "--> Grabbed the planet position-vectors at the pulsar timestamps."
+        
         ################################################################################################
             
         # These are all the relevant system flags used by the PTAs.
@@ -382,6 +394,7 @@ class PsrObjFromH5(object):
     Redind = None
     DMamp = None
     DMind = None
+    planet_ssb = None
 
     def __init__(self, h5Obj):
         self.h5Obj = h5Obj
@@ -429,6 +442,7 @@ class PsrObjFromH5(object):
         self.Redind = None
         self.DMamp = None
         self.DMind = None
+        self.planet_ssb = None
 
     """
     Read data from hdf5 file into pulsar object
@@ -452,6 +466,7 @@ class PsrObjFromH5(object):
         self.obs_freqs = self.h5Obj['freq'].value
 
         self.psr_locs = self.h5Obj['psrlocs'].value
+        self.planet_ssb = self.h5Obj['planetssb'].value
 
         self.Mmat = self.h5Obj['designmatrix'].value
         try:

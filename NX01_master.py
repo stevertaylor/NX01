@@ -257,6 +257,8 @@ parser.add_option('--noEccEvolve', dest='noEccEvolve', action='store_true', defa
                   help='Do not allow eccentricity to evolve between pulsar- and Earth-term (default = \'False\')')
 parser.add_option('--eph_quadratic', dest='eph_quadratic', action='store_true', default=False,
                   help='Do you want to include a deterministic quadratic in the ephemeris model? (default = False)')
+parser.add_option('--eph_planetdelta', dest='eph_planetdelta', action='store_true', default=False,
+                  help='Do you want to include a deterministic planet-mass perturbation in the ephemeris model? (default = False)')
 parser.add_option('--incGWline', dest='incGWline', action='store_true', default=False,
                   help='Do you want to include a single-frequency line in the GW spectrum? (default = False)')
 parser.add_option('--gwlinePrior', dest='gwlinePrior', action='store', type=str, default='uniform',
@@ -948,6 +950,9 @@ if args.det_signal:
     if args.eph_quadratic:
         pmin = np.append(pmin,np.tile([-10.0,-10.0],3)) # amps
         pmin = np.append(pmin,np.tile([-1.0,-1.0],3)) # signs
+    if args.eph_planetdelta:
+        pmin = np.append(pmin,-20.0*np.ones(9)) # amps
+        pmin = np.append(pmin,-1.0*np.ones(9)) # signs
         
 
 pmax = np.array([])
@@ -1067,6 +1072,9 @@ if args.det_signal:
     if args.eph_quadratic:
         pmax = np.append(pmax,np.tile([0.0,0.0],3)) # amps
         pmax = np.append(pmax,np.tile([1.0,1.0],3)) # signs
+    if args.eph_planetdelta:
+        pmax = np.append(pmax,-5.0*np.ones(9)) # amps
+        pmax = np.append(pmax,1.0*np.ones(9)) # signs
 
 ##################################################################################
 
@@ -1243,7 +1251,7 @@ def lnprob(xx):
                 nmodel = int(np.rint(xx[-1]))
             else:
                 bwm_params = xx[param_ct:]
-        # fix this for single GW signals as well as eph_quadratic
+        # fix this for single GW signals as well as eph_quadratic / eph_planetdelta
         if args.eph_quadratic:
             xquad1_amp, xquad2_amp, \
               yquad1_amp, yquad2_amp, \
@@ -1251,6 +1259,9 @@ def lnprob(xx):
             xquad1_sign, xquad2_sign, \
               yquad1_sign, yquad2_sign, \
               zquad1_sign, zquad2_sign = xx[param_ct+6:param_ct+12]
+        if args.eph_planet_delta:
+            planet_delta_amp = xx[param_ct:param_ct+9]
+            planet_delta_sign = xx[param_ct+9:param_ct+18]
             
     ############################
     ############################
@@ -1463,8 +1474,30 @@ def lnprob(xx):
                     z_quad = (np.sign(zquad1_sign) * 10.0**zquad1_amp * normtime + \
                               np.sign(zquad2_sign) * 10.0**zquad2_amp * normtime**2.0) * z
 
-                    # need to alter this if you want a single GW source also
+                    # need to alter this if you want a single GW source too
                     detres.append( p.res - x_quad - y_quad - z_quad )
+
+            if args.eph_planetdelta:
+
+                detres = []
+                for ii, p in enumerate(psr):
+
+                    # define the pulsar position vector
+                    pphi = p.psr_locs[0]
+                    ptheta = np.pi/2. - p.psr_locs[1]
+                    x = np.sin(ptheta)*np.cos(pphi)
+                    y = np.sin(ptheta)*np.sin(pphi)
+                    z = np.cos(ptheta)
+                    psr_posvec = np.array([x,y,z])
+
+                    planet_delta_signal = np.zeros(p.toas.shape)
+                    # sum over planets
+                    for jj in range(9):
+                        planet_delta_signal += (np.sign(planet_delta_sign) * 10.0**planet_delta_amp * \
+                                                np.dot(p.T2psr.planet_ssb[:,jj,:3],psr_posvec))
+                    
+                    # need to alter this if you want a single GW source too
+                    detres.append( p.res - planet_delta_signal)
 
             #############################################################
             # Recomputing some noise quantities involving 'residuals'.
@@ -2816,6 +2849,9 @@ if args.det_signal:
                        "eph_yquad2amp", "eph_zquad1amp", "eph_zquad2amp",
                        "eph_xquad1sign", "eph_xquad2sign", "eph_yquad1sign",
                        "eph_yquad2sign", "eph_zquad1sign", "eph_zquad2sign"]
+    if args.eph_planetdelta:
+        parameters += ["planet{0}_delta_amp".format(ii) for ii in range(1,10)]
+        parameters += ["planet{0}_delta_sign".format(ii) for ii in range(1,10)]
 
 
 n_params = len(parameters)
@@ -2917,6 +2953,8 @@ if args.det_signal:
             file_tag += 'ModSct'
     if args.eph_quadratic:
         file_tag += '_ephquad'
+    if args.eph_planetdelta:
+        file_tag += '_ephplanetdelta'
 if args.fixRed:
     red_tag = '_redFix'+'nm{0}'.format(nmodes_red)
 elif not args.fixRed:
@@ -3182,6 +3220,9 @@ elif args.sampler == 'ptmcmc':
         if args.eph_quadratic:
             x0 = np.append(x0,np.array(np.tile([-7.0],6)))
             x0 = np.append(x0,np.random.uniform(-1.0,1.0,6))
+        if args.eph_planetdelta:
+            x0 = np.append(x0,np.random.uniform(-20.0,-5.0,9))
+            x0 = np.append(x0,np.random.uniform(-1.0,1.0,9))
 
     if rank==0:
         print "\n Your initial parameters are {0}\n".format(x0)
@@ -3262,6 +3303,9 @@ elif args.sampler == 'ptmcmc':
         if args.eph_quadratic:
             cov_diag = np.append(cov_diag,np.tile(0.1,6))
             cov_diag = np.append(cov_diag,np.tile(0.1,6))
+        if args.eph_planetdelta:
+            cov_diag = np.append(cov_diag,np.tile(0.1,9))
+            cov_diag = np.append(cov_diag,np.tile(0.1,9))
 
     if rank==0:
         print "\n Running a quick profile on the likelihood to estimate evaluation speed...\n"
@@ -3468,6 +3512,16 @@ elif args.sampler == 'ptmcmc':
             # signs
             ids = [np.arange(param_ct,param_ct+6)]
             param_ct += 6
+            [ind.append(id) for id in ids]
+        ##### EPHEMERIS PLANET DELTA #####
+        if args.eph_planetdelta:
+            # amplitudes
+            ids = [np.arange(param_ct,param_ct+9)]
+            param_ct += 9
+            [ind.append(id) for id in ids]
+            # signs
+            ids = [np.arange(param_ct,param_ct+9)]
+            param_ct += 9
             [ind.append(id) for id in ids]
             
     ##### all parameters #####
@@ -4238,10 +4292,10 @@ elif args.sampler == 'ptmcmc':
             qxy -= (mu - parameters[pct]) ** 2 / 2 / \
               sig ** 2 - (mu - q[pct]) ** 2 / 2 / sig ** 2
 
-        # hyper priors on spectral parameters: 
-        for ii in range(gwb_popparam_ndims):
-            q[pct+1+ii] = np.random.uniform(pmin[pct+1+ii], pmax[pct+1+ii])
-            qxy += 0
+        # hyper priors on spectral parameters:
+        ind = np.unique(np.random.randint(0, gwb_popparam_ndims, 1))
+        q[pct+1+ind] = np.random.uniform(pmin[pct+1+ind], pmax[pct+1+ind])
+        qxy += 0
         
         return q, qxy
     
@@ -5017,8 +5071,82 @@ elif args.sampler == 'ptmcmc':
         
         return q, qxy
 
-  
+    # bwm model index draws 
+    def drawFromEphPlanetDeltaPrior(parameters, iter, beta):
 
+        # post-jump parameters
+        q = parameters.copy()
+
+        # transition probability
+        qxy = 0
+
+        npsr = len(psr)
+        pct = 0
+        if not args.fixRed:
+            if args.redSpecModel == 'powerlaw':
+                pct = 2*npsr
+            elif args.redSpecModel == 'spectrum':
+                pct = npsr*nmodes_red
+    
+        if args.incDM and not args.fixDM:
+            if args.dmSpecModel == 'powerlaw':
+                pct += 2*npsr
+            elif args.dmSpecModel == 'spectrum':
+                pct += npsr*nmodes_dm
+
+        if args.incClk:
+            if args.clkSpecModel == 'powerlaw':
+                pct += 2
+            elif args.clkSpecModel == 'spectrum':
+                pct += nmodes_red
+
+        if args.incCm:
+            if args.cmSpecModel == 'powerlaw':
+                pct += 2
+            elif args.cmSpecModel == 'spectrum':
+                pct += nmodes_red
+
+        if args.incEph:
+            if args.ephSpecModel == 'powerlaw':
+                pct += 6
+            elif args.ephSpecModel == 'spectrum':
+                pct += 3*nmodes_eph
+
+        if args.incGWB:
+            if args.gwbSpecModel == 'powerlaw':
+                pct += 1
+                if not args.fix_slope:
+                    pct += 1
+            elif args.gwbSpecModel == 'spectrum':
+                pct += nmodes_red
+                if args.gwbPrior == 'gaussProc':
+                    pct += 1 + gwb_popparam_ndims
+            elif args.gwbSpecModel == 'turnover':
+                if args.gwb_fb2env is not None:
+                    pct += 2
+                elif args.gwb_fb2env is None:
+                    pct += 3
+            elif args.gwbSpecModel == 'gpEnvInterp':
+                pct += 2
+
+            if args.incCorr:
+                pct += num_corr_params
+                if args.gwbModelSelect:
+                    pct += 1
+
+        if args.incGWline:
+            pct += 4
+
+        # choose a planet mass to perturb
+        ind = np.unique(np.random.randint(0, 9, 1))
+        if args.det_signal and args.eph_planetdelta:
+            q[pct+ind] = np.random.uniform(pmin[pct+ind], pmax[pct+ind])
+            q[pct+ind+9] = np.random.uniform(pmin[pct+ind+9], pmax[pct+ind+9])
+            qxy += 0
+        
+        return q, qxy
+
+  
     # add jump proposals
     if not args.fixRed:
         if args.redSpecModel == 'powerlaw':
@@ -5075,6 +5203,9 @@ elif args.sampler == 'ptmcmc':
         sampler.addProposalToCycle(drawFromBWMPrior, 10)
         if args.bwm_model_select:
             sampler.addProposalToCycle(drawFromBWMModelIndexPrior, 5)
+    elif args.det_signal and args.eph_planetdelta:
+        sampler.addProposalToCycle(drawFromEphPlanetDeltaPrior, 10)
+    
 
     sampler.sample(p0=x0, Niter=int(5e6), thin=10,
                 covUpdate=1000, AMweight=20,
