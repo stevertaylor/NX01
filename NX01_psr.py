@@ -100,6 +100,24 @@ class PsrObj(object):
         self.obs_freqs = np.double(self.T2psr.ssbfreqs())
         self.Mmat = np.double(self.T2psr.designmatrix())
 
+        # get the position vectors of the planets
+        for ii in range(1,10):
+            tag = 'DMASSPLANET'+str(ii)
+            self.T2psr[tag].val = 0.0
+        self.T2psr.formbats()
+        self.planet_ssb = np.zeros((len(self.toas),9,6))
+        self.planet_ssb[:,0,:] = self.T2psr.mercury_ssb
+        self.planet_ssb[:,1,:] = self.T2psr.venus_ssb
+        self.planet_ssb[:,2,:] = self.T2psr.earth_ssb
+        self.planet_ssb[:,3,:] = self.T2psr.mars_ssb
+        self.planet_ssb[:,4,:] = self.T2psr.jupiter_ssb
+        self.planet_ssb[:,5,:] = self.T2psr.saturn_ssb
+        self.planet_ssb[:,6,:] = self.T2psr.uranus_ssb
+        self.planet_ssb[:,7,:] = self.T2psr.neptune_ssb
+        self.planet_ssb[:,8,:] = self.T2psr.pluto_ssb
+
+        print "--> Grabbed the planet position-vectors at the pulsar timestamps."
+
         isort, iisort = None, None
         if 'pta' in self.T2psr.flags():
             if 'NANOGrav' in list(set(self.T2psr.flagvals('pta'))):
@@ -121,6 +139,7 @@ class PsrObj(object):
                 self.res = self.res[isort]
                 self.obs_freqs = self.obs_freqs[isort]
                 self.Mmat = self.Mmat[isort, :]
+                self.planet_ssb = self.planet_ssb[isort, :, :]
 
                 print "--> Initial sorting of data."
               
@@ -140,15 +159,6 @@ class PsrObj(object):
             self.psr_locs = [float(repr(coords.ra)),float(repr(coords.dec))]
 
         print "--> Grabbed the pulsar position."
-
-        # get the position vectors of the planets
-        for ii in range(1,10):
-            tag = 'DMASSPLANET'+str(ii)
-            self.T2psr[tag].val = 0.0
-        self.T2psr.formbats()
-        self.planet_ssb = self.T2psr.planet_ssb
-
-        print "--> Grabbed the planet position-vectors at the pulsar timestamps."
         
         ################################################################################################
             
