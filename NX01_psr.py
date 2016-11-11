@@ -476,7 +476,10 @@ class PsrObjFromH5(object):
         self.obs_freqs = self.h5Obj['freq'].value
 
         self.psr_locs = self.h5Obj['psrlocs'].value
-        self.planet_ssb = self.h5Obj['planetssb'].value
+        try:
+            self.planet_ssb = self.h5Obj['planetssb'].value
+        except:
+            self.planet_ssb = None
 
         self.Mmat = self.h5Obj['designmatrix'].value
         try:
