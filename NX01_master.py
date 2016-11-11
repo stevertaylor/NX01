@@ -1259,7 +1259,7 @@ def lnprob(xx):
             xquad1_sign, xquad2_sign, \
               yquad1_sign, yquad2_sign, \
               zquad1_sign, zquad2_sign = xx[param_ct+6:param_ct+12]
-        if args.eph_planet_delta:
+        if args.eph_planetdelta:
             planet_delta_amp = xx[param_ct:param_ct+9]
             planet_delta_sign = xx[param_ct+9:param_ct+18]
             
