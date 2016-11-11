@@ -1494,7 +1494,7 @@ def lnprob(xx):
                     # sum over planets
                     for jj in range(9):
                         planet_delta_signal += (np.sign(planet_delta_sign) * 10.0**planet_delta_amp * \
-                                                np.dot(p.T2psr.planet_ssb[:,jj,:3],psr_posvec))
+                                                np.dot(p.planet_ssb[:,jj,:3],psr_posvec))
                     
                     # need to alter this if you want a single GW source too
                     detres.append( p.res - planet_delta_signal)
