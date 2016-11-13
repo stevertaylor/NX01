@@ -3169,7 +3169,8 @@ elif args.sampler == 'ptmcmc':
                 elif gwb_popparam == 'gas':
                     x0 = np.append(x0,0.0)
                 elif gwb_popparam == 'starsecc':
-                    x0 = np.append(x0,np.array([2.0,0.5]))
+                    x0 = np.append(x0,np.array([np.random.uniform(stars_range[0],stars_range[1]),
+                                                np.random.uniform(ecc_range[0],ecc_range[1])]))
         elif args.gwbSpecModel == 'turnover':
             x0 = np.append(x0,-15.0)
             if args.gwb_fb2env is not None:
