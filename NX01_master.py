@@ -259,6 +259,8 @@ parser.add_option('--eph_quadratic', dest='eph_quadratic', action='store_true', 
                   help='Do you want to include a deterministic quadratic in the ephemeris model? (default = False)')
 parser.add_option('--eph_planetdelta', dest='eph_planetdelta', action='store_true', default=False,
                   help='Do you want to include a deterministic planet-mass perturbation in the ephemeris model? (default = False)')
+parser.add_option('--eph_planetnums', dest='eph_planetnums', action='store', type=str, default=None,
+                  help='Which planets to include in pertubed-mass model [Mercury=1, Venus=2, etc.] (default = None)')
 parser.add_option('--incGWline', dest='incGWline', action='store_true', default=False,
                   help='Do you want to include a single-frequency line in the GW spectrum? (default = False)')
 parser.add_option('--gwlinePrior', dest='gwlinePrior', action='store', type=str, default='uniform',
@@ -833,6 +835,15 @@ if args.gwbEccRange is not None:
 if args.cgwFreqRange is not None:
     cgw_orbfreq_range = np.array([float(item) for item \
                                   in args.cgwFreqRange.split(',')])
+if args.eph_planetdelta:
+    if args.eph_planetnums is not None:
+        planet_tags = np.array([int(item) for item \
+                                in args.eph_planetnums.split(',')])
+        num_planets = len(planet_tags)
+    else:
+        planet_tags = np.arange(1,10)
+        num_planets = 9
+    
 
 pmin = np.array([])
 if not args.fixRed:
@@ -951,8 +962,8 @@ if args.det_signal:
         pmin = np.append(pmin,np.tile([-10.0,-10.0],3)) # amps
         pmin = np.append(pmin,np.tile([-1.0,-1.0],3)) # signs
     if args.eph_planetdelta:
-        pmin = np.append(pmin,-20.0*np.ones(9)) # amps
-        pmin = np.append(pmin,-1.0*np.ones(9)) # signs
+        pmin = np.append(pmin,-20.0*np.ones(num_planets)) # amps
+        pmin = np.append(pmin,-1.0*np.ones(num_planets)) # signs
         
 
 pmax = np.array([])
@@ -1073,8 +1084,9 @@ if args.det_signal:
         pmax = np.append(pmax,np.tile([0.0,0.0],3)) # amps
         pmax = np.append(pmax,np.tile([1.0,1.0],3)) # signs
     if args.eph_planetdelta:
-        pmax = np.append(pmax,-5.0*np.ones(9)) # amps
-        pmax = np.append(pmax,1.0*np.ones(9)) # signs
+        pmax = np.append(pmax,-5.0*np.ones(num_planets)) # amps
+        pmax = np.append(pmax,1.0*np.ones(num_planets)) # signs
+       
 
 ##################################################################################
 
@@ -1260,8 +1272,8 @@ def lnprob(xx):
               yquad1_sign, yquad2_sign, \
               zquad1_sign, zquad2_sign = xx[param_ct+6:param_ct+12]
         if args.eph_planetdelta:
-            planet_delta_amp = xx[param_ct:param_ct+9]
-            planet_delta_sign = xx[param_ct+9:param_ct+18]
+            planet_delta_amp = xx[param_ct:param_ct+num_planets]
+            planet_delta_sign = xx[param_ct+num_planets:param_ct+2*num_planets]
             
     ############################
     ############################
@@ -1492,9 +1504,10 @@ def lnprob(xx):
 
                     planet_delta_signal = np.zeros(p.toas.shape)
                     # sum over planets
-                    for jj in range(9):
+                    dummy_tags = planet_tags - 1
+                    for jj,tag in enumerate(dummy_tags):
                         planet_delta_signal += (np.sign(planet_delta_sign[jj]) * 10.0**planet_delta_amp[jj] * \
-                                                np.dot(p.planet_ssb[:,jj,:3],psr_posvec))
+                                                np.dot(p.planet_ssb[:,tag,:3],psr_posvec))
                     
                     # need to alter this if you want a single GW source too
                     detres.append( p.res - planet_delta_signal)
@@ -2850,8 +2863,8 @@ if args.det_signal:
                        "eph_xquad1sign", "eph_xquad2sign", "eph_yquad1sign",
                        "eph_yquad2sign", "eph_zquad1sign", "eph_zquad2sign"]
     if args.eph_planetdelta:
-        parameters += ["planet{0}_delta_amp".format(ii) for ii in range(1,10)]
-        parameters += ["planet{0}_delta_sign".format(ii) for ii in range(1,10)]
+        parameters += ["planet{0}_delta_amp".format(ii) for ii in planet_tags]
+        parameters += ["planet{0}_delta_sign".format(ii) for ii in planet_tags]
 
 
 n_params = len(parameters)
@@ -3222,8 +3235,8 @@ elif args.sampler == 'ptmcmc':
             x0 = np.append(x0,np.array(np.tile([-7.0],6)))
             x0 = np.append(x0,np.random.uniform(-1.0,1.0,6))
         if args.eph_planetdelta:
-            x0 = np.append(x0,np.random.uniform(-20.0,-5.0,9))
-            x0 = np.append(x0,np.random.uniform(-1.0,1.0,9))
+            x0 = np.append(x0,np.random.uniform(-20.0,-5.0,num_planets))
+            x0 = np.append(x0,np.random.uniform(-1.0,1.0,num_planets))
 
     if rank==0:
         print "\n Your initial parameters are {0}\n".format(x0)
@@ -3305,8 +3318,8 @@ elif args.sampler == 'ptmcmc':
             cov_diag = np.append(cov_diag,np.tile(0.1,6))
             cov_diag = np.append(cov_diag,np.tile(0.1,6))
         if args.eph_planetdelta:
-            cov_diag = np.append(cov_diag,np.tile(0.1,9))
-            cov_diag = np.append(cov_diag,np.tile(0.1,9))
+            cov_diag = np.append(cov_diag,np.tile(0.1,num_planets))
+            cov_diag = np.append(cov_diag,np.tile(0.1,num_planets))
 
     if rank==0:
         print "\n Running a quick profile on the likelihood to estimate evaluation speed...\n"
@@ -3517,13 +3530,14 @@ elif args.sampler == 'ptmcmc':
         ##### EPHEMERIS PLANET DELTA #####
         if args.eph_planetdelta:
             # amplitudes
-            ids = [np.arange(param_ct,param_ct+9)]
-            param_ct += 9
+            ids = [np.arange(param_ct,param_ct+num_planets)]
+            param_ct += num_planets
             [ind.append(id) for id in ids]
             # signs
-            ids = [np.arange(param_ct,param_ct+9)]
-            param_ct += 9
+            ids = [np.arange(param_ct,param_ct+num_planets)]
+            param_ct += num_planets
             [ind.append(id) for id in ids]
+         
             
     ##### all parameters #####
     all_inds = range(len(x0))
@@ -5139,10 +5153,11 @@ elif args.sampler == 'ptmcmc':
             pct += 4
 
         # choose a planet mass to perturb
-        ind = np.unique(np.random.randint(0, 9, 1))
+        ind = np.unique(np.random.randint(0, num_planets, 1))
         if args.det_signal and args.eph_planetdelta:
             q[pct+ind] = np.random.uniform(pmin[pct+ind], pmax[pct+ind])
-            q[pct+ind+9] = np.random.uniform(pmin[pct+ind+9], pmax[pct+ind+9])
+            q[pct+ind+num_planets] = np.random.uniform(pmin[pct+ind+num_planets],
+                                                       pmax[pct+ind+num_planets])
             qxy += 0
         
         return q, qxy
