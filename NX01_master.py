@@ -189,9 +189,9 @@ parser.add_option('--fix_slope', dest='fix_slope', action='store_true', default=
                   help='Do you want to fix the slope of the GWB spectrum? (default = False)')
 parser.add_option('--gwbAmpRange', dest='gwbAmpRange', action='store', type=str, default=None,
                   help='Provide a lower and upper log_10(Agwb) range as a comma delimited string (default = None)')
-parser.add_option('--gwbStarsRange', dest='gwbStarsRange', action='store', type=str, default=None,
+parser.add_option('--gwbStarsRange', dest='gwbStarsRange', action='store', type=str, default='1.0,4.0',
                   help='Provide a lower and upper log_10(rho_stars) range as a comma delimited string (default = None)')
-parser.add_option('--gwbEccRange', dest='gwbEccRange', action='store', type=str, default=None,
+parser.add_option('--gwbEccRange', dest='gwbEccRange', action='store', type=str, default='0.0,0.9',
                   help='Provide a lower and upper e0 range as a comma delimited string (default = None)')
 parser.add_option('--gwbPrior', dest='gwbPrior', action='store', type=str, default='uniform',
                    help='Do you want to use a uniform prior on log_10(amplitude) for detection [loguniform], on amplitudes themselves for limits [uniform], an astrophysical prior (only when the amplitude is Agwb: for powerlaw, turnover, gpEnvInterp models) [sesana, mcwilliams], or a gaussian process prior [gaussProc] (default=\'uniform\')?')
