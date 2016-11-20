@@ -119,6 +119,8 @@ parser.add_option('--hotChain', dest='hotChain', action='store_true', default=Fa
                    help='Given a PTMCMC sampler, do you want to use a T=1e80 hot chain? (default = False)')
 parser.add_option('--softParam', dest='softParam', action='store', type=float, default=1.0,
                    help='Artifical temperature by which to soften likelihood (default = 1.0)')
+parser.add_option('--TmaxType', dest='TmaxType', action='store', type=str, default='pta',
+                   help='Which type of Tmax to use to set frequencies: pta (longest baseline over the array), or pulsar (longest pulsar in array) (default = pta)')
 parser.add_option('--incGWB', dest='incGWB', action='store_true', default=False,
                   help='Do you want to search for a GWB? (default = False)')
 parser.add_option('--gwbSpecModel', dest='gwbSpecModel', action='store', type=str, default='powerlaw',
@@ -651,7 +653,11 @@ if args.incGWB and args.incCorr:
 # GETTING MAXIMUM TIME, COMPUTING FOURIER DESIGN MATRICES, AND GETTING MODES 
 #############################################################################
 
-Tmax = np.max([p.toas.max() - p.toas.min() for p in psr])
+if args.TmaxType == 'pta':
+    Tmax = np.max([p.toas.max() for p in psr]) - \
+      np.min([p.toas.min() for p in psr])
+else:
+    Tmax = np.max([p.toas.max() - p.toas.min() for p in psr])
 
 ### Define number of red noise modes and set sampling frequencies
 if args.nmodes is not None:
@@ -2933,6 +2939,11 @@ if args.incGWB:
         if args.gwbModelSelect:
             file_tag += 'ModSct'
     else:
+        if args.gwbSpecModel == 'powerlaw':
+            if args.fix_slope:
+                gamma_tag = '_gam4p33'
+            else:
+                gamma_tag = '_gamVary'
         file_tag += '_gwb{0}_noCorr{1}'.format(args.gwbPrior,gamma_tag)
 if args.pshift:
     file_tag += '_pshift'
