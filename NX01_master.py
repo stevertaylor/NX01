@@ -119,6 +119,8 @@ parser.add_option('--hotChain', dest='hotChain', action='store_true', default=Fa
                    help='Given a PTMCMC sampler, do you want to use a T=1e80 hot chain? (default = False)')
 parser.add_option('--softParam', dest='softParam', action='store', type=float, default=1.0,
                    help='Artifical temperature by which to soften likelihood (default = 1.0)')
+parser.add_option('--shortFileTag', dest='shortFileTag', action='store', type=str, default=None,
+                  help='Provide a shorter file tag for MultiNest runs? (default = None)')
 parser.add_option('--TmaxType', dest='TmaxType', action='store', type=str, default='pta',
                    help='Which type of Tmax to use to set frequencies: pta (longest baseline over the array), or pulsar (longest pulsar in array) (default = pta)')
 parser.add_option('--incGWB', dest='incGWB', action='store_true', default=False,
@@ -3102,7 +3104,10 @@ if rank == 0:
 
 if args.sampler == 'mnest':
 
-    dir_name = args.dirExt+file_tag+'_mnest'
+    if args.shortFileTag is not None:
+        dir_name = args.dirExt+args.shortFileTag+'_mnest'
+    else:
+        dir_name = args.dirExt+file_tag+'_mnest'
 
     if rank == 0:
         if not os.path.exists(dir_name):
