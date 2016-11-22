@@ -2311,8 +2311,8 @@ def lnprob(xx):
 
                     # diagonal terms
                     if args.clkDesign:
-                        tot[0::2] += 1.001*clkspec
-                        tot[1::2] += 1.001*clkspec
+                        tot[0::2] += 1.0*clkspec
+                        tot[1::2] += 1.0*clkspec
                     elif not args.clkDesign:
                         tot[0::2] += clkspec
                         tot[1::2] += clkspec
