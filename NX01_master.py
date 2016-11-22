@@ -2310,8 +2310,12 @@ def lnprob(xx):
                     offdiag[1::2] = clkspec
 
                     # diagonal terms
-                    tot[0::2] += 1.1*clkspec
-                    tot[1::2] += 1.1*clkspec
+                    if args.clkDesign:
+                        tot[0::2] += 1.001*clkspec
+                        tot[1::2] += 1.001*clkspec
+                    elif not args.clkDesign:
+                        tot[0::2] += clkspec
+                        tot[1::2] += clkspec
 
                     sig_clkoffdiag.append(offdiag)
                 
