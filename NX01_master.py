@@ -876,7 +876,7 @@ if args.incClk:
         pmin = np.append(pmin,-8.0*np.ones(nmodes_red))
 if args.incCm:
     if args.cmSpecModel == 'powerlaw':
-        pmin = np.append(pmin,-20.0)
+        pmin = np.append(pmin,-18.0)
         pmin = np.append(pmin,0.0)
     elif args.cmSpecModel == 'spectrum':
         pmin = np.append(pmin,-8.0*np.ones(nmodes_red))
