@@ -3231,8 +3231,8 @@ elif args.sampler == 'ptmcmc':
     if args.incClk:
         if args.clkSpecModel == 'powerlaw':
             # starting clock parameters at random positions
-            x0 = np.append(x0,-19.0) #np.random.uniform(-20.0,-11.0))
-            x0 = np.append(x0,2.0) #np.random.uniform(0.0,7.0))
+            x0 = np.append(x0,-19.0)#np.random.uniform(-20.0,-11.0))
+            x0 = np.append(x0,2.0)#np.random.uniform(0.0,7.0))
         elif args.clkSpecModel == 'spectrum':
             x0 = np.append(x0,np.random.uniform(-7.0,-3.0,nmodes_red))
     if args.incCm:
