@@ -378,6 +378,7 @@ class PsrObjFromH5(object):
     Fephx = None
     Fephy = None
     Fephz = None
+    Fclk = None
     Ftot = None
     ranphase = None
     diag_white = None
@@ -423,6 +424,7 @@ class PsrObjFromH5(object):
         self.Fephx = None
         self.Fephy = None
         self.Fephz = None
+        self.Fclk = None
         self.Ftot = None
         self.ranphase = None
         self.diag_white = None
@@ -642,7 +644,8 @@ class PsrObjFromH5(object):
         self.Ftot = np.append(self.Fred, self.Fdm, axis=1)
 
     def makeTe(self, nmodes_red, Ttot, makeDM=False, nmodes_dm=None,
-               makeEph=False, nmodes_eph=None, ephFreqs=None, phaseshift=False):
+               makeEph=False, nmodes_eph=None, ephFreqs=None,
+               makeClk=False, clkDesign=False, phaseshift=False):
 
         self.Fred, self.ranphase = utils.createFourierDesignmatrix_red(self.toas, nmodes=nmodes_red,
                                                                        pshift=phaseshift, Tspan=Ttot)
@@ -666,6 +669,10 @@ class PsrObjFromH5(object):
             self.Ftot = np.append(self.Ftot, self.Fephx, axis=1)
             self.Ftot = np.append(self.Ftot, self.Fephy, axis=1)
             self.Ftot = np.append(self.Ftot, self.Fephz, axis=1)
+        if makeClk and clkDesign:
+            self.Fclk, _ = utils.createFourierDesignmatrix_red(self.toas, nmodes=nmodes_red,
+                                                               pshift=False, Tspan=Ttot)
+            self.Ftot = np.append(self.Ftot, self.Fclk, axis=1)
         
         self.Te = np.append(self.Gc, self.Ftot, axis=1)
 
