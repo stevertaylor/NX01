@@ -647,7 +647,7 @@ if args.sampler == 'ptmcmc':
     if args.fullN and (len(psr.sysflagdict['nano-f'].keys())>0):
         sampler.addProposalToCycle(drawFromEcorrPrior, 10)
 
-    sampler.sample(p0=x0, Niter=5e6, thin=10,
+    sampler.sample(p0=x0, Niter=int(5e6), thin=10,
                 covUpdate=1000, AMweight=20,
                 SCAMweight=30, DEweight=50,
                 writeHotChains=args.writeHotChains,

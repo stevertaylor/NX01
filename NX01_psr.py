@@ -194,29 +194,21 @@ class PsrObj(object):
             if len(pta_names)!=0 and ('NANOGrav' in pta_names):
                 try:
                     nanoflagdict = OrderedDict.fromkeys(['nano-f'])
+                    nano_flags = list(set(self.T2psr.flagvals('f')[pta_maskdict['NANOGrav']]))
+                    nanoflagdict['nano-f'] = OrderedDict.fromkeys(nano_flags)
+                    for kk,subsys in enumerate(nano_flags):
+                        nanoflagdict['nano-f'][subsys] = \
+                          np.where(self.T2psr.flagvals('f')[isort] == nano_flags[kk])
+                    self.sysflagdict.update(nanoflagdict)
+                except KeyError:
+                    nanoflagdict = OrderedDict.fromkeys(['nano-f'])
                     nano_flags = list(set(self.T2psr.flagvals('group')[pta_maskdict['NANOGrav']]))
                     nanoflagdict['nano-f'] = OrderedDict.fromkeys(nano_flags)
                     for kk,subsys in enumerate(nano_flags):
                         nanoflagdict['nano-f'][subsys] = \
                           np.where(self.T2psr.flagvals('group')[isort] == nano_flags[kk])
                     self.sysflagdict.update(nanoflagdict)
-                except KeyError:
-                    try:
-                        nanoflagdict = OrderedDict.fromkeys(['nano-f'])
-                        nano_flags = list(set(self.T2psr.flagvals('f')[pta_maskdict['NANOGrav']]))
-                        nanoflagdict['nano-f'] = OrderedDict.fromkeys(nano_flags)
-                        for kk,subsys in enumerate(nano_flags):
-                            nanoflagdict['nano-f'][subsys] = \
-                              np.where(self.T2psr.flagvals('f')[isort] == nano_flags[kk])
-                        self.sysflagdict.update(nanoflagdict)
-                    except KeyError:
-                        nanoflagdict = OrderedDict.fromkeys(['nano-f'])
-                        nano_flags = list(set(self.T2psr.flagvals('be')[pta_maskdict['NANOGrav']]))
-                        nanoflagdict['nano-f'] = OrderedDict.fromkeys(nano_flags)
-                        for kk,subsys in enumerate(nano_flags):
-                            nanoflagdict['nano-f'][subsys] = \
-                              np.where(self.T2psr.flagvals('be')[isort] == nano_flags[kk])
-                        self.sysflagdict.update(nanoflagdict)
+                    
                     
         
         # If there are really no relevant flags,
