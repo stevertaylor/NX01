@@ -228,14 +228,11 @@ class PsrObj(object):
                 try:
                     #isort_b, iisort_b = utils.argsortTOAs(self.toas, self.T2psr.flagvals('group')[isort],
                     #which='jitterext', dt=jitterbin/86400.)
-                    flags = self.T2psr.flagvals('group')[isort]
+                    flags = self.T2psr.flagvals('f')[isort]
                 except KeyError:
-                    try:
                     #isort_b, iisort_b = utils.argsortTOAs(self.toas, self.T2psr.flagvals('f')[isort],
                     #which='jitterext', dt=jitterbin/86400.)
-                        flags = self.T2psr.flagvals('f')[isort]
-                    except KeyError:
-                        flags = self.T2psr.flagvals('be')[isort]
+                    flags = self.T2psr.flagvals('group')[isort]
         
                 # sort data
                 #self.toas = self.toas[isort_b]
