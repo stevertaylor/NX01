@@ -106,18 +106,18 @@ parser.add_option('--timfile', dest='timfile', action='store', type=str,
                    help='Full path to timfile')
 parser.add_option('--efacequad-sysflag', dest='systarg', action='store', type=str, default='group',
                    help='Which system flag should the EFACs/EQUADs target? (default = \'group\')')
-parser.add_option('--redamp-prior', dest='redamp_prior', action='store', type=str, default='loguniform',
+parser.add_option('--redPrior', dest='redPrior', action='store', type=str, default='loguniform',
                    help='What kind of prior to place on the red noise amplitude? (default = \'loguniform\')')
-parser.add_option('--dmamp-prior', dest='dmamp_prior', action='store', type=str, default='loguniform',
+parser.add_option('--dmPrior', dest='dmPrior', action='store', type=str, default='loguniform',
                    help='What kind of prior to place on the DM variation amplitude? (default = \'loguniform\')')
-parser.add_option('--dmVar', dest='dmVar', action='store_true', default=False,
+parser.add_option('--incDM', dest='incDM', action='store_true', default=False,
                    help='Search for DM variations in the data (False)? (default=False)')
 parser.add_option('--fullN', dest='fullN', action='store_true', default=False,
                    help='Search for EFAC/EQUAD/ECORR over all systems (True), or just apply a GEFAC (False)? (default=False)')
 parser.add_option('--incGlitch', dest='incGlitch', action='store_true', default=False,
                    help='Search for a glitch in the pulsar? (default=False)')
 parser.add_option('--jitterbin', dest='jitterbin', action='store', type=float, default=1.0,
-                   help='What time duration do you want a jitter bin to be? (default = 1.0)')
+                   help='What time duration (in seconds) do you want a jitter bin to be? (default = 1.0)')
 parser.add_option('--mnest', dest='mnest', action='store_true', default=False,
                    help='Do you want to sample using MultiNest? (default=False)')
 parser.add_option('--writeHotChains', dest='writeHotChains', action='store_true', default=False,
@@ -194,7 +194,7 @@ Tmax = psr.toas.max() - psr.toas.min()
 
 if args.nmodes:
 
-    psr.makeTe(args.nmodes, Tmax, makeDM=args.dmVar)
+    psr.makeTe(args.nmodes, Tmax, makeDM=args.incDM)
     # get GW frequencies
     fqs = np.linspace(1/Tmax, args.nmodes/Tmax, args.nmodes)
     nmode = args.nmodes
@@ -202,7 +202,7 @@ if args.nmodes:
 else:
 
     nmode = int(round(Tmax/args.cadence))
-    psr.makeTe(nmode, Tmax, makeDM=args.dmVar)
+    psr.makeTe(nmode, Tmax, makeDM=args.incDM)
     # get GW frequencies
     fqs = np.linspace(1/Tmax, nmode/Tmax, nmode)
 
@@ -222,7 +222,7 @@ else:
 
 pmin = np.array([-20.0,0.0])
 pmax = np.array([-11.0,7.0])
-if args.dmVar:
+if args.incDM:
     pmin = np.append(pmin,np.array([-20.0,0.0]))
     pmax = np.append(pmax,np.array([-8.0,7.0]))       
 pmin = np.append(pmin,0.001*np.ones(len(systems)))
@@ -259,7 +259,7 @@ def ln_prob(xx):
     gam_red = xx[1]
 
     ct = 2
-    if args.dmVar:
+    if args.incDM:
         Adm = 10.0**xx[ct]
         gam_dm = xx[ct+1]
         ct = 4
@@ -280,7 +280,7 @@ def ln_prob(xx):
         glitch_epoch = xx[ct]
         glitch_lamp = xx[ct+1]
 
-    loglike1 = 0
+    loglike1 = 0.
 
     ####################################
     ####################################
@@ -353,7 +353,7 @@ def ln_prob(xx):
     f1yr = 1/3.16e7
 
     # parameterize intrinsic red-noise and DM-variations as power law
-    if args.dmVar:
+    if args.incDM:
         kappa = np.log10( np.append( Ared**2/12/np.pi**2 * \
                                      f1yr**(gam_red-3) * \
                                      (fqs/86400.0)**(-gam_red)/Tspan,
@@ -366,7 +366,7 @@ def ln_prob(xx):
                           (fqs/86400.0)**(-gam_red)/Tspan )
 
     # construct elements of sigma array
-    if args.dmVar:
+    if args.incDM:
         mode_count = 4*nmode
     else:
         mode_count = 2*nmode
@@ -408,9 +408,9 @@ def ln_prob(xx):
       0.5 * (np.dot(d, expval2)) + loglike1
 
     prior_fac = 0.0
-    if args.redamp_prior == 'uniform':
+    if args.redPrior == 'uniform':
         prior_fac += np.log(Ared * np.log(10.0))
-    if (args.dmVar==True) and (args.dmamp_prior == 'uniform'):
+    if args.incDM and (args.dmPrior == 'uniform'):
         prior_fac += np.log(Adm * np.log(10.0))
     
     return logLike + prior_fac
@@ -420,7 +420,7 @@ def ln_prob(xx):
 #########################
 
 parameters = ["log(A_red)","gam_red"]
-if args.dmVar:
+if args.incDM:
     parameters.append("log(A_dm)")
     parameters.append("gam_dm")
 for ii in range(len(systems)):
@@ -446,9 +446,9 @@ if rank == 0:
 # Define a unique file tag
 
 file_tag = 'pta_'+psr.name
-file_tag += '_red{0}'.format(args.redamp_prior)
-if args.dmVar:
-    file_tag += '_dm{0}'.format(args.dmamp_prior)
+file_tag += '_red{0}'.format(args.redPrior)
+if args.incDM:
+    file_tag += '_dm{0}'.format(args.dmPrior)
 if args.incGlitch:
     file_tag += '_glitch'
 file_tag += '_nmodes{0}'.format(args.nmodes)
@@ -514,7 +514,7 @@ if args.sampler == 'ptmcmc':
     x0 = np.array([-15.0,2.0])
     cov_diag = np.array([0.5,0.5])
     
-    if args.dmVar:
+    if args.incDM:
         x0 = np.append(x0,np.array([-15.0,2.0]))
         cov_diag = np.append(cov_diag,np.array([0.5,0.5]))
 
@@ -561,18 +561,12 @@ if args.sampler == 'ptmcmc':
         qxy = 0
 
         # log prior
-        if args.redamp_prior == 'loguniform':
-            
+        if args.redPrior == 'loguniform':
             q[0] = np.random.uniform(pmin[0], pmax[0])
             qxy += 0
-
-        elif args.redamp_prior == 'uniform':
-            
+        elif args.redPrior == 'uniform':
             q[0] = np.random.uniform(pmin[0], pmax[0])
             qxy += 0
-
-            #Ared = np.log10(np.random.uniform(10 ** Ared_ll, 10 ** Ared_ul, len(Ared)))
-            #qxy += np.log(10 ** parameters[parind] / 10 ** q[parind])
 
         q[1] = np.random.uniform(pmin[1], pmax[1])
     
@@ -589,18 +583,12 @@ if args.sampler == 'ptmcmc':
         qxy = 0
 
         # log prior
-        if args.dmamp_prior == 'loguniform':
-            
+        if args.dmPrior == 'loguniform':
             q[2] = np.random.uniform(pmin[2], pmax[2])
             qxy += 0
-
-        elif args.dmamp_prior == 'uniform':
-            
+        elif args.dmPrior == 'uniform':
             q[2] = np.random.uniform(pmin[2], pmax[2])
             qxy += 0
-
-            #Ared = np.log10(np.random.uniform(10 ** Ared_ll, 10 ** Ared_ul, len(Ared)))
-            #qxy += np.log(10 ** parameters[parind] / 10 ** q[parind])
 
         q[3] = np.random.uniform(pmin[3], pmax[3])
     
@@ -616,7 +604,7 @@ if args.sampler == 'ptmcmc':
         # transition probability
         qxy = 0
 
-        if args.dmVar==True:
+        if args.incDM:
             ind = np.arange(4+len(systems),4+2*len(systems))
         else:
             ind = np.arange(2+len(systems),2+2*len(systems))
@@ -637,7 +625,7 @@ if args.sampler == 'ptmcmc':
         # transition probability
         qxy = 0
 
-        if args.dmVar==True:
+        if args.incDM:
             ind = np.arange(4+2*len(systems),4+3*len(systems))
         else:
             ind = np.arange(2+2*len(systems),2+3*len(systems))
@@ -653,10 +641,10 @@ if args.sampler == 'ptmcmc':
 
     # add jump proposals
     sampler.addProposalToCycle(drawFromRedNoisePrior, 10)
-    if args.dmVar:
+    if args.incDM:
         sampler.addProposalToCycle(drawFromDMNoisePrior, 10)
     sampler.addProposalToCycle(drawFromEquadPrior, 10)
-    if (args.fullN==True) and (len(psr.sysflagdict['nano-f'].keys())>0):
+    if args.fullN and (len(psr.sysflagdict['nano-f'].keys())>0):
         sampler.addProposalToCycle(drawFromEcorrPrior, 10)
 
     sampler.sample(p0=x0, Niter=5e6, thin=10,

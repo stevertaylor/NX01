@@ -2368,7 +2368,6 @@ def lnprob(xx):
                 
                 # cholesky decomp 
                 try:
-                    #print p.name, np.any(np.isnan(p.Mmat)), np.any(np.isnan(Phi)), np.any(np.isnan(Sigma))
                     cf = sl.cho_factor(Sigma)
                     expval2 = sl.cho_solve(cf, dtmp[ii])
                     logdet_Sigma = np.sum(2*np.log(np.diag(cf[0])))
