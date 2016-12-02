@@ -527,10 +527,53 @@ if args.sampler == 'ptmcmc':
         if len(psr.sysflagdict['nano-f'].keys())>0:
             x0 = np.append(x0, np.random.uniform(-8.5,-5.0,len(psr.sysflagdict['nano-f'].keys())))
             cov_diag = np.append(cov_diag,0.5*np.ones(len(psr.sysflagdict['nano-f'].keys())))
-    
+        
     if rank == 0:
         print "\n Your initial parameters are {0}\n".format(x0)
+        print "\n Running a quick profile on the likelihood to estimate evaluation speed...\n"
+        cProfile.run('ln_prob(x0)')
 
+    ########################################
+    # Creating parameter sampling groupings
+    
+    ind = []
+    param_ct = 0
+    ##### red noise #####
+    rdamps = [ii for ii in range(len(psr))]
+    rdgam = [ii+len(psr) for ii in rdamps]
+    ids = [list(aa) for aa in zip(rdamps,rdgam)]
+    [ind.append(id) for id in ids if len(id) > 0]
+    param_ct += 2*len(psr)
+        
+    ##### DM noise #####
+    if args.incDM:
+        dmamps = [param_ct+ii for ii in range(len(psr))]
+        dmgam = [ii+len(psr) for ii in dmamps]
+        ids = [list(aa) for aa in zip(dmamps,dmgam)]
+        [ind.append(id) for id in ids if len(id) > 0]
+        param_ct += 2*len(psr)
+
+    ##### White noise #####
+    if args.fullN:
+        efacs = [param_ct+ii for ii in range(len(systems))]
+        equads = [param_ct+len(systems)+ii for ii in range(len(systems))]
+        ecorrs = [param_ct+2*len(systems)+ii for ii in range(len(psr.sysflagdict['nano-f'].keys()))]
+        ids = [efacs]
+        [ind.append(id) for id in ids if len(id) > 0]
+        ids = [equads]
+        [ind.append(id) for id in ids if len(id) > 0]
+        ids = [ecorrs]
+        [ind.append(id) for id in ids if len(id) > 0]
+        param_ct += param_ct+2*len(systems)+len(psr.sysflagdict['nano-f'].keys())
+
+    ##### all parameters #####
+    all_inds = range(len(x0))
+    ind.insert(0, all_inds)
+    if rank == 0:
+        print "Your parameter index groupings for sampling are {0}".format(ind)
+
+    ########
+    
     dir_name = args.dirExt+file_tag+'_ptmcmc'
     if not os.path.exists(dir_name):
         os.makedirs(dir_name)
@@ -550,7 +593,7 @@ if args.sampler == 'ptmcmc':
     sampler = ptmcmc.PTSampler(ndim = n_params, logl = ln_prob,
                             logp = my_prior, cov = np.diag(cov_diag),
                             outDir='./{0}'.format(dir_name),
-                            resume = args.resume)
+                            resume = args.resume, groups = ind)
 
     def drawFromRedNoisePrior(parameters, iter, beta):
 
@@ -596,6 +639,25 @@ if args.sampler == 'ptmcmc':
         
         return q, qxy
 
+    def drawFromEfacPrior(parameters, iter, beta):
+
+        # post-jump parameters
+        q = parameters.copy()
+
+        # transition probability
+        qxy = 0
+
+        if args.incDM:
+            ind = np.unique(np.random.randint(4, 4+len(systems), 1))
+        else:
+            ind = np.unique(np.random.randint(2, 2+len(systems), 1))
+
+        for ii in ind:
+            q[ii] = np.random.uniform(pmin[ii], pmax[ii])
+            qxy += 0
+        
+        return q, qxy
+
     def drawFromEquadPrior(parameters, iter, beta):
 
         # post-jump parameters
@@ -605,15 +667,13 @@ if args.sampler == 'ptmcmc':
         qxy = 0
 
         if args.incDM:
-            ind = np.arange(4+len(systems),4+2*len(systems))
+            ind = np.unique(np.random.randint(4+len(systems), 4+2*len(systems), 1))
         else:
-            ind = np.arange(2+len(systems),2+2*len(systems))
-        equad_jump = np.zeros(len(q))
-        equad_jump[ind] = np.random.uniform(pmin[ind[0]], pmax[ind[0]], len(systems))
+            ind = np.unique(np.random.randint(2+len(systems), 2+2*len(systems), 1))
 
-        q = equad_jump
-        
-        qxy += 0
+        for ii in ind:
+            q[ii] = np.random.uniform(pmin[ii], pmax[ii])
+            qxy += 0
         
         return q, qxy
 
@@ -626,26 +686,24 @@ if args.sampler == 'ptmcmc':
         qxy = 0
 
         if args.incDM:
-            ind = np.arange(4+2*len(systems),4+2*len(systems)+len(psr.sysflagdict['nano-f'].keys()))
+            ind = np.unique(np.random.randint(4+2*len(systems), 4+2*len(systems)+len(psr.sysflagdict['nano-f'].keys()), 1))
         else:
-            ind = np.arange(2+2*len(systems),2+2*len(systems)+len(psr.sysflagdict['nano-f'].keys()))
-        ecorr_jump = np.zeros(len(q))
-        ecorr_jump[ind] = np.random.uniform(pmin[ind[0]], pmax[ind[0]], len(systems))
+            ind = np.unique(np.random.randint(2+2*len(systems), 2+2*len(systems)+len(psr.sysflagdict['nano-f'].keys()), 1))
 
-        q = ecorr_jump
-        
-        qxy += 0
-        
-        return q, qxy
+        for ii in ind:
+            q[ii] = np.random.uniform(pmin[ii], pmax[ii])
+            qxy += 0
 
 
     # add jump proposals
     sampler.addProposalToCycle(drawFromRedNoisePrior, 10)
     if args.incDM:
         sampler.addProposalToCycle(drawFromDMNoisePrior, 10)
-    sampler.addProposalToCycle(drawFromEquadPrior, 10)
-    if args.fullN and (len(psr.sysflagdict['nano-f'].keys())>0):
-        sampler.addProposalToCycle(drawFromEcorrPrior, 10)
+    if args.fullN:
+        sampler.addProposalToCycle(drawFromEfacPrior, 10)
+        sampler.addProposalToCycle(drawFromEquadPrior, 10)
+        if len(psr.sysflagdict['nano-f'].keys())>0:
+            sampler.addProposalToCycle(drawFromEcorrPrior, 10)
 
     sampler.sample(p0=x0, Niter=int(5e6), thin=10,
                 covUpdate=1000, AMweight=20,
