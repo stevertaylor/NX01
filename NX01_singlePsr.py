@@ -114,6 +114,8 @@ parser.add_option('--incDM', dest='incDM', action='store_true', default=False,
                    help='Search for DM variations in the data (False)? (default=False)')
 parser.add_option('--fullN', dest='fullN', action='store_true', default=False,
                    help='Search for EFAC/EQUAD/ECORR over all systems (True), or just apply a GEFAC (False)? (default=False)')
+parser.add_option('--fix_redslope', dest='fix_redslope', action='store_true', default=False,
+                  help='Do you want to fix the slope of the red spectrum? (default = False)')
 parser.add_option('--grab_planets', dest='grab_planets', action='store_true', default=False,
                    help='Grab the planet position vectors at the TOA timestamps? (default=False)')
 parser.add_option('--incGlitch', dest='incGlitch', action='store_true', default=False,
@@ -223,8 +225,11 @@ else:
 # SETTING UP PRIOR RANGES
 ################################################################################################################################
 
-pmin = np.array([-20.0,0.0])
-pmax = np.array([-11.0,7.0])
+pmin = np.array([-20.0])
+pmax = np.array([-11.0])
+if not args.fix_redslope:
+    pmin = np.append(pmin,0.0)
+    pmax = np.append(pmax,7.0))
 if args.incDM:
     pmin = np.append(pmin,np.array([-20.0,0.0]))
     pmax = np.append(pmax,np.array([-8.0,7.0]))       
@@ -260,13 +265,17 @@ def my_prior(xx):
 def ln_prob(xx):
     
     Ared = 10.0**xx[0]
-    gam_red = xx[1]
-
-    ct = 2
+    if args.fix_redslope:
+        gam_red = 13./3.
+        ct = 1
+    else:
+        gam_red = xx[1]
+        ct = 2
+    
     if args.incDM:
         Adm = 10.0**xx[ct]
         gam_dm = xx[ct+1]
-        ct = 4
+        ct += 2
 
     EFAC = xx[ct:ct+len(systems)]
     ct += len(systems)
@@ -425,7 +434,9 @@ def ln_prob(xx):
 #########################
 #########################
 
-parameters = ["log(A_red)","gam_red"]
+parameters = ["log(A_red)"]
+if not args.fix_redslope:
+    parameters.append("gam_red")
 if args.incDM:
     parameters.append("log(A_dm)")
     parameters.append("gam_dm")
@@ -455,6 +466,8 @@ if rank == 0:
 
 file_tag = 'pta_'+psr.name
 file_tag += '_red{0}'.format(args.redPrior)
+if args.fix_redslope:
+    file_tag += '_redgam4p33'
 if args.incDM:
     file_tag += '_dm{0}'.format(args.dmPrior)
 if args.incGlitch:
@@ -521,8 +534,11 @@ if args.sampler == 'mnest':
 
 if args.sampler == 'ptmcmc':
     
-    x0 = np.array([-15.0,2.0])
-    cov_diag = np.array([0.5,0.5])
+    x0 = np.array([-15.0]) 
+    cov_diag = np.array([0.5]) 
+    if not args.fix_redslope:
+        x0 = np.append(x0,2.0)
+        cov_diag = np.append(cov_diag,0.5)
     
     if args.incDM:
         x0 = np.append(x0,np.array([-15.0,2.0]))
@@ -551,9 +567,14 @@ if args.sampler == 'ptmcmc':
     ind = []
     param_ct = 0
     ##### red noise #####
-    ids = [[0,1]]
-    [ind.append(id) for id in ids]
-    param_ct += 2
+    if args.fix_redslope:
+        ids = [[0]]
+        [ind.append(id) for id in ids]
+        param_ct += 1
+    else:
+        ids = [[0,1]]
+        [ind.append(id) for id in ids]
+        param_ct += 2
         
     ##### DM noise #####
     if args.incDM:
@@ -627,7 +648,8 @@ if args.sampler == 'ptmcmc':
             q[0] = np.random.uniform(pmin[0], pmax[0])
             qxy += 0
 
-        q[1] = np.random.uniform(pmin[1], pmax[1])
+        if not args.fix_redslope:
+            q[1] = np.random.uniform(pmin[1], pmax[1])
     
         qxy += 0
         
@@ -641,15 +663,20 @@ if args.sampler == 'ptmcmc':
         # transition probability
         qxy = 0
 
+        if args.fix_redslope:
+            pct = 1
+        else:
+            pct = 2
+
         # log prior
         if args.dmPrior == 'loguniform':
-            q[2] = np.random.uniform(pmin[2], pmax[2])
+            q[pct] = np.random.uniform(pmin[pct], pmax[pct])
             qxy += 0
         elif args.dmPrior == 'uniform':
-            q[2] = np.random.uniform(pmin[2], pmax[2])
+            q[pct] = np.random.uniform(pmin[pct], pmax[pct])
             qxy += 0
 
-        q[3] = np.random.uniform(pmin[3], pmax[3])
+        q[pct] = np.random.uniform(pmin[pct], pmax[pct])
     
         qxy += 0
         
@@ -663,10 +690,16 @@ if args.sampler == 'ptmcmc':
         # transition probability
         qxy = 0
 
-        if args.incDM:
-            ind = np.unique(np.random.randint(4, 4+len(systems), 1))
+        if args.fix_redslope:
+            pct = 1
         else:
-            ind = np.unique(np.random.randint(2, 2+len(systems), 1))
+            pct = 2
+
+        if args.incDM:
+            pct += 2
+            ind = np.unique(np.random.randint(pct, pct+len(systems), 1))
+        else:
+            ind = np.unique(np.random.randint(pct, pct+len(systems), 1))
 
         for ii in ind:
             q[ii] = np.random.uniform(pmin[ii], pmax[ii])
@@ -682,10 +715,16 @@ if args.sampler == 'ptmcmc':
         # transition probability
         qxy = 0
 
-        if args.incDM:
-            ind = np.unique(np.random.randint(4+len(systems), 4+2*len(systems), 1))
+        if args.fix_redslope:
+            pct = 1
         else:
-            ind = np.unique(np.random.randint(2+len(systems), 2+2*len(systems), 1))
+            pct = 2
+
+        if args.incDM:
+            pct += 2
+            ind = np.unique(np.random.randint(pct+len(systems), pct+2*len(systems), 1))
+        else:
+            ind = np.unique(np.random.randint(pct+len(systems), pct+2*len(systems), 1))
 
         for ii in ind:
             q[ii] = np.random.uniform(pmin[ii], pmax[ii])
@@ -701,10 +740,16 @@ if args.sampler == 'ptmcmc':
         # transition probability
         qxy = 0
 
-        if args.incDM:
-            ind = np.unique(np.random.randint(4+2*len(systems), 4+2*len(systems)+len(psr.sysflagdict['nano-f'].keys()), 1))
+        if args.fix_redslope:
+            pct = 1
         else:
-            ind = np.unique(np.random.randint(2+2*len(systems), 2+2*len(systems)+len(psr.sysflagdict['nano-f'].keys()), 1))
+            pct = 2
+
+        if args.incDM:
+            pct += 2
+            ind = np.unique(np.random.randint(pct+2*len(systems), pct+2*len(systems)+len(psr.sysflagdict['nano-f'].keys()), 1))
+        else:
+            ind = np.unique(np.random.randint(pct+2*len(systems), pct+2*len(systems)+len(psr.sysflagdict['nano-f'].keys()), 1))
 
         for ii in ind:
             q[ii] = np.random.uniform(pmin[ii], pmax[ii])
