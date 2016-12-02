@@ -229,7 +229,7 @@ pmin = np.array([-20.0])
 pmax = np.array([-11.0])
 if not args.fix_redslope:
     pmin = np.append(pmin,0.0)
-    pmax = np.append(pmax,7.0))
+    pmax = np.append(pmax,7.0)
 if args.incDM:
     pmin = np.append(pmin,np.array([-20.0,0.0]))
     pmax = np.append(pmax,np.array([-8.0,7.0]))       
