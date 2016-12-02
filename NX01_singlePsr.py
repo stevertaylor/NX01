@@ -454,7 +454,7 @@ if args.incDM:
     file_tag += '_dm{0}'.format(args.dmPrior)
 if args.incGlitch:
     file_tag += '_glitch'
-file_tag += '_nmodes{0}'.format(args.nmodes)
+file_tag += '_nmodes{0}'.format(nmode)
 
 #####################
 # Now, we sample....
