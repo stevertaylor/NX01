@@ -690,6 +690,8 @@ if args.sampler == 'ptmcmc':
             q[ii] = np.random.uniform(pmin[ii], pmax[ii])
             qxy += 0
 
+        return q, qxy
+
 
     # add jump proposals
     sampler.addProposalToCycle(drawFromRedNoisePrior, 10)
