@@ -275,6 +275,7 @@ def ln_prob(xx):
         EQUAD = 10.0**xx[ct:ct+len(systems)]
         ct += len(systems)
 
+        ECORR = []
         if 'pta' in t2psr.flags():
             if 'NANOGrav' in list(set(t2psr.flagvals('pta'))):
                 if len(psr.sysflagdict['nano-f'].keys())>0:
