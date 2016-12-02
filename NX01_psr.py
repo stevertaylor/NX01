@@ -117,7 +117,7 @@ class PsrObj(object):
             self.planet_ssb[:,7,:] = self.T2psr.neptune_ssb
             self.planet_ssb[:,8,:] = self.T2psr.pluto_ssb
 
-        print "--> Grabbed the planet position-vectors at the pulsar timestamps."
+            print "--> Grabbed the planet position-vectors at the pulsar timestamps."
 
         isort, iisort = None, None
         if 'pta' in self.T2psr.flags():
