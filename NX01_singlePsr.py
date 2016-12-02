@@ -485,9 +485,11 @@ if args.sampler == 'mnest':
 
     #dir_name = './chains_nanoAnalysis/nano_singlePsr/'+file_tag+'_mnest'
     #dir_name = './chn_eptapsr/'+file_tag+'_mnest'
+    
     dir_name = args.dirExt+file_tag+'_mnest'
-    if not os.path.exists(dir_name):
-        os.makedirs(dir_name)
+    if rank == 0:
+        if not os.path.exists(dir_name):
+            os.makedirs(dir_name)
 
     if rank == 0:
 
@@ -588,8 +590,9 @@ if args.sampler == 'ptmcmc':
     ########
     
     dir_name = args.dirExt+file_tag+'_ptmcmc'
-    if not os.path.exists(dir_name):
-        os.makedirs(dir_name)
+    if rank == 0:
+        if not os.path.exists(dir_name):
+            os.makedirs(dir_name)
 
     if rank == 0:
 
