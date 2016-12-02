@@ -539,19 +539,15 @@ if args.sampler == 'ptmcmc':
     ind = []
     param_ct = 0
     ##### red noise #####
-    rdamps = [ii for ii in range(len(psr))]
-    rdgam = [ii+len(psr) for ii in rdamps]
-    ids = [list(aa) for aa in zip(rdamps,rdgam)]
-    [ind.append(id) for id in ids if len(id) > 0]
-    param_ct += 2*len(psr)
+    ids = [[0,1]]
+    [ind.append(id) for id in ids]
+    param_ct += 2
         
     ##### DM noise #####
     if args.incDM:
-        dmamps = [param_ct+ii for ii in range(len(psr))]
-        dmgam = [ii+len(psr) for ii in dmamps]
-        ids = [list(aa) for aa in zip(dmamps,dmgam)]
-        [ind.append(id) for id in ids if len(id) > 0]
-        param_ct += 2*len(psr)
+        ids = [[2,3]]
+        [ind.append(id) for id in ids]
+        param_ct += 2
 
     ##### White noise #####
     if args.fullN:
