@@ -114,6 +114,8 @@ parser.add_option('--incDM', dest='incDM', action='store_true', default=False,
                    help='Search for DM variations in the data (False)? (default=False)')
 parser.add_option('--fullN', dest='fullN', action='store_true', default=False,
                    help='Search for EFAC/EQUAD/ECORR over all systems (True), or just apply a GEFAC (False)? (default=False)')
+parser.add_option('--grab_planets', dest='grab_planets', action='store_true', default=False,
+                   help='Grab the planet position vectors at the TOA timestamps? (default=False)')
 parser.add_option('--incGlitch', dest='incGlitch', action='store_true', default=False,
                    help='Search for a glitch in the pulsar? (default=False)')
 parser.add_option('--jitterbin', dest='jitterbin', action='store', type=float, default=1.0,
@@ -184,7 +186,8 @@ if np.any(np.isfinite(t2psr.residuals())==False)==True:
     t2psr = T2.tempopulsar(parfile=args.parfile,timfile=args.timfile)
 
 psr = NX01_psr.PsrObj(t2psr)
-psr.grab_all_vars(jitterbin=args.jitterbin)
+psr.grab_all_vars(jitterbin=args.jitterbin, makeGmat=False,
+                  fastDesign=True, planetssb=args.grab_planets)
 
 #############################################################################
 # GETTING MAXIMUM TIME, COMPUTING FOURIER DESIGN MATRICES, AND GETTING MODES 
