@@ -626,9 +626,9 @@ if args.sampler == 'ptmcmc':
         qxy = 0
 
         if args.incDM:
-            ind = np.arange(4+2*len(systems),4+3*len(systems))
+            ind = np.arange(4+2*len(systems),4+2*len(systems)+len(psr.sysflagdict['nano-f'].keys()))
         else:
-            ind = np.arange(2+2*len(systems),2+3*len(systems))
+            ind = np.arange(2+2*len(systems),2+2*len(systems)+len(psr.sysflagdict['nano-f'].keys()))
         ecorr_jump = np.zeros(len(q))
         ecorr_jump[ind] = np.random.uniform(pmin[ind[0]], pmax[ind[0]], len(systems))
 
