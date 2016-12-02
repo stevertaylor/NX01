@@ -372,7 +372,7 @@ def argsortTOAs(toas, flags, which=None, dt=1.0):
     :param toas:    The toas that are to be sorted
     :param flags:   The flags that belong to each TOA (indicates sys/backend)
     :param which:   Which type of sorting we will use (None, 'jitterext', 'time')
-    :param dt:      Timescale for which to limit jitter blocks, default [10 secs]
+    :param dt:      Timescale for which to limit jitter blocks, default [1 secs]
     :return:    perm, perminv       (sorting permutation, and inverse)
     """
     
