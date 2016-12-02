@@ -234,9 +234,10 @@ if args.fullN:
     pmin = np.append(pmin,-10.0*np.ones(len(systems)))
     pmax = np.append(pmax,-3.0*np.ones(len(systems)))
     if 'pta' in t2psr.flags():
-        if len(psr.sysflagdict['nano-f'].keys())>0:
-            pmin = np.append(pmin, -10.0*np.ones(len(psr.sysflagdict['nano-f'].keys())))
-            pmax = np.append(pmax, -3.0*np.ones(len(psr.sysflagdict['nano-f'].keys())))
+        if 'NANOGrav' in list(set(t2psr.flagvals('pta'))):
+            if len(psr.sysflagdict['nano-f'].keys())>0:
+                pmin = np.append(pmin, -10.0*np.ones(len(psr.sysflagdict['nano-f'].keys())))
+                pmax = np.append(pmax, -3.0*np.ones(len(psr.sysflagdict['nano-f'].keys())))
 if args.incGlitch:
     pmin = np.append(pmin,[np.min(psr.toas),-18.0])
     pmax = np.append(pmax,[np.max(psr.toas),-11.0])
@@ -275,9 +276,10 @@ def ln_prob(xx):
         ct += len(systems)
 
         if 'pta' in t2psr.flags():
-            if len(psr.sysflagdict['nano-f'].keys())>0:
-                ECORR = 10.0**xx[ct:ct+len(psr.sysflagdict['nano-f'].keys())]
-                ct += len(psr.sysflagdict['nano-f'].keys())
+            if 'NANOGrav' in list(set(t2psr.flagvals('pta'))):
+                if len(psr.sysflagdict['nano-f'].keys())>0:
+                    ECORR = 10.0**xx[ct:ct+len(psr.sysflagdict['nano-f'].keys())]
+                    ct += len(psr.sysflagdict['nano-f'].keys())
             
     if args.incGlitch:
         glitch_epoch = xx[ct]
@@ -432,11 +434,13 @@ if args.fullN:
     for ii in range(len(systems)):
         parameters.append('EQUAD_'+systems.keys()[ii])
 
-    if 'pta' in t2psr.flags() and len(psr.sysflagdict['nano-f'].keys())>0:
-        if rank == 0:
-            print "\n You have some NANOGrav ECORR parameters..."
-        for ii,nano_sysname in enumerate(psr.sysflagdict['nano-f'].keys()):
-            parameters.append('ECORR_'+nano_sysname)
+    if 'pta' in t2psr.flags():
+        if 'NANOGrav' in list(set(t2psr.flagvals('pta'))):
+            if len(psr.sysflagdict['nano-f'].keys())>0:
+                if rank == 0:
+                    print "\n You have some NANOGrav ECORR parameters..."
+                for ii,nano_sysname in enumerate(psr.sysflagdict['nano-f'].keys()):
+                    parameters.append('ECORR_'+nano_sysname)
 if args.incGlitch:
     parameters += ["glitch_epoch","glitch_lamp"]
 
@@ -527,9 +531,11 @@ if args.sampler == 'ptmcmc':
     if args.fullN:
         x0 = np.append(x0,np.random.uniform(-10.0,-5.0,len(systems)))
         cov_diag = np.append(cov_diag,0.5*np.ones(len(systems)))
-        if len(psr.sysflagdict['nano-f'].keys())>0:
-            x0 = np.append(x0, np.random.uniform(-8.5,-5.0,len(psr.sysflagdict['nano-f'].keys())))
-            cov_diag = np.append(cov_diag,0.5*np.ones(len(psr.sysflagdict['nano-f'].keys())))
+        if 'pta' in t2psr.flags():
+            if 'NANOGrav' in list(set(t2psr.flagvals('pta'))):
+                if len(psr.sysflagdict['nano-f'].keys())>0:
+                    x0 = np.append(x0, np.random.uniform(-8.5,-5.0,len(psr.sysflagdict['nano-f'].keys())))
+                    cov_diag = np.append(cov_diag,0.5*np.ones(len(psr.sysflagdict['nano-f'].keys())))
         
     if rank == 0:
         print "\n Your initial parameters are {0}\n".format(x0)
@@ -555,15 +561,22 @@ if args.sampler == 'ptmcmc':
     ##### White noise #####
     if args.fullN:
         efacs = [param_ct+ii for ii in range(len(systems))]
-        equads = [param_ct+len(systems)+ii for ii in range(len(systems))]
-        ecorrs = [param_ct+2*len(systems)+ii for ii in range(len(psr.sysflagdict['nano-f'].keys()))]
         ids = [efacs]
         [ind.append(id) for id in ids if len(id) > 0]
+        param_ct += len(systems)
+        ##
+        equads = [param_ct+ii for ii in range(len(systems))]
         ids = [equads]
         [ind.append(id) for id in ids if len(id) > 0]
-        ids = [ecorrs]
-        [ind.append(id) for id in ids if len(id) > 0]
-        param_ct += param_ct+2*len(systems)+len(psr.sysflagdict['nano-f'].keys())
+        param_ct += len(systems)
+        ##
+        if 'pta' in t2psr.flags():
+            if 'NANOGrav' in list(set(t2psr.flagvals('pta'))):
+                ecorrs = [param_ct+ii for ii
+                          in range(len(psr.sysflagdict['nano-f'].keys()))]
+                ids = [ecorrs]
+                [ind.append(id) for id in ids if len(id) > 0]
+                param_ct += len(psr.sysflagdict['nano-f'].keys())
 
     ##### all parameters #####
     all_inds = range(len(x0))
@@ -703,8 +716,10 @@ if args.sampler == 'ptmcmc':
     if args.fullN:
         sampler.addProposalToCycle(drawFromEfacPrior, 10)
         sampler.addProposalToCycle(drawFromEquadPrior, 10)
-        if len(psr.sysflagdict['nano-f'].keys())>0:
-            sampler.addProposalToCycle(drawFromEcorrPrior, 10)
+        if 'pta' in t2psr.flags():
+            if 'NANOGrav' in list(set(t2psr.flagvals('pta'))):
+                if len(psr.sysflagdict['nano-f'].keys())>0:
+                    sampler.addProposalToCycle(drawFromEcorrPrior, 10)
 
     sampler.sample(p0=x0, Niter=int(5e6), thin=10,
                 covUpdate=1000, AMweight=20,
