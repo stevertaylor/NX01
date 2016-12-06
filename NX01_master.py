@@ -99,6 +99,8 @@ parser.add_option('--cadence', dest='cadence', action='store', type=float,
                    help='Instead of nmodes, provide the observational cadence.')
 parser.add_option('--incDM', dest='incDM', action='store_true', default=False,
                    help='Search for DM variations in the data as a Gaussian process (False)? (default=False)')
+parser.add_option('--varyWhite', dest='varyWhite', action='store_true', default=False,
+                   help='Search for per-pulsar white-noise parameters? (default=False)')
 parser.add_option('--sampler', dest='sampler', action='store', type=str, default='ptmcmc',
                    help='Which sampler do you want to use: PTMCMC (ptmcmc), MultiNest (mnest), or Polychord (pchord) (default = ptmcmc)')
 parser.add_option('--ins', dest='ins', action='store_true', default=False,
@@ -442,7 +444,10 @@ else:
 
 
 # Grab all the pulsar quantities
-[p.grab_all_vars(rescale=True, sysflag_target=args.sysflag_target) for p in psr]
+if args.varyWhite:
+    [p.grab_all_vars(rescale=False, sysflag_target=args.sysflag_target) for p in psr]
+elif not args.varyWhite:
+    [p.grab_all_vars(rescale=True, sysflag_target=args.sysflag_target) for p in psr]
 
 # Now, grab the positions and compute the ORF basis functions
 psr_positions = [np.array([psr[ii].psr_locs[0],
@@ -3997,7 +4002,8 @@ elif args.sampler == 'ptmcmc':
                 systems = p.sysflagdict[args.sysflag_target]
                 pct += 2*len(systems)
                 pct += len(p.sysflagdict['nano-f'].keys())
-            
+
+        systems = psr[ind].sysflagdict[args.sysflag_target]
         q[pct:pct+len(systems)] = np.random.uniform(pmin[pct:pct+len(systems)],
                                                     pmax[pct:pct+len(systems)])
         qxy += 0
