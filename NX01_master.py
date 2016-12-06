@@ -767,66 +767,67 @@ if args.incGWB and args.gwbSpecModel=='turnover' and args.gwb_fb2env is not None
 # PRE-COMPUTING WHITE NOISE PROPERTIES 
 #######################################
 
-loglike1 = 0
-logdet_N = []
-TtNT = []
-d = []
-Jamp = []
-for ii,p in enumerate(psr):
+if not args.varyWhite:
+    loglike1 = 0
+    logdet_N = []
+    TtNT = []
+    d = []
+    Jamp = []
+    for ii,p in enumerate(psr):
 
-    # compute ( T.T * N^-1 * T )
-    # & log determinant of N
-    new_err = (p.toaerrs).copy()
-    if not args.noEcorr:
+        # compute ( T.T * N^-1 * T )
+        # & log determinant of N
+        new_err = (p.toaerrs).copy()
+        if not args.noEcorr:
         
-        if p.ecorrs is not None and len(p.ecorrs)>0:
+            if p.ecorrs is not None and len(p.ecorrs)>0:
+    
+                Jamp.append(np.ones(len(p.epflags)))
+                for jj,nano_sysname in enumerate(p.sysflagdict['nano-f'].keys()):
+                    Jamp[ii][np.where(p.epflags==nano_sysname)] *= \
+                    p.ecorrs[nano_sysname]**2.0
 
-            Jamp.append(np.ones(len(p.epflags)))
-            for jj,nano_sysname in enumerate(p.sysflagdict['nano-f'].keys()):
-                Jamp[ii][np.where(p.epflags==nano_sysname)] *= \
-                  p.ecorrs[nano_sysname]**2.0
-
-            Nx = jitter.cython_block_shermor_0D(p.res, new_err**2.,
+                Nx = jitter.cython_block_shermor_0D(p.res, new_err**2.,
+                                                    Jamp[ii], p.Uinds)
+                d.append(np.dot(p.Te.T, Nx))
+            
+                logdet_N_dummy, TtNT_dummy = \
+                jitter.cython_block_shermor_2D(p.Te, new_err**2.,
                                                 Jamp[ii], p.Uinds)
-            d.append(np.dot(p.Te.T, Nx))
+                logdet_N.append(logdet_N_dummy)
+                TtNT.append(TtNT_dummy)
             
-            logdet_N_dummy, TtNT_dummy = \
-              jitter.cython_block_shermor_2D(p.Te, new_err**2.,
-                                             Jamp[ii], p.Uinds)
-            logdet_N.append(logdet_N_dummy)
-            TtNT.append(TtNT_dummy)
-            
-            det_dummy, dtNdt = \
-              jitter.cython_block_shermor_1D(p.res, new_err**2.,
-                                             Jamp[ii], p.Uinds)
+                det_dummy, dtNdt = \
+                jitter.cython_block_shermor_1D(p.res, new_err**2.,
+                                                Jamp[ii], p.Uinds)
 
-        else:
+            else:
             
+                d.append(np.dot(p.Te.T, p.res/( new_err**2.0 )))
+                
+                N = 1./( new_err**2.0 )
+                right = (N*p.Te.T).T
+                TtNT.append(np.dot(p.Te.T, right))
+    
+                logdet_N.append(np.sum(np.log( new_err**2.0 )))
+        
+                # triple product in likelihood function
+                dtNdt = np.sum(p.res**2.0/( new_err**2.0 ))
+        
+        else:
+
             d.append(np.dot(p.Te.T, p.res/( new_err**2.0 )))
             
             N = 1./( new_err**2.0 )
             right = (N*p.Te.T).T
             TtNT.append(np.dot(p.Te.T, right))
-    
+
             logdet_N.append(np.sum(np.log( new_err**2.0 )))
         
             # triple product in likelihood function
             dtNdt = np.sum(p.res**2.0/( new_err**2.0 ))
-        
-    else:
 
-        d.append(np.dot(p.Te.T, p.res/( new_err**2.0 )))
-            
-        N = 1./( new_err**2.0 )
-        right = (N*p.Te.T).T
-        TtNT.append(np.dot(p.Te.T, right))
-
-        logdet_N.append(np.sum(np.log( new_err**2.0 )))
-        
-        # triple product in likelihood function
-        dtNdt = np.sum(p.res**2.0/( new_err**2.0 ))
-
-    loglike1 += -0.5 * (logdet_N[ii] + dtNdt)
+        loglike1 += -0.5 * (logdet_N[ii] + dtNdt)
 
 
 ##########################
@@ -868,6 +869,13 @@ if args.incDM and not args.fixDM:
         pmin = np.append(pmin,0.0*np.ones(len(psr)))
     elif args.dmSpecModel == 'spectrum':
         pmin = np.append(pmin,-8.0*np.ones(len(psr)*nmodes_dm))
+if args.varyWhite:
+    for ii,p in enumerate(psr):
+        systems = p.sysflagdict[args.sysflag_target]
+        pmin = np.append(pmin,0.001*np.ones(len(systems)))
+        pmin = np.append(pmin,-10.0*np.ones(len(systems)))
+        if len(p.sysflagdict['nano-f'].keys())>0:
+            pmin = np.append(pmin, -10.0*np.ones(len(p.sysflagdict['nano-f'].keys())))
 if args.incClk:
     if args.clkSpecModel == 'powerlaw':
         pmin = np.append(pmin,-20.0)
@@ -990,6 +998,13 @@ if args.incDM and not args.fixDM:
         pmax = np.append(pmax,7.0*np.ones(len(psr)))
     elif args.dmSpecModel == 'spectrum':
         pmax = np.append(pmax,3.0*np.ones(len(psr)*nmodes_dm))
+if args.varyWhite:
+    for ii,p in enumerate(psr):
+        systems = p.sysflagdict[args.sysflag_target]
+        pmax = np.append(pmax,10.0*np.ones(len(systems)))
+        pmax = np.append(pmax,-3.0*np.ones(len(systems)))
+        if len(p.sysflagdict['nano-f'].keys())>0:
+            pmax = np.append(pmax, -3.0*np.ones(len(p.sysflagdict['nano-f'].keys())))
 if args.incClk:
     if args.clkSpecModel == 'powerlaw':
         pmax = np.append(pmax,-11.0)
@@ -1118,8 +1133,9 @@ def lnprob(xx):
     npsr = len(psr)
 
     logLike = 0
-    loglike1_tmp = loglike1
-    dtmp = list(d)
+    if not args.varyWhite:
+        loglike1_tmp = loglike1
+        dtmp = list(d)
 
     mode_count = 2*nmodes_red
     if args.incDM:
@@ -1158,6 +1174,26 @@ def lnprob(xx):
         elif args.dmSpecModel == 'spectrum':
             dm_spec = (xx[param_ct:param_ct+nmodes_dm*npsr].copy()).reshape((npsr,nmodes_dm))
             param_ct += npsr*nmodes_dm
+
+    ####################################
+    # Including per-pulsar white-noise
+    
+    if args.varyWhite:
+        EFAC = []
+        EQUAD = []
+        ECORR = []
+        for ii,p in enumerate(psr):
+            systems = p.sysflagdict[args.sysflag_target]
+            
+            EFAC.append( xx[param_ct:param_ct+len(systems)] )
+            param_ct += len(systems)
+    
+            EQUAD.append( 10.0**xx[param_ct:param_ct+len(systems)] )
+            param_ct += len(systems)
+
+            if len(p.sysflagdict['nano-f'].keys())>0:
+                ECORR.append( 10.0**xx[param_ct:param_ct+len(p.sysflagdict['nano-f'].keys())] )
+                param_ct += len(p.sysflagdict['nano-f'].keys())
 
     #########################################
     # Including clock errors
@@ -1366,6 +1402,82 @@ def lnprob(xx):
             logLike = 0.0
         
     elif not args.constLike:
+
+        if args.varyWhite:
+            
+            loglike1_tmp = 0
+            logdet_N = []
+            TtNT = []
+            dtmp = []
+            Jamp = []
+            for ii,p in enumerate(psr):
+
+                scaled_err = (p.toaerrs).copy()
+                systems = p.sysflagdict[args.sysflag_target]
+                for jj,sysname in enumerate(systems):
+                    scaled_err[systems[sysname]] *= EFAC[ii][jj] 
+                ###
+                white_noise = np.zeros(len(scaled_err))
+                white_noise = np.ones(len(scaled_err))
+                for jj,sysname in enumerate(systems):
+                    white_noise[systems[sysname]] *= EQUAD[ii][jj]
+    
+                new_err = np.sqrt( scaled_err**2.0 + white_noise**2.0 )
+                ########
+
+                # compute ( T.T * N^-1 * T )
+                # & log determinant of N
+                if not args.noEcorr:
+        
+                    if len(ECORR[ii])>0:
+
+                        Jamp.append(np.ones(len(p.epflags)))
+                        for jj,nano_sysname in enumerate(p.sysflagdict['nano-f'].keys()):
+                            Jamp[ii][np.where(p.epflags==nano_sysname)] *= \
+                              ECORR[ii][jj]**2.0
+
+                        Nx = jitter.cython_block_shermor_0D(p.res, new_err**2.,
+                                                            Jamp[ii], p.Uinds)
+                        dtmp.append(np.dot(p.Te.T, Nx))
+            
+                        logdet_N_dummy, TtNT_dummy = \
+                        jitter.cython_block_shermor_2D(p.Te, new_err**2.,
+                                                        Jamp[ii], p.Uinds)
+                        logdet_N.append(logdet_N_dummy)
+                        TtNT.append(TtNT_dummy)
+            
+                        det_dummy, dtNdt = \
+                        jitter.cython_block_shermor_1D(p.res, new_err**2.,
+                                                        Jamp[ii], p.Uinds)
+
+                    else:
+            
+                        dtmp.append(np.dot(p.Te.T, p.res/( new_err**2.0 )))
+            
+                        N = 1./( new_err**2.0 )
+                        right = (N*p.Te.T).T
+                        TtNT.append(np.dot(p.Te.T, right))
+    
+                        logdet_N.append(np.sum(np.log( new_err**2.0 )))
+        
+                        # triple product in likelihood function
+                        dtNdt = np.sum(p.res**2.0/( new_err**2.0 ))
+        
+                else:
+        
+                    dtmp.append(np.dot(p.Te.T, p.res/( new_err**2.0 )))
+            
+                    N = 1./( new_err**2.0 )
+                    right = (N*p.Te.T).T
+                    TtNT.append(np.dot(p.Te.T, right))
+
+                    logdet_N.append(np.sum(np.log( new_err**2.0 )))
+        
+                    # triple product in likelihood function
+                    dtNdt = np.sum(p.res**2.0/( new_err**2.0 ))
+
+                loglike1_tmp += -0.5 * (logdet_N[ii] + dtNdt)
+
     
         if args.det_signal:
             if args.cgw_search:
@@ -1534,10 +1646,26 @@ def lnprob(xx):
 
                 # compute ( T.T * N^-1 * T )
                 # & log determinant of N
-                new_err = (p.toaerrs).copy()
+
+                if args.varyWhite:
+                    scaled_err = (p.toaerrs).copy()
+                    systems = p.sysflagdict[args.sysflag_target]
+                    for jj,sysname in enumerate(systems):
+                        scaled_err[systems[sysname]] *= EFAC[ii][jj] 
+                    ###
+                    white_noise = np.zeros(len(scaled_err))
+                    white_noise = np.ones(len(scaled_err))
+                    for jj,sysname in enumerate(systems):
+                        white_noise[systems[sysname]] *= EQUAD[ii][jj]
+    
+                    new_err = np.sqrt( scaled_err**2.0 + white_noise**2.0 )
+                elif not args.varyWhite:
+                    new_err = (p.toaerrs).copy()
+                    
                 if not args.noEcorr:
-        
-                    if p.ecorrs is not None and len(p.ecorrs)>0:
+
+                    if (args.varyWhite and len(ECORR[ii]>0)) or \
+                      (not args.varyWhite and p.ecorrs is not None and len(p.ecorrs)>0):
                         Nx = jitter.cython_block_shermor_0D(detres[ii], new_err**2.,
                                                             Jamp[ii], p.Uinds)
                         dtmp[ii] = np.dot(p.Te.T, Nx)
@@ -1556,12 +1684,9 @@ def lnprob(xx):
                     dtmp[ii] = np.dot(p.Te.T, detres[ii]/( new_err**2.0 ))
                     dtNdt.append(np.sum(detres[ii]**2.0/( new_err**2.0 )))
 
-                #print np.any(np.isnan(dtmp[ii])), np.any(np.isnan(dtNdt[ii]))
                 loglike1_tmp += -0.5 * (logdet_N[ii] + dtNdt[ii])
         
         
-
-            
         if args.incGWB and args.incCorr:
             ## (option to de-restrict clms by phys prior)... and gwb_modindex==1:
             
@@ -2844,6 +2969,16 @@ if args.incDM and not args.fixDM:
         for ii in range(len(psr)):
             for jj in range(nmodes_dm):
                 parameters.append('dmSpec'+'_{0}_'.format(jj+1)+psr[ii].name)
+if args.varyWhite:
+    for ii,p in enumerate(psr):
+        systems = p.sysflagdict[args.sysflag_target]
+        for jj in range(len(systems)):
+            parameters.append('EFAC_'+p.name+'_'+systems.keys()[jj])
+        for jj in range(len(systems)):
+            parameters.append('EQUAD_'+p.name+'_'+systems.keys()[jj])
+        if len(p.sysflagdict['nano-f'].keys())>0:
+            for jj,nano_sysname in enumerate(p.sysflagdict['nano-f'].keys()):
+                parameters.append('ECORR_'+p.name+'_'+nano_sysname)
 if args.incClk:
     if args.clkSpecModel == 'powerlaw':
         parameters += ['Aclk', 'gam_clk']
@@ -3069,6 +3204,8 @@ if args.incDM:
         dm_tag = '_dm'+args.dmPrior+args.dmSpecModel+'nm{0}'.format(nmodes_dm)
 elif not args.incDM:
     dm_tag = ''
+if args.varyWhite:
+    file_tag += '_varyWhite'
 if args.incClk:
     clk_tag = '_clk'+args.clkPrior+args.clkSpecModel
 elif not args.incClk:
@@ -3236,6 +3373,13 @@ elif args.sampler == 'ptmcmc':
             x0 = np.append(x0,startDMind)
         elif args.dmSpecModel == 'spectrum':
             x0 = np.append(x0,np.random.uniform(-7.0,-3.0,len(psr)*nmodes_dm))
+    if args.varyWhite:
+        for ii,p in enumerate(psr):
+            systems = p.sysflagdict[args.sysflag_target]
+            x0 = np.append(x0,np.random.uniform(0.75,1.25,len(systems)))
+            x0 = np.append(x0,np.random.uniform(-10.0,-5.0,len(systems)))
+            if len(p.sysflagdict['nano-f'].keys())>0:
+                x0 = np.append(x0, np.random.uniform(-8.5,-5.0,len(p.sysflagdict['nano-f'].keys())))
     if args.incClk:
         if args.clkSpecModel == 'powerlaw':
             # starting clock parameters at random positions
@@ -3348,6 +3492,13 @@ elif args.sampler == 'ptmcmc':
             cov_diag = np.append(cov_diag,0.5*np.ones(len(psr)))
         elif args.dmSpecModel == 'spectrum':
             cov_diag = np.append(cov_diag,0.1*np.ones(len(psr)*nmodes_dm))
+    if args.varyWhite:
+        for ii,p in enumerate(psr):
+            systems = p.sysflagdict[args.sysflag_target]
+            cov_diag = np.append(cov_diag,0.5*np.ones(len(systems)))
+            cov_diag = np.append(cov_diag,0.5*np.ones(len(systems)))
+            if len(p.sysflagdict['nano-f'].keys())>0:
+                cov_diag = np.append(cov_diag,0.5*np.ones(len(p.sysflagdict['nano-f'].keys())))
     if args.incClk:
         if args.clkSpecModel == 'powerlaw':
             cov_diag = np.append(cov_diag,np.array([0.5,0.5]))
@@ -3449,6 +3600,27 @@ elif args.sampler == 'ptmcmc':
             [ind.append(id) for id in ids if len(id) > 0]
             param_ct += nmodes_dm*len(psr)
 
+
+    ###### White noise ######
+    if args.varyWhite:
+        for ii,p in enumerate(psr):
+            systems = p.sysflagdict[args.sysflag_target]
+            efacs = [param_ct+ii for ii in range(len(systems))]
+            ids = [efacs]
+            [ind.append(id) for id in ids if len(id) > 0]
+            param_ct += len(systems)
+            ##
+            equads = [param_ct+ii for ii in range(len(systems))]
+            ids = [equads]
+            [ind.append(id) for id in ids if len(id) > 0]
+            param_ct += len(systems)
+            ##
+            ecorrs = [param_ct+ii for ii
+                      in range(len(p.sysflagdict['nano-f'].keys()))]
+            ids = [ecorrs]
+            [ind.append(id) for id in ids if len(id) > 0]
+            param_ct += len(p.sysflagdict['nano-f'].keys())
+    
     ##### Clock errors #####
     if args.incClk:
         if args.clkSpecModel == 'powerlaw':
@@ -3794,6 +3966,51 @@ elif args.sampler == 'ptmcmc':
 
         return q, qxy
 
+    # white noise draws
+    def drawFromWhiteNoisePrior(parameters, iter, beta):
+
+        # post-jump parameters
+        q = parameters.copy()
+
+        # transition probability
+        qxy = 0
+
+        npsr = len(psr)
+        pct = 0
+        if not args.fixRed:
+            if args.redSpecModel == 'powerlaw':
+                pct += 2*npsr
+            elif args.redSpecModel == 'spectrum':
+                pct += npsr*nmodes_red
+
+        if args.incDM and not args.fixDM:
+            if args.dmSpecModel == 'powerlaw':
+                pct += 2*npsr
+            elif args.dmSpecModel == 'spectrum':
+                pct += npsr*nmodes_dm
+
+        ind = np.unique(np.random.randint(0, len(psr), 1))
+        for ii,p in enumerate(psr):
+            if ii == ind:
+                break
+            else:
+                systems = p.sysflagdict[args.sysflag_target]
+                pct += 2*len(systems)
+                pct += len(p.sysflagdict['nano-f'].keys())
+            
+        q[pct:pct+len(systems)] = np.random.uniform(pmin[pct:pct+len(systems)],
+                                                    pmax[pct:pct+len(systems)])
+        qxy += 0
+        q[pct:pct+len(systems)] = np.random.uniform(pmin[pct:pct+len(systems)],
+                                                    pmax[pct:pct+len(systems)])
+        qxy += 0
+        if len(psr[ind].sysflagdict['nano-f'].keys())>0:
+            q[pct:pct+len(psr[ind].sysflagdict['nano-f'].keys())] = np.random.uniform(pmin[pct:pct+len(psr[ind].sysflagdict['nano-f'].keys())],
+                                                                                      pmax[pct:pct+len(psr[ind].sysflagdict['nano-f'].keys())])
+            qxy += 0
+
+        return q, qxy
+
     # clock draws 
     def drawFromClkNoisePowerlawPrior(parameters, iter, beta):
 
@@ -3816,6 +4033,12 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
                 pct += npsr*nmodes_dm
+
+        if args.varyWhite:
+            for ii,p in enumerate(psr):
+                systems = p.sysflagdict[args.sysflag_target]
+                pct += 2*len(systems)
+                pct += len(p.sysflagdict['nano-f'].keys())
 
         if args.clkPrior == 'loguniform':
             q[pct] = np.random.uniform(pmin[pct], pmax[pct])
@@ -3850,6 +4073,12 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
                 pct += npsr*nmodes_dm
+
+        if args.varyWhite:
+            for ii,p in enumerate(psr):
+                systems = p.sysflagdict[args.sysflag_target]
+                pct += 2*len(systems)
+                pct += len(p.sysflagdict['nano-f'].keys())
 
         ind = np.unique(np.random.randint(0, nmodes_red, 1))
 
@@ -3886,6 +4115,12 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
                 pct += npsr*nmodes_dm
+
+        if args.varyWhite:
+            for ii,p in enumerate(psr):
+                systems = p.sysflagdict[args.sysflag_target]
+                pct += 2*len(systems)
+                pct += len(p.sysflagdict['nano-f'].keys())
 
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
@@ -3926,6 +4161,12 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
                 pct += npsr*nmodes_dm
+
+        if args.varyWhite:
+            for ii,p in enumerate(psr):
+                systems = p.sysflagdict[args.sysflag_target]
+                pct += 2*len(systems)
+                pct += len(p.sysflagdict['nano-f'].keys())
 
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
@@ -3968,6 +4209,12 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
                 pct += npsr*nmodes_dm
+
+        if args.varyWhite:
+            for ii,p in enumerate(psr):
+                systems = p.sysflagdict[args.sysflag_target]
+                pct += 2*len(systems)
+                pct += len(p.sysflagdict['nano-f'].keys())
 
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
@@ -4020,6 +4267,12 @@ elif args.sampler == 'ptmcmc':
             elif args.dmSpecModel == 'spectrum':
                 pct += npsr*nmodes_dm
 
+        if args.varyWhite:
+            for ii,p in enumerate(psr):
+                systems = p.sysflagdict[args.sysflag_target]
+                pct += 2*len(systems)
+                pct += len(p.sysflagdict['nano-f'].keys())
+
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -4070,6 +4323,12 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
                 pct += npsr*nmodes_dm
+
+        if args.varyWhite:
+            for ii,p in enumerate(psr):
+                systems = p.sysflagdict[args.sysflag_target]
+                pct += 2*len(systems)
+                pct += len(p.sysflagdict['nano-f'].keys())
 
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
@@ -4137,6 +4396,12 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
                 pct += npsr*nmodes_dm
+
+        if args.varyWhite:
+            for ii,p in enumerate(psr):
+                systems = p.sysflagdict[args.sysflag_target]
+                pct += 2*len(systems)
+                pct += len(p.sysflagdict['nano-f'].keys())
 
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
@@ -4212,6 +4477,12 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
                 pct += npsr*nmodes_dm
+
+        if args.varyWhite:
+            for ii,p in enumerate(psr):
+                systems = p.sysflagdict[args.sysflag_target]
+                pct += 2*len(systems)
+                pct += len(p.sysflagdict['nano-f'].keys())
 
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
@@ -4289,6 +4560,12 @@ elif args.sampler == 'ptmcmc':
             elif args.dmSpecModel == 'spectrum':
                 pct += npsr*nmodes_dm
 
+        if args.varyWhite:
+            for ii,p in enumerate(psr):
+                systems = p.sysflagdict[args.sysflag_target]
+                pct += 2*len(systems)
+                pct += len(p.sysflagdict['nano-f'].keys())
+
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -4358,6 +4635,12 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
                 pct += npsr*nmodes_dm
+
+        if args.varyWhite:
+            for ii,p in enumerate(psr):
+                systems = p.sysflagdict[args.sysflag_target]
+                pct += 2*len(systems)
+                pct += len(p.sysflagdict['nano-f'].keys())
 
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
@@ -4429,6 +4712,12 @@ elif args.sampler == 'ptmcmc':
             elif args.dmSpecModel == 'spectrum':
                 pct += npsr*nmodes_dm
 
+        if args.varyWhite:
+            for ii,p in enumerate(psr):
+                systems = p.sysflagdict[args.sysflag_target]
+                pct += 2*len(systems)
+                pct += len(p.sysflagdict['nano-f'].keys())
+
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -4499,6 +4788,12 @@ elif args.sampler == 'ptmcmc':
             elif args.dmSpecModel == 'spectrum':
                 pct += npsr*nmodes_dm
 
+        if args.varyWhite:
+            for ii,p in enumerate(psr):
+                systems = p.sysflagdict[args.sysflag_target]
+                pct += 2*len(systems)
+                pct += len(p.sysflagdict['nano-f'].keys())
+
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -4564,6 +4859,12 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
                 pct += npsr*nmodes_dm
+
+        if args.varyWhite:
+            for ii,p in enumerate(psr):
+                systems = p.sysflagdict[args.sysflag_target]
+                pct += 2*len(systems)
+                pct += len(p.sysflagdict['nano-f'].keys())
 
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
@@ -4637,6 +4938,12 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
                 pct += npsr*nmodes_dm
+
+        if args.varyWhite:
+            for ii,p in enumerate(psr):
+                systems = p.sysflagdict[args.sysflag_target]
+                pct += 2*len(systems)
+                pct += len(p.sysflagdict['nano-f'].keys())
 
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
@@ -4717,6 +5024,12 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
                 pct += npsr*nmodes_dm
+
+        if args.varyWhite:
+            for ii,p in enumerate(psr):
+                systems = p.sysflagdict[args.sysflag_target]
+                pct += 2*len(systems)
+                pct += len(p.sysflagdict['nano-f'].keys())
 
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
@@ -4801,6 +5114,12 @@ elif args.sampler == 'ptmcmc':
             elif args.dmSpecModel == 'spectrum':
                 pct += npsr*nmodes_dm
 
+        if args.varyWhite:
+            for ii,p in enumerate(psr):
+                systems = p.sysflagdict[args.sysflag_target]
+                pct += 2*len(systems)
+                pct += len(p.sysflagdict['nano-f'].keys())
+
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -4883,6 +5202,12 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
                 pct += npsr*nmodes_dm
+
+        if args.varyWhite:
+            for ii,p in enumerate(psr):
+                systems = p.sysflagdict[args.sysflag_target]
+                pct += 2*len(systems)
+                pct += len(p.sysflagdict['nano-f'].keys())
 
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
@@ -4967,6 +5292,12 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*npsr
             elif args.dmSpecModel == 'spectrum':
                 pct += npsr*nmodes_dm
+
+        if args.varyWhite:
+            for ii,p in enumerate(psr):
+                systems = p.sysflagdict[args.sysflag_target]
+                pct += 2*len(systems)
+                pct += len(p.sysflagdict['nano-f'].keys())
 
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
@@ -5053,6 +5384,12 @@ elif args.sampler == 'ptmcmc':
             elif args.dmSpecModel == 'spectrum':
                 pct += npsr*nmodes_dm
 
+        if args.varyWhite:
+            for ii,p in enumerate(psr):
+                systems = p.sysflagdict[args.sysflag_target]
+                pct += 2*len(systems)
+                pct += len(p.sysflagdict['nano-f'].keys())
+
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -5128,6 +5465,12 @@ elif args.sampler == 'ptmcmc':
             elif args.dmSpecModel == 'spectrum':
                 pct += npsr*nmodes_dm
 
+        if args.varyWhite:
+            for ii,p in enumerate(psr):
+                systems = p.sysflagdict[args.sysflag_target]
+                pct += 2*len(systems)
+                pct += len(p.sysflagdict['nano-f'].keys())
+
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -5202,6 +5545,12 @@ elif args.sampler == 'ptmcmc':
             elif args.dmSpecModel == 'spectrum':
                 pct += npsr*nmodes_dm
 
+        if args.varyWhite:
+            for ii,p in enumerate(psr):
+                systems = p.sysflagdict[args.sysflag_target]
+                pct += 2*len(systems)
+                pct += len(p.sysflagdict['nano-f'].keys())
+
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -5267,6 +5616,8 @@ elif args.sampler == 'ptmcmc':
             sampler.addProposalToCycle(drawFromDMNoisePowerlawPrior, 10)
         elif args.dmSpecModel == 'spectrum':
             sampler.addProposalToCycle(drawFromDMNoiseSpectrumPrior, 10)
+    if args.varyWhite:
+        sampler.addProposalToCycle(drawFromWhiteNoisePrior, 10)
     if args.incClk:
         if args.clkSpecModel == 'powerlaw':
             sampler.addProposalToCycle(drawFromClkNoisePowerlawPrior, 10)

@@ -110,12 +110,16 @@ parser.add_option('--redPrior', dest='redPrior', action='store', type=str, defau
                    help='What kind of prior to place on the red noise amplitude? (default = \'loguniform\')')
 parser.add_option('--dmPrior', dest='dmPrior', action='store', type=str, default='loguniform',
                    help='What kind of prior to place on the DM variation amplitude? (default = \'loguniform\')')
+parser.add_option('--gwbPrior', dest='gwbPrior', action='store', type=str, default='loguniform',
+                   help='What kind of prior to place on the GWB amplitude? (default = \'loguniform\')')
 parser.add_option('--incDM', dest='incDM', action='store_true', default=False,
                    help='Search for DM variations in the data (False)? (default=False)')
+parser.add_option('--incGWB', dest='incGWB', action='store_true', default=False,
+                   help='Search for a GWB-type signal in the data (False)? (default=False)')
 parser.add_option('--fullN', dest='fullN', action='store_true', default=False,
                    help='Search for EFAC/EQUAD/ECORR over all systems (True), or just apply a GEFAC (False)? (default=False)')
-parser.add_option('--fix_redslope', dest='fix_redslope', action='store_true', default=False,
-                  help='Do you want to fix the slope of the red spectrum? (default = False)')
+parser.add_option('--fix_gwbslope', dest='fix_gwbslope', action='store_true', default=False,
+                  help='Do you want to fix the slope of the GWB spectrum? (default = False)')
 parser.add_option('--grab_planets', dest='grab_planets', action='store_true', default=False,
                    help='Grab the planet position vectors at the TOA timestamps? (default=False)')
 parser.add_option('--incGlitch', dest='incGlitch', action='store_true', default=False,
@@ -225,11 +229,8 @@ else:
 # SETTING UP PRIOR RANGES
 ################################################################################################################################
 
-pmin = np.array([-20.0])
-pmax = np.array([-11.0])
-if not args.fix_redslope:
-    pmin = np.append(pmin,0.0)
-    pmax = np.append(pmax,7.0)
+pmin = np.array([-20.0, 0.0])
+pmax = np.array([-11.0, 7.0])
 if args.incDM:
     pmin = np.append(pmin,np.array([-20.0,0.0]))
     pmax = np.append(pmax,np.array([-8.0,7.0]))       
@@ -246,6 +247,12 @@ if args.fullN:
 if args.incGlitch:
     pmin = np.append(pmin,[np.min(psr.toas),-18.0])
     pmax = np.append(pmax,[np.max(psr.toas),-11.0])
+if args.incGWB:
+    pmin = np.append(pmin,-20.0)
+    pmax = np.append(pmax, -11.0)
+    if not args.fix_gwbslope:
+        pmin = np.append(pmin,0.0)
+        pmax = np.append(pmax,7.0)
             
 ################################################################################################################################
 # PRIOR AND LIKELIHOOD
@@ -265,12 +272,7 @@ def my_prior(xx):
 def ln_prob(xx):
     
     Ared = 10.0**xx[0]
-    if args.fix_redslope:
-        gam_red = 13./3.
-        ct = 1
-    else:
-        gam_red = xx[1]
-        ct = 2
+    gam_red = xx[1]
     
     if args.incDM:
         Adm = 10.0**xx[ct]
@@ -294,6 +296,15 @@ def ln_prob(xx):
     if args.incGlitch:
         glitch_epoch = xx[ct]
         glitch_lamp = xx[ct+1]
+        ct += 2
+
+    if args.incGWB:
+        Agwb = 10.0**xx[ct]
+        ct += 1
+        if args.fix_gwbslope:
+            gam_gwb = 13./3.
+        else:
+            gam_gwb = xx[ct]
 
     loglike1 = 0.
 
@@ -434,9 +445,7 @@ def ln_prob(xx):
 #########################
 #########################
 
-parameters = ["log(A_red)"]
-if not args.fix_redslope:
-    parameters.append("gam_red")
+parameters = ["log(A_red)", "gam_red"]
 if args.incDM:
     parameters.append("log(A_dm)")
     parameters.append("gam_dm")
@@ -455,6 +464,10 @@ if args.fullN:
                     parameters.append('ECORR_'+nano_sysname)
 if args.incGlitch:
     parameters += ["glitch_epoch","glitch_lamp"]
+if args.incGWB:
+    parameters.append("log(A_gwb)")
+    if not args.fix_gwbslope:
+        parameters.append("gam_gwb")
 
 n_params = len(parameters)
 if rank == 0:
@@ -466,12 +479,14 @@ if rank == 0:
 
 file_tag = 'pta_'+psr.name
 file_tag += '_red{0}'.format(args.redPrior)
-if args.fix_redslope:
-    file_tag += '_redgam4p33'
 if args.incDM:
     file_tag += '_dm{0}'.format(args.dmPrior)
 if args.incGlitch:
     file_tag += '_glitch'
+if args.incGWB:
+    file_tag += '_gwb{0}'.format(args.gwbPrior)
+    if args.fix_gwbslope:
+        file_tag += 'gam4p33'
 file_tag += '_nmodes{0}'.format(nmode)
 
 #####################
@@ -534,11 +549,8 @@ if args.sampler == 'mnest':
 
 if args.sampler == 'ptmcmc':
     
-    x0 = np.array([-15.0]) 
-    cov_diag = np.array([0.5]) 
-    if not args.fix_redslope:
-        x0 = np.append(x0,2.0)
-        cov_diag = np.append(cov_diag,0.5)
+    x0 = np.array([-15.0, 2.0]) 
+    cov_diag = np.array([0.5, 0.5]) 
     
     if args.incDM:
         x0 = np.append(x0,np.array([-15.0,2.0]))
@@ -555,6 +567,13 @@ if args.sampler == 'ptmcmc':
                 if len(psr.sysflagdict['nano-f'].keys())>0:
                     x0 = np.append(x0, np.random.uniform(-8.5,-5.0,len(psr.sysflagdict['nano-f'].keys())))
                     cov_diag = np.append(cov_diag,0.5*np.ones(len(psr.sysflagdict['nano-f'].keys())))
+
+    if args.incGWB:
+        x0 = np.append(x0,-15.0)
+        cov_diag = np.append(cov_diag,0.5)
+        if not args.fix_gwbslope:
+            x0 = np.append(x0,2.0)
+            cov_diag = np.append(cov_diag,0.5)
         
     if rank == 0:
         print "\n Your initial parameters are {0}\n".format(x0)
@@ -567,14 +586,9 @@ if args.sampler == 'ptmcmc':
     ind = []
     param_ct = 0
     ##### red noise #####
-    if args.fix_redslope:
-        ids = [[0]]
-        [ind.append(id) for id in ids]
-        param_ct += 1
-    else:
-        ids = [[0,1]]
-        [ind.append(id) for id in ids]
-        param_ct += 2
+    ids = [[0,1]]
+    [ind.append(id) for id in ids]
+    param_ct += 2
         
     ##### DM noise #####
     if args.incDM:
@@ -601,6 +615,16 @@ if args.sampler == 'ptmcmc':
                 ids = [ecorrs]
                 [ind.append(id) for id in ids if len(id) > 0]
                 param_ct += len(psr.sysflagdict['nano-f'].keys())
+
+    if args.incGWB:
+        if args.fix_gwbslope:
+            ids = [[param_ct]]
+            [ind.append(id) for id in ids]
+            param_ct += 1
+        else:
+            ids = [[param_ct,param_ct+1]]
+            [ind.append(id) for id in ids]
+            param_ct += 2
 
     ##### all parameters #####
     all_inds = range(len(x0))
@@ -648,9 +672,7 @@ if args.sampler == 'ptmcmc':
             q[0] = np.random.uniform(pmin[0], pmax[0])
             qxy += 0
 
-        if not args.fix_redslope:
-            q[1] = np.random.uniform(pmin[1], pmax[1])
-    
+        q[1] = np.random.uniform(pmin[1], pmax[1])
         qxy += 0
         
         return q, qxy
@@ -663,10 +685,7 @@ if args.sampler == 'ptmcmc':
         # transition probability
         qxy = 0
 
-        if args.fix_redslope:
-            pct = 1
-        else:
-            pct = 2
+        pct = 2
 
         # log prior
         if args.dmPrior == 'loguniform':
@@ -676,7 +695,7 @@ if args.sampler == 'ptmcmc':
             q[pct] = np.random.uniform(pmin[pct], pmax[pct])
             qxy += 0
 
-        q[pct] = np.random.uniform(pmin[pct], pmax[pct])
+        q[pct+1] = np.random.uniform(pmin[pct+1], pmax[pct+1])
     
         qxy += 0
         
@@ -690,10 +709,7 @@ if args.sampler == 'ptmcmc':
         # transition probability
         qxy = 0
 
-        if args.fix_redslope:
-            pct = 1
-        else:
-            pct = 2
+        pct = 2
 
         if args.incDM:
             pct += 2
@@ -715,10 +731,7 @@ if args.sampler == 'ptmcmc':
         # transition probability
         qxy = 0
 
-        if args.fix_redslope:
-            pct = 1
-        else:
-            pct = 2
+        pct = 2
 
         if args.incDM:
             pct += 2
@@ -740,10 +753,7 @@ if args.sampler == 'ptmcmc':
         # transition probability
         qxy = 0
 
-        if args.fix_redslope:
-            pct = 1
-        else:
-            pct = 2
+        pct = 2
 
         if args.incDM:
             pct += 2
@@ -754,6 +764,34 @@ if args.sampler == 'ptmcmc':
         for ii in ind:
             q[ii] = np.random.uniform(pmin[ii], pmax[ii])
             qxy += 0
+
+        return q, qxy
+
+    def drawFromGWBPrior(parameters, iter, beta):
+
+        # post-jump parameters
+        q = parameters.copy()
+
+        # transition probability
+        qxy = 0
+
+        pct = 2
+
+        if args.incDM:
+            pct += 2+2*len(systems)+len(psr.sysflagdict['nano-f'].keys())
+        else:
+            pct += 2*len(systems)+len(psr.sysflagdict['nano-f'].keys())
+
+        # log prior
+        if args.gwbPrior == 'loguniform':
+            q[pct] = np.random.uniform(pmin[pct], pmax[pct])
+            qxy += 0
+        elif args.gwbPrior == 'uniform':
+            q[pct] = np.random.uniform(pmin[pct], pmax[pct])
+            qxy += 0
+
+        q[pct+1] = np.random.uniform(pmin[pct+1], pmax[pct+1])
+        
 
         return q, qxy
 
@@ -769,6 +807,8 @@ if args.sampler == 'ptmcmc':
             if 'NANOGrav' in list(set(t2psr.flagvals('pta'))):
                 if len(psr.sysflagdict['nano-f'].keys())>0:
                     sampler.addProposalToCycle(drawFromEcorrPrior, 10)
+    if args.incGWB:
+        sampler.addProposalToCycle(drawFromGWBPrior, 10)
 
     sampler.sample(p0=x0, Niter=int(5e6), thin=10,
                 covUpdate=1000, AMweight=20,
