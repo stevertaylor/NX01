@@ -3470,6 +3470,8 @@ if args.sampler == 'mnest':
         np.save(dir_name+'/freq_array_red.npy', fqs_red/86400.0)
         if args.incDM:
             np.save(dir_name+'/freq_array_dm.npy', fqs_dm/86400.0)
+        if args.incBand:
+            np.save(dir_name+'/freq_array_band.npy', fqs_band/86400.0)
         if args.incEph:
             np.save(dir_name+'/freq_array_eph.npy', fqs_eph/86400.0)
 
@@ -3528,6 +3530,8 @@ elif args.sampler == 'pchord':
         np.save(dir_name+'/freq_array_red.npy', fqs_red/86400.0)
         if args.incDM:
             np.save(dir_name+'/freq_array_dm.npy', fqs_dm/86400.0)
+        if args.incBand:
+            np.save(dir_name+'/freq_array_band.npy', fqs_band/86400.0)
         if args.incEph:
             np.save(dir_name+'/freq_array_eph.npy', fqs_eph/86400.0)
 
@@ -3839,6 +3843,20 @@ elif args.sampler == 'ptmcmc':
             param_ct += len(p.sysflagdict['nano-f'].keys())
 
     ##### Band noise #######
+    if args.incBand:
+        if args.bandSpecModel == 'powerlaw':
+            bandamps = [param_ct+ii for ii in range(len(bands)-1)]
+            param_ct += (len(bands)-1)
+            ##
+            bandgam = [param_ct+ii for ii in range(len(bands)-1)]
+            param_ct += (len(bands)-1)
+            ##
+            ids = [list(aa) for aa in zip(bandamps,bandgam)]
+            [ind.append(id) for id in ids if len(id) > 0]
+        elif args.bandSpecModel == 'spectrum':
+            ids = np.arange(param_ct,param_ct+(len(bands)-1)*nmodes_band).reshape(((len(bands)-1),nmodes_band))
+            [ind.append(id) for id in ids if len(id) > 0]
+            param_ct += (len(bands)-1)*nmodes_band
     
     ##### Clock errors #####
     if args.incClk:
@@ -4052,6 +4070,8 @@ elif args.sampler == 'ptmcmc':
         np.save(args.dirExt+file_tag+'/freq_array_red.npy', fqs_red/86400.0)
         if args.incDM:
             np.save(args.dirExt+file_tag+'/freq_array_dm.npy', fqs_dm/86400.0)
+        if args.incBand:
+            np.save(args.dirExt+file_tag+'/freq_array_band.npy', fqs_band/86400.0)
         if args.incEph:
             np.save(args.dirExt+file_tag+'/freq_array_eph.npy', fqs_eph/86400.0)
 
@@ -4232,6 +4252,94 @@ elif args.sampler == 'ptmcmc':
 
         return q, qxy
 
+    # ephemeris error draws 
+    def drawFromBandNoisePowerlawPrior(parameters, iter, beta):
+
+        # post-jump parameters
+        q = parameters.copy()
+
+        # transition probability
+        qxy = 0
+
+        npsr = len(psr)
+        pct = 0
+        if not args.fixRed:
+            if args.redSpecModel == 'powerlaw':
+                pct = 2*npsr
+            elif args.redSpecModel == 'spectrum':
+                pct = npsr*nmodes_red
+    
+        if args.incDM and not args.fixDM:
+            if args.dmSpecModel == 'powerlaw':
+                pct += 2*npsr
+            elif args.dmSpecModel == 'spectrum':
+                pct += npsr*nmodes_dm
+
+        if args.varyWhite:
+            for ii,p in enumerate(psr):
+                systems = p.sysflagdict[args.sysflag_target]
+                pct += 2*len(systems)
+                pct += len(p.sysflagdict['nano-f'].keys())
+
+        # choose a band for varying
+        ind = np.random.randint(0, len(bands)-1, 1)
+
+        for ii in ind:
+            # amplitude
+            if args.bandPrior == 'loguniform':
+                q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
+                qxy += 0
+            elif args.bandPrior == 'uniform':
+                q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
+                qxy += 0
+            # gamma
+            q[pct+(len(bands)-1)+ii] = np.random.uniform(pmin[pct+(len(bands)-1)+ii],
+                                                         pmax[pct+(len(bands)-1)+ii])
+            qxy += 0
+        
+        return q, qxy
+
+    def drawFromBandNoiseSpectrumPrior(parameters, iter, beta):
+
+        # post-jump parameters
+        q = parameters.copy()
+
+        # transition probability
+        qxy = 0
+
+        npsr = len(psr)
+        pct = 0
+        if not args.fixRed:
+            if args.redSpecModel == 'powerlaw':
+                pct = 2*npsr
+            elif args.redSpecModel == 'spectrum':
+                pct = npsr*nmodes_red
+    
+        if args.incDM and not args.fixDM:
+            if args.dmSpecModel == 'powerlaw':
+                pct += 2*npsr
+            elif args.dmSpecModel == 'spectrum':
+                pct += npsr*nmodes_dm
+
+        if args.varyWhite:
+            for ii,p in enumerate(psr):
+                systems = p.sysflagdict[args.sysflag_target]
+                pct += 2*len(systems)
+                pct += len(p.sysflagdict['nano-f'].keys())
+
+        # choose from full list of band spectral values
+        ind = np.unique(np.random.randint(0, (len(bands)-1)*nmodes_band, 1))
+
+        for ii in ind:
+            if args.bandPrior == 'loguniform':
+                q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
+                qxy += 0
+            elif args.bandPrior == 'uniform':
+                q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
+                qxy += 0
+        
+        return q, qxy
+    
     # clock draws 
     def drawFromClkNoisePowerlawPrior(parameters, iter, beta):
 
@@ -4260,6 +4368,12 @@ elif args.sampler == 'ptmcmc':
                 systems = p.sysflagdict[args.sysflag_target]
                 pct += 2*len(systems)
                 pct += len(p.sysflagdict['nano-f'].keys())
+
+        if args.incBand:
+            if args.bandSpecModel == 'powerlaw':
+                pct += 2*(len(bands)-1)
+            elif args.bandSpecModel == 'spectrum':
+                pct += (len(bands)-1)*nmodes_band
 
         if args.clkPrior == 'loguniform':
             q[pct] = np.random.uniform(pmin[pct], pmax[pct])
@@ -4300,6 +4414,12 @@ elif args.sampler == 'ptmcmc':
                 systems = p.sysflagdict[args.sysflag_target]
                 pct += 2*len(systems)
                 pct += len(p.sysflagdict['nano-f'].keys())
+
+        if args.incBand:
+            if args.bandSpecModel == 'powerlaw':
+                pct += 2*(len(bands)-1)
+            elif args.bandSpecModel == 'spectrum':
+                pct += (len(bands)-1)*nmodes_band
 
         ind = np.unique(np.random.randint(0, nmodes_red, 1))
 
@@ -4342,6 +4462,12 @@ elif args.sampler == 'ptmcmc':
                 systems = p.sysflagdict[args.sysflag_target]
                 pct += 2*len(systems)
                 pct += len(p.sysflagdict['nano-f'].keys())
+
+        if args.incBand:
+            if args.bandSpecModel == 'powerlaw':
+                pct += 2*(len(bands)-1)
+            elif args.bandSpecModel == 'spectrum':
+                pct += (len(bands)-1)*nmodes_band
 
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
@@ -4389,6 +4515,12 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*len(systems)
                 pct += len(p.sysflagdict['nano-f'].keys())
 
+        if args.incBand:
+            if args.bandSpecModel == 'powerlaw':
+                pct += 2*(len(bands)-1)
+            elif args.bandSpecModel == 'spectrum':
+                pct += (len(bands)-1)*nmodes_band
+                    
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -4437,6 +4569,12 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*len(systems)
                 pct += len(p.sysflagdict['nano-f'].keys())
 
+        if args.incBand:
+            if args.bandSpecModel == 'powerlaw':
+                pct += 2*(len(bands)-1)
+            elif args.bandSpecModel == 'spectrum':
+                pct += (len(bands)-1)*nmodes_band
+                    
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -4453,10 +4591,10 @@ elif args.sampler == 'ptmcmc':
         ind = np.random.randint(0, 3, 1)
         
         # amplitude
-        if args.gwbPrior == 'loguniform':
+        if args.ephPrior == 'loguniform':
             q[pct+2*ind] = np.random.uniform(pmin[pct+2*ind], pmax[pct+2*ind])
             qxy += 0
-        elif args.gwbPrior == 'uniform':
+        elif args.ephPrior == 'uniform':
             q[pct+2*ind] = np.random.uniform(pmin[pct+2*ind], pmax[pct+2*ind])
             qxy += 0
 
@@ -4494,6 +4632,12 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*len(systems)
                 pct += len(p.sysflagdict['nano-f'].keys())
 
+        if args.incBand:
+            if args.bandSpecModel == 'powerlaw':
+                pct += 2*(len(bands)-1)
+            elif args.bandSpecModel == 'spectrum':
+                pct += (len(bands)-1)*nmodes_band
+        
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -4514,9 +4658,6 @@ elif args.sampler == 'ptmcmc':
                 q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
                 qxy += 0
             elif args.ephPrior == 'uniform':
-                q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
-                qxy += 0
-            elif args.ephPrior == 'gaussProc':
                 q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
                 qxy += 0
         
@@ -4551,6 +4692,12 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*len(systems)
                 pct += len(p.sysflagdict['nano-f'].keys())
 
+        if args.incBand:
+            if args.bandSpecModel == 'powerlaw':
+                pct += 2*(len(bands)-1)
+            elif args.bandSpecModel == 'spectrum':
+                pct += (len(bands)-1)*nmodes_band
+                    
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -4624,6 +4771,12 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*len(systems)
                 pct += len(p.sysflagdict['nano-f'].keys())
 
+        if args.incBand:
+            if args.bandSpecModel == 'powerlaw':
+                pct += 2*(len(bands)-1)
+            elif args.bandSpecModel == 'spectrum':
+                pct += (len(bands)-1)*nmodes_band
+                
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -4705,6 +4858,12 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*len(systems)
                 pct += len(p.sysflagdict['nano-f'].keys())
 
+        if args.incBand:
+            if args.bandSpecModel == 'powerlaw':
+                pct += 2*(len(bands)-1)
+            elif args.bandSpecModel == 'spectrum':
+                pct += (len(bands)-1)*nmodes_band
+                    
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -4787,6 +4946,12 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*len(systems)
                 pct += len(p.sysflagdict['nano-f'].keys())
 
+        if args.incBand:
+            if args.bandSpecModel == 'powerlaw':
+                pct += 2*(len(bands)-1)
+            elif args.bandSpecModel == 'spectrum':
+                pct += (len(bands)-1)*nmodes_band
+                    
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -4863,6 +5028,12 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*len(systems)
                 pct += len(p.sysflagdict['nano-f'].keys())
 
+        if args.incBand:
+            if args.bandSpecModel == 'powerlaw':
+                pct += 2*(len(bands)-1)
+            elif args.bandSpecModel == 'spectrum':
+                pct += (len(bands)-1)*nmodes_band
+                    
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -4939,6 +5110,12 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*len(systems)
                 pct += len(p.sysflagdict['nano-f'].keys())
 
+        if args.incBand:
+            if args.bandSpecModel == 'powerlaw':
+                pct += 2*(len(bands)-1)
+            elif args.bandSpecModel == 'spectrum':
+                pct += (len(bands)-1)*nmodes_band
+                    
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -5015,6 +5192,12 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*len(systems)
                 pct += len(p.sysflagdict['nano-f'].keys())
 
+        if args.incBand:
+            if args.bandSpecModel == 'powerlaw':
+                pct += 2*(len(bands)-1)
+            elif args.bandSpecModel == 'spectrum':
+                pct += (len(bands)-1)*nmodes_band
+    
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -5087,6 +5270,12 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*len(systems)
                 pct += len(p.sysflagdict['nano-f'].keys())
 
+        if args.incBand:
+            if args.bandSpecModel == 'powerlaw':
+                pct += 2*(len(bands)-1)
+            elif args.bandSpecModel == 'spectrum':
+                pct += (len(bands)-1)*nmodes_band
+                    
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -5166,6 +5355,12 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*len(systems)
                 pct += len(p.sysflagdict['nano-f'].keys())
 
+        if args.incBand:
+            if args.bandSpecModel == 'powerlaw':
+                pct += 2*(len(bands)-1)
+            elif args.bandSpecModel == 'spectrum':
+                pct += (len(bands)-1)*nmodes_band
+                    
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -5252,6 +5447,12 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*len(systems)
                 pct += len(p.sysflagdict['nano-f'].keys())
 
+        if args.incBand:
+            if args.bandSpecModel == 'powerlaw':
+                pct += 2*(len(bands)-1)
+            elif args.bandSpecModel == 'spectrum':
+                pct += (len(bands)-1)*nmodes_band
+                    
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -5341,6 +5542,12 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*len(systems)
                 pct += len(p.sysflagdict['nano-f'].keys())
 
+        if args.incBand:
+            if args.bandSpecModel == 'powerlaw':
+                pct += 2*(len(bands)-1)
+            elif args.bandSpecModel == 'spectrum':
+                pct += (len(bands)-1)*nmodes_band
+                    
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -5430,6 +5637,12 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*len(systems)
                 pct += len(p.sysflagdict['nano-f'].keys())
 
+        if args.incBand:
+            if args.bandSpecModel == 'powerlaw':
+                pct += 2*(len(bands)-1)
+            elif args.bandSpecModel == 'spectrum':
+                pct += (len(bands)-1)*nmodes_band
+                    
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -5520,6 +5733,12 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*len(systems)
                 pct += len(p.sysflagdict['nano-f'].keys())
 
+        if args.incBand:
+            if args.bandSpecModel == 'powerlaw':
+                pct += 2*(len(bands)-1)
+            elif args.bandSpecModel == 'spectrum':
+                pct += (len(bands)-1)*nmodes_band
+                    
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -5611,6 +5830,12 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*len(systems)
                 pct += len(p.sysflagdict['nano-f'].keys())
 
+        if args.incBand:
+            if args.bandSpecModel == 'powerlaw':
+                pct += 2*(len(bands)-1)
+            elif args.bandSpecModel == 'spectrum':
+                pct += (len(bands)-1)*nmodes_band
+                    
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -5692,6 +5917,12 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*len(systems)
                 pct += len(p.sysflagdict['nano-f'].keys())
 
+        if args.incBand:
+            if args.bandSpecModel == 'powerlaw':
+                pct += 2*(len(bands)-1)
+            elif args.bandSpecModel == 'spectrum':
+                pct += (len(bands)-1)*nmodes_band
+                    
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -5772,6 +6003,12 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*len(systems)
                 pct += len(p.sysflagdict['nano-f'].keys())
 
+        if args.incBand:
+            if args.bandSpecModel == 'powerlaw':
+                pct += 2*(len(bands)-1)
+            elif args.bandSpecModel == 'spectrum':
+                pct += (len(bands)-1)*nmodes_band
+                    
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -5839,6 +6076,11 @@ elif args.sampler == 'ptmcmc':
             sampler.addProposalToCycle(drawFromDMNoiseSpectrumPrior, 10)
     if args.varyWhite:
         sampler.addProposalToCycle(drawFromWhiteNoisePrior, 10)
+    if args.incBand:
+        if args.bandSpecModel == 'powerlaw':
+            sampler.addProposalToCycle(drawFromBandNoisePowerlawPrior, 10)
+        elif args.bandSpecModel == 'spectrum':
+            sampler.addProposalToCycle(drawFromBandNoiseSpectrumPrior, 10)
     if args.incClk:
         if args.clkSpecModel == 'powerlaw':
             sampler.addProposalToCycle(drawFromClkNoisePowerlawPrior, 10)
