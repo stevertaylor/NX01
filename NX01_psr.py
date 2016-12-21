@@ -632,7 +632,9 @@ class PsrObjFromH5(object):
 
     def makeTe(self, nmodes_red, Ttot, makeDM=False, nmodes_dm=None,
                makeEph=False, nmodes_eph=None, ephFreqs=None,
-               makeClk=False, clkDesign=False, phaseshift=False):
+               makeClk=False, clkDesign=False,
+               makeBand=False, bands=None,
+               phaseshift=False):
 
         self.Fred, self.ranphase = utils.createFourierDesignmatrix_red(self.toas, nmodes=nmodes_red,
                                                                        pshift=phaseshift, Tspan=Ttot)
@@ -660,6 +662,24 @@ class PsrObjFromH5(object):
             self.Fclk, _ = utils.createFourierDesignmatrix_red(self.toas, nmodes=nmodes_red,
                                                                pshift=False, Tspan=Ttot)
             self.Ftot = np.append(self.Ftot, self.Fclk, axis=1)
+        if makeBand:
+            if nmodes_band is None:
+                nmodes_tmp = nmodes_red
+            else:
+                nmodes_tmp = nmodes_band
+            ##
+            if bands is None:
+                bands = np.array([0.0, 1.0, 2.0, 3.0])
+            elif bands is not None:
+                bands = np.array([float(item) for item in bands.split(',')])
+            
+            Fband_tmp = utils.createFourierDesignmatrix_red(self.toas, nmodes=nmodes_tmp,
+                                                            pshift=False, Tspan=Ttot)
+            for ii in range(len(bands)-1):
+                Fband_dummy = Fband_tmp.copy()
+                Fband_dummy[np.logical(self.obs_freqs > 1e9*bands[ii],
+                                       self.obs_freqs <= 1e9*bands[ii+1]),:] = 0.0
+                self.Ftot = np.append(self.Ftot, Fband_dummy, axis=1)
         
         self.Te = np.append(self.Gc, self.Ftot, axis=1)
 
