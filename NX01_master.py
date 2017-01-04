@@ -93,6 +93,14 @@ parser.add_option('--psrlist', dest='psrlist', action='store', type=str, default
                    help='Provide path to file containing list of pulsars and their respective par/tim paths')
 parser.add_option('--sysflag_target', dest='sysflag_target', action='store', type=str, default = 'f',
                    help='If you are supplying pulsar noise files, then specify which system flag you want to target (default = f)')
+parser.add_option('--parfile', dest='parfile', action='store', type=str, default = None,
+                   help='Provide path to a pulsar par file for single-pulsar analysis (default = None)')
+parser.add_option('--timfile', dest='timfile', action='store', type=str, default = None,
+                   help='Provide path to a pulsar tim file for single-pulsar analysis (default = None)')
+parser.add_option('--jitterbin', dest='jitterbin', action='store', type=float, default = 10.0,
+                   help='Provide size of jitter binning for single-pulsar analysis (default = 10 seconds)')
+parser.add_option('--grab_planets', dest='grab_planets', action='store_true', default=False,
+                   help='Do you want to grab the planetary position vectors in your single-pulsar analysis (default = False)')
 parser.add_option('--nmodes', dest='nmodes', action='store', type=int, default=None,
                    help='Number of modes in low-rank time-frequency approximation')
 parser.add_option('--cadence', dest='cadence', action='store', type=float,
@@ -415,8 +423,9 @@ elif args.sampler == 'ptmcmc':
 # PASSING THROUGH TEMPO2 VIA libstempo
 #########################################################################
 
-# name, hdf5-path, par-path, tim-path
-psr_pathinfo = np.genfromtxt(args.psrlist, dtype=str, skip_header=2)
+if args.psrlist is not None:
+    # name, hdf5-path, par-path, tim-path
+    psr_pathinfo = np.genfromtxt(args.psrlist, dtype=str, skip_header=2)
 
 if args.from_h5:
 
@@ -440,22 +449,37 @@ else:
     print 'Are you sure you do not want to use hdf5 files (recommended)?'
     
     t2psr=[]
-    for ii in range(args.psrStartIndex,args.psrEndIndex):
-        t2psr.append( T2.tempopulsar( parfile=psr_pathinfo[ii,2],
-                                      timfile=psr_pathinfo[ii,3] ) )
-        t2psr[ii].fit(iters=3)
-        if np.any(np.isfinite(t2psr.residuals())==False)==True:
-            t2psr = T2.tempopulsar( parfile=psr_pathinfo[ii,2],
-                                    timfile=psr_pathinfo[ii,3] )
+    if args.parfile is not None and args.timfile is not None:
+        
+        t2psr.append( T2.tempopulsar(parfile=args.parfile,
+                                     timfile=args.timfile) )
+        t2psr[0].fit(iters=3)
+        if np.any(np.isfinite(t2psr[0].residuals())==False)==True:
+            t2psr[0] = T2.tempopulsar(parfile=args.parfile,
+                                      timfile=args.timfile)
+            
+    else:
+        
+        for ii in range(args.psrStartIndex,args.psrEndIndex):
+            t2psr.append( T2.tempopulsar( parfile=psr_pathinfo[ii,2],
+                                        timfile=psr_pathinfo[ii,3] ) )
+            t2psr[ii].fit(iters=3)
+            if np.any(np.isfinite(t2psr.residuals())==False)==True:
+                t2psr = T2.tempopulsar( parfile=psr_pathinfo[ii,2],
+                                        timfile=psr_pathinfo[ii,3] )
 
     psr = [NX01_psr.PsrObj(p) for p in t2psr]
 
 
 # Grab all the pulsar quantities
-if args.varyWhite:
-    [p.grab_all_vars(rescale=False, sysflag_target=args.sysflag_target) for p in psr]
-elif not args.varyWhite:
-    [p.grab_all_vars(rescale=True, sysflag_target=args.sysflag_target) for p in psr]
+if args.psrlist is not None:
+    if args.varyWhite:
+        [p.grab_all_vars(rescale=False, sysflag_target=args.sysflag_target) for p in psr]
+    elif not args.varyWhite:
+        [p.grab_all_vars(rescale=True, sysflag_target=args.sysflag_target) for p in psr]
+elif args.parfile is not None and args.timfile is not None:
+    [p.grab_all_vars(jitterbin=args.jitterbin, makeGmat=False,
+                     fastDesign=True, planetssb=args.grab_planets) for p in psr]
 
 # Now, grab the positions and compute the ORF basis functions
 psr_positions = [np.array([psr[ii].psr_locs[0],
@@ -1243,9 +1267,9 @@ def lnprob(xx):
     
     if args.incBand:
         if args.bandSpecModel == 'powerlaw':
-            Aband = [10.0**xx[param_ct+ii] for ii range((len(bands)-1))]
+            Aband = [10.0**xx[param_ct+ii] for ii in range((len(bands)-1))]
             param_ct += (len(bands)-1)
-            gam_band = [xx[param_ct+ii] for ii range((len(bands)-1))]
+            gam_band = [xx[param_ct+ii] for ii in range((len(bands)-1))]
             param_ct += (len(bands)-1)
         elif args.bandSpecModel == 'spectrum':
             band_spec = (xx[param_ct:param_ct+(len(bands)-1)*nmodes_band].copy()).reshape(((len(bands)-1),nmodes_band))
@@ -3568,8 +3592,12 @@ elif args.sampler == 'ptmcmc':
     if not args.fixRed:
         if args.redSpecModel == 'powerlaw':
             # starting red parameters at single pulsar values
-            startRedamp = np.log10(np.array([np.max([p.parRedamp, p.Redamp]) for p in psr]))
-            startRedind = np.array([np.max([p.parRedind, p.Redind]) for p in psr])
+            if psr[0].parRedamp is not None:
+                startRedamp = np.log10(np.array([np.max([p.parRedamp, p.Redamp]) for p in psr]))
+                startRedind = np.array([np.max([p.parRedind, p.Redind]) for p in psr])
+            else:
+                startRedamp = np.random.uniform(-20.0, -11.0, len(psr))
+                startRedind = np.random.uniform(0.0, 7.0, len(psr))
             x0 = np.append(x0,startRedamp)
             x0 = np.append(x0,startRedind)
         elif args.redSpecModel == 'spectrum':
@@ -3577,8 +3605,12 @@ elif args.sampler == 'ptmcmc':
     if args.incDM and not args.fixDM:
         if args.dmSpecModel == 'powerlaw':
             # starting dm parameters at single pulsar values
-            startDMamp = np.log10(np.array([np.max([p.parDMamp, p.DMamp]) for p in psr]))
-            startDMind = np.array([np.max([p.parDMind, p.DMind]) for p in psr])
+            if psr[0].parDMamp is not None:
+                startDMamp = np.log10(np.array([np.max([p.parDMamp, p.DMamp]) for p in psr]))
+                startDMind = np.array([np.max([p.parDMind, p.DMind]) for p in psr])
+            else:
+                startDMamp = np.random.uniform(-20.0, -11.0, len(psr))
+                startDMind = np.random.uniform(0.0, 7.0, len(psr))
             x0 = np.append(x0,startDMamp)
             x0 = np.append(x0,startDMind)
         elif args.dmSpecModel == 'spectrum':

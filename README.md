@@ -137,29 +137,6 @@ install basemap`.
     NX01_master.py --jsonModel=mymodel.json`.
 
 
-## Preliminaries
-
-One important first thing to note is to make sure you have
-correctly updated your tempo2 clock files with the corresponding files packaged with
-the NANOGrav data download.
-
-It is recommended that you initially open and follow the steps in the
-`nanograv-pulsar-store.ipynb` notebook, and produce your own
-`PsrListings_GWB.txt` and `PsrListings_CW.txt`. These latter files are
-lists of pulsars in the order with which they contribute to the
-stochastic background upper limit (`_GWB.txt`) and the single-source
-SNR (`_CW.txt`). Each pulsar is associated with a path to an hdf5 file
-(storing all pulsar properties), parfile, and timfile.
-
-By following the steps in the notebook (only up until the
-cross-validation plotting between NX01 and PAL2) you will produce your
-own hdf5 files, which you should put in a directory of your
-choice. These hdf5 files will store everything you need for subsequent
-GW searches. Another important step in the notebook is to produce par
-files which are stripped of tempo2 EFAC, EQUAD, ECORR, RedAmp, and
-RedInd values. These values are replaced by mean values from Justin's
-previous single-pulsar analyses.
-
 ## Single-pulsar noise analysis
 
 It should be straightforward to perform a single-pulsar noise analysis
@@ -169,13 +146,13 @@ Run `python NX01_singlePsr.py --help` for a list of all options.
 
 An example run command would be:
 ```
-python NX01_singlePsr.py
+python NX01_master.py
 --parfile=./NANOGrav_9y/par/J1713+0747_NANOGrav_9yv1.t2.gls.strip.par
 --timfile=./NANOGrav_9y/tim/J1713+0747_NANOGrav_9yv1.tim
---efacequad-sysflag=f --fullN --ptmcmc
+--efacequad-sysflag=f --fullN --sampler=ptmcmc
 ```
 
-Without the `--ptmcmc` option, the sampler will default to MultiNest.
+You can set the sampler to PTMCMC, MultiNest, or PolyChord.
 
 If you have MPI installed you can parallelise by running the
 following:
@@ -202,7 +179,7 @@ An example run command would be:
 ```
 python NX01_master.py --from-h5
 --psrlist=./PsrListings_GWB.txt --nmodes=15
---incGWB --fix-slope --psrEndIndex=18
+--incGWB --fix_slope --psrEndIndex=18
 ```
 which will perform a GW background upper-limit analysis (without
 correlations...to include correlations add `--incCorr`) with PTMCMC on the 18 pulsars analyzed in the 9-year NANOGrav limit paper.
