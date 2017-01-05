@@ -76,7 +76,8 @@ information in the pulsar class. Useful for storing array products.
    [dataset](http://data.nanograv.org/) and follow the instructions in
    README.clock to update your tempo2 clock files. Note that the
    instructions tell you to copy `gbt2gps.dat` but the file is
-   actually `gbt2gps.clk`.
+   actually
+   `gbt2gps.clk`. [If you have a recent tempo2 download (after November 2016) then manual clock updates are no longer needed]
 6. Install [PTMCMCSampler](https://github.com/jellis18/PTMCMCSampler),
    which is the main sampler we use to
    explore the signal and noise parameter space. As before, clone with
