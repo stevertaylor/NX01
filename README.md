@@ -28,10 +28,7 @@ Perhaps you want the [webpage](http://stevertaylor.github.io/NX01/)?
 ## Code list
 
 * **NX01_master.py**: performs a full evolving-anisotropy GWB and
-  noise analysis. Uses MultiNest or parallel-tempering sampling.
-* **NX01_singlePsr.py**: performs a stochastic
-  search for single-pulsar noise parameters within the reduced-rank
-  time-frequency approximation. Uses MultiNest or parallel-tempering sampling.
+  noise analysis. Uses MultiNest, PolyChord, or parallel-tempering sampling.
 * **NX01_AnisCoefficients.py**: utility file to create power-anisotropy
   basis-functions.
 * **NX01_utils.py**: utility file.
