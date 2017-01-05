@@ -91,7 +91,8 @@ install basemap`.
    https://github.com/stevertaylor/NX01.git`.
 9. Copy `nanograv-pulsar-store.ipynb` to a new notebook for your own
    specific use. Change all paths to reflect where you have NANOGrav
-   par and tim data. The end result should produce a directory
+   par and tim data. NANOGrav noise files are included in the data
+   directory. The end result should produce a directory
    containing `hdf5` files for all NANOGrav pulsars in the dataset.
 10. Copy `PsrListings_GWB.txt` to a new file for your own specific
     use. Edit the paths to the `hdf5` files, `par` files, and `tim`
