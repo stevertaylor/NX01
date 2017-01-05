@@ -882,7 +882,7 @@ if not args.varyWhite:
 
         loglike1 += -0.5 * (logdet_N[ii] + dtNdt)
 
-
+print TtNT
 ##########################
 # SETTING UP PRIOR RANGES
 ##########################
@@ -1201,6 +1201,7 @@ def lnprob(xx):
     if not args.varyWhite:
         loglike1_tmp = loglike1
         dtmp = list(d)
+        TtNT_tmp = list(TtNT)
 
     mode_count = 2*nmodes_red
     if args.incDM:
@@ -1487,7 +1488,7 @@ def lnprob(xx):
             
             loglike1_tmp = 0
             logdet_N = []
-            TtNT = []
+            TtNT_tmp = []
             dtmp = []
             Jamp = []
             for ii,p in enumerate(psr):
@@ -1523,7 +1524,7 @@ def lnprob(xx):
                         jitter.cython_block_shermor_2D(p.Te, new_err**2.,
                                                         Jamp[ii], p.Uinds)
                         logdet_N.append(logdet_N_dummy)
-                        TtNT.append(TtNT_dummy)
+                        TtNT_tmp.append(TtNT_dummy)
             
                         det_dummy, dtNdt = \
                         jitter.cython_block_shermor_1D(p.res, new_err**2.,
@@ -1535,7 +1536,7 @@ def lnprob(xx):
             
                         N = 1./( new_err**2.0 )
                         right = (N*p.Te.T).T
-                        TtNT.append(np.dot(p.Te.T, right))
+                        TtNT_tmp.append(np.dot(p.Te.T, right))
     
                         logdet_N.append(np.sum(np.log( new_err**2.0 )))
         
@@ -1548,7 +1549,7 @@ def lnprob(xx):
             
                     N = 1./( new_err**2.0 )
                     right = (N*p.Te.T).T
-                    TtNT.append(np.dot(p.Te.T, right))
+                    TtNT_tmp.append(np.dot(p.Te.T, right))
 
                     logdet_N.append(np.sum(np.log( new_err**2.0 )))
         
@@ -2677,7 +2678,7 @@ def lnprob(xx):
                 logdet_Phi = np.sum(np.log(sigdiag[ii]))
 
                 # now fill in real covariance matrix
-                Phi = np.zeros( TtNT[ii].shape ) 
+                Phi = np.zeros( TtNT_tmp[ii].shape ) 
                 for kk in range(0,mode_count):
                     Phi[kk+p.Gc.shape[1],kk+p.Gc.shape[1]] = red_phi[kk,kk]
 
@@ -2685,7 +2686,7 @@ def lnprob(xx):
                 Phi = Phi + Phi.T - np.diag(np.diag(Phi))
     
                 # compute sigma
-                Sigma = TtNT[ii] + Phi
+                Sigma = TtNT_tmp[ii] + Phi
                 
                 # cholesky decomp 
                 try:
@@ -2716,7 +2717,7 @@ def lnprob(xx):
                     logdet_Phi = np.sum(np.log(sigdiag[ii]))
 
                     # now fill in real covariance matrix
-                    Phi = np.zeros( TtNT[ii].shape ) 
+                    Phi = np.zeros( TtNT_tmp[ii].shape ) 
                     for kk in range(0,mode_count):
                         Phi[kk+p.Gc.shape[1],kk+p.Gc.shape[1]] = red_phi[kk,kk]
 
@@ -2724,7 +2725,7 @@ def lnprob(xx):
                     Phi = Phi + Phi.T - np.diag(np.diag(Phi))
     
                     # compute sigma
-                    Sigma = TtNT[ii] + Phi
+                    Sigma = TtNT_tmp[ii] + Phi
 
                     # cholesky decomp 
                     try:
@@ -2784,12 +2785,12 @@ def lnprob(xx):
                         return -np.inf
 
 
-                bigTtNT = sl.block_diag(*TtNT)
+                bigTtNT = sl.block_diag(*TtNT_tmp)
                 Phi = np.zeros_like( bigTtNT )
     
                 # now fill in real covariance matrix
                 ind = [0]
-                ind = np.append(ind,np.cumsum([TtNT[ii].shape[0]
+                ind = np.append(ind,np.cumsum([TtNT_tmp[ii].shape[0]
                                             for ii in range(npsr)]))
                 ind = [np.arange(ind[ii]+psr[ii].Gc.shape[1],
                                 ind[ii]+psr[ii].Gc.shape[1]+mode_count)
