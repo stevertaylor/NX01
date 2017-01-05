@@ -146,7 +146,8 @@ Run `python NX01_singlePsr.py --help` for a list of all options. You
 can direct NX01 to your particular pulsar using either (i) `parfile`
 and `timfile` command-line arguments (full path needed); (ii) a full
 path for `psrlist`, and `psrStartIndex` and `psrEndIndex` commands to
-let the code know which position in the list it should select; or
+let the code know which position in the list it should select
+(pythonic indexing is used); or
 finally (iii) `from-h5` with a full
 path for `psrlist`, and `psrStartIndex` and `psrEndIndex` commands to
 let the code know which position in the list it should select
