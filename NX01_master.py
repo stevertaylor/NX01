@@ -882,7 +882,6 @@ if not args.varyWhite:
 
         loglike1 += -0.5 * (logdet_N[ii] + dtNdt)
 
-print TtNT
 ##########################
 # SETTING UP PRIOR RANGES
 ##########################
