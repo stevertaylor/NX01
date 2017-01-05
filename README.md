@@ -86,7 +86,7 @@ install basemap`.
 8. Download [NX01](https://github.com/stevertaylor/NX01.git) by
    cloning the repository -- `git clone
    https://github.com/stevertaylor/NX01.git`.
-9. Copy `nanograv-pulsar-store.ipynb` to a new notebook for your own
+9. Copy `nanograv-pulsar-store-9yr.ipynb` to a new notebook for your own
    specific use. Change all paths to reflect where you have NANOGrav
    par and tim data. NANOGrav noise files are included in the data
    directory. The end result should produce a directory
@@ -178,7 +178,7 @@ parallel-tempering MCMC sampling process.
 
 It is recommended to read in pulsars from their respective hdf5 files,
 which you should have previously produced from the
-`nanograv-pulsar-store.ipynb` notebook.
+`nanograv-pulsar-store-9yr.ipynb` notebook.
 
 Run `python NX01_master.py --help` for a list of all options.
 
