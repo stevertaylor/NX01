@@ -927,7 +927,7 @@ if args.varyWhite:
         systems = p.sysflagdict[args.sysflag_target]
         pmin = np.append(pmin,0.001*np.ones(len(systems)))
         pmin = np.append(pmin,-10.0*np.ones(len(systems)))
-        if len(p.sysflagdict['nano-f'].keys())>0:
+        if 'nano-f' in p.sysflagdict.keys() and len(p.sysflagdict['nano-f'].keys())>0:
             pmin = np.append(pmin, -10.0*np.ones(len(p.sysflagdict['nano-f'].keys())))
 if args.incBand:
     if args.bandSpecModel == 'powerlaw':
@@ -1062,7 +1062,7 @@ if args.varyWhite:
         systems = p.sysflagdict[args.sysflag_target]
         pmax = np.append(pmax,10.0*np.ones(len(systems)))
         pmax = np.append(pmax,-3.0*np.ones(len(systems)))
-        if len(p.sysflagdict['nano-f'].keys())>0:
+        if 'nano-f' in p.sysflagdict.keys() and len(p.sysflagdict['nano-f'].keys())>0:
             pmax = np.append(pmax, -3.0*np.ones(len(p.sysflagdict['nano-f'].keys())))
 if args.incBand:
     if args.bandSpecModel == 'powerlaw':
@@ -1258,7 +1258,7 @@ def lnprob(xx):
             EQUAD.append( 10.0**xx[param_ct:param_ct+len(systems)] )
             param_ct += len(systems)
 
-            if len(p.sysflagdict['nano-f'].keys())>0:
+            if 'nano-f' in p.sysflagdict.keys() and len(p.sysflagdict['nano-f'].keys())>0:
                 ECORR.append( 10.0**xx[param_ct:param_ct+len(p.sysflagdict['nano-f'].keys())] )
                 param_ct += len(p.sysflagdict['nano-f'].keys())
 
@@ -1508,7 +1508,7 @@ def lnprob(xx):
                 # & log determinant of N
                 if not args.noEcorr:
         
-                    if len(ECORR[ii])>0:
+                    if 'nano-f' in p.sysflagdict.keys() and len(ECORR[ii])>0:
 
                         Jamp.append(np.ones(len(p.epflags)))
                         for jj,nano_sysname in enumerate(p.sysflagdict['nano-f'].keys()):
@@ -3194,7 +3194,7 @@ if args.varyWhite:
             parameters.append('EFAC_'+p.name+'_'+systems.keys()[jj])
         for jj in range(len(systems)):
             parameters.append('EQUAD_'+p.name+'_'+systems.keys()[jj])
-        if len(p.sysflagdict['nano-f'].keys())>0:
+        if 'nano-f' in p.sysflagdict.keys() and len(p.sysflagdict['nano-f'].keys())>0:
             for jj,nano_sysname in enumerate(p.sysflagdict['nano-f'].keys()):
                 parameters.append('ECORR_'+p.name+'_'+nano_sysname)
 if args.incBand:
@@ -3620,7 +3620,7 @@ elif args.sampler == 'ptmcmc':
             systems = p.sysflagdict[args.sysflag_target]
             x0 = np.append(x0,np.random.uniform(0.75,1.25,len(systems)))
             x0 = np.append(x0,np.random.uniform(-10.0,-5.0,len(systems)))
-            if len(p.sysflagdict['nano-f'].keys())>0:
+            if 'nano-f' in p.sysflagdict.keys() and len(p.sysflagdict['nano-f'].keys())>0:
                 x0 = np.append(x0, np.random.uniform(-8.5,-5.0,len(p.sysflagdict['nano-f'].keys())))
     if args.incBand:
         if args.bandSpecModel == 'powerlaw':
@@ -3745,7 +3745,7 @@ elif args.sampler == 'ptmcmc':
             systems = p.sysflagdict[args.sysflag_target]
             cov_diag = np.append(cov_diag,0.5*np.ones(len(systems)))
             cov_diag = np.append(cov_diag,0.5*np.ones(len(systems)))
-            if len(p.sysflagdict['nano-f'].keys())>0:
+            if 'nano-f' in p.sysflagdict.keys() and len(p.sysflagdict['nano-f'].keys())>0:
                 cov_diag = np.append(cov_diag,0.5*np.ones(len(p.sysflagdict['nano-f'].keys())))
     if args.incBand:
         if args.bandSpecModel == 'powerlaw':
@@ -3868,11 +3868,12 @@ elif args.sampler == 'ptmcmc':
             [ind.append(id) for id in ids if len(id) > 0]
             param_ct += len(systems)
             ##
-            ecorrs = [param_ct+ii for ii
-                      in range(len(p.sysflagdict['nano-f'].keys()))]
-            ids = [ecorrs]
-            [ind.append(id) for id in ids if len(id) > 0]
-            param_ct += len(p.sysflagdict['nano-f'].keys())
+            if 'nano-f' in p.sysflagdict.keys():
+                ecorrs = [param_ct+ii for ii
+                          in range(len(p.sysflagdict['nano-f'].keys()))]
+                ids = [ecorrs]
+                [ind.append(id) for id in ids if len(id) > 0]
+                param_ct += len(p.sysflagdict['nano-f'].keys())
 
     ##### Band noise #######
     if args.incBand:
@@ -4276,7 +4277,7 @@ elif args.sampler == 'ptmcmc':
         q[pct:pct+len(systems)] = np.random.uniform(pmin[pct:pct+len(systems)],
                                                     pmax[pct:pct+len(systems)])
         qxy += 0
-        if len(psr[ind].sysflagdict['nano-f'].keys())>0:
+        if 'nano-f' in psr[ind].sysflagdict.keys() and len(psr[ind].sysflagdict['nano-f'].keys())>0:
             q[pct:pct+len(psr[ind].sysflagdict['nano-f'].keys())] = \
               np.random.uniform(pmin[pct:pct+len(psr[ind].sysflagdict['nano-f'].keys())],
                                 pmax[pct:pct+len(psr[ind].sysflagdict['nano-f'].keys())])
