@@ -150,7 +150,7 @@ let the code know which position in the list it should select
 (pythonic indexing is used); or
 finally (iii) `from-h5` with a full
 path for `psrlist`, and `psrStartIndex` and `psrEndIndex` commands to
-let the code know which position in the list it should select
+let the code know which position in the list it should select.
 
 An example run command would be:
 ```
