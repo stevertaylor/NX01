@@ -102,7 +102,7 @@ install basemap`.
     dimensionless strain amplitude which matches that reported in the
     [NANOGrav 9-year limit paper](http://arxiv.org/abs/1508.03024),
     execute `python NX01_master.py --from-h5
-    --psrlist=./PsrListings_GWB.txt --nmodes=15 --incGWB --fix-slope
+    --psrlist=./PsrListings_GWB.txt --nmodes=15 --incGWB --fix_slope
     --psrEndIndex=18 --dirExt=./chains_firsttests/`.
 13. If you get errors with importing `NX01_jitter` then you may need
     to cythonize this module first. On the command line type `python
@@ -126,8 +126,8 @@ install basemap`.
 --help` to see the options available to you. An example command is
 `python NX01_processResults.py
 --parentpath=/home/user/NX01/chains_firsttests --chaindir=nanograv_gwbdetect_noCorr_gam4p33_reddetectpowerlaw_nmodes15`
-17. [EXTRA] If you want to make use of the NX01 GUI, you will need to install ipython widgets as follows: `conda install ipywidgets`.
-18. [EXTRA] Open `NX01_GUI.ipynb` and execute the cells. This will produce an
+17. [IN DEVELOPMENT] If you want to make use of the NX01 GUI, you will need to install ipython widgets as follows: `conda install ipywidgets`.
+18. [IN DEVELOPMENT] Open `NX01_GUI.ipynb` and execute the cells. This will produce an
     interactive GUI, allowing you to check boxes or enter options for
     your model. Clicking `Store Model` will create a json file called
     `mymodel.json` in the NX01 directory. Clicking `Engage` will begin
@@ -142,29 +142,36 @@ install basemap`.
 It should be straightforward to perform a single-pulsar noise analysis
 out of the box. 
 
-Run `python NX01_singlePsr.py --help` for a list of all options.
+Run `python NX01_singlePsr.py --help` for a list of all options. You
+can direct NX01 to your particular pulsar using either (i) `parfile`
+and `timfile` command-line arguments (full path needed); (ii) a full
+path for `psrlist`, and `psrStartIndex` and `psrEndIndex` commands to
+let the code know which position in the list it should select; or
+finally (iii) `from-h5` with a full
+path for `psrlist`, and `psrStartIndex` and `psrEndIndex` commands to
+let the code know which position in the list it should select
 
 An example run command would be:
 ```
 python NX01_master.py
 --parfile=./NANOGrav_9y/par/J1713+0747_NANOGrav_9yv1.t2.gls.strip.par
 --timfile=./NANOGrav_9y/tim/J1713+0747_NANOGrav_9yv1.tim
---efacequad-sysflag=f --fullN --sampler=ptmcmc
+--varyWhite --nmodes=20 --redSpecModel=powerlaw --redPrior=loguniform
+--sampler=ptmcmc --dirExt=./nx01_tests/
 ```
-
-You can set the sampler to PTMCMC, MultiNest, or PolyChord.
+You can set the sampler to PTMCMC (`ptmcmc`), MultiNest (`mnest`), or
+PolyChord (`pchord`).
 
 If you have MPI installed you can parallelise by running the
 following:
 ```
-mpirun -np 4 NX01_singlePsr.py
---parfile=./NANOGrav_9y/par/J1713+0747_NANOGrav_9yv1.t2.gls.strip.par
+mpirun -np 4 NX01_master.py --parfile=./NANOGrav_9y/par/J1713+0747_NANOGrav_9yv1.t2.gls.strip.par
 --timfile=./NANOGrav_9y/tim/J1713+0747_NANOGrav_9yv1.tim
---efacequad-sysflag=f --fullN --ptmcmc
+--varyWhite --nmodes=20 --redSpecModel=powerlaw --redPrior=loguniform
+--sampler=ptmcmc --dirExt=./nx01_tests/
 ```
 where 4 cores will produce 4 temperature chains in the
-parallel-tempering MCMC sampling process. Without the `--ptmcmc`
-command, 4 cores would have been used to update the live points in MultiNest.
+parallel-tempering MCMC sampling process. 
 
 
 ## Gravitational-wave searches
@@ -178,11 +185,9 @@ Run `python NX01_master.py --help` for a list of all options.
 An example run command would be:
 ```
 python NX01_master.py --from-h5
---psrlist=./PsrListings_GWB.txt --nmodes=15
---incGWB --fix_slope --psrEndIndex=18
+--psrlist=./PsrListings_GWB.txt --psrEndIndex=18 --nmodes=15 --redSpecModel=powerlaw --redPrior=uniform
+--incGWB --fix_slope --gwbPrior=uniform --psrEndIndex=18
+--sampler=ptmcmc --dirExt=./nx01_tests/
 ```
 which will perform a GW background upper-limit analysis (without
 correlations...to include correlations add `--incCorr`) with PTMCMC on the 18 pulsars analyzed in the 9-year NANOGrav limit paper.
-
-As in the single-pulsar analysis case, you can use MPI for both PTMCMC
-and MultiNest samplers.
