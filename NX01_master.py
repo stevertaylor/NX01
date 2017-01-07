@@ -3592,12 +3592,8 @@ elif args.sampler == 'ptmcmc':
     if not args.fixRed:
         if args.redSpecModel == 'powerlaw':
             # starting red parameters at single pulsar values
-            if psr[0].parRedamp is not None:
-                startRedamp = np.log10(np.array([np.max([p.parRedamp, p.Redamp]) for p in psr]))
-                startRedind = np.array([np.max([p.parRedind, p.Redind]) for p in psr])
-            else:
-                startRedamp = np.random.uniform(-20.0, -11.0, len(psr))
-                startRedind = np.random.uniform(0.0, 7.0, len(psr))
+            startRedamp = np.log10(np.array([np.max([p.parRedamp, p.Redamp]) for p in psr]))
+            startRedind = np.array([np.max([p.parRedind, p.Redind]) for p in psr])
             x0 = np.append(x0,startRedamp)
             x0 = np.append(x0,startRedind)
         elif args.redSpecModel == 'spectrum':
@@ -3605,12 +3601,8 @@ elif args.sampler == 'ptmcmc':
     if args.incDM and not args.fixDM:
         if args.dmSpecModel == 'powerlaw':
             # starting dm parameters at single pulsar values
-            if psr[0].parDMamp is not None:
-                startDMamp = np.log10(np.array([np.max([p.parDMamp, p.DMamp]) for p in psr]))
-                startDMind = np.array([np.max([p.parDMind, p.DMind]) for p in psr])
-            else:
-                startDMamp = np.random.uniform(-20.0, -11.0, len(psr))
-                startDMind = np.random.uniform(0.0, 7.0, len(psr))
+            startDMamp = np.log10(np.array([np.max([p.parDMamp, p.DMamp]) for p in psr]))
+            startDMind = np.array([np.max([p.parDMind, p.DMind]) for p in psr])
             x0 = np.append(x0,startDMamp)
             x0 = np.append(x0,startDMind)
         elif args.dmSpecModel == 'spectrum':
@@ -4723,7 +4715,8 @@ elif args.sampler == 'ptmcmc':
             for ii,p in enumerate(psr):
                 systems = p.sysflagdict[args.sysflag_target]
                 pct += 2*len(systems)
-                pct += len(p.sysflagdict['nano-f'].keys())
+                if 'nano-f' in p.sysflagdict.keys():
+                    pct += len(p.sysflagdict['nano-f'].keys())
 
         if args.incBand:
             if args.bandSpecModel == 'powerlaw':

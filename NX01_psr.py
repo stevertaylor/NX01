@@ -51,7 +51,13 @@ class PsrObj(object):
     detsig_Uinds = None
     planet_ssb = None
     parRedamp = None
+    parRedind = None
     parDMamp = None
+    parDMind = None
+    Redamp = None
+    Redind = None
+    DMamp = None
+    DMind = None
 
     def __init__(self, t2obj):
         self.T2psr = t2obj
@@ -86,6 +92,14 @@ class PsrObj(object):
         self.detsig_avetoas = None
         self.detsig_Uinds = None
         self.planet_ssb = None
+        self.parRedamp = 1e-20
+        self.parRedind = 0.0
+        self.parDMamp = 1e-20
+        self.parDMind = 0.0
+        self.Redamp = 1e-20
+        self.Redind = 0.0
+        self.DMamp = 1e-20
+        self.DMind = 0.0
 
     """
     Initialise the libstempo object.
