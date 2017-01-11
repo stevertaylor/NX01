@@ -328,8 +328,9 @@ class DataFile(object):
                        overwrite=overwrite)
 
         # Save the planet position vectors
-        self.writeData(psrGroup, 'planetssb', psr.planet_ssb,
-                       overwrite=overwrite)
+        if psr.planet_ssb is not None:
+            self.writeData(psrGroup, 'planetssb', psr.planet_ssb,
+                           overwrite=overwrite)
         
         
         # get pulsar distance and uncertainty (need pulsarDistances.txt file for this)
