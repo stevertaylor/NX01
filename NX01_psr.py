@@ -398,66 +398,6 @@ class PsrObj(object):
         else:
             self.Ftot_prime = np.dot(proj, self.Fred)
 
-    '''        
-    def makeFred(self, nmodes, Ttot, phaseshift=False):
-        
-        self.Fred, self.ranphase = utils.createFourierDesignmatrix_red(self.toas, nmodes=nmodes,
-                                                                       pshift=phaseshift, Tspan=Ttot)
-
-    def makeFdm(self, nmodes, Ttot):
-        
-        self.Fdm = utils.createFourierDesignmatrix_dm(self.toas, nmodes, self.obs_freqs, Tspan=Ttot)
-
-    def makeFeph(self, nmodes, Ttot):
-        
-        self.Fephx, self.Fephy, self.Fephz = \
-          utils.createFourierDesignmatrix_eph(self.toas, nmodes, self.psr_locs, Tspan=Ttot)
-    
-    def makeFtot(self, nmodes, Ttot, phaseshift=False):
-        
-        self.Fred, self.ranphase = utils.createFourierDesignmatrix_red(self.toas, nmodes=nmodes,
-                                                                       pshift=phaseshift, Tspan=Ttot)
-        self.Fdm = utils.createFourierDesignmatrix_dm(self.toas, nmodes, self.obs_freqs, Tspan=Ttot)
-
-        self.Ftot = np.append(self.Fred, self.Fdm, axis=1)
-
-    def makeTe(self, nmodes, Ttot, makeDM=False, makeEph=False, phaseshift=False):
-
-        self.Fred, self.ranphase = utils.createFourierDesignmatrix_red(self.toas, nmodes=nmodes,
-                                                                       pshift=phaseshift, Tspan=Ttot)
-
-        if makeDM:
-            self.Fdm = utils.createFourierDesignmatrix_dm(self.toas, nmodes, self.obs_freqs, Tspan=Ttot)
-            self.Ftot = np.append(self.Fred, self.Fdm, axis=1)
-        if makeEph:
-            self.Fephx, self.Fephy, self.Fephz = \
-              utils.createFourierDesignmatrix_eph(self.toas, nmodes, self.psr_locs, Tspan=Ttot)
-            self.Ftot = np.append(self.Ftot, self.Fephx, axis=1)
-            self.Ftot = np.append(self.Ftot, self.Fephy, axis=1)
-            self.Ftot = np.append(self.Ftot, self.Fephz, axis=1)
-        if not makeDM and not makeEph:
-            self.Ftot = self.Fred
-
-        self.Te = np.append(self.Gc, self.Ftot, axis=1)
-
-    def two_comp_noise(self, mlerrors):
-        
-        efac_bit = np.dot(self.G.T, np.dot( np.diag(mlerrors**2.0), self.G ) )
-        equad_bit = np.dot(self.G.T,self.G)
-        Lequad = np.linalg.cholesky(equad_bit)
-        Lequad_inv = np.linalg.inv(Lequad)
-        sand = np.dot(Lequad_inv, np.dot(efac_bit, Lequad_inv.T))
-        u,s,v = np.linalg.svd(sand)
-        proj = np.dot(u.T, np.dot(Lequad_inv, self.G.T))
-        ########
-        self.diag_white = s
-        self.res_prime = np.dot(proj, self.res)
-        if self.Ftot is not None:
-            self.Ftot_prime = np.dot(proj, self.Ftot)
-        else:
-            self.Ftot_prime = np.dot(proj, self.Fred)
-    '''
-
 
 ######################
 ######################
