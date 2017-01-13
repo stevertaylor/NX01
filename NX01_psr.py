@@ -31,6 +31,8 @@ class PsrObj(object):
     obs_freqs = None
     G = None
     Mmat = None
+    flags = None
+    flagvals = None
     sysflagdict = None
     Fred = None
     Fdm = None
@@ -71,6 +73,8 @@ class PsrObj(object):
         self.obs_freqs = None
         self.G = None
         self.Mmat = None
+        self.flags = None
+        self.flagvals = None
         self.Fred = None
         self.Fdm = None
         self.Fephx = None
@@ -104,7 +108,9 @@ class PsrObj(object):
     """
     Initialise the libstempo object.
     """
-    def grab_all_vars(self, jitterbin=10., makeGmat=False, fastDesign=True, planetssb=False): # jitterbin is in seconds
+    def grab_all_vars(self, jitterbin=10., makeGmat=False, fastDesign=True,
+                      planetssb=False, startMJD=None, endMJD=None):
+        # jitterbin is in seconds
 
         print "--> Processing {0}".format(self.T2psr.name)
         
@@ -115,14 +121,32 @@ class PsrObj(object):
         self.toaerrs = np.double(self.T2psr.toaerrs) * 1e-6
         self.obs_freqs = np.double(self.T2psr.ssbfreqs())
         self.Mmat = np.double(self.T2psr.designmatrix())
+        self.flags = self.T2psr.flags()
+        self.flagvals = OrderedDict.fromkeys(self.flags)
 
+        if startMJD is not None and endMJD is not None:
+            mask = np.logical_and(self.T2psr.toas() >= startMJD,
+                                  self.T2psr.toas() <= endMJD)
+    
+            self.toas = self.toas[mask]
+            self.toaerrs = self.toaerrs[mask]
+            self.res = self.[mask]
+            self.obs_freqs = self.obs_freqs[mask]
+    
+            self.Mmat = self.Mmat[mask,:]
+            dmx_mask = np.sum(self.Mmat, axis=0) == 0.0
+            self.Mmat = self.Mmat[:,dmx_mask]
+    
+            for flag in self.flags:
+                self.flagvals[flag] = self.flagvals[flag][mask]
+        
         # get the position vectors of the planets
         if planetssb:
             for ii in range(1,10):
                 tag = 'DMASSPLANET'+str(ii)
                 self.T2psr[tag].val = 0.0
             self.T2psr.formbats()
-            self.planet_ssb = np.zeros((len(self.toas),9,6))
+            self.planet_ssb = np.zeros((len(self.T2psr.toas()),9,6))
             self.planet_ssb[:,0,:] = self.T2psr.mercury_ssb
             self.planet_ssb[:,1,:] = self.T2psr.venus_ssb
             self.planet_ssb[:,2,:] = self.T2psr.earth_ssb
@@ -133,17 +157,22 @@ class PsrObj(object):
             self.planet_ssb[:,7,:] = self.T2psr.neptune_ssb
             self.planet_ssb[:,8,:] = self.T2psr.pluto_ssb
 
+            if startMJD is not None and endMJD is not None:
+                mask = np.logical_and(self.T2psr.toas() >= startMJD,
+                                      self.T2psr.toas() <= endMJD)
+                self.planet_ssb = self.planet_ssb[mask,:,:]
+
             print "--> Grabbed the planet position-vectors at the pulsar timestamps."
 
         isort, iisort = None, None
-        if 'pta' in self.T2psr.flags():
-            if 'NANOGrav' in list(set(self.T2psr.flagvals('pta'))):
+        if 'pta' in self.flags:
+            if 'NANOGrav' in list(set(self.flagvals['pta'])):
                 # now order everything
                 try:
-                    isort, iisort = utils.argsortTOAs(self.toas, self.T2psr.flagvals('group'),
+                    isort, iisort = utils.argsortTOAs(self.toas, self.flagvals['group'],
                                                       which='jitterext', dt=jitterbin/86400.)
                 except KeyError:
-                    isort, iisort = utils.argsortTOAs(self.toas, self.T2psr.flagvals('f'),
+                    isort, iisort = utils.argsortTOAs(self.toas, self.flagvals['f'],
                                                       which='jitterext', dt=jitterbin/86400.)
         
                 # sort data
@@ -184,43 +213,43 @@ class PsrObj(object):
         # has the locations of their toa placements.
         for systm in self.sysflagdict:
             try:
-                if systm in self.T2psr.flags():
-                    sys_uflagvals = list(set(self.T2psr.flagvals(systm)))
+                if systm in self.flags:
+                    sys_uflagvals = list(set(self.flagvals[systm]))
                     self.sysflagdict[systm] = OrderedDict.fromkeys(sys_uflagvals)
                     for kk,subsys in enumerate(sys_uflagvals):
                         if isort is not None:
                             self.sysflagdict[systm][subsys] = \
-                              np.where(self.T2psr.flagvals(systm)[isort] == sys_uflagvals[kk])
+                              np.where(self.flagvals[systm][isort] == sys_uflagvals[kk])
                         elif isort is None:
                             self.sysflagdict[systm][subsys] = \
-                              np.where(self.T2psr.flagvals(systm) == sys_uflagvals[kk])
+                              np.where(self.flagvals[systm] == sys_uflagvals[kk])
             except KeyError:
                 pass
 
         # If we have some NANOGrav data, then separate
         # this off for later ECORR assignment.
-        if 'pta' in self.T2psr.flags():
-            pta_names = list(set(self.T2psr.flagvals('pta')))
-            pta_mask = [self.T2psr.flagvals('pta')[isort]==ptaname for ptaname in pta_names]
+        if 'pta' in self.flags:
+            pta_names = list(set(self.flagvals['pta']))
+            pta_mask = [self.flagvals['pta'][isort]==ptaname for ptaname in pta_names]
             pta_maskdict = OrderedDict.fromkeys(pta_names)
             for ii,item in enumerate(pta_maskdict):
                 pta_maskdict[item] = pta_mask[ii]
             if len(pta_names)!=0 and ('NANOGrav' in pta_names):
                 try:
                     nanoflagdict = OrderedDict.fromkeys(['nano-f'])
-                    nano_flags = list(set(self.T2psr.flagvals('group')[isort][pta_maskdict['NANOGrav']]))
+                    nano_flags = list(set(self.flagvals['group'][isort][pta_maskdict['NANOGrav']]))
                     nanoflagdict['nano-f'] = OrderedDict.fromkeys(nano_flags)
                     for kk,subsys in enumerate(nano_flags):
                         nanoflagdict['nano-f'][subsys] = \
-                          np.where(self.T2psr.flagvals('group')[isort] == nano_flags[kk])
+                          np.where(self.flagvals['group'][isort] == nano_flags[kk])
                     self.sysflagdict.update(nanoflagdict)
                 except KeyError:
                     nanoflagdict = OrderedDict.fromkeys(['nano-f'])
-                    nano_flags = list(set(self.T2psr.flagvals('f')[isort][pta_maskdict['NANOGrav']]))
+                    nano_flags = list(set(self.flagvals['f'][isort][pta_maskdict['NANOGrav']]))
                     nanoflagdict['nano-f'] = OrderedDict.fromkeys(nano_flags)
                     for kk,subsys in enumerate(nano_flags):
                         nanoflagdict['nano-f'][subsys] = \
-                          np.where(self.T2psr.flagvals('f')[isort] == nano_flags[kk])
+                          np.where(self.flagvals['f'][isort] == nano_flags[kk])
                     self.sysflagdict.update(nanoflagdict)
                     
                     
@@ -236,17 +265,17 @@ class PsrObj(object):
         print "--> Processed all relevant flags plus associated locations."
         ##################################################################################################
 
-        if 'pta' in self.T2psr.flags():
+        if 'pta' in self.flags:
             if 'NANOGrav' in pta_names:
                 # now order everything
                 try:
                     #isort_b, iisort_b = utils.argsortTOAs(self.toas, self.T2psr.flagvals('group')[isort],
                     #which='jitterext', dt=jitterbin/86400.)
-                    flags = self.T2psr.flagvals('group')[isort]
+                    dummy_flags = self.flagvals['group'][isort]
                 except KeyError:
                     #isort_b, iisort_b = utils.argsortTOAs(self.toas, self.T2psr.flagvals('f')[isort],
                     #which='jitterext', dt=jitterbin/86400.)
-                    flags = self.T2psr.flagvals('f')[isort]
+                    dummy_flags = self.flagvals['f'][isort]
         
                 # sort data
                 #self.toas = self.toas[isort_b]
@@ -259,23 +288,23 @@ class PsrObj(object):
                 print "--> Sorted data."
     
                 # get quantization matrix
-                avetoas, self.Umat, Ui = utils.quantize_split(self.toas, flags, dt=jitterbin/86400., calci=True)
+                avetoas, self.Umat, Ui = utils.quantize_split(self.toas, dummy_flags, dt=jitterbin/86400., calci=True)
                 print "--> Computed quantization matrix."
 
                 self.detsig_avetoas = avetoas.copy()
                 self.detsig_Uinds = utils.quant2ind(self.Umat)
 
                 # get only epochs that need jitter/ecorr
-                self.Umat, avetoas, aveflags = utils.quantreduce(self.Umat, avetoas, flags)
+                self.Umat, avetoas, aveflags = utils.quantreduce(self.Umat, avetoas, dummy_flags)
                 print "--> Excized epochs without jitter."
 
                 # get quantization indices
                 self.Uinds = utils.quant2ind(self.Umat)
-                self.epflags = flags[self.Uinds[:, 0]]
+                self.epflags = dummy_flags[self.Uinds[:, 0]]
 
                 print "--> Checking TOA sorting and quantization..."
-                print utils.checkTOAsort(self.toas, flags, which='jitterext', dt=jitterbin/86400.)
-                print utils.checkquant(self.Umat, flags)
+                print utils.checkTOAsort(self.toas, dummy_flags, which='jitterext', dt=jitterbin/86400.)
+                print utils.checkquant(self.Umat, dummy_flags)
                 print "...Finished checks."
 
         # perform SVD of design matrix to stabilise
