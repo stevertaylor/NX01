@@ -138,7 +138,7 @@ class PsrObj(object):
             self.Mmat = self.Mmat[:,dmx_mask]
     
             for flag in self.flags:
-                self.flagvals[flag] = self.flagvals[flag][mask]
+                self.flagvals[flag] = self.T2psr.flagvals(flag)[mask]
         
         # get the position vectors of the planets
         if planetssb:
