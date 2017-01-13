@@ -130,7 +130,7 @@ class PsrObj(object):
     
             self.toas = self.toas[mask]
             self.toaerrs = self.toaerrs[mask]
-            self.res = self.[mask]
+            self.res = self.res[mask]
             self.obs_freqs = self.obs_freqs[mask]
     
             self.Mmat = self.Mmat[mask,:]
