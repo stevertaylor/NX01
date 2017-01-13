@@ -134,7 +134,7 @@ class PsrObj(object):
             self.obs_freqs = self.obs_freqs[mask]
     
             self.Mmat = self.Mmat[mask,:]
-            dmx_mask = np.sum(self.Mmat, axis=0) == 0.0
+            dmx_mask = np.sum(self.Mmat, axis=0) != 0.0
             self.Mmat = self.Mmat[:,dmx_mask]
     
             for flag in self.flags:
