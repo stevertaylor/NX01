@@ -123,6 +123,8 @@ parser.add_option('--nchords', dest='nchords', action='store', type=int, default
                    help='Number of chords for Polychord (default = 1)')
 parser.add_option('--resume', dest='resume', action='store_true', default=False,
                    help='Do you want to resume the sampler (default = False)')
+parser.add_option('--niter', dest='niter', action='store', type=float, default=5e6,
+                   help='Number of MCMC iterations for PTMCMC sampler (default = 5e6)')
 parser.add_option('--writeHotChains', dest='writeHotChains', action='store_true', default=False,
                    help='Given a PTMCMC sampler, do you want to write out the hot chain samples? (default = False)')
 parser.add_option('--hotChain', dest='hotChain', action='store_true', default=False,
@@ -6156,7 +6158,7 @@ elif args.sampler == 'ptmcmc':
         sampler.addProposalToCycle(drawFromEphPlanetDeltaPrior, 10)
     
 
-    sampler.sample(p0=x0, Niter=int(5e6), thin=10,
+    sampler.sample(p0=x0, Niter=int(args.niter), thin=10,
                 covUpdate=1000, AMweight=20,
                 SCAMweight=30, DEweight=50,
                 writeHotChains=args.writeHotChains,
