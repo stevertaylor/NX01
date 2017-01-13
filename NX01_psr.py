@@ -123,6 +123,8 @@ class PsrObj(object):
         self.Mmat = np.double(self.T2psr.designmatrix())
         self.flags = self.T2psr.flags()
         self.flagvals = OrderedDict.fromkeys(self.flags)
+        for flag in self.flags:
+            self.flagvals[flag] = self.T2psr.flagvals(flag)
 
         if startMJD is not None and endMJD is not None:
             mask = np.logical_and(self.T2psr.toas() >= startMJD,
