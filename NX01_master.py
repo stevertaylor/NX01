@@ -454,21 +454,25 @@ else:
     if args.parfile is not None and args.timfile is not None:
         
         t2psr.append( T2.tempopulsar(parfile=args.parfile,
-                                     timfile=args.timfile) )
+                                     timfile=args.timfile,
+                                     maxobs=int(4e4)) )
         t2psr[0].fit(iters=3)
         if np.any(np.isfinite(t2psr[0].residuals())==False)==True:
             t2psr[0] = T2.tempopulsar(parfile=args.parfile,
-                                      timfile=args.timfile)
+                                      timfile=args.timfile,
+                                      maxobs=int(4e4))
             
     else:
         
         for ii in range(args.psrStartIndex,args.psrEndIndex):
             t2psr.append( T2.tempopulsar( parfile=psr_pathinfo[ii,2],
-                                        timfile=psr_pathinfo[ii,3] ) )
+                                          timfile=psr_pathinfo[ii,3],
+                                          maxobs=int(4e4) ) )
             t2psr[ii].fit(iters=3)
             if np.any(np.isfinite(t2psr.residuals())==False)==True:
                 t2psr = T2.tempopulsar( parfile=psr_pathinfo[ii,2],
-                                        timfile=psr_pathinfo[ii,3] )
+                                        timfile=psr_pathinfo[ii,3],
+                                        maxobs=int(4e4) )
 
     psr = [NX01_psr.PsrObj(p) for p in t2psr]
 
