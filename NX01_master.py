@@ -1207,6 +1207,7 @@ def lnprob(xx):
         loglike1_tmp = loglike1
         dtmp = list(d)
         TtNT_tmp = list(TtNT)
+        Jamp_tmp = list(Jamp)
 
     mode_count = 2*nmodes_red
     if args.incDM:
@@ -1751,11 +1752,11 @@ def lnprob(xx):
                     if (args.varyWhite and len(ECORR[ii]>0)) or \
                       (not args.varyWhite and p.ecorrs is not None and len(p.ecorrs)>0):
                         Nx = jitter.cython_block_shermor_0D(detres[ii], new_err**2.,
-                                                            Jamp[ii], p.Uinds)
+                                                            Jamp_tmp[ii], p.Uinds)
                         dtmp[ii] = np.dot(p.Te.T, Nx)
                         det_dummy, dtNdt_dummy = \
                         jitter.cython_block_shermor_1D(detres[ii], new_err**2.,
-                                                        Jamp[ii], p.Uinds)
+                                                        Jamp_tmp[ii], p.Uinds)
                         dtNdt.append(dtNdt_dummy)
 
                     else:
