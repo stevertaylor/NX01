@@ -887,7 +887,7 @@ if not args.varyWhite:
             dtNdt = np.sum(p.res**2.0/( new_err**2.0 ))
 
         loglike1 += -0.5 * (logdet_N[ii] + dtNdt)
-print Jamp
+
 ##########################
 # SETTING UP PRIOR RANGES
 ##########################
@@ -1496,7 +1496,7 @@ def lnprob(xx):
             logdet_N = []
             TtNT_tmp = []
             dtmp = []
-            Jamp = []
+            Jamp_tmp = []
             for ii,p in enumerate(psr):
 
                 scaled_err = (p.toaerrs).copy()
@@ -1517,24 +1517,24 @@ def lnprob(xx):
         
                     if 'nano-f' in p.sysflagdict.keys() and len(ECORR[ii])>0:
 
-                        Jamp.append(np.ones(len(p.epflags)))
+                        Jamp_tmp.append(np.ones(len(p.epflags)))
                         for jj,nano_sysname in enumerate(p.sysflagdict['nano-f'].keys()):
-                            Jamp[ii][np.where(p.epflags==nano_sysname)] *= \
+                            Jamp_tmp[ii][np.where(p.epflags==nano_sysname)] *= \
                               ECORR[ii][jj]**2.0
 
                         Nx = jitter.cython_block_shermor_0D(p.res, new_err**2.,
-                                                            Jamp[ii], p.Uinds)
+                                                            Jamp_tmp[ii], p.Uinds)
                         dtmp.append(np.dot(p.Te.T, Nx))
             
                         logdet_N_dummy, TtNT_dummy = \
                         jitter.cython_block_shermor_2D(p.Te, new_err**2.,
-                                                        Jamp[ii], p.Uinds)
+                                                        Jamp_tmp[ii], p.Uinds)
                         logdet_N.append(logdet_N_dummy)
                         TtNT_tmp.append(TtNT_dummy)
             
                         det_dummy, dtNdt = \
                         jitter.cython_block_shermor_1D(p.res, new_err**2.,
-                                                        Jamp[ii], p.Uinds)
+                                                        Jamp_tmp[ii], p.Uinds)
 
                     else:
             
