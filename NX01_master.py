@@ -887,7 +887,7 @@ if not args.varyWhite:
             dtNdt = np.sum(p.res**2.0/( new_err**2.0 ))
 
         loglike1 += -0.5 * (logdet_N[ii] + dtNdt)
-
+print Jamp
 ##########################
 # SETTING UP PRIOR RANGES
 ##########################
