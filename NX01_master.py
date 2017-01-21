@@ -1208,6 +1208,7 @@ def lnprob(xx):
         dtmp = list(d)
         TtNT_tmp = list(TtNT)
         Jamp_tmp = list(Jamp)
+        logdet_Ntmp = list(logdet_N)
 
     mode_count = 2*nmodes_red
     if args.incDM:
@@ -1493,7 +1494,7 @@ def lnprob(xx):
         if args.varyWhite:
             
             loglike1_tmp = 0
-            logdet_N = []
+            logdetN_tmp = []
             TtNT_tmp = []
             dtmp = []
             Jamp_tmp = []
@@ -1529,7 +1530,7 @@ def lnprob(xx):
                         logdet_N_dummy, TtNT_dummy = \
                         jitter.cython_block_shermor_2D(p.Te, new_err**2.,
                                                         Jamp_tmp[ii], p.Uinds)
-                        logdet_N.append(logdet_N_dummy)
+                        logdet_Ntmp.append(logdet_N_dummy)
                         TtNT_tmp.append(TtNT_dummy)
             
                         det_dummy, dtNdt = \
@@ -1544,7 +1545,7 @@ def lnprob(xx):
                         right = (N*p.Te.T).T
                         TtNT_tmp.append(np.dot(p.Te.T, right))
     
-                        logdet_N.append(np.sum(np.log( new_err**2.0 )))
+                        logdet_Ntmp.append(np.sum(np.log( new_err**2.0 )))
         
                         # triple product in likelihood function
                         dtNdt = np.sum(p.res**2.0/( new_err**2.0 ))
@@ -1557,12 +1558,12 @@ def lnprob(xx):
                     right = (N*p.Te.T).T
                     TtNT_tmp.append(np.dot(p.Te.T, right))
 
-                    logdet_N.append(np.sum(np.log( new_err**2.0 )))
+                    logdet_Ntmp.append(np.sum(np.log( new_err**2.0 )))
         
                     # triple product in likelihood function
                     dtNdt = np.sum(p.res**2.0/( new_err**2.0 ))
 
-                loglike1_tmp += -0.5 * (logdet_N[ii] + dtNdt)
+                loglike1_tmp += -0.5 * (logdet_Ntmp[ii] + dtNdt)
 
     
         if args.det_signal:
@@ -1769,7 +1770,7 @@ def lnprob(xx):
                     dtmp[ii] = np.dot(p.Te.T, detres[ii]/( new_err**2.0 ))
                     dtNdt.append(np.sum(detres[ii]**2.0/( new_err**2.0 )))
 
-                loglike1_tmp += -0.5 * (logdet_N[ii] + dtNdt[ii])
+                loglike1_tmp += -0.5 * (logdet_Ntmp[ii] + dtNdt[ii])
         
         
         if args.incGWB and args.incCorr:
