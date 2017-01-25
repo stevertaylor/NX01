@@ -4270,17 +4270,17 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*len(systems)
                 pct += len(p.sysflagdict['nano-f'].keys())
 
-        systems = psr[ind].sysflagdict[args.sysflag_target]
+        systems = psr[ind[0]].sysflagdict[args.sysflag_target]
         q[pct:pct+len(systems)] = np.random.uniform(pmin[pct:pct+len(systems)],
                                                     pmax[pct:pct+len(systems)])
         qxy += 0
         q[pct:pct+len(systems)] = np.random.uniform(pmin[pct:pct+len(systems)],
                                                     pmax[pct:pct+len(systems)])
         qxy += 0
-        if 'nano-f' in psr[ind].sysflagdict.keys() and len(psr[ind].sysflagdict['nano-f'].keys())>0:
-            q[pct:pct+len(psr[ind].sysflagdict['nano-f'].keys())] = \
-              np.random.uniform(pmin[pct:pct+len(psr[ind].sysflagdict['nano-f'].keys())],
-                                pmax[pct:pct+len(psr[ind].sysflagdict['nano-f'].keys())])
+        if 'nano-f' in psr[ind[0]].sysflagdict.keys() and len(psr[ind[0]].sysflagdict['nano-f'].keys())>0:
+            q[pct:pct+len(psr[ind[0]].sysflagdict['nano-f'].keys())] = \
+              np.random.uniform(pmin[pct:pct+len(psr[ind[0]].sysflagdict['nano-f'].keys())],
+                                pmax[pct:pct+len(psr[ind[0]].sysflagdict['nano-f'].keys())])
             qxy += 0
 
         return q, qxy
