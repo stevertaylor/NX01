@@ -1494,7 +1494,7 @@ def lnprob(xx):
         if args.varyWhite:
             
             loglike1_tmp = 0
-            logdetN_tmp = []
+            logdet_Ntmp = []
             TtNT_tmp = []
             dtmp = []
             Jamp_tmp = []
