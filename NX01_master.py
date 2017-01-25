@@ -456,7 +456,7 @@ else:
         t2psr.append( T2.tempopulsar(parfile=args.parfile,
                                      timfile=args.timfile,
                                      maxobs=int(4e4)) )
-        t2psr[0].fit(iters=3)
+        #t2psr[0].fit(iters=3)
         if np.any(np.isfinite(t2psr[0].residuals())==False)==True:
             t2psr[0] = T2.tempopulsar(parfile=args.parfile,
                                       timfile=args.timfile,
