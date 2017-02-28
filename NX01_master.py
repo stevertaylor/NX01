@@ -231,6 +231,8 @@ parser.add_option('--ephPrior', dest='ephPrior', action='store', type=str, defau
                    help='Do you want to use a uniform prior on log_10(Aephx,y,z) for detection [loguniform], on Aephx,y,z themselves for limits [uniform] (default=\'uniform\')?')
 parser.add_option('--clkPrior', dest='clkPrior', action='store', type=str, default='uniform',
                    help='Do you want to use a uniform prior on log_10(Aclk) for detection [loguniform], on Aclk itself for limits [uniform] (default=\'uniform\')?')
+parser.add_option('--bandPrior', dest='bandPrior', action='store', type=str, default='uniform',
+                   help='Do you want to use a uniform prior on log_10(Aband) for detection [loguniform], on Aband itself for limits [uniform] (default=\'uniform\')?')
 parser.add_option('--cmPrior', dest='cmPrior', action='store', type=str, default='uniform',
                    help='Do you want to use a uniform prior on log_10(Acm) for detection [loguniform], on Acm itself for limits [uniform] (default=\'uniform\')?')
 parser.add_option('--anis_modefile', dest='anis_modefile', action='store', type=str, default = None,
