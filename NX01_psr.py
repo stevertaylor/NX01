@@ -402,8 +402,8 @@ class PsrObj(object):
             elif bands is not None:
                 bands = np.array([float(item) for item in bands.split(',')])
             
-            Fband_tmp = utils.createFourierDesignmatrix_red(self.toas, nmodes=nmodes_tmp,
-                                                            pshift=False, Tspan=Ttot)
+            Fband_tmp, _ = utils.createFourierDesignmatrix_red(self.toas, nmodes=nmodes_tmp,
+                                                                   pshift=False, Tspan=Ttot)
             for ii in range(len(bands)-1):
                 Fband_dummy = Fband_tmp.copy()
                 Fband_dummy[np.logical(self.obs_freqs > 1e9*bands[ii],
