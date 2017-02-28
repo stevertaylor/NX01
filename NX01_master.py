@@ -1216,7 +1216,7 @@ def lnprob(xx):
     if args.incDM:
         mode_count += 2*nmodes_dm
     if args.incBand and ((len(bands)-1)>0):
-        mode_count += (len(bands)-1)*nmodes_band
+        mode_count += 2*(len(bands)-1)*nmodes_band
     if args.incEph:
         # 2*nmode for x,y,z
         mode_count += 6*nmodes_eph
