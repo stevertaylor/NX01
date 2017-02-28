@@ -406,8 +406,8 @@ class PsrObj(object):
                                                                    pshift=False, Tspan=Ttot)
             for ii in range(len(bands)-1):
                 Fband_dummy = Fband_tmp.copy()
-                Fband_dummy[np.logical(self.obs_freqs > 1e9*bands[ii],
-                                       self.obs_freqs <= 1e9*bands[ii+1]),:] = 0.0
+                Fband_dummy[np.logical_and(self.obs_freqs > 1e9*bands[ii],
+                                           self.obs_freqs <= 1e9*bands[ii+1]),:] = 0.0
                 self.Ftot = np.append(self.Ftot, Fband_dummy, axis=1)
         
         self.Te = np.append(self.Gc, self.Ftot, axis=1)
