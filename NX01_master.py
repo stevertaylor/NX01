@@ -2733,7 +2733,7 @@ def lnprob(xx):
     
                     # compute sigma
                     Sigma = TtNT_tmp[ii] + Phi
-
+                    
                     # cholesky decomp 
                     try:
                     

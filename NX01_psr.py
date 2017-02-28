@@ -362,7 +362,7 @@ class PsrObj(object):
     def makeTe(self, nmodes_red, Ttot, makeDM=False, nmodes_dm=None,
                makeEph=False, nmodes_eph=None, ephFreqs=None,
                makeClk=False, clkDesign=False,
-               makeBand=False, bands=None,
+               makeBand=False, nmodes_band=None, bands=None,
                phaseshift=False):
 
         self.Fred, self.ranphase = utils.createFourierDesignmatrix_red(self.toas, nmodes=nmodes_red,
