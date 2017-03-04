@@ -35,7 +35,6 @@ class gaussproc(object):
         lnlike = 0.0
         try:
             gp = george.GP(a * kernels.ExpSquaredKernel(tau))
-            #gp = george.GP(a * kernels.Matern32Kernel(tau))
             if self.yerr is None:
                 gp.compute(self.x)
             elif self.yerr is not None:

@@ -145,6 +145,8 @@ parser.add_option('--gwb_fb2env', dest='gwb_fb2env', action='store', type=str, d
                   help='In GWB turnover model, do you want to map the environmental parameters directly? (stars, gas, etc.) (default = \'None\')')
 parser.add_option('--gpPickle', dest='gpPickle', action='store', type=str, default='/Users/staylor/Research/PapersInProgress/NPDE/gp4ptas/ecc_gp.pkl',
                   help='Provide the pickle file storing the list of GP objects for when gwbSpecModel is gpEnvInterp or when gwbPrior is gaussProc. Must contain either ecc, stars, or acc in an underscore delimited filename (default = /Users/staylor/Research/PapersInProgress/NPDE/gp4ptas/stars_gaussproc.pkl)')
+parser.add_option('--gpKernel', dest='gpKernel', action='store', type=str, default='expsquared',
+                  help='What type of kernel to use in the GP emulator? (default = expsquared)')
 parser.add_option('--userOrf', dest='userOrf', action='store', type=str, default=None,
                   help='Provide your own ORF in a numpy array of shape (npsr,npsr) or (nfreqs,npsr,npsr) (default = None)')
 parser.add_option('--pshift', dest='pshift', action='store_true', default=False,
@@ -780,8 +782,15 @@ if args.incGWB:
         # Compute factorisation of kernel based on sampled points
         for ii in range(len(gppkl)):
             gp_kparams = np.exp(gppkl[ii].kernel_map)
-            gp.append( george.GP( gp_kparams[0] * \
-                                  george.kernels.ExpSquaredKernel(gp_kparams[1:],ndim=len(gp_kparams[1:])) ) )
+            if args.gpKernel == 'expsquared':
+                gp.append( george.GP( gp_kparams[0] * \
+                                      george.kernels.ExpSquaredKernel(gp_kparams[1:],ndim=len(gp_kparams[1:])) ) )
+            elif args.gpKernel == 'matern32':
+                gp.append( george.GP( gp_kparams[0] * \
+                                      george.kernels.Matern32Kernel(gp_kparams[1:],ndim=len(gp_kparams[1:])) ) )
+            elif args.gpKernel == 'matern52':
+                gp.append( george.GP( gp_kparams[0] * \
+                                      george.kernels.Matern52Kernel(gp_kparams[1:],ndim=len(gp_kparams[1:])) ) )
             gp[ii].compute(gppkl[ii].x, gppkl[ii].yerr)
             gwb_popparam_ndims = len(gp_kparams[1:])
 
