@@ -855,8 +855,8 @@ if not args.varyWhite:
                 Jamp.append(np.ones(len(p.epflags)))
                 for jj,nano_sysname in enumerate(p.sysflagdict['nano-f'].keys()):
                     Jamp[ii][np.where(p.epflags==nano_sysname)] *= \
-                    p.ecorrs[nano_sysname]**2.0
-
+                      p.ecorrs[nano_sysname]**2.0
+                    
                 Nx = jitter.cython_block_shermor_0D(p.res, new_err**2.,
                                                     Jamp[ii], p.Uinds)
                 d.append(np.dot(p.Te.T, Nx))

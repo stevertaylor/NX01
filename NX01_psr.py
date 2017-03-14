@@ -190,7 +190,7 @@ class PsrObj(object):
               
         # get the sky position
         if 'RAJ' and 'DECJ' in self.T2psr.pars():
-            self.psr_locs = [np.double(self.T2psr['RAJ'].val),np.double(self.T2psr['DECJ'].val)]
+            self.psr_locs = [np.double(self.T2psr['RAJ'].val), np.double(self.T2psr['DECJ'].val)]
         elif 'ELONG' and 'ELAT' in self.T2psr.pars():
             fac = 180./np.pi
             # check for B name
@@ -321,13 +321,18 @@ class PsrObj(object):
         else:
             print "--> Performing SVD of design matrix for stabilization..."   
 
-            u,s,v = np.linalg.svd(self.Mmat)
-
             if makeGmat:
+                u,s,v = np.linalg.svd(self.Mmat)
+                
                 self.G = u[:,len(s):len(u)]
                 self.Gres = np.dot(self.G.T, self.res)
+                
+                self.Gc =  u[:,:len(s)]
+                
+            elif not makeGmat:
+                u,s,v = np.linalg.svd(self.Mmat, full_matrices=0)
 
-            self.Gc =  u[:,:len(s)]
+                self.Gc =  u
 
         print "--> Done reading in pulsar :-) \n"
 
@@ -676,8 +681,8 @@ class PsrObjFromH5(object):
                 tmp_errs = self.toaerrs.copy()
 
                 for sysname in systems:
-                    tmp_errs[systems[sysname]] *= self.efacs[sysname] 
-
+                    tmp_errs[systems[sysname]] *= self.efacs[sysname]
+                        
                 t2equad_bit = np.ones(len(tmp_errs))
                 for sysname in systems:
                     t2equad_bit[systems[sysname]] *= self.equads[sysname]
