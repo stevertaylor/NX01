@@ -3516,7 +3516,10 @@ if args.incCm:
 elif not args.incCm:
     cm_tag = ''
 if args.incEph:
-    eph_tag = '_eph'+args.ephPrior+args.ephSpecModel+'nm{0}'.format(nmodes_eph)
+    if args.jplBasis:
+        eph_tag = '_eph'+'JPLbasis'+'nm{0}'.format(nmodes_eph)
+    else:
+        eph_tag = '_eph'+args.ephPrior+args.ephSpecModel+'nm{0}'.format(nmodes_eph)
 elif not args.incEph:
     eph_tag = ''
 file_tag += red_tag + dm_tag + band_tag + \
