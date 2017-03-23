@@ -12,7 +12,6 @@ import numpy as np
 import sys, os, glob
 import libstempo as T2
 import ephem
-from ephem import *
 import NX01_utils as utils
 from collections import OrderedDict
 import cPickle as pickle
@@ -25,6 +24,10 @@ class PsrObj(object):
     timfile = None
     noisefile = None
     psr_locs = None
+    raj = None
+    decj = None
+    elong = None
+    elat = None
     toas = None
     toaerrs = None
     res = None
@@ -67,6 +70,10 @@ class PsrObj(object):
         self.timfile = None
         self.noisefile = None
         self.psr_locs = None
+        self.raj = None
+        self.decj = None
+        self.elong = None
+        self.elat = None
         self.toas = None
         self.toaerrs = None
         self.res = None
@@ -189,19 +196,33 @@ class PsrObj(object):
                 print "--> Initial sorting of data."
               
         # get the sky position
+        # check for B name
+        if 'B' in self.T2psr.name:
+            epoch = '1950'
+        else:
+            epoch = '2000'
         if 'RAJ' and 'DECJ' in self.T2psr.pars():
-            self.psr_locs = [np.double(self.T2psr['RAJ'].val), np.double(self.T2psr['DECJ'].val)]
+            self.raj = np.double(self.T2psr['RAJ'].val)
+            self.decj = np.double(self.T2psr['DECJ'].val)
+
+            self.psr_locs = [self.raj, self.decj]
+
+            eq = ephem.Equatorial(self.T2psr['RAJ'].val,
+                                  self.T2psr['DECJ'].val)
+            ec = ephem.Ecliptic(eq, epoch=epoch)
+            self.elong = np.double(ec.lon)
+            self.elat = np.double(ec.lat)
+            
         elif 'ELONG' and 'ELAT' in self.T2psr.pars():
-            fac = 180./np.pi
-            # check for B name
-            if 'B' in self.name:
-                epoch = '1950'
-            else:
-                epoch = '2000'
-            coords = Equatorial(Ecliptic(str(self.T2psr['ELONG'].val*fac),
-                                         str(self.T2psr['ELAT'].val*fac)),
-                                         epoch=epoch)
-            self.psr_locs = [float(repr(coords.ra)),float(repr(coords.dec))]
+            self.elong = np.double(self.T2psr['ELONG'].val)
+            self.elat = np.double(self.T2psr['ELAT'].val)
+
+            ec = ephem.Ecliptic(self.elong, self.elat)
+            eq = ephem.Equatorial(ec, epoch=epoch)
+            self.raj = np.double(eq.ra)
+            self.decj = np.double(eq.dec)
+            
+            self.psr_locs = [self.raj, self.decj]
 
         print "--> Grabbed the pulsar position."
         
@@ -441,6 +462,10 @@ class PsrObj(object):
 class PsrObjFromH5(object):
     h5Obj = None
     psr_locs = None
+    raj = None
+    decj = None
+    elong = None
+    elat = None
     parfile = None
     timfile = None
     noisefile = None
@@ -491,6 +516,10 @@ class PsrObjFromH5(object):
         self.timfile = None
         self.noisefile = None
         self.psr_locs = None
+        self.raj = None
+        self.decj = None
+        self.elong = None
+        self.elat = None
         self.toas = None
         self.toaerrs = None
         self.res = None
@@ -556,6 +585,10 @@ class PsrObjFromH5(object):
         self.obs_freqs = self.h5Obj['freq'].value
 
         self.psr_locs = self.h5Obj['psrlocs'].value
+        self.raj = self.h5Obj['raj'].value
+        self.decj = self.h5Obj['decj'].value
+        self.elong = self.h5Obj['elong'].value
+        self.elat = self.h5Obj['elat'].value
         try:
             self.planet_ssb = self.h5Obj['planetssb'].value
         except:
@@ -722,7 +755,7 @@ class PsrObjFromH5(object):
         self.Ftot = np.append(self.Fred, self.Fdm, axis=1)
 
     def makeTe(self, nmodes_red, Ttot, makeDM=False, nmodes_dm=None,
-               makeEph=False, nmodes_eph=None, ephFreqs=None,
+               makeEph=False, jplBasis=False, nmodes_eph=None, ephFreqs=None,
                makeClk=False, clkDesign=False,
                makeBand=False, bands=None,
                phaseshift=False):
@@ -739,16 +772,29 @@ class PsrObjFromH5(object):
             self.Fdm = utils.createFourierDesignmatrix_dm(self.toas, nmodes_tmp, self.obs_freqs, Tspan=Ttot)
             self.Ftot = np.append(self.Ftot, self.Fdm, axis=1)
         if makeEph:
-            if nmodes_eph is None:
-                nmodes_tmp = nmodes_red
+            if jplBasis:
+                Fmother = np.load('./data/jplephbasis/Fmother.npy')
+                mjd = np.load('./data/jplephbasis/mjd.npy')
+
+                posvec = np.array([np.sin(np.pi/2.- self.elat)*np.cos(self.elong),
+                                   np.sin(np.pi/2.- self.elat)*np.sin(self.elong),
+                                   np.cos(np.pi/2.- self.elat)])
+
+                Fproj = np.dot(Fmother[:,:,:],posvec)
+                Feph = np.vstack(np.interp(self.toas,mjd,Fproj[:,ii])
+                                 for ii in range(Fproj.shape[1])).T
+                self.Ftot = np.append(self.Ftot, Feph, axis=1)
             else:
-                nmodes_tmp = nmodes_eph
-            self.Fephx, self.Fephy, self.Fephz = \
-              utils.createFourierDesignmatrix_eph(self.toas, nmodes_tmp, self.psr_locs,
-                                                  Tspan=Ttot, input_freqs=ephFreqs)
-            self.Ftot = np.append(self.Ftot, self.Fephx, axis=1)
-            self.Ftot = np.append(self.Ftot, self.Fephy, axis=1)
-            self.Ftot = np.append(self.Ftot, self.Fephz, axis=1)
+                if nmodes_eph is None:
+                    nmodes_tmp = nmodes_red
+                else:
+                    nmodes_tmp = nmodes_eph
+                self.Fephx, self.Fephy, self.Fephz = \
+                  utils.createFourierDesignmatrix_eph(self.toas, nmodes_tmp, self.psr_locs,
+                                                      Tspan=Ttot, input_freqs=ephFreqs)
+                self.Ftot = np.append(self.Ftot, self.Fephx, axis=1)
+                self.Ftot = np.append(self.Ftot, self.Fephy, axis=1)
+                self.Ftot = np.append(self.Ftot, self.Fephz, axis=1)
         if makeClk and clkDesign:
             self.Fclk, _ = utils.createFourierDesignmatrix_red(self.toas, nmodes=nmodes_red,
                                                                pshift=False, Tspan=Ttot)

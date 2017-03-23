@@ -326,6 +326,14 @@ class DataFile(object):
         # Save the pulsar locations
         self.writeData(psrGroup, 'psrlocs', psr.psr_locs,
                        overwrite=overwrite)
+        self.writeData(psrGroup, 'raj', psr.raj,
+                       overwrite=overwrite)
+        self.writeData(psrGroup, 'decj', psr.decj,
+                       overwrite=overwrite)
+        self.writeData(psrGroup, 'elong', psr.elong,
+                       overwrite=overwrite)
+        self.writeData(psrGroup, 'elat', psr.elat,
+                       overwrite=overwrite)
 
         # Save the planet position vectors
         if psr.planet_ssb is not None:

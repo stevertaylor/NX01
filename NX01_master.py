@@ -177,6 +177,8 @@ parser.add_option('--nmodes_dm', dest='nmodes_dm', action='store', type=int, def
                    help='Number of DM-variation modes in low-rank time-frequency approximation')
 parser.add_option('--incEph', dest='incEph', action='store_true', default=False,
                   help='Do you want to search for solar system ephemeris errors? (default = False)')
+parser.add_option('--jplBasis', dest='jplBasis', action='store_true', default=False,
+                  help='Do you want to use the JPL GP basis? (default = False)')
 parser.add_option('--ephSpecModel', dest='ephSpecModel', action='store', type=str, default='powerlaw',
                   help='What kind of spectral model do you want for the solar system ephemeris errors?: powerlaw, spectrum (default = powerlaw)')
 parser.add_option('--nmodes_eph', dest='nmodes_eph', action='store', type=int, default=None,
@@ -727,17 +729,24 @@ if args.incDM:
     fqs_dm = np.linspace(1/Tmax, nmodes_dm/Tmax, nmodes_dm)
 
 ### Define number of ephemeris-error modes and set sampling frequencies
-nmodes_eph = args.nmodes_eph
+nmodes_eph = None
 if args.incEph:
-    if args.nmodes_eph is not None:
-        nmodes_eph = args.nmodes_eph
+    if args.jplBasis:
+        # No sampling frequencies here.
+        # Basis is in planet mass perturbations.
+        nmodes_eph = 7
+        ephPhivec = np.load('./data/jplephbasis/phivec.npy')
     else:
-        nmodes_eph = nmodes_red
-    ##
-    if args.ephFreqs is None:
-        fqs_eph = np.linspace(1/Tmax, nmodes_eph/Tmax, nmodes_eph)
-    elif args.ephFreqs is not None:
-        fqs_eph = np.array([float(item) for item in args.ephFreqs.split(',')])
+        nmodes_eph = args.nmodes_eph
+        if args.nmodes_eph is not None:
+            nmodes_eph = args.nmodes_eph
+        else:
+            nmodes_eph = nmodes_red
+        ##
+        if args.ephFreqs is None:
+            fqs_eph = np.linspace(1/Tmax, nmodes_eph/Tmax, nmodes_eph)
+        elif args.ephFreqs is not None:
+            fqs_eph = np.array([float(item) for item in args.ephFreqs.split(',')])
 
 ### Define number of band-noise modes and set sampling frequencies
 nmodes_band = args.nmodes_band
@@ -755,7 +764,7 @@ if args.incBand:
 
 ### Make the basis matrices for all rank-reduced processes in model
 [p.makeTe(nmodes_red, Tmax, makeDM=args.incDM, nmodes_dm=nmodes_dm,
-          makeEph=args.incEph, nmodes_eph=nmodes_eph, ephFreqs=args.ephFreqs,
+          makeEph=args.incEph, jplBasis=args.jplBasis, nmodes_eph=nmodes_eph, ephFreqs=args.ephFreqs,
           makeClk=args.incClk, clkDesign=args.clkDesign,
           makeBand=args.incBand, bands=args.bands, phaseshift=args.pshift) for p in psr]
 
@@ -964,11 +973,14 @@ if args.incCm:
     elif args.cmSpecModel == 'spectrum':
         pmin = np.append(pmin,-8.0*np.ones(nmodes_red))
 if args.incEph:
-    if args.ephSpecModel == 'powerlaw':
-        pmin = np.append(pmin,np.array([-20.0,-20.0,-20.0]))
-        pmin = np.append(pmin,np.array([0.0,0.0,0.0]))
-    elif args.ephSpecModel == 'spectrum':
-        pmin = np.append(pmin,-30.0*np.ones(3*nmodes_eph))
+    if args.jplBasis:
+        pass
+    else:
+        if args.ephSpecModel == 'powerlaw':
+            pmin = np.append(pmin,np.array([-20.0,-20.0,-20.0]))
+            pmin = np.append(pmin,np.array([0.0,0.0,0.0]))
+        elif args.ephSpecModel == 'spectrum':
+            pmin = np.append(pmin,-30.0*np.ones(3*nmodes_eph))
 if args.incGWB:
     if args.gwbSpecModel == 'powerlaw':
         if args.gwbAmpRange is None:
@@ -1099,11 +1111,14 @@ if args.incCm:
     elif args.cmSpecModel == 'spectrum':
         pmax = np.append(pmax,3.0*np.ones(nmodes_red))
 if args.incEph:
-    if args.ephSpecModel == 'powerlaw':
-        pmax = np.append(pmax,np.array([-11.0,-11.0,-11.0]))
-        pmax = np.append(pmax,np.array([7.0,7.0,7.0]))
-    elif args.ephSpecModel == 'spectrum':
-        pmax = np.append(pmax,-3.0*np.ones(3*nmodes_eph))
+    if args.jplBasis:
+        pass
+    else:
+        if args.ephSpecModel == 'powerlaw':
+            pmax = np.append(pmax,np.array([-11.0,-11.0,-11.0]))
+            pmax = np.append(pmax,np.array([7.0,7.0,7.0]))
+        elif args.ephSpecModel == 'spectrum':
+            pmax = np.append(pmax,-3.0*np.ones(3*nmodes_eph))
 if args.incGWB:
     if args.gwbSpecModel == 'powerlaw':
         if args.gwbAmpRange is None:
@@ -1224,13 +1239,16 @@ def lnprob(xx):
     mode_count = 2*nmodes_red
     if args.incDM:
         mode_count += 2*nmodes_dm
-    if args.incBand and ((len(bands)-1)>0):
-        mode_count += 2*(len(bands)-1)*nmodes_band
     if args.incEph:
-        # 2*nmode for x,y,z
-        mode_count += 6*nmodes_eph
+        if args.jplBasis:
+            mode_count += nmodes_eph
+        else:
+            # 2*nmode for x,y,z
+            mode_count += 6*nmodes_eph
     if args.incClk and args.clkDesign:
         mode_count += 2*nmodes_red
+    if args.incBand and ((len(bands)-1)>0):
+        mode_count += 2*(len(bands)-1)*nmodes_band
     
     ###############################
     # Splitting up parameter vector
@@ -1322,17 +1340,20 @@ def lnprob(xx):
     # Including solar-system ephemeris errors
     
     if args.incEph:
-        if args.ephSpecModel == 'powerlaw':
-            Aephx = 10.0**xx[param_ct]
-            Aephy = 10.0**xx[param_ct+1]
-            Aephz = 10.0**xx[param_ct+2]
-            gam_ephx = xx[param_ct+3]
-            gam_ephy = xx[param_ct+4]
-            gam_ephz = xx[param_ct+5]
-            param_ct += 6
-        elif args.ephSpecModel == 'spectrum':
-            eph_spec = (xx[param_ct:param_ct+3*nmodes_eph].copy()).reshape((3,nmodes_eph))
-            param_ct += 3*nmodes_eph
+        if args.jplBasis:
+            pass
+        else:
+            if args.ephSpecModel == 'powerlaw':
+                Aephx = 10.0**xx[param_ct]
+                Aephy = 10.0**xx[param_ct+1]
+                Aephz = 10.0**xx[param_ct+2]
+                gam_ephx = xx[param_ct+3]
+                gam_ephy = xx[param_ct+4]
+                gam_ephz = xx[param_ct+5]
+                param_ct += 6
+            elif args.ephSpecModel == 'spectrum':
+                eph_spec = (xx[param_ct:param_ct+3*nmodes_eph].copy()).reshape((3,nmodes_eph))
+                param_ct += 3*nmodes_eph
 
     ############################
     # Including a GW background
@@ -1816,32 +1837,33 @@ def lnprob(xx):
                                 upper_triang[aa,bb] = np.cos(phi_els[bb-1][aa]) * \
                                 np.prod( np.sin(np.array(phi_els[bb-1])[0:aa]) )   
 
-                        ORF.append(np.dot( upper_triang.T, upper_triang ))
-       
+                        tmp = np.dot( upper_triang.T, upper_triang )
+                        ORF.append([tmp,tmp])
+                
                 if args.incDM:
-                    for ii in range(nmodes_dm): 
+                    for ii in range(2*nmodes_dm): 
                         ORF.append( np.zeros((npsr,npsr)) )
 
                 if args.incEph:
-                    for kk in range(3): # x,y,z
+                    if args.jplBasis:
                         for ii in range(nmodes_eph):
                             ORF.append( np.zeros((npsr,npsr)) )
+                    else:
+                        for kk in range(3): # x,y,z
+                            for ii in range(2*nmodes_eph):
+                                ORF.append( np.zeros((npsr,npsr)) )
 
                 if args.incClk and args.clkDesign:
-                    for ii in range(nmodes_red): 
+                    for ii in range(2*nmodes_red):
                         ORF.append( np.zeros((npsr,npsr)) )
-
+                       
                 if args.incBand:
                     for kk in range(len(bands)-1):
-                        for ii in range(nmodes_band):
+                        for ii in range(2*nmodes_band):
                             ORF.append( np.zeros((npsr,npsr)) )
-
+                           
                 ORF = np.array(ORF)
-                ORFtot = np.zeros((mode_count,npsr,npsr)) # shouldn't be applying ORF to dmfreqs,
-                                                          # but the projection of GW spec onto dmfreqs
-                                                          # is defined as zero below.
-                ORFtot[0::2] = ORF
-                ORFtot[1::2] = ORF
+                ORFtot = ORF
 
             elif args.gwbTypeCorr == 'pointSrc':
 
@@ -1876,32 +1898,33 @@ def lnprob(xx):
                 ORF=[]
                 for ii in range(tmp_nwins): # number of frequency windows
                     for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
-                        ORF.append( corr_curve[ii,:,:] )
-                    
+                        tmp = corr_curve[ii,:,:]
+                        ORF.append( [tmp, tmp] )
+                
                 if args.incDM:
-                    for ii in range(nmodes_dm):
+                    for ii in range(2*nmodes_dm): 
                         ORF.append( np.zeros((npsr,npsr)) )
 
                 if args.incEph:
-                    for kk in range(3): # x,y,z
-                        for ii in range(nmodes_eph): 
+                    if args.jplBasis:
+                        for ii in range(nmodes_eph):
                             ORF.append( np.zeros((npsr,npsr)) )
+                    else:
+                        for kk in range(3): # x,y,z
+                            for ii in range(2*nmodes_eph):
+                                ORF.append( np.zeros((npsr,npsr)) )
 
                 if args.incClk and args.clkDesign:
-                    for ii in range(nmodes_red): 
+                    for ii in range(2*nmodes_red):
                         ORF.append( np.zeros((npsr,npsr)) )
-
+                       
                 if args.incBand:
                     for kk in range(len(bands)-1):
-                        for ii in range(nmodes_band):
+                        for ii in range(2*nmodes_band):
                             ORF.append( np.zeros((npsr,npsr)) )
-
+                           
                 ORF = np.array(ORF)
-                ORFtot = np.zeros((mode_count,npsr,npsr)) # shouldn't be applying ORF to dmfreqs,
-                                                          # but the projection of GW spec onto dmfreqs
-                                                          # is defined as zero below.
-                ORFtot[0::2] = ORF
-                ORFtot[1::2] = ORF
+                ORFtot = ORF
             
             elif args.gwbTypeCorr == 'spharmAnis':
             
@@ -1932,32 +1955,34 @@ def lnprob(xx):
                 ORF=[]
                 for ii in range(tmp_nwins): # number of frequency windows
                     for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
-                        ORF.append( sum(clm[ii,kk]*CorrCoeff[kk]
-                                        for kk in range(len(CorrCoeff))) )
+                        tmp = sum(clm[ii,kk]*CorrCoeff[kk]
+                                      for kk in range(len(CorrCoeff)))
+                        ORF.append( [tmp, tmp] )
+                
                 if args.incDM:
-                    for ii in range(nmodes_dm): 
+                    for ii in range(2*nmodes_dm): 
                         ORF.append( np.zeros((npsr,npsr)) )
 
                 if args.incEph:
-                    for kk in range(3): # x,y,z
+                    if args.jplBasis:
                         for ii in range(nmodes_eph):
                             ORF.append( np.zeros((npsr,npsr)) )
+                    else:
+                        for kk in range(3): # x,y,z
+                            for ii in range(2*nmodes_eph):
+                                ORF.append( np.zeros((npsr,npsr)) )
 
                 if args.incClk and args.clkDesign:
-                    for ii in range(nmodes_red): 
+                    for ii in range(2*nmodes_red):
                         ORF.append( np.zeros((npsr,npsr)) )
-
+                       
                 if args.incBand:
                     for kk in range(len(bands)-1):
-                        for ii in range(nmodes_band):
+                        for ii in range(2*nmodes_band):
                             ORF.append( np.zeros((npsr,npsr)) )
-
+                           
                 ORF = np.array(ORF)
-                ORFtot = np.zeros((mode_count,npsr,npsr)) # shouldn't be applying ORF to dmfreqs,
-                                                          # but the projection of GW spec onto dmfreqs
-                                                          # is defined as zero below.
-                ORFtot[0::2] = ORF
-                ORFtot[1::2] = ORF
+                ORFtot = ORF
 
             elif args.gwbTypeCorr == 'dipoleOrf':
             
@@ -2004,32 +2029,33 @@ def lnprob(xx):
                 ORF=[]
                 for ii in range(tmp_nwins): # number of frequency windows
                     for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
-                        ORF.append( monoOrf + dipwgt[ii]*gammaDip[ii,:,:] )
-                        
+                        tmp = monoOrf + dipwgt[ii]*gammaDip[ii,:,:]
+                        ORF.append( [tmp, tmp] )
+                
                 if args.incDM:
-                    for ii in range(nmodes_dm): 
+                    for ii in range(2*nmodes_dm): 
                         ORF.append( np.zeros((npsr,npsr)) )
 
                 if args.incEph:
-                    for kk in range(3): # x,y,z
-                        for ii in range(nmodes_eph): 
+                    if args.jplBasis:
+                        for ii in range(nmodes_eph):
                             ORF.append( np.zeros((npsr,npsr)) )
+                    else:
+                        for kk in range(3): # x,y,z
+                            for ii in range(2*nmodes_eph):
+                                ORF.append( np.zeros((npsr,npsr)) )
 
                 if args.incClk and args.clkDesign:
-                    for ii in range(nmodes_red): 
+                    for ii in range(2*nmodes_red):
                         ORF.append( np.zeros((npsr,npsr)) )
-
+                       
                 if args.incBand:
                     for kk in range(len(bands)-1):
-                        for ii in range(nmodes_band):
+                        for ii in range(2*nmodes_band):
                             ORF.append( np.zeros((npsr,npsr)) )
-
+                           
                 ORF = np.array(ORF)
-                ORFtot = np.zeros((mode_count,npsr,npsr)) # shouldn't be applying ORF to dmfreqs,
-                                                          # but the projection of GW spec onto dmfreqs
-                                                          # is defined as zero below.
-                ORFtot[0::2] = ORF
-                ORFtot[1::2] = ORF
+                ORFtot = ORF
 
             elif args.gwbTypeCorr == 'custom':
             
@@ -2039,35 +2065,36 @@ def lnprob(xx):
                 ORF=[]
                 for ii in range(nmodes_red): # number of frequencies
                     if np.atleast_3d(customOrf.T).shape[-1]>1:
-                        ORF.append( customOrf[ii,:,:] )
+                        tmp = customOrf[ii,:,:]
+                        ORF.append( [tmp, tmp] )
                     else:
-                        ORF.append( customOrf )
-                        
+                        tmp = customOrf
+                        ORF.append( [tmp, tmp] )
+                
                 if args.incDM:
-                    for ii in range(nmodes_dm): # number of frequencies
+                    for ii in range(2*nmodes_dm): 
                         ORF.append( np.zeros((npsr,npsr)) )
 
                 if args.incEph:
-                    for kk in range(3): # x,y,z
-                        for ii in range(nmodes_eph): # number of frequencies
+                    if args.jplBasis:
+                        for ii in range(nmodes_eph):
                             ORF.append( np.zeros((npsr,npsr)) )
+                    else:
+                        for kk in range(3): # x,y,z
+                            for ii in range(2*nmodes_eph):
+                                ORF.append( np.zeros((npsr,npsr)) )
 
                 if args.incClk and args.clkDesign:
-                    for ii in range(nmodes_red): 
+                    for ii in range(2*nmodes_red):
                         ORF.append( np.zeros((npsr,npsr)) )
-
+                       
                 if args.incBand:
                     for kk in range(len(bands)-1):
-                        for ii in range(nmodes_band):
+                        for ii in range(2*nmodes_band):
                             ORF.append( np.zeros((npsr,npsr)) )
-
+                           
                 ORF = np.array(ORF)
-                ORFtot = np.zeros((mode_count,npsr,npsr)) # shouldn't be applying ORF to dmfreqs
-                                                          # or ephemeris freqs, but the 
-                                                          # projection of GW spec onto dmfreqs
-                                                          # is defined as zero below.
-                ORFtot[0::2] = ORF
-                ORFtot[1::2] = ORF
+                ORFtot = ORF
 
             elif args.gwbTypeCorr == 'gwDisk':
             
@@ -2102,34 +2129,36 @@ def lnprob(xx):
                 for ii in range(tmp_nwins): # number of frequency windows
                     for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
                         if hp is not None:
-                            ORF.append( gammaDisk[ii,:,:] )
+                            tmp = gammaDisk[ii,:,:]
+                            ORF.append( [tmp, tmp] )
                         elif hp is None:
-                            ORF.append( monoOrf )
-                        
+                            tmp = monoOrf
+                            ORF.append( [tmp, tmp] )
+                  
                 if args.incDM:
-                    for ii in range(nmodes_dm):
+                    for ii in range(2*nmodes_dm): 
                         ORF.append( np.zeros((npsr,npsr)) )
 
                 if args.incEph:
-                    for kk in range(3): # x,y,z
-                        for ii in range(nmodes_eph): 
+                    if args.jplBasis:
+                        for ii in range(nmodes_eph):
                             ORF.append( np.zeros((npsr,npsr)) )
+                    else:
+                        for kk in range(3): # x,y,z
+                            for ii in range(2*nmodes_eph):
+                                ORF.append( np.zeros((npsr,npsr)) )
 
                 if args.incClk and args.clkDesign:
-                    for ii in range(nmodes_red): 
+                    for ii in range(2*nmodes_red):
                         ORF.append( np.zeros((npsr,npsr)) )
-
+                       
                 if args.incBand:
                     for kk in range(len(bands)-1):
-                        for ii in range(nmodes_band):
+                        for ii in range(2*nmodes_band):
                             ORF.append( np.zeros((npsr,npsr)) )
-
+                           
                 ORF = np.array(ORF)
-                ORFtot = np.zeros((mode_count,npsr,npsr)) # shouldn't be applying ORF to dmfreqs,
-                                                          # but the projection of GW spec onto dmfreqs
-                                                          # is defined as zero below.
-                ORFtot[0::2] = ORF
-                ORFtot[1::2] = ORF
+                ORFtot = ORF
 
             elif args.gwbTypeCorr == 'psrlocsVary':
             
@@ -2152,65 +2181,66 @@ def lnprob(xx):
                     varyLocs[0,:] = psr[0].psr_locs[0], np.pi/2. - psr[0].psr_locs[1]
                     monoOrf = 2.0*np.sqrt(np.pi)*anis.CorrBasis(varyLocs,0)[0]
                     for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
-                        ORF.append( monoOrf )
-                        
+                        tmp = monoOrf
+                        ORF.append( [tmp, tmp] )
+                       
                 if args.incDM:
-                    for ii in range(nmodes_dm): 
+                    for ii in range(2*nmodes_dm): 
                         ORF.append( np.zeros((npsr,npsr)) )
 
                 if args.incEph:
-                    for kk in range(3): # x,y,z
-                        for ii in range(nmodes_eph): 
+                    if args.jplBasis:
+                        for ii in range(nmodes_eph):
                             ORF.append( np.zeros((npsr,npsr)) )
+                    else:
+                        for kk in range(3): # x,y,z
+                            for ii in range(2*nmodes_eph):
+                                ORF.append( np.zeros((npsr,npsr)) )
 
                 if args.incClk and args.clkDesign:
-                    for ii in range(nmodes_red): 
+                    for ii in range(2*nmodes_red):
                         ORF.append( np.zeros((npsr,npsr)) )
-
+                       
                 if args.incBand:
                     for kk in range(len(bands)-1):
-                        for ii in range(nmodes_band):
+                        for ii in range(2*nmodes_band):
                             ORF.append( np.zeros((npsr,npsr)) )
-
+                           
                 ORF = np.array(ORF)
-                ORFtot = np.zeros((mode_count,npsr,npsr)) # shouldn't be applying ORF to dmfreqs,
-                                                          # but the projection of GW spec onto dmfreqs
-                                                          # is defined as zero below.
-                ORFtot[0::2] = ORF
-                ORFtot[1::2] = ORF
+                ORFtot = ORF
                 
             elif args.gwbTypeCorr == 'clock':
 
                 ORF=[]
                 for ii in range(tmp_nwins): # number of frequency windows
                     for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
-                        ORF.append( np.ones((npsr,npsr)) + 1e-5*np.diag(np.ones(npsr)) ) # clock signal is completely correlated
-                        
+                        tmp = np.ones((npsr,npsr)) + 1e-5*np.diag(np.ones(npsr))
+                        ORF.append( [tmp, tmp] ) # clock signal is completely correlated
+                      
                 if args.incDM:
-                    for ii in range(nmodes_dm): 
+                    for ii in range(2*nmodes_dm): 
                         ORF.append( np.zeros((npsr,npsr)) )
 
                 if args.incEph:
-                    for kk in range(3): # x,y,z
-                        for ii in range(nmodes_eph): 
+                    if args.jplBasis:
+                        for ii in range(nmodes_eph):
                             ORF.append( np.zeros((npsr,npsr)) )
+                    else:
+                        for kk in range(3): # x,y,z
+                            for ii in range(2*nmodes_eph):
+                                ORF.append( np.zeros((npsr,npsr)) )
 
                 if args.incClk and args.clkDesign:
-                    for ii in range(nmodes_red): 
+                    for ii in range(2*nmodes_red):
                         ORF.append( np.zeros((npsr,npsr)) )
-
+                       
                 if args.incBand:
                     for kk in range(len(bands)-1):
-                        for ii in range(nmodes_band):
+                        for ii in range(2*nmodes_band):
                             ORF.append( np.zeros((npsr,npsr)) )
-
+                           
                 ORF = np.array(ORF)
-                ORFtot = np.zeros((mode_count,npsr,npsr)) # shouldn't be applying ORF to dmfreqs,
-                                                          # but the projection of GW spec onto dmfreqs
-                                                          # is defined as zero below.
-                ORFtot[0::2] = ORF
-                ORFtot[1::2] = ORF
-            
+                ORFtot = ORF
 
         if args.incGWline:
     
@@ -2247,6 +2277,7 @@ def lnprob(xx):
                 red_kappa_tmp = np.log10( Ared_tmp**2/12/np.pi**2 * \
                                     f1yr**(gam_red_tmp-3) * \
                                     (fqs_red/86400.0)**(-gam_red_tmp)/Tspan )
+                red_kappa_tmp = np.repeat(red_kappa_tmp, 2)
             
             if not args.fixRed:
                 if args.redSpecModel == 'powerlaw':
@@ -2256,8 +2287,10 @@ def lnprob(xx):
                     red_kappa_tmp = np.log10( Ared_tmp**2/12/np.pi**2 * \
                                             f1yr**(gam_red_tmp-3) * \
                                             (fqs_red/86400.0)**(-gam_red_tmp)/Tspan )
+                    red_kappa_tmp = np.repeat(red_kappa_tmp, 2)
                 elif args.redSpecModel == 'spectrum':
                     red_kappa_tmp = np.log10( 10.0**(2.0*red_spec[ii,:]) / Tspan)
+                    red_kappa_tmp = np.repeat(red_kappa_tmp, 2)
 
             # Construct DM-variations signal (if appropriate)
             if args.incDM:
@@ -2268,6 +2301,7 @@ def lnprob(xx):
                     dm_kappa_tmp = np.log10( Adm_tmp**2/12/np.pi**2 * \
                                             f1yr**(gam_dm_tmp-3) * \
                                             (fqs_dm/86400.0)**(-gam_dm_tmp)/Tspan )
+                    dm_kappa_tmp = np.repeat(dm_kappa_tmp, 2)
 
                 if not args.fixDM:
                     if args.dmSpecModel == 'powerlaw':
@@ -2277,24 +2311,29 @@ def lnprob(xx):
                         dm_kappa_tmp = np.log10( Adm_tmp**2/12/np.pi**2 * \
                                                 f1yr**(gam_dm_tmp-3) * \
                                                 (fqs_dm/86400.0)**(-gam_dm_tmp)/Tspan )
+                        dm_kappa_tmp = np.repeat(dm_kappa_tmp, 2)
                     elif args.dmSpecModel == 'spectrum':
                         dm_kappa_tmp = np.log10( 10.0**(2.0*dm_spec[ii,:]) / Tspan)
+                        dm_kappa_tmp = np.repeat(dm_kappa_tmp, 2)
 
             if not args.incDM:
                 dm_kappa_tmp = np.array([])
 
             if args.incEph:
-                eph_padding = np.zeros(3*nmodes_eph)
+                if args.jplBasis:
+                    eph_padding = np.zeros(nmodes_eph)
+                else:
+                    eph_padding = np.zeros(6*nmodes_eph)
             elif not args.incEph:
                 eph_padding = np.array([])
 
             if args.incClk and args.clkDesign:
-                clk_padding = np.zeros(nmodes_red)
+                clk_padding = np.zeros(2*nmodes_red)
             else:
                 clk_padding = np.array([])
 
             if args.incBand:
-                band_padding = np.zeros((len(bands)-1)*nmodes_band)
+                band_padding = np.zeros((len(bands)-1)*2*nmodes_band)
             elif not args.incBand:
                 band_padding = np.array([])
 
@@ -2304,8 +2343,8 @@ def lnprob(xx):
                                          eph_padding,
                                          clk_padding,
                                          band_padding)))
+            
     
-                
         ###################################
         # construct elements of sigma array
     
@@ -2365,25 +2404,28 @@ def lnprob(xx):
                 rho = np.log10( hc**2 / (12.0*np.pi**2.0) / (fqs_red/86400.0)**3.0 / Tspan )
 
                 '''
-
-
+            rho = np.repeat(rho, 2)
+            
             if args.incDM:
-                dm_padding = np.zeros(nmodes_dm)
+                dm_padding = np.zeros(2*nmodes_dm)
             elif not args.incDM:
                 dm_padding = np.array([])
                 
             if args.incEph:
-                eph_padding = np.zeros(3*nmodes_eph)
+                if args.jplBasis:
+                    eph_padding = np.zeros(nmodes_eph)
+                else:
+                    eph_padding = np.zeros(6*nmodes_eph)
             elif not args.incEph:
                 eph_padding = np.array([])
 
             if args.incClk and args.clkDesign:
-                clk_padding = np.zeros(nmodes_red)
+                clk_padding = np.zeros(2*nmodes_red)
             else:
                 clk_padding = np.array([])
 
             if args.incBand:
-                band_padding = np.zeros((len(bands)-1)*nmodes_band)
+                band_padding = np.zeros((len(bands)-1)*2*nmodes_band)
             elif not args.incBand:
                 band_padding = np.array([])
                     
@@ -2399,24 +2441,28 @@ def lnprob(xx):
             rho_line = np.zeros(nmodes_red)
             idx = np.argmin(np.abs(fqs_red/86400.0 - freq_gwline))
             rho_line[idx] = 10.0**(2.0*spec_gwline) / Tspan
-
+            rho_line = np.repeat(rho_line, 2)
+            
             if args.incDM:
-                dm_padding = np.zeros(nmodes_dm)
+                dm_padding = np.zeros(2*nmodes_dm)
             elif not args.incDM:
                 dm_padding = np.array([])
             
             if args.incEph:
-                eph_padding = np.zeros(3*nmodes_eph)
+                if args.jplBasis:
+                    eph_padding = np.zeros(nmodes_eph)
+                else:
+                    eph_padding = np.zeros(6*nmodes_eph)
             elif not args.incEph:
                 eph_padding = np.array([])
 
             if args.incClk and args.clkDesign:
-                clk_padding = np.zeros(nmodes_red)
+                clk_padding = np.zeros(2*nmodes_red)
             else:
                 clk_padding = np.array([])
 
             if args.incBand:
-                band_padding = np.zeros((len(bands)-1)*nmodes_band)
+                band_padding = np.zeros((len(bands)-1)*2*nmodes_band)
             elif not args.incBand:
                 band_padding = np.array([])
             
@@ -2436,27 +2482,31 @@ def lnprob(xx):
                 kappa_clk = np.log10(Aclk**2/12/np.pi**2 * \
                             f1yr**(gam_clk-3) * \
                             (fqs_red/86400.0)**(-gam_clk)/Tspan)
+                kappa_clk = np.repeat(kappa_clk, 2)
             elif args.clkSpecModel == 'spectrum':
                 kappa_clk = np.log10( 10.0**(2.0*clk_spec) / Tspan )
-
+                kappa_clk = np.repeat(kappa_clk, 2)
 
             if args.incDM:
-                dm_padding = np.zeros(nmodes_dm)
+                dm_padding = np.zeros(2*nmodes_dm)
             elif not args.incDM:
                 dm_padding = np.array([])
                 
             if args.incEph:
-                eph_padding = np.zeros(3*nmodes_eph)
+                if args.jplBasis:
+                    eph_padding = np.zeros(nmodes_eph)
+                else:
+                    eph_padding = np.zeros(6*nmodes_eph)
             elif not args.incEph:
                 eph_padding = np.array([])
 
             if args.incBand:
-                band_padding = np.zeros((len(bands)-1)*nmodes_band)
+                band_padding = np.zeros((len(bands)-1)*2*nmodes_band)
             elif not args.incBand:
                 band_padding = np.array([])
 
             if args.incClk and args.clkDesign:
-                clk_padding = np.zeros(nmodes_red)
+                clk_padding = np.zeros(2*nmodes_red)
                 clkspec = np.concatenate( (clk_padding,
                                            dm_padding,
                                            eph_padding,
@@ -2469,7 +2519,7 @@ def lnprob(xx):
                                            eph_padding,
                                            clk_padding,
                                            band_padding) )
-
+            
             if args.incCorr:
                 sig_clkoffdiag = []
 
@@ -2480,72 +2530,82 @@ def lnprob(xx):
                 kappa_cm = np.log10(Acm**2/12/np.pi**2 * \
                             f1yr**(gam_cm-3) * \
                             (fqs_red/86400.0)**(-gam_cm)/Tspan)
+                kappa_cm = np.repeat(kappa_cm, 2)
             elif args.cmSpecModel == 'spectrum':
                 kappa_cm = np.log10( 10.0**(2.0*cm_spec) / Tspan )
-
+                kappa_cm = np.repeat(kappa_cm, 2)
 
             if args.incDM:
-                dm_padding = np.zeros(nmodes_dm)
+                dm_padding = np.zeros(2*nmodes_dm)
             elif not args.incDM:
                 dm_padding = np.array([])
                 
             if args.incEph:
-                eph_padding = np.zeros(3*nmodes_eph)
+                if args.jplBasis:
+                    eph_padding = np.zeros(nmodes_eph)
+                else:
+                    eph_padding = np.zeros(6*nmodes_eph)
             elif not args.incEph:
                 eph_padding = np.array([])
 
             if args.incClk and args.clkDesign:
-                clk_padding = np.zeros(nmodes_red)
+                clk_padding = np.zeros(2*nmodes_red)
             else:
                 clk_padding = np.array([])
 
             if args.incBand:
-                band_padding = np.zeros((len(bands)-1)*nmodes_band)
+                band_padding = np.zeros((len(bands)-1)*2*nmodes_band)
             elif not args.incBand:
                 band_padding = np.array([])
                     
             cmspec = np.concatenate( (10**kappa_cm, dm_padding,
                                       eph_padding, clk_padding,
                                       band_padding) )
-    
-                
+            
         if args.incEph:
 
-            if args.ephSpecModel == 'powerlaw':
-                kappa_ephx = np.log10(Aephx**2/12/np.pi**2 * \
-                                      f1yr**(gam_ephx-3) * \
-                                      (fqs_eph/86400.0)**(-gam_ephx)/Tspan)
-                kappa_ephy = np.log10(Aephy**2/12/np.pi**2 * \
-                                      f1yr**(gam_ephy-3) * \
-                                      (fqs_eph/86400.0)**(-gam_ephy)/Tspan)
-                kappa_ephz = np.log10(Aephz**2/12/np.pi**2 * \
-                                      f1yr**(gam_ephz-3) * \
-                                      (fqs_eph/86400.0)**(-gam_ephz)/Tspan)
-            elif args.ephSpecModel == 'spectrum':
-                kappa_ephx = np.log10( 10.0**(2.0*eph_spec[0,:]))
-                kappa_ephy = np.log10( 10.0**(2.0*eph_spec[1,:]))
-                kappa_ephz = np.log10( 10.0**(2.0*eph_spec[2,:]))
-
-            red_padding = np.zeros(nmodes_red)
+            if args.jplBasis:
+                kappa_eph = np.log10(ephPhivec)
+            else:
+                if args.ephSpecModel == 'powerlaw':
+                    kappa_ephx = np.log10(Aephx**2/12/np.pi**2 * \
+                                        f1yr**(gam_ephx-3) * \
+                                        (fqs_eph/86400.0)**(-gam_ephx)/Tspan)
+                    kappa_ephy = np.log10(Aephy**2/12/np.pi**2 * \
+                                        f1yr**(gam_ephy-3) * \
+                                        (fqs_eph/86400.0)**(-gam_ephy)/Tspan)
+                    kappa_ephz = np.log10(Aephz**2/12/np.pi**2 * \
+                                        f1yr**(gam_ephz-3) * \
+                                        (fqs_eph/86400.0)**(-gam_ephz)/Tspan)
+                    kappa_eph = np.concatenate((kappa_ephx, kappa_ephy, kappa_ephz))
+                    kappa_eph = np.repeat(kappa_eph, 2)
+                elif args.ephSpecModel == 'spectrum':
+                    kappa_ephx = np.log10( 10.0**(2.0*eph_spec[0,:]))
+                    kappa_ephy = np.log10( 10.0**(2.0*eph_spec[1,:]))
+                    kappa_ephz = np.log10( 10.0**(2.0*eph_spec[2,:]))
+                    kappa_eph = np.concatenate((kappa_ephx, kappa_ephy, kappa_ephz))
+                    kappa_eph = np.repeat(kappa_eph, 2)
+            
+            red_padding = np.zeros(2*nmodes_red)
             if args.incDM:
-                dm_padding = np.zeros(nmodes_dm)
+                dm_padding = np.zeros(2*nmodes_dm)
             elif not args.incDM:
                 dm_padding = np.array([])
 
             if args.incClk and args.clkDesign:
-                clk_padding = np.zeros(nmodes_red)
+                clk_padding = np.zeros(2*nmodes_red)
             else:
                 clk_padding = np.array([])
 
             if args.incBand:
-                band_padding = np.zeros((len(bands)-1)*nmodes_band)
+                band_padding = np.zeros((len(bands)-1)*2*nmodes_band)
             elif not args.incBand:
                 band_padding = np.array([])
 
             eph_kappa = np.concatenate( (red_padding, dm_padding,
-                                         10**kappa_ephx, 10**kappa_ephy,
-                                         10**kappa_ephz, clk_padding,
+                                         10**kappa_eph, clk_padding,
                                          band_padding) )
+            
 
         if args.incBand:
 
@@ -2556,39 +2616,45 @@ def lnprob(xx):
                                            np.log10(Aband[ii]**2/12/np.pi**2 * \
                                                     f1yr**(gam_band[ii]-3) * \
                                                     (fqs_band/86400.0)**(-gam_band[ii])/Tspan))
+                kappa_band = np.repeat(kappa_band, 2)
                
             elif args.bandSpecModel == 'spectrum':
                 for ii in range(len(bands)-1):
                     kappa_band = np.append(kappa_band,
                                            np.log10( 10.0**(2.0*band_spec[ii,:])))
-                
-            red_padding = np.zeros(nmodes_red)
+                kappa_band = np.repeat(kappa_band, 2)
+
+            
+            red_padding = np.zeros(2*nmodes_red)
             if args.incDM:
-                dm_padding = np.zeros(nmodes_dm)
+                dm_padding = np.zeros(2*nmodes_dm)
             elif not args.incDM:
                 dm_padding = np.array([])
 
             if args.incEph:
-                eph_padding = np.zeros(3*nmodes_eph)
+                if args.jplBasis:
+                    eph_padding = np.zeros(nmodes_eph)
+                else:
+                    eph_padding = np.zeros(6*nmodes_eph)
             elif not args.incEph:
                 eph_padding = np.array([])
 
             if args.incClk and args.clkDesign:
-                clk_padding = np.zeros(nmodes_red)
+                clk_padding = np.zeros(2*nmodes_red)
             else:
                 clk_padding = np.array([])
 
             band_kappa = np.concatenate( (red_padding, dm_padding,
                                          eph_padding, clk_padding,
                                          10.0**kappa_band) )
+            
         
 
         for ii in range(npsr):
             tot = np.zeros(mode_count)
 
             # diagonal terms
-            tot[0::2] = kappa[ii]
-            tot[1::2] = kappa[ii] 
+            tot += kappa[ii]
 
             if args.incGWB:
             
@@ -2597,20 +2663,17 @@ def lnprob(xx):
                     offdiag = np.zeros(mode_count)
 
                     # off diagonal terms
-                    offdiag[0::2] = gwbspec
-                    offdiag[1::2] = gwbspec
+                    offdiag += gwbspec
 
                     # diagonal terms
-                    tot[0::2] += ORF[:,ii,ii]*gwbspec
-                    tot[1::2] += ORF[:,ii,ii]*gwbspec
+                    tot += ORFtot[:,ii,ii]*gwbspec
 
                     sig_gwboffdiag.append(offdiag)
                 
                 if not args.incCorr or gwb_modindex==0:
                     
                     # diagonal terms
-                    tot[0::2] += gwbspec
-                    tot[1::2] += gwbspec
+                    tot += gwbspec
 
             if args.incGWline:
             
@@ -2619,20 +2682,17 @@ def lnprob(xx):
                     offdiag = np.zeros(mode_count)
 
                     # off diagonal terms
-                    offdiag[0::2] = gwline_spec
-                    offdiag[1::2] = gwline_spec
+                    offdiag = gwline_spec
 
                     # diagonal terms
-                    tot[0::2] += gwline_orf[ii,ii]*gwline_spec
-                    tot[1::2] += gwline_orf[ii,ii]*gwline_spec
+                    tot += gwline_orf[ii,ii] * gwline_spec
 
                     sig_gwlineoffdiag.append(offdiag)
                 
                 if not args.incCorr:
                 
                     # diagonal terms
-                    tot[0::2] += gwline_spec
-                    tot[1::2] += gwline_spec
+                    tot += gwline_spec
 
             if args.incClk:
             
@@ -2642,43 +2702,35 @@ def lnprob(xx):
 
                     # off diagonal terms
                     # [clock errors are full correlated]
-                    offdiag[0::2] = clkspec
-                    offdiag[1::2] = clkspec
+                    offdiag = clkspec
 
                     # diagonal terms
                     if args.clkDesign:
-                        tot[0::2] += (1.0 + 1e-5)*clkspec
-                        tot[1::2] += (1.0 + 1e-5)*clkspec
+                        tot += (1.0 + 1e-5)*clkspec
                     elif not args.clkDesign:
-                        tot[0::2] += clkspec
-                        tot[1::2] += clkspec
+                        tot += clkspec
 
                     sig_clkoffdiag.append(offdiag)
                 
                 if not args.incCorr:
                 
                     # diagonal terms
-                    tot[0::2] += clkspec
-                    tot[1::2] += clkspec
+                    tot += clkspec
 
             if args.incCm:
 
                 # diagonal terms
-                tot[0::2] += cmspec
-                tot[1::2] += cmspec
+                tot += cmspec
 
             if args.incEph:
 
                 # diagonal terms
-                tot[0::2] += eph_kappa
-                tot[1::2] += eph_kappa
+                tot += eph_kappa
 
             if args.incBand:
 
                 # diagonal terms
-                tot[0::2] += band_kappa
-                tot[1::2] += band_kappa
-                
+                tot += band_kappa
                 
             # fill in lists of arrays
             sigdiag.append(tot)
@@ -3066,7 +3118,7 @@ def lnprob(xx):
         priorfac_cm = 0.0
         
 
-    if args.incEph:
+    if args.incEph and not args.jplBasis:
         ### powerlaw spectral model ###
         if args.ephSpecModel == 'powerlaw':
             if args.ephPrior == 'uniform':
@@ -3083,7 +3135,7 @@ def lnprob(xx):
                   np.sum(np.log(10.0**eph_spec[2,:] * np.log(10.0)))
             elif args.ephPrior == 'loguniform':
                 priorfac_eph = 0.0
-    elif not args.incEph:
+    else:
         priorfac_eph = 0.0
 
 
@@ -3236,7 +3288,7 @@ if args.incCm:
     elif args.cmSpecModel == 'spectrum':
         for jj in range(nmodes_red):
             parameters.append('cmSpec'+'_{0}'.format(jj+1))
-if args.incEph:
+if args.incEph and not args.jplBasis:
     if args.ephSpecModel == 'powerlaw':
         parameters += ['Aephx', 'Aephy', 'Aephz']
         parameters += ['gam_ephx', 'gam_ephy', 'gam_ephz']
@@ -3515,7 +3567,7 @@ if args.sampler == 'mnest':
             np.save(dir_name+'/freq_array_dm.npy', fqs_dm/86400.0)
         if args.incBand:
             np.save(dir_name+'/freq_array_band.npy', fqs_band/86400.0)
-        if args.incEph:
+        if args.incEph and not args.jplBasis:
             np.save(dir_name+'/freq_array_eph.npy', fqs_eph/86400.0)
 
         # Printing out the array of random phase shifts
@@ -3575,7 +3627,7 @@ elif args.sampler == 'pchord':
             np.save(dir_name+'/freq_array_dm.npy', fqs_dm/86400.0)
         if args.incBand:
             np.save(dir_name+'/freq_array_band.npy', fqs_band/86400.0)
-        if args.incEph:
+        if args.incEph and not args.jplBasis:
             np.save(dir_name+'/freq_array_eph.npy', fqs_eph/86400.0)
 
         # Printing out the array of random phase shifts
@@ -3653,7 +3705,7 @@ elif args.sampler == 'ptmcmc':
             x0 = np.append(x0,np.random.uniform(0.0,7.0))
         elif args.cmSpecModel == 'spectrum':
             x0 = np.append(x0,np.random.uniform(-7.0,-3.0,nmodes_red))
-    if args.incEph:
+    if args.incEph and not args.jplBasis:
         if args.ephSpecModel == 'powerlaw':
             # starting eph parameters at random positions
             x0 = np.append(x0,np.random.uniform(-20.0,-11.0,3))
@@ -3774,7 +3826,7 @@ elif args.sampler == 'ptmcmc':
             cov_diag = np.append(cov_diag,np.array([0.5,0.5]))
         elif args.cmSpecModel == 'spectrum':
             cov_diag = np.append(cov_diag,0.1*np.ones(nmodes_red))
-    if args.incEph:
+    if args.incEph and not args.jplBasis:
         if args.ephSpecModel == 'powerlaw':
             cov_diag = np.append(cov_diag,np.array([0.5,0.5,0.5]))
             cov_diag = np.append(cov_diag,np.array([0.5,0.5,0.5]))
@@ -3925,7 +3977,7 @@ elif args.sampler == 'ptmcmc':
             param_ct += nmodes_red
 
     ##### Ephemeris errors #####
-    if args.incEph:
+    if args.incEph and not args.jplBasis:
         if args.ephSpecModel == 'powerlaw':
             ephamps = [param_ct,param_ct+1,param_ct+2]
             ephgam = [param_ct+3,param_ct+4,param_ct+5]
@@ -4116,7 +4168,7 @@ elif args.sampler == 'ptmcmc':
             np.save(args.dirExt+file_tag+'/freq_array_dm.npy', fqs_dm/86400.0)
         if args.incBand:
             np.save(args.dirExt+file_tag+'/freq_array_band.npy', fqs_band/86400.0)
-        if args.incEph:
+        if args.incEph and not args.jplBasis:
             np.save(args.dirExt+file_tag+'/freq_array_eph.npy', fqs_eph/86400.0)
 
         # Printing out the array of random phase shifts
@@ -4755,7 +4807,7 @@ elif args.sampler == 'ptmcmc':
             elif args.cmSpecModel == 'spectrum':
                 pct += nmodes_red
 
-        if args.incEph:
+        if args.incEph and not args.jplBasis:
             if args.ephSpecModel == 'powerlaw':
                 pct += 6
             elif args.ephSpecModel == 'spectrum':
@@ -4834,7 +4886,7 @@ elif args.sampler == 'ptmcmc':
             elif args.cmSpecModel == 'spectrum':
                 pct += nmodes_red
 
-        if args.incEph:
+        if args.incEph and not args.jplBasis:
             if args.ephSpecModel == 'powerlaw':
                 pct += 6
             elif args.ephSpecModel == 'spectrum':
@@ -4921,7 +4973,7 @@ elif args.sampler == 'ptmcmc':
             elif args.cmSpecModel == 'spectrum':
                 pct += nmodes_red
 
-        if args.incEph:
+        if args.incEph and not args.jplBasis:
             if args.ephSpecModel == 'powerlaw':
                 pct += 6
             elif args.ephSpecModel == 'spectrum':
@@ -5009,7 +5061,7 @@ elif args.sampler == 'ptmcmc':
             elif args.cmSpecModel == 'spectrum':
                 pct += nmodes_red
 
-        if args.incEph:
+        if args.incEph and not args.jplBasis:
             if args.ephSpecModel == 'powerlaw':
                 pct += 6
             elif args.ephSpecModel == 'spectrum':
@@ -5091,7 +5143,7 @@ elif args.sampler == 'ptmcmc':
             elif args.cmSpecModel == 'spectrum':
                 pct += nmodes_red
 
-        if args.incEph:
+        if args.incEph and not args.jplBasis:
             if args.ephSpecModel == 'powerlaw':
                 pct += 6
             elif args.ephSpecModel == 'spectrum':
@@ -5173,7 +5225,7 @@ elif args.sampler == 'ptmcmc':
             elif args.cmSpecModel == 'spectrum':
                 pct += nmodes_red
 
-        if args.incEph:
+        if args.incEph and not args.jplBasis:
             if args.ephSpecModel == 'powerlaw':
                 pct += 6
             elif args.ephSpecModel == 'spectrum':
@@ -5255,7 +5307,7 @@ elif args.sampler == 'ptmcmc':
             elif args.cmSpecModel == 'spectrum':
                 pct += nmodes_red
 
-        if args.incEph:
+        if args.incEph and not args.jplBasis:
             if args.ephSpecModel == 'powerlaw':
                 pct += 6
             elif args.ephSpecModel == 'spectrum':
@@ -5333,7 +5385,7 @@ elif args.sampler == 'ptmcmc':
             elif args.cmSpecModel == 'spectrum':
                 pct += nmodes_red
 
-        if args.incEph:
+        if args.incEph and not args.jplBasis:
             if args.ephSpecModel == 'powerlaw':
                 pct += 6
             elif args.ephSpecModel == 'spectrum':
@@ -5418,7 +5470,7 @@ elif args.sampler == 'ptmcmc':
             elif args.cmSpecModel == 'spectrum':
                 pct += nmodes_red
 
-        if args.incEph:
+        if args.incEph and not args.jplBasis:
             if args.ephSpecModel == 'powerlaw':
                 pct += 6
             elif args.ephSpecModel == 'spectrum':
@@ -5510,7 +5562,7 @@ elif args.sampler == 'ptmcmc':
             elif args.cmSpecModel == 'spectrum':
                 pct += nmodes_red
 
-        if args.incEph:
+        if args.incEph and not args.jplBasis:
             if args.ephSpecModel == 'powerlaw':
                 pct += 6
             elif args.ephSpecModel == 'spectrum':
@@ -5605,7 +5657,7 @@ elif args.sampler == 'ptmcmc':
             elif args.cmSpecModel == 'spectrum':
                 pct += nmodes_red
 
-        if args.incEph:
+        if args.incEph and not args.jplBasis:
             if args.ephSpecModel == 'powerlaw':
                 pct += 6
             elif args.ephSpecModel == 'spectrum':
@@ -5700,7 +5752,7 @@ elif args.sampler == 'ptmcmc':
             elif args.cmSpecModel == 'spectrum':
                 pct += nmodes_red
 
-        if args.incEph:
+        if args.incEph and not args.jplBasis:
             if args.ephSpecModel == 'powerlaw':
                 pct += 6
             elif args.ephSpecModel == 'spectrum':
@@ -5796,7 +5848,7 @@ elif args.sampler == 'ptmcmc':
             elif args.cmSpecModel == 'spectrum':
                 pct += nmodes_red
 
-        if args.incEph:
+        if args.incEph and not args.jplBasis:
             if args.ephSpecModel == 'powerlaw':
                 pct += 6
             elif args.ephSpecModel == 'spectrum':
@@ -5893,7 +5945,7 @@ elif args.sampler == 'ptmcmc':
             elif args.cmSpecModel == 'spectrum':
                 pct += nmodes_red
 
-        if args.incEph:
+        if args.incEph and not args.jplBasis:
             if args.ephSpecModel == 'powerlaw':
                 pct += 6
             elif args.ephSpecModel == 'spectrum':
@@ -5980,7 +6032,7 @@ elif args.sampler == 'ptmcmc':
             elif args.cmSpecModel == 'spectrum':
                 pct += nmodes_red
 
-        if args.incEph:
+        if args.incEph and not args.jplBasis:
             if args.ephSpecModel == 'powerlaw':
                 pct += 6
             elif args.ephSpecModel == 'spectrum':
@@ -6066,7 +6118,7 @@ elif args.sampler == 'ptmcmc':
             elif args.cmSpecModel == 'spectrum':
                 pct += nmodes_red
 
-        if args.incEph:
+        if args.incEph and not args.jplBasis:
             if args.ephSpecModel == 'powerlaw':
                 pct += 6
             elif args.ephSpecModel == 'spectrum':
@@ -6136,7 +6188,7 @@ elif args.sampler == 'ptmcmc':
             sampler.addProposalToCycle(drawFromCmNoisePowerlawPrior, 10)
         elif args.cmSpecModel == 'spectrum':
             sampler.addProposalToCycle(drawFromCmNoiseSpectrumPrior, 10)
-    if args.incEph:
+    if args.incEph and not args.jplBasis:
         if args.ephSpecModel == 'powerlaw':
             sampler.addProposalToCycle(drawFromEphNoisePowerlawPrior, 10)
         elif args.ephSpecModel == 'spectrum':
