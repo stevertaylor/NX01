@@ -1838,7 +1838,8 @@ def lnprob(xx):
                                 np.prod( np.sin(np.array(phi_els[bb-1])[0:aa]) )   
 
                         tmp = np.dot( upper_triang.T, upper_triang )
-                        ORF.append([tmp,tmp])
+                        ORF.append( tmp )
+                        ORF.append( tmp )
                 
                 if args.incDM:
                     for ii in range(2*nmodes_dm): 
@@ -1899,7 +1900,8 @@ def lnprob(xx):
                 for ii in range(tmp_nwins): # number of frequency windows
                     for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
                         tmp = corr_curve[ii,:,:]
-                        ORF.append( [tmp, tmp] )
+                        ORF.append( tmp )
+                        ORF.append( tmp )
                 
                 if args.incDM:
                     for ii in range(2*nmodes_dm): 
@@ -1957,7 +1959,8 @@ def lnprob(xx):
                     for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
                         tmp = sum(clm[ii,kk]*CorrCoeff[kk]
                                       for kk in range(len(CorrCoeff)))
-                        ORF.append( [tmp, tmp] )
+                        ORF.append( tmp )
+                        ORF.append( tmp )
                 
                 if args.incDM:
                     for ii in range(2*nmodes_dm): 
@@ -2030,7 +2033,8 @@ def lnprob(xx):
                 for ii in range(tmp_nwins): # number of frequency windows
                     for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
                         tmp = monoOrf + dipwgt[ii]*gammaDip[ii,:,:]
-                        ORF.append( [tmp, tmp] )
+                        ORF.append( tmp )
+                        ORF.append( tmp )
                 
                 if args.incDM:
                     for ii in range(2*nmodes_dm): 
@@ -2066,10 +2070,12 @@ def lnprob(xx):
                 for ii in range(nmodes_red): # number of frequencies
                     if np.atleast_3d(customOrf.T).shape[-1]>1:
                         tmp = customOrf[ii,:,:]
-                        ORF.append( [tmp, tmp] )
+                        ORF.append( tmp )
+                        ORF.append( tmp )
                     else:
                         tmp = customOrf
-                        ORF.append( [tmp, tmp] )
+                        ORF.append( tmp )
+                        ORF.append( tmp )
                 
                 if args.incDM:
                     for ii in range(2*nmodes_dm): 
@@ -2130,10 +2136,12 @@ def lnprob(xx):
                     for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
                         if hp is not None:
                             tmp = gammaDisk[ii,:,:]
-                            ORF.append( [tmp, tmp] )
+                            ORF.append( tmp )
+                            ORF.append( tmp )
                         elif hp is None:
                             tmp = monoOrf
-                            ORF.append( [tmp, tmp] )
+                            ORF.append( tmp )
+                            ORF.append( tmp )
                   
                 if args.incDM:
                     for ii in range(2*nmodes_dm): 
@@ -2182,7 +2190,8 @@ def lnprob(xx):
                     monoOrf = 2.0*np.sqrt(np.pi)*anis.CorrBasis(varyLocs,0)[0]
                     for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
                         tmp = monoOrf
-                        ORF.append( [tmp, tmp] )
+                        ORF.append( tmp )
+                        ORF.append( tmp )
                        
                 if args.incDM:
                     for ii in range(2*nmodes_dm): 
@@ -2215,7 +2224,8 @@ def lnprob(xx):
                 for ii in range(tmp_nwins): # number of frequency windows
                     for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
                         tmp = np.ones((npsr,npsr)) + 1e-5*np.diag(np.ones(npsr))
-                        ORF.append( [tmp, tmp] ) # clock signal is completely correlated
+                        ORF.append( tmp )
+                        ORF.append( tmp ) # clock signal is completely correlated
                       
                 if args.incDM:
                     for ii in range(2*nmodes_dm): 
