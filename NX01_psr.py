@@ -155,23 +155,32 @@ class PsrObj(object):
                 tag = 'DMASSPLANET'+str(ii)
                 self.T2psr[tag].val = 0.0
             self.T2psr.formbats()
-            self.planet_ssb = OrderedDict.fromkeys([self.T2psr.ephemeris])
-            self.planet_ssb[self.T2psr.ephemeris] = np.zeros((len(self.T2psr.toas()),9,6))
-            self.planet_ssb[self.T2psr.ephemeris][:,0,:] = self.T2psr.mercury_ssb
-            self.planet_ssb[self.T2psr.ephemeris][:,1,:] = self.T2psr.venus_ssb
-            self.planet_ssb[self.T2psr.ephemeris][:,2,:] = self.T2psr.earth_ssb
-            self.planet_ssb[self.T2psr.ephemeris][:,3,:] = self.T2psr.mars_ssb
-            self.planet_ssb[self.T2psr.ephemeris][:,4,:] = self.T2psr.jupiter_ssb
-            self.planet_ssb[self.T2psr.ephemeris][:,5,:] = self.T2psr.saturn_ssb
-            self.planet_ssb[self.T2psr.ephemeris][:,6,:] = self.T2psr.uranus_ssb
-            self.planet_ssb[self.T2psr.ephemeris][:,7,:] = self.T2psr.neptune_ssb
-            self.planet_ssb[self.T2psr.ephemeris][:,8,:] = self.T2psr.pluto_ssb
+            
+            if '436' in self.T2psr.ephemeris:
+                ephemname = 'DE436'
+            elif '435' in self.T2psr.ephemeris:
+                ephemname = 'DE435'
+            elif '430' in self.T2psr.ephemeris:
+                ephemname = 'DE430'
+            elif '421' in self.T2psr.ephemeris:
+                ephemname = 'DE421'
+                
+            self.planet_ssb = OrderedDict.fromkeys([ephemname])
+            self.planet_ssb[ephemname] = np.zeros((len(self.T2psr.toas()),9,6))
+            self.planet_ssb[ephemname][:,0,:] = self.T2psr.mercury_ssb
+            self.planet_ssb[ephemname][:,1,:] = self.T2psr.venus_ssb
+            self.planet_ssb[ephemname][:,2,:] = self.T2psr.earth_ssb
+            self.planet_ssb[ephemname][:,3,:] = self.T2psr.mars_ssb
+            self.planet_ssb[ephemname][:,4,:] = self.T2psr.jupiter_ssb
+            self.planet_ssb[ephemname][:,5,:] = self.T2psr.saturn_ssb
+            self.planet_ssb[ephemname][:,6,:] = self.T2psr.uranus_ssb
+            self.planet_ssb[ephemname][:,7,:] = self.T2psr.neptune_ssb
+            self.planet_ssb[ephemname][:,8,:] = self.T2psr.pluto_ssb
 
             if startMJD is not None and endMJD is not None:
                 mask = np.logical_and(self.T2psr.toas() >= startMJD,
                                       self.T2psr.toas() <= endMJD)
-                self.planet_ssb[self.T2psr.ephemeris] = \
-                  self.planet_ssb[self.T2psr.ephemeris][mask,:,:]
+                self.planet_ssb[ephemname] = self.planet_ssb[ephemname][mask,:,:]
 
             print "--> Grabbed the planet position-vectors at the pulsar timestamps."
 
