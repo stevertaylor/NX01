@@ -155,21 +155,23 @@ class PsrObj(object):
                 tag = 'DMASSPLANET'+str(ii)
                 self.T2psr[tag].val = 0.0
             self.T2psr.formbats()
-            self.planet_ssb = np.zeros((len(self.T2psr.toas()),9,6))
-            self.planet_ssb[:,0,:] = self.T2psr.mercury_ssb
-            self.planet_ssb[:,1,:] = self.T2psr.venus_ssb
-            self.planet_ssb[:,2,:] = self.T2psr.earth_ssb
-            self.planet_ssb[:,3,:] = self.T2psr.mars_ssb
-            self.planet_ssb[:,4,:] = self.T2psr.jupiter_ssb
-            self.planet_ssb[:,5,:] = self.T2psr.saturn_ssb
-            self.planet_ssb[:,6,:] = self.T2psr.uranus_ssb
-            self.planet_ssb[:,7,:] = self.T2psr.neptune_ssb
-            self.planet_ssb[:,8,:] = self.T2psr.pluto_ssb
+            self.planet_ssb = OrderedDict.fromkeys([self.T2psr.ephemeris])
+            self.planet_ssb[self.T2psr.ephemeris] = np.zeros((len(self.T2psr.toas()),9,6))
+            self.planet_ssb[self.T2psr.ephemeris][:,0,:] = self.T2psr.mercury_ssb
+            self.planet_ssb[self.T2psr.ephemeris][:,1,:] = self.T2psr.venus_ssb
+            self.planet_ssb[self.T2psr.ephemeris][:,2,:] = self.T2psr.earth_ssb
+            self.planet_ssb[self.T2psr.ephemeris][:,3,:] = self.T2psr.mars_ssb
+            self.planet_ssb[self.T2psr.ephemeris][:,4,:] = self.T2psr.jupiter_ssb
+            self.planet_ssb[self.T2psr.ephemeris][:,5,:] = self.T2psr.saturn_ssb
+            self.planet_ssb[self.T2psr.ephemeris][:,6,:] = self.T2psr.uranus_ssb
+            self.planet_ssb[self.T2psr.ephemeris][:,7,:] = self.T2psr.neptune_ssb
+            self.planet_ssb[self.T2psr.ephemeris][:,8,:] = self.T2psr.pluto_ssb
 
             if startMJD is not None and endMJD is not None:
                 mask = np.logical_and(self.T2psr.toas() >= startMJD,
                                       self.T2psr.toas() <= endMJD)
-                self.planet_ssb = self.planet_ssb[mask,:,:]
+                self.planet_ssb[self.T2psr.ephemeris] = \
+                  self.planet_ssb[self.T2psr.ephemeris][mask,:,:]
 
             print "--> Grabbed the planet position-vectors at the pulsar timestamps."
 
