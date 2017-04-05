@@ -319,10 +319,11 @@ class DataFile(object):
                         overwrite=overwrite)
 
         # save TOA indexing
-        self.writeData(psrGroup, 'isort', psr.isort,
-                       overwrite=overwrite)
-        self.writeData(psrGroup, 'iisort', psr.iisort,
-                       overwrite=overwrite)
+        if psr.isort is not None:
+            self.writeData(psrGroup, 'isort', psr.isort,
+                           overwrite=overwrite)
+            self.writeData(psrGroup, 'iisort', psr.iisort,
+                           overwrite=overwrite)
 
         # pickle and store system flag dictionary
         storeFlagDict = pickle.dumps(psr.sysflagdict)

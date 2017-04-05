@@ -669,8 +669,12 @@ class PsrObjFromH5(object):
             self.detsig_avetoas = None
             self.detsig_Uinds = None
 
-        self.isort = self.h5Obj['isort'].value
-        self.iisort = self.h5Obj['iisort'].value
+        try:
+            self.isort = self.h5Obj['isort'].value
+            self.iisort = self.h5Obj['iisort'].value
+        except:
+            self.isort = None
+            self.iisort = None
 
         self.sysflagdict = pickle.loads(self.h5Obj['SysFlagDict'].value)
 
