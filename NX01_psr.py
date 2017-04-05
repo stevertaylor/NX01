@@ -16,6 +16,7 @@ import NX01_utils as utils
 from collections import OrderedDict
 import cPickle as pickle
 
+mjd2jd = 2400000.5
 f1yr = 1./(86400.0*365.25)
 
 class PsrObj(object):
@@ -37,6 +38,10 @@ class PsrObj(object):
     flags = None
     flagvals = None
     sysflagdict = None
+    isort = None
+    iisort = None
+    ephemeris = None
+    ephemname = None
     Fred = None
     Fdm = None
     Fephx = None
@@ -98,6 +103,10 @@ class PsrObj(object):
         self.Uinds = None
         self.name = "J0000+0000"
         self.sysflagdict = None
+        self.isort = None
+        self.iisort = None
+        self.ephemeris = None
+        self.ephemname = None
         self.Gres = None
         self.epflags = None
         self.detsig_avetoas = None
@@ -116,7 +125,7 @@ class PsrObj(object):
     Initialise the libstempo object.
     """
     def grab_all_vars(self, jitterbin=10., makeGmat=False, fastDesign=True,
-                      planetssb=False, startMJD=None, endMJD=None):
+                      planetssb=False, allEphem=False, startMJD=None, endMJD=None):
         # jitterbin is in seconds
 
         print "--> Processing {0}".format(self.T2psr.name)
@@ -148,61 +157,94 @@ class PsrObj(object):
     
             for flag in self.flags:
                 self.flagvals[flag] = self.T2psr.flagvals(flag)[mask]
+
+        # getting ephemeris properties
+        self.ephemeris = self.T2psr.ephemeris
+        if '436' in self.T2psr.ephemeris:
+            self.ephemname = 'DE436'
+        elif '435' in self.T2psr.ephemeris:
+            self.ephemname = 'DE435'
+        elif '430' in self.T2psr.ephemeris:
+            self.ephemname = 'DE430'
+        elif '421' in self.T2psr.ephemeris:
+            self.ephemname = 'DE421'
         
         # get the position vectors of the planets
         if planetssb:
-            for ii in range(1,10):
-                tag = 'DMASSPLANET'+str(ii)
-                self.T2psr[tag].val = 0.0
-            self.T2psr.formbats()
-            
-            if '436' in self.T2psr.ephemeris:
-                ephemname = 'DE436'
-            elif '435' in self.T2psr.ephemeris:
-                ephemname = 'DE435'
-            elif '430' in self.T2psr.ephemeris:
-                ephemname = 'DE430'
-            elif '421' in self.T2psr.ephemeris:
-                ephemname = 'DE421'
+            if allEphem:
+                from jplephem.spk import SPK
+                from scipy import constants as sc
                 
-            self.planet_ssb = OrderedDict.fromkeys([ephemname])
-            self.planet_ssb[ephemname] = np.zeros((len(self.T2psr.toas()),9,6))
-            self.planet_ssb[ephemname][:,0,:] = self.T2psr.mercury_ssb
-            self.planet_ssb[ephemname][:,1,:] = self.T2psr.venus_ssb
-            self.planet_ssb[ephemname][:,2,:] = self.T2psr.earth_ssb
-            self.planet_ssb[ephemname][:,3,:] = self.T2psr.mars_ssb
-            self.planet_ssb[ephemname][:,4,:] = self.T2psr.jupiter_ssb
-            self.planet_ssb[ephemname][:,5,:] = self.T2psr.saturn_ssb
-            self.planet_ssb[ephemname][:,6,:] = self.T2psr.uranus_ssb
-            self.planet_ssb[ephemname][:,7,:] = self.T2psr.neptune_ssb
-            self.planet_ssb[ephemname][:,8,:] = self.T2psr.pluto_ssb
+                ephemchoices = sorted(glob.glob(os.environ['TEMPO2']+'/ephemeris/*'))
+                matchers = ['421', '430', '435', '436']
+                ephemfiles = [s for s in ephemchoices if any(xs in s for xs in matchers)]
+                self.planet_ssb = OrderedDict()
+                for eph in ephemfiles:
+                    
+                    if '436' in eph:
+                        ephemname = 'DE436'
+                    elif '435' in eph:
+                        ephemname = 'DE435'
+                    elif '430' in eph:
+                        ephemname = 'DE430'
+                    elif '421' in eph:
+                        ephemname = 'DE421'
+                        
+                    kernel = SPK.open(eph)
+                    jd = self.toas + mjd2jd
+                    self.planet_ssb[ephemname] = np.zeros((self.toas.shape[0],9,6))
+                    for ii in range(9):
+                        position, velocity = kernel[0,ii+1].compute_and_differentiate(jd)
+                        position = np.hstack([position.T * 1e3 / sc.c, 
+                                              velocity.T * 1e3 / sc.c / 86400.])
+                        self.planet_ssb[ephemname][:,ii,:] = position
+            else:
+                for ii in range(1,10):
+                    tag = 'DMASSPLANET'+str(ii)
+                    self.T2psr[tag].val = 0.0
+                self.T2psr.formbats()
+                self.planet_ssb = OrderedDict.fromkeys([self.ephemname])
+                self.planet_ssb[self.ephemname] = np.zeros((len(self.T2psr.toas()),9,6))
+                self.planet_ssb[self.ephemname][:,0,:] = self.T2psr.mercury_ssb
+                self.planet_ssb[self.ephemname][:,1,:] = self.T2psr.venus_ssb
+                self.planet_ssb[self.ephemname][:,2,:] = self.T2psr.earth_ssb
+                self.planet_ssb[self.ephemname][:,3,:] = self.T2psr.mars_ssb
+                self.planet_ssb[self.ephemname][:,4,:] = self.T2psr.jupiter_ssb
+                self.planet_ssb[self.ephemname][:,5,:] = self.T2psr.saturn_ssb
+                self.planet_ssb[self.ephemname][:,6,:] = self.T2psr.uranus_ssb
+                self.planet_ssb[self.ephemname][:,7,:] = self.T2psr.neptune_ssb
+                self.planet_ssb[self.ephemname][:,8,:] = self.T2psr.pluto_ssb
 
             if startMJD is not None and endMJD is not None:
                 mask = np.logical_and(self.T2psr.toas() >= startMJD,
                                       self.T2psr.toas() <= endMJD)
-                self.planet_ssb[ephemname] = self.planet_ssb[ephemname][mask,:,:]
+                for eph in self.planet_ssb:
+                    self.planet_ssb[eph] = \
+                      self.planet_ssb[eph][mask,:,:]
 
             print "--> Grabbed the planet position-vectors at the pulsar timestamps."
 
-        isort, iisort = None, None
+        self.isort, self.iisort = None, None
         if 'pta' in self.flags:
             if 'NANOGrav' in list(set(self.flagvals['pta'])):
                 # now order everything
                 try:
-                    isort, iisort = utils.argsortTOAs(self.toas, self.flagvals['group'],
+                    self.isort, self.iisort = utils.argsortTOAs(self.toas, self.flagvals['group'],
                                                       which='jitterext', dt=jitterbin/86400.)
                 except KeyError:
-                    isort, iisort = utils.argsortTOAs(self.toas, self.flagvals['f'],
+                    self.isort, self.iisort = utils.argsortTOAs(self.toas, self.flagvals['f'],
                                                       which='jitterext', dt=jitterbin/86400.)
         
                 # sort data
-                self.toas = self.toas[isort]
-                self.toaerrs = self.toaerrs[isort]
-                self.res = self.res[isort]
-                self.obs_freqs = self.obs_freqs[isort]
-                self.Mmat = self.Mmat[isort, :]
+                self.toas = self.toas[self.isort]
+                self.toaerrs = self.toaerrs[self.isort]
+                self.res = self.res[self.isort]
+                self.obs_freqs = self.obs_freqs[self.isort]
+                self.Mmat = self.Mmat[self.isort, :]
                 if planetssb:
-                    self.planet_ssb = self.planet_ssb[isort, :, :]
+                    for eph in self.planet_ssb:
+                        self.planet_ssb[eph] = \
+                          self.planet_ssb[eph][self.isort, :, :]
 
                 print "--> Initial sorting of data."
               
@@ -251,10 +293,10 @@ class PsrObj(object):
                     sys_uflagvals = list(set(self.flagvals[systm]))
                     self.sysflagdict[systm] = OrderedDict.fromkeys(sys_uflagvals)
                     for kk,subsys in enumerate(sys_uflagvals):
-                        if isort is not None:
+                        if self.isort is not None:
                             self.sysflagdict[systm][subsys] = \
-                              np.where(self.flagvals[systm][isort] == sys_uflagvals[kk])
-                        elif isort is None:
+                              np.where(self.flagvals[systm][self.isort] == sys_uflagvals[kk])
+                        elif self.isort is None:
                             self.sysflagdict[systm][subsys] = \
                               np.where(self.flagvals[systm] == sys_uflagvals[kk])
             except KeyError:
@@ -264,26 +306,26 @@ class PsrObj(object):
         # this off for later ECORR assignment.
         if 'pta' in self.flags:
             pta_names = list(set(self.flagvals['pta']))
-            pta_mask = [self.flagvals['pta'][isort]==ptaname for ptaname in pta_names]
+            pta_mask = [self.flagvals['pta'][self.isort]==ptaname for ptaname in pta_names]
             pta_maskdict = OrderedDict.fromkeys(pta_names)
             for ii,item in enumerate(pta_maskdict):
                 pta_maskdict[item] = pta_mask[ii]
             if len(pta_names)!=0 and ('NANOGrav' in pta_names):
                 try:
                     nanoflagdict = OrderedDict.fromkeys(['nano-f'])
-                    nano_flags = list(set(self.flagvals['group'][isort][pta_maskdict['NANOGrav']]))
+                    nano_flags = list(set(self.flagvals['group'][self.isort][pta_maskdict['NANOGrav']]))
                     nanoflagdict['nano-f'] = OrderedDict.fromkeys(nano_flags)
                     for kk,subsys in enumerate(nano_flags):
                         nanoflagdict['nano-f'][subsys] = \
-                          np.where(self.flagvals['group'][isort] == nano_flags[kk])
+                          np.where(self.flagvals['group'][self.isort] == nano_flags[kk])
                     self.sysflagdict.update(nanoflagdict)
                 except KeyError:
                     nanoflagdict = OrderedDict.fromkeys(['nano-f'])
-                    nano_flags = list(set(self.flagvals['f'][isort][pta_maskdict['NANOGrav']]))
+                    nano_flags = list(set(self.flagvals['f'][self.isort][pta_maskdict['NANOGrav']]))
                     nanoflagdict['nano-f'] = OrderedDict.fromkeys(nano_flags)
                     for kk,subsys in enumerate(nano_flags):
                         nanoflagdict['nano-f'][subsys] = \
-                          np.where(self.flagvals['f'][isort] == nano_flags[kk])
+                          np.where(self.flagvals['f'][self.isort] == nano_flags[kk])
                     self.sysflagdict.update(nanoflagdict)
                     
                     
@@ -303,21 +345,9 @@ class PsrObj(object):
             if 'NANOGrav' in pta_names:
                 # now order everything
                 try:
-                    #isort_b, iisort_b = utils.argsortTOAs(self.toas, self.T2psr.flagvals('group')[isort],
-                    #which='jitterext', dt=jitterbin/86400.)
-                    dummy_flags = self.flagvals['group'][isort]
+                    dummy_flags = self.flagvals['group'][self.isort]
                 except KeyError:
-                    #isort_b, iisort_b = utils.argsortTOAs(self.toas, self.T2psr.flagvals('f')[isort],
-                    #which='jitterext', dt=jitterbin/86400.)
-                    dummy_flags = self.flagvals['f'][isort]
-        
-                # sort data
-                #self.toas = self.toas[isort_b]
-                #self.toaerrs = self.toaerrs[isort_b]
-                #self.res = self.res[isort_b]
-                #self.obs_freqs = self.obs_freqs[isort_b]
-                #self.Mmat = self.Mmat[isort_b, :]
-                #flags = flags[isort_b]
+                    dummy_flags = self.flagvals['f'][self.isort]
                 
                 print "--> Sorted data."
     
@@ -487,6 +517,10 @@ class PsrObjFromH5(object):
     G = None
     Mmat = None
     sysflagdict = None
+    isort = None
+    iisort = None
+    ephemeris = None
+    ephemname = None
     Fred = None
     Fdm = None
     Fephx = None
@@ -554,6 +588,10 @@ class PsrObjFromH5(object):
         self.Uinds = None
         self.name = "J0000+0000"
         self.sysflagdict = None
+        self.isort = None
+        self.iisort = None
+        self.ephemeris = None
+        self.ephemname = None
         self.Gres = None
         self.epflags = None
         self.detsig_avetoas = None
@@ -600,8 +638,12 @@ class PsrObjFromH5(object):
         self.decj = self.h5Obj['decj'].value
         self.elong = self.h5Obj['elong'].value
         self.elat = self.h5Obj['elat'].value
+
+        self.ephemeris = self.h5Obj['ephemeris'].value
+        self.ephemname = self.h5Obj['ephemname'].value
+        
         try:
-            self.planet_ssb = self.h5Obj['planetssb'].value
+            self.planet_ssb = pickle.loads(self.h5Obj['PlanetSSBDict'].value) 
         except:
             self.planet_ssb = None
 
@@ -625,6 +667,9 @@ class PsrObjFromH5(object):
             self.epflags = None
             self.detsig_avetoas = None
             self.detsig_Uinds = None
+
+        self.isort = self.h5Obj['isort'].value
+        self.iisort = self.h5Obj['iisort'].value
 
         self.sysflagdict = pickle.loads(self.h5Obj['SysFlagDict'].value)
 

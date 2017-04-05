@@ -318,6 +318,12 @@ class DataFile(object):
             self.writeData(psrGroup, 'DetSigQuantInds', psr.detsig_Uinds,
                         overwrite=overwrite)
 
+        # save TOA indexing
+        self.writeData(psrGroup, 'isort', psr.isort,
+                       overwrite=overwrite)
+        self.writeData(psrGroup, 'iisort', psr.iisort,
+                       overwrite=overwrite)
+
         # pickle and store system flag dictionary
         storeFlagDict = pickle.dumps(psr.sysflagdict)
         self.writeData(psrGroup, 'SysFlagDict', storeFlagDict,
@@ -335,11 +341,17 @@ class DataFile(object):
         self.writeData(psrGroup, 'elat', psr.elat,
                        overwrite=overwrite)
 
+        # Save ephemeris properties
+        self.writeData(psrGroup, 'ephemeris', psr.ephemeris,
+                       overwrite=overwrite)
+        self.writeData(psrGroup, 'ephemname', psr.ephemname,
+                       overwrite=overwrite)
+        
         # Save the planet position vectors
         if psr.planet_ssb is not None:
-            self.writeData(psrGroup, 'planetssb', psr.planet_ssb,
+            storePlanetSSBDict = pickle.dumps(psr.planet_ssb)
+            self.writeData(psrGroup, 'PlanetSSBDict', storePlanetSSBDict,
                            overwrite=overwrite)
-        
         
         # get pulsar distance and uncertainty (need pulsarDistances.txt file for this)
         fin = open('pulsarDistances.txt', 'r')
