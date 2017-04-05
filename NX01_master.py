@@ -293,6 +293,8 @@ parser.add_option('--eph_planetdelta', dest='eph_planetdelta', action='store_tru
                   help='Do you want to include a deterministic planet-mass perturbation in the ephemeris model? (default = False)')
 parser.add_option('--eph_planetnums', dest='eph_planetnums', action='store', type=str, default=None,
                   help='Which planets to include in pertubed-mass model [Mercury=1, Venus=2, etc.] (default = None)')
+parser.add_option('--eph_planetprior', dest='eph_planetprior', action='store', type=str, default='official',
+                  help='What kind fo prior do you want to place on the planet masses being perturbed [official, loguniform] (default = official)')
 parser.add_option('--incGWline', dest='incGWline', action='store_true', default=False,
                   help='Do you want to include a single-frequency line in the GW spectrum? (default = False)')
 parser.add_option('--gwlinePrior', dest='gwlinePrior', action='store', type=str, default='uniform',
@@ -1067,8 +1069,13 @@ if args.det_signal:
         pmin = np.append(pmin,np.tile([-10.0,-10.0],3)) # amps
         pmin = np.append(pmin,np.tile([-1.0,-1.0],3)) # signs
     if args.eph_planetdelta:
-        pmin = np.append(pmin,-20.0*np.ones(num_planets)) # amps
-        pmin = np.append(pmin,-1.0*np.ones(num_planets)) # signs
+        if args.eph_planetprior == 'official':
+            pmin = np.append(pmin,np.array([-4.62893610e-11, -2.87611795e-13, -3.78879896e-14,
+                                            -1.24974433e-14, -9.29860141e-11, -4.90383710e-11,
+                                            -3.43154016e-10, -4.77662313e-10, -9.00975861e-12]))
+        elif args.eph_planetprior == 'loguniform':
+            pmin = np.append(pmin,-20.0*np.ones(num_planets)) # amps
+            pmin = np.append(pmin,-1.0*np.ones(num_planets)) # signs
         num_ephs = len(psr[0].planet_ssb.keys())
         if num_ephs > 1:
             pmin = np.append(pmin,np.zeros((num_ephs-1)*num_planets)) # weights
@@ -1208,11 +1215,15 @@ if args.det_signal:
         pmax = np.append(pmax,np.tile([0.0,0.0],3)) # amps
         pmax = np.append(pmax,np.tile([1.0,1.0],3)) # signs
     if args.eph_planetdelta:
-        pmax = np.append(pmax,-5.0*np.ones(num_planets)) # amps
-        pmax = np.append(pmax,1.0*np.ones(num_planets)) # signs
-        num_ephs = len(psr[0].planet_ssb.keys())
+        if args.eph_planetprior == 'official':
+            pmax = np.append(pmin,np.array([4.62893610e-11, 2.87611795e-13, 3.78879896e-14,
+                                            1.24974433e-14, 9.29860141e-11, 4.90383710e-11,
+                                            3.43154016e-10, 4.77662313e-10, 9.00975861e-12]))
+        elif args.eph_planetprior == 'loguniform':
+            pmax = np.append(pmax,-5.0*np.ones(num_planets)) # amps
+            pmax = np.append(pmax,1.0*np.ones(num_planets)) # signs
         if num_ephs > 1:
-            pmax = np.append(pmax,100.*np.ones((num_ephs-1)*num_planets)) # weights
+            pmax = np.append(pmax,np.ones((num_ephs-1)*num_planets)) # weights
        
 
 ##################################################################################
@@ -1446,9 +1457,13 @@ def lnprob(xx):
               yquad1_sign, yquad2_sign, \
               zquad1_sign, zquad2_sign = xx[param_ct+6:param_ct+12]
         if args.eph_planetdelta:
-            planet_delta_amp = xx[param_ct:param_ct+num_planets]
-            planet_delta_sign = xx[param_ct+num_planets:param_ct+2*num_planets]
-            param_ct += 2*num_planets
+            if args.eph_planetprior == 'official':
+                planet_delta_mass = xx[param_ct:param_ct+num_planets]
+                param_ct += num_planets
+            elif args.eph_planetprior == 'loguniform':
+                planet_delta_amp = xx[param_ct:param_ct+num_planets]
+                planet_delta_sign = xx[param_ct+num_planets:param_ct+2*num_planets]
+                param_ct += 2*num_planets
             if num_ephs > 1:
                 planet_orbitwgts = xx[param_ct:]
                 planet_orbitwgts = planet_orbitwgts.reshape((num_planets,num_ephs-1))
@@ -1742,6 +1757,7 @@ def lnprob(xx):
                     # need to alter this if you want a single GW source too
                     detres.append( p.res - x_quad - y_quad - z_quad )
 
+            mass_perturb = None
             if args.eph_planetdelta:
 
                 detres = []
@@ -1758,20 +1774,27 @@ def lnprob(xx):
                     planet_delta_signal = np.zeros(p.toas.shape)
                     # sum over planets
                     dummy_tags = planet_tags - 1
+                    mass_perturb = []
                     for jj,tag in enumerate(dummy_tags):
+                        
+                        if args.eph_planetprior == 'official':
+                            mass_perturb.append(planet_delta_mass[jj])
+                        elif args.eph_planetprior == 'loguniform':
+                            mass_perturb.append(np.sign(planet_delta_sign[jj]) * 10.0**planet_delta_amp[jj])
+                            
                         if num_ephs > 1:
                             weights = np.append(planet_orbitwgts[jj,:],
                                                 1.0 - np.sum(planet_orbitwgts[jj,:]))
                             planet_posvec = np.zeros((p.toas.shape[0],3))
                             for kk,key in enumerate(p.planet_ssb.keys()):
                                 planet_posvec += weights[kk] * p.planet_ssb[key][:,tag,:3]
-                            planet_delta_signal += (np.sign(planet_delta_sign[jj]) * 10.0**planet_delta_amp[jj] * \
+                            planet_delta_signal += (mass_perturb[jj] * \
                                                     np.dot(planet_posvec,psr_posvec))
                         else:
                             planet_posvec = np.zeros((p.toas.shape[0],3))
                             for kk,key in enumerate(p.planet_ssb.keys()):
                                 planet_posvec += p.planet_ssb[key][:,tag,:3]
-                            planet_delta_signal += (np.sign(planet_delta_sign[jj]) * 10.0**planet_delta_amp[jj] * \
+                            planet_delta_signal += (mass_perturb[jj] * \
                                                     np.dot(planet_posvec,psr_posvec))
                     
                     # need to alter this if you want a single GW source too
@@ -3169,6 +3192,16 @@ def lnprob(xx):
                 priorfac_eph = 0.0
     else:
         priorfac_eph = 0.0
+
+    if args.eph_planetdelta and arg.eph_planetprior == 'official':
+        for jj in range(num_planets):
+            mu = 0.0
+            sig = mass_perturb[jj] # pmax is a 6-sigma range
+            priorfac_planetdelta += np.log( np.exp( -0.5 * (mass_perturb - mu)**2.0 / sig**2.0) \
+                                                    / np.sqrt(2.0*np.pi*sig**2.0) )
+    else:
+        priorfac_planetdelta = 0.0
+        
 
 
     priorfac_corr = 0.0
