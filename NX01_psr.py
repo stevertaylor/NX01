@@ -176,8 +176,9 @@ class PsrObj(object):
                 from scipy import constants as sc
                 
                 ephemchoices = sorted(glob.glob(os.environ['TEMPO2']+'/ephemeris/*'))
-                matchers = ['421', '430', '435', '436']
+                matchers = ['421.bsp', '430t.bsp', '435t.bsp', '436t.bsp']
                 ephemfiles = [s for s in ephemchoices if any(xs in s for xs in matchers)]
+                print ephemfiles
                 self.planet_ssb = OrderedDict()
                 for eph in ephemfiles:
                     print eph
