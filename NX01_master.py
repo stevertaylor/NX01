@@ -3200,7 +3200,7 @@ def lnprob(xx):
                         2.08290722e-15, 1.54976690e-11, 8.17306184e-12,
                         5.71923361e-11, 7.96103855e-11, 1.50162644e-12])
         for jj in range(num_planets):
-            priorfac_planetdelta += np.log( np.exp( -0.5 * (mass_perturb[jj] - mu)**2.0 / sig**2.0) \
+            priorfac_planetdelta += np.log( np.exp( -0.5 * (mass_perturb[jj] - mu)**2.0 / sig[jj]**2.0) \
                                                     / np.sqrt(2.0*np.pi*sig[jj]**2.0) )
     else:
         priorfac_planetdelta = 0.0
