@@ -4179,6 +4179,11 @@ elif args.sampler == 'ptmcmc':
             ids = [np.arange(param_ct,param_ct+num_planets)]
             param_ct += num_planets
             [ind.append(id) for id in ids]
+            if num_ephs > 1:
+                for ii in range(num_planets):
+                    ids = [np.arange(param_ct,param_ct+(num_ephs-1))]
+                    param_ct += (num_ephs-1)
+                    [ind.append(id) for id in ids]
          
             
     ##### all parameters #####
