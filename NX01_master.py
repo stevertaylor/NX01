@@ -3193,7 +3193,7 @@ def lnprob(xx):
     else:
         priorfac_eph = 0.0
 
-    if args.eph_planetdelta and arg.eph_planetprior == 'official':
+    if args.eph_planetdelta and args.eph_planetprior == 'official':
         for jj in range(num_planets):
             mu = 0.0
             sig = mass_perturb[jj] # pmax is a 6-sigma range
