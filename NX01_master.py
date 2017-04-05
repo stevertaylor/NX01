@@ -3415,7 +3415,7 @@ if args.det_signal:
         if num_ephs > 1:
             for ii in planet_tags:
                 for jj in range(num_ephs-1):
-                    parameters += "planet{0}_orbitwgts{1}".format(ii,jj)
+                    parameters.append("planet{0}_orbitwgts{1}".format(ii,jj))
             
 
 
