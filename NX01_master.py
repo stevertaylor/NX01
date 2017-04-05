@@ -6120,7 +6120,7 @@ elif args.sampler == 'ptmcmc':
         
         return q, qxy
 
-    # bwm model index draws 
+    # planet mass perturbation draws 
     def drawFromEphPlanetDeltaPrior(parameters, iter, beta):
 
         # post-jump parameters
@@ -6208,6 +6208,98 @@ elif args.sampler == 'ptmcmc':
         
         return q, qxy
 
+    # planet orbit perturbation draws 
+    def drawFromEphPlanetOrbitPrior(parameters, iter, beta):
+
+        # post-jump parameters
+        q = parameters.copy()
+
+        # transition probability
+        qxy = 0
+
+        npsr = len(psr)
+        pct = 0
+        if not args.fixRed:
+            if args.redSpecModel == 'powerlaw':
+                pct = 2*npsr
+            elif args.redSpecModel == 'spectrum':
+                pct = npsr*nmodes_red
+    
+        if args.incDM and not args.fixDM:
+            if args.dmSpecModel == 'powerlaw':
+                pct += 2*npsr
+            elif args.dmSpecModel == 'spectrum':
+                pct += npsr*nmodes_dm
+
+        if args.varyWhite:
+            for ii,p in enumerate(psr):
+                systems = p.sysflagdict[args.sysflag_target]
+                pct += 2*len(systems)
+                pct += len(p.sysflagdict['nano-f'].keys())
+
+        if args.incBand:
+            if args.bandSpecModel == 'powerlaw':
+                pct += 2*(len(bands)-1)
+            elif args.bandSpecModel == 'spectrum':
+                pct += (len(bands)-1)*nmodes_band
+                    
+        if args.incClk:
+            if args.clkSpecModel == 'powerlaw':
+                pct += 2
+            elif args.clkSpecModel == 'spectrum':
+                pct += nmodes_red
+
+        if args.incCm:
+            if args.cmSpecModel == 'powerlaw':
+                pct += 2
+            elif args.cmSpecModel == 'spectrum':
+                pct += nmodes_red
+
+        if args.incEph and not args.jplBasis:
+            if args.ephSpecModel == 'powerlaw':
+                pct += 6
+            elif args.ephSpecModel == 'spectrum':
+                pct += 3*nmodes_eph
+
+        if args.incGWB:
+            if args.gwbSpecModel == 'powerlaw':
+                pct += 1
+                if not args.fix_slope:
+                    pct += 1
+            elif args.gwbSpecModel == 'spectrum':
+                pct += nmodes_red
+                if args.gwbPrior == 'gaussProc':
+                    pct += 1 + gwb_popparam_ndims
+            elif args.gwbSpecModel == 'turnover':
+                if args.gwb_fb2env is not None:
+                    pct += 2
+                elif args.gwb_fb2env is None:
+                    pct += 3
+            elif args.gwbSpecModel == 'gpEnvInterp':
+                pct += 2
+
+            if args.incCorr:
+                pct += num_corr_params
+                if args.gwbModelSelect:
+                    pct += 1
+
+        if args.incGWline:
+            pct += 4
+
+        if args.eph_planetdelta:
+            pct += 2*num_planets
+
+        # choose a planet orbit to perturb
+        ind = np.unique(np.random.randint(0, num_planets, 1))
+        if args.det_signal and args.eph_planetdelta:
+            q[pct+(num_ephs-1)*ind:pct+(num_ephs-1)*(ind+1)] = \
+              np.random.uniform(pmin[pct+(num_ephs-1)*ind],
+                                pmax[pct+(num_ephs-1)*ind],(num_ephs-1))
+            
+            qxy += 0
+        
+        return q, qxy
+
   
     # add jump proposals
     if not args.fixRed:
@@ -6274,6 +6366,8 @@ elif args.sampler == 'ptmcmc':
             sampler.addProposalToCycle(drawFromBWMModelIndexPrior, 5)
     elif args.det_signal and args.eph_planetdelta:
         sampler.addProposalToCycle(drawFromEphPlanetDeltaPrior, 10)
+        if num_ephs > 1:
+            sampler.addProposalToCycle(drawFromEphPlanetOrbitPrior, 10)
     
 
     sampler.sample(p0=x0, Niter=int(args.niter), thin=10,
