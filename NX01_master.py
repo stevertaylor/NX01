@@ -1216,7 +1216,7 @@ if args.det_signal:
         pmax = np.append(pmax,np.tile([1.0,1.0],3)) # signs
     if args.eph_planetdelta:
         if args.eph_planetprior == 'official':
-            pmax = np.append(pmin,np.array([4.62893610e-11, 2.87611795e-13, 3.78879896e-14,
+            pmax = np.append(pmax,np.array([4.62893610e-11, 2.87611795e-13, 3.78879896e-14,
                                             1.24974433e-14, 9.29860141e-11, 4.90383710e-11,
                                             3.43154016e-10, 4.77662313e-10, 9.00975861e-12]))
         elif args.eph_planetprior == 'loguniform':
