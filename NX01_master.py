@@ -6290,7 +6290,7 @@ elif args.sampler == 'ptmcmc':
             pct += 2*num_planets
 
         # choose a planet orbit to perturb
-        ind = np.unique(np.random.randint(0, num_planets, 1))
+        ind = np.unique(np.random.randint(0, num_planets, 1))[0]
         if args.det_signal and args.eph_planetdelta:
             q[pct+(num_ephs-1)*ind:pct+(num_ephs-1)*(ind+1)] = \
               np.random.uniform(pmin[pct+(num_ephs-1)*ind],
