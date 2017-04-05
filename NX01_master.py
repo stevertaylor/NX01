@@ -1212,7 +1212,7 @@ if args.det_signal:
         pmax = np.append(pmax,1.0*np.ones(num_planets)) # signs
         num_ephs = len(psr[0].planet_ssb.keys())
         if num_ephs > 1:
-            pmax = np.append(pmax,np.ones((num_ephs-1)*num_planets)) # weights
+            pmax = np.append(pmax,100.*np.ones((num_ephs-1)*num_planets)) # weights
        
 
 ##################################################################################
