@@ -1069,6 +1069,9 @@ if args.det_signal:
     if args.eph_planetdelta:
         pmin = np.append(pmin,-20.0*np.ones(num_planets)) # amps
         pmin = np.append(pmin,-1.0*np.ones(num_planets)) # signs
+        num_ephs = len(psr[0].planet_ssb.keys())
+        if num_ephs > 1:
+            pmin = np.append(pmin,np.zeros((num_ephs-1)*num_planets)) # weights
         
 
 pmax = np.array([])
@@ -1207,6 +1210,9 @@ if args.det_signal:
     if args.eph_planetdelta:
         pmax = np.append(pmax,-5.0*np.ones(num_planets)) # amps
         pmax = np.append(pmax,1.0*np.ones(num_planets)) # signs
+        num_ephs = len(psr[0].planet_ssb.keys())
+        if num_ephs > 1:
+            pmax = np.append(pmax,np.ones((num_ephs-1)*num_planets)) # weights
        
 
 ##################################################################################
@@ -1442,6 +1448,10 @@ def lnprob(xx):
         if args.eph_planetdelta:
             planet_delta_amp = xx[param_ct:param_ct+num_planets]
             planet_delta_sign = xx[param_ct+num_planets:param_ct+2*num_planets]
+            param_ct += 2*num_planets
+            if num_ephs > 1:
+                planet_orbitwgts = xx[param_ct:]
+                planet_orbitwgts = planet_orbitwgts.reshape((num_planets,num_ephs-1))
             
     ############################
     ############################
@@ -1749,8 +1759,18 @@ def lnprob(xx):
                     # sum over planets
                     dummy_tags = planet_tags - 1
                     for jj,tag in enumerate(dummy_tags):
-                        planet_delta_signal += (np.sign(planet_delta_sign[jj]) * 10.0**planet_delta_amp[jj] * \
-                                                np.dot(p.planet_ssb[:,tag,:3],psr_posvec))
+                        if num_ephs > 1:
+                            weights = np.append(planet_orbitwgts[jj,:],
+                                                1.0 - np.sum(planet_orbitwgts[jj,:]))
+                            for kk,key in enumerate(p.planet_ssb.keys()):
+                                planet_posvec += weights[kk] * p.planet_ssb[key][:,tag,:3]
+                            planet_delta_signal += (np.sign(planet_delta_sign[jj]) * 10.0**planet_delta_amp[jj] * \
+                                                    np.dot(planet_posvec,psr_posvec))
+                        else:
+                            for kk,key in enumerate(p.planet_ssb.keys()):
+                                planet_posvec += p.planet_ssb[key][:,tag,:3]
+                            planet_delta_signal += (np.sign(planet_delta_sign[jj]) * 10.0**planet_delta_amp[jj] * \
+                                                    np.dot(planet_posvec,psr_posvec))
                     
                     # need to alter this if you want a single GW source too
                     detres.append( p.res - planet_delta_signal)
@@ -3392,6 +3412,11 @@ if args.det_signal:
     if args.eph_planetdelta:
         parameters += ["planet{0}_delta_amp".format(ii) for ii in planet_tags]
         parameters += ["planet{0}_delta_sign".format(ii) for ii in planet_tags]
+        if num_ephs > 1:
+            for ii in planet_tags:
+                for jj in range(num_ephs-1):
+                    parameters += "planet{0}_orbitwgts{1}".format(ii,jj)
+            
 
 
 n_params = len(parameters)
@@ -3798,6 +3823,8 @@ elif args.sampler == 'ptmcmc':
         if args.eph_planetdelta:
             x0 = np.append(x0,np.random.uniform(-20.0,-5.0,num_planets))
             x0 = np.append(x0,np.random.uniform(-1.0,1.0,num_planets))
+            if num_ephs > 1:
+                x0 = np.append(x0,np.random.uniform(0.0,1.0,(num_ephs-1)*num_planets))
 
     if rank==0:
         print "\n Your initial parameters are {0}\n".format(x0)
@@ -3894,7 +3921,9 @@ elif args.sampler == 'ptmcmc':
         if args.eph_planetdelta:
             cov_diag = np.append(cov_diag,np.tile(0.1,num_planets))
             cov_diag = np.append(cov_diag,np.tile(0.1,num_planets))
-
+            if num_ephs > 1:
+                cov_diag = np.append(cov_diag,np.tile(0.1,(num_ephs-1)*num_planets))
+                
     if rank==0:
         print "\n Running a quick profile on the likelihood to estimate evaluation speed...\n"
         cProfile.run('lnprob(x0)')
