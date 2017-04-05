@@ -1762,11 +1762,13 @@ def lnprob(xx):
                         if num_ephs > 1:
                             weights = np.append(planet_orbitwgts[jj,:],
                                                 1.0 - np.sum(planet_orbitwgts[jj,:]))
+                            planet_posvec = np.zeros((p.toas.shape[0],3))
                             for kk,key in enumerate(p.planet_ssb.keys()):
                                 planet_posvec += weights[kk] * p.planet_ssb[key][:,tag,:3]
                             planet_delta_signal += (np.sign(planet_delta_sign[jj]) * 10.0**planet_delta_amp[jj] * \
                                                     np.dot(planet_posvec,psr_posvec))
                         else:
+                            planet_posvec = np.zeros((p.toas.shape[0],3))
                             for kk,key in enumerate(p.planet_ssb.keys()):
                                 planet_posvec += p.planet_ssb[key][:,tag,:3]
                             planet_delta_signal += (np.sign(planet_delta_sign[jj]) * 10.0**planet_delta_amp[jj] * \
