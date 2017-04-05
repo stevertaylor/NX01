@@ -3193,6 +3193,7 @@ def lnprob(xx):
     else:
         priorfac_eph = 0.0
 
+    priorfac_planetdelta = 0.0
     if args.eph_planetdelta and args.eph_planetprior == 'official':
         for jj in range(num_planets):
             mu = 0.0
@@ -3202,7 +3203,6 @@ def lnprob(xx):
     else:
         priorfac_planetdelta = 0.0
         
-
 
     priorfac_corr = 0.0
     if args.incGWB and args.incCorr:
@@ -3296,8 +3296,8 @@ def lnprob(xx):
     
     return (1.0/args.softParam) * (logLike + priorfac_gwb + priorfac_gwbmod + priorfac_gwline + \
                                    priorfac_red + priorfac_dm + priorfac_clk + \
-                                   priorfac_cm + priorfac_eph + priorfac_band + \
-                                   priorfac_corr + priorfac_detsig)
+                                   priorfac_cm + priorfac_eph + priorfac_planetdelta + \
+                                   priorfac_band + priorfac_corr + priorfac_detsig)
      
 
 
