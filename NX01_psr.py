@@ -178,10 +178,10 @@ class PsrObj(object):
                 ephemchoices = sorted(glob.glob(os.environ['TEMPO2']+'/ephemeris/*'))
                 matchers = ['421.bsp', '430t.bsp', '435t.bsp', '436t.bsp']
                 ephemfiles = [s for s in ephemchoices if any(xs in s for xs in matchers)]
-                print ephemfiles
+            
                 self.planet_ssb = OrderedDict()
                 for eph in ephemfiles:
-                    print eph
+
                     if '436' in eph:
                         ephemname = 'DE436'
                     elif '435' in eph:
