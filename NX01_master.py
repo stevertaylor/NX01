@@ -3445,8 +3445,11 @@ if args.det_signal:
                        "eph_xquad1sign", "eph_xquad2sign", "eph_yquad1sign",
                        "eph_yquad2sign", "eph_zquad1sign", "eph_zquad2sign"]
     if args.eph_planetdelta:
-        parameters += ["planet{0}_delta_amp".format(ii) for ii in planet_tags]
-        parameters += ["planet{0}_delta_sign".format(ii) for ii in planet_tags]
+        if args.eph_planetprior == 'official':
+            parameters += ["planet{0}_delta_mass".format(ii) for ii in planet_tags]
+        elif args.eph_planetprior == 'loguniform':
+            parameters += ["planet{0}_delta_amp".format(ii) for ii in planet_tags]
+            parameters += ["planet{0}_delta_sign".format(ii) for ii in planet_tags]
         if num_ephs > 1:
             for ii in planet_tags:
                 for jj in range(num_ephs-1):
@@ -3559,7 +3562,7 @@ if args.det_signal:
     if args.eph_quadratic:
         file_tag += '_ephquad'
     if args.eph_planetdelta:
-        file_tag += '_ephplanetdelta'
+        file_tag += '_ephplanetdelta'+args.eph_planetprior
 if args.fixRed:
     red_tag = '_redFix'+'nm{0}'.format(nmodes_red)
 elif not args.fixRed:
@@ -3856,8 +3859,11 @@ elif args.sampler == 'ptmcmc':
             x0 = np.append(x0,np.array(np.tile([-7.0],6)))
             x0 = np.append(x0,np.random.uniform(-1.0,1.0,6))
         if args.eph_planetdelta:
-            x0 = np.append(x0,np.random.uniform(-20.0,-5.0,num_planets))
-            x0 = np.append(x0,np.random.uniform(-1.0,1.0,num_planets))
+            if args.eph_planetprior == 'official':
+                x0 = np.append(x0,np.zeros(num_planets))
+            elif args.eph_planetprior == 'loguniform':
+                x0 = np.append(x0,np.random.uniform(-20.0,-5.0,num_planets))
+                x0 = np.append(x0,np.random.uniform(-1.0,1.0,num_planets))
             if num_ephs > 1:
                 x0 = np.append(x0,np.random.uniform(0.0,1.0,(num_ephs-1)*num_planets))
 
@@ -3954,8 +3960,13 @@ elif args.sampler == 'ptmcmc':
             cov_diag = np.append(cov_diag,np.tile(0.1,6))
             cov_diag = np.append(cov_diag,np.tile(0.1,6))
         if args.eph_planetdelta:
-            cov_diag = np.append(cov_diag,np.tile(0.1,num_planets))
-            cov_diag = np.append(cov_diag,np.tile(0.1,num_planets))
+            if args.eph_planetprior == 'official':
+                cov_diag = np.append(cov_diag,0.5*np.array([7.71489350e-12,4.79352991e-14,6.31466493e-15,
+                                                            2.08290722e-15,1.54976690e-11,8.17306184e-12,
+                                                            5.71923361e-11,7.96103855e-11,1.50162644e-12]))
+            elif args.eph_planetprior == 'loguniform':
+                cov_diag = np.append(cov_diag,np.tile(0.1,num_planets))
+                cov_diag = np.append(cov_diag,np.tile(0.1,num_planets))
             if num_ephs > 1:
                 cov_diag = np.append(cov_diag,np.tile(0.1,(num_ephs-1)*num_planets))
                 
@@ -4204,14 +4215,20 @@ elif args.sampler == 'ptmcmc':
             [ind.append(id) for id in ids]
         ##### EPHEMERIS PLANET DELTA #####
         if args.eph_planetdelta:
-            # amplitudes
-            ids = [np.arange(param_ct,param_ct+num_planets)]
-            param_ct += num_planets
-            [ind.append(id) for id in ids]
-            # signs
-            ids = [np.arange(param_ct,param_ct+num_planets)]
-            param_ct += num_planets
-            [ind.append(id) for id in ids]
+            if args.eph_planetprior == 'official':
+                # mass perturbations
+                ids = [np.arange(param_ct,param_ct+num_planets)]
+                param_ct += num_planets
+                [ind.append(id) for id in ids]
+            elif args.eph_planetprior == 'loguniform':
+                # amplitudes
+                ids = [np.arange(param_ct,param_ct+num_planets)]
+                param_ct += num_planets
+                [ind.append(id) for id in ids]
+                # signs
+                ids = [np.arange(param_ct,param_ct+num_planets)]
+                param_ct += num_planets
+                [ind.append(id) for id in ids]
             if num_ephs > 1:
                 for ii in range(num_planets):
                     ids = [np.arange(param_ct,param_ct+(num_ephs-1))]
@@ -6235,8 +6252,9 @@ elif args.sampler == 'ptmcmc':
         ind = np.unique(np.random.randint(0, num_planets, 1))
         if args.det_signal and args.eph_planetdelta:
             q[pct+ind] = np.random.uniform(pmin[pct+ind], pmax[pct+ind])
-            q[pct+ind+num_planets] = np.random.uniform(pmin[pct+ind+num_planets],
-                                                       pmax[pct+ind+num_planets])
+            if args.eph_planetprior != 'official':
+                q[pct+ind+num_planets] = np.random.uniform(pmin[pct+ind+num_planets],
+                                                           pmax[pct+ind+num_planets])
             qxy += 0
         
         return q, qxy
@@ -6320,7 +6338,10 @@ elif args.sampler == 'ptmcmc':
             pct += 4
 
         if args.eph_planetdelta:
-            pct += 2*num_planets
+            if args.eph_planetprior == 'official':
+                pct += num_planets
+            elif args.eph_planetprior == 'loguniform':
+                pct += 2*num_planets
 
         # choose a planet orbit to perturb
         ind = np.unique(np.random.randint(0, num_planets, 1))[0]
