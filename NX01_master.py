@@ -6257,7 +6257,7 @@ elif args.sampler == 'ptmcmc':
                 mu = 0.0
                 sig = np.array([7.71489350e-12,4.79352991e-14,6.31466493e-15,
                                 2.08290722e-15,1.54976690e-11,8.17306184e-12,
-                                5.71923361e-11,7.96103855e-11,1.50162644e-12]))
+                                5.71923361e-11,7.96103855e-11,1.50162644e-12]])
                 q[pct+ind] = mu + np.random.randn() * sig[ind]
                 qxy -= (mu - parameters[pct+ind]) ** 2 / 2 / \
                   sig[ind] ** 2 - (mu - q[pct+ind]) ** 2 / 2 / sig[ind] ** 2
