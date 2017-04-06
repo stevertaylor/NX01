@@ -291,6 +291,8 @@ parser.add_option('--eph_quadratic', dest='eph_quadratic', action='store_true', 
                   help='Do you want to include a deterministic quadratic in the ephemeris model? (default = False)')
 parser.add_option('--eph_planetdelta', dest='eph_planetdelta', action='store_true', default=False,
                   help='Do you want to include a deterministic planet-mass perturbation in the ephemeris model? (default = False)')
+parser.add_option('--which_ephs', dest='which_ephs', action='store', type=str, default='fitted',
+                  help='Which ephemerides do you want to use in the planet perturbation model [fitted, all, DE421, etc.] (default = fitted)')
 parser.add_option('--eph_planetnums', dest='eph_planetnums', action='store', type=str, default=None,
                   help='Which planets to include in pertubed-mass model [Mercury=1, Venus=2, etc.] (default = None)')
 parser.add_option('--eph_planetprior', dest='eph_planetprior', action='store', type=str, default='official',
@@ -1076,7 +1078,15 @@ if args.det_signal:
         elif args.eph_planetprior == 'loguniform':
             pmin = np.append(pmin,-20.0*np.ones(num_planets)) # amps
             pmin = np.append(pmin,-1.0*np.ones(num_planets)) # signs
-        num_ephs = len(psr[0].planet_ssb.keys())
+        if args.which_ephs == 'fitted':
+            num_ephs = 1
+            ephnames = [psr[0].ephemeris]
+        elif args.which_ephs == 'all':
+            num_ephs = len(psr[0].planet_ssb.keys())
+            ephnames = psr[0].planet_ssb.keys()
+        else:
+            num_ephs = len(args.which_ephs.split(','))
+            ephnames = args.which_ephs.split(',')
         if num_ephs > 1:
             pmin = np.append(pmin,np.zeros((num_ephs-1)*num_planets)) # weights
         
@@ -1786,13 +1796,13 @@ def lnprob(xx):
                             weights = np.append(planet_orbitwgts[jj,:],
                                                 1.0 - np.sum(planet_orbitwgts[jj,:]))
                             planet_posvec = np.zeros((p.toas.shape[0],3))
-                            for kk,key in enumerate(p.planet_ssb.keys()):
+                            for kk,key in enumerate(ephnames):
                                 planet_posvec += weights[kk] * p.planet_ssb[key][:,tag,:3]
                             planet_delta_signal += (mass_perturb[jj] * \
                                                     np.dot(planet_posvec,psr_posvec))
                         else:
                             planet_posvec = np.zeros((p.toas.shape[0],3))
-                            for kk,key in enumerate(p.planet_ssb.keys()):
+                            for kk,key in enumerate(ephnames):
                                 planet_posvec += p.planet_ssb[key][:,tag,:3]
                             planet_delta_signal += (mass_perturb[jj] * \
                                                     np.dot(planet_posvec,psr_posvec))
