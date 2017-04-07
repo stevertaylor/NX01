@@ -297,6 +297,8 @@ parser.add_option('--eph_planetnums', dest='eph_planetnums', action='store', typ
                   help='Which planets to include in pertubed-mass model [Mercury=1, Venus=2, etc.] (default = None)')
 parser.add_option('--eph_planetprior', dest='eph_planetprior', action='store', type=str, default='official',
                   help='What kind fo prior do you want to place on the planet masses being perturbed [official, loguniform] (default = official)')
+parser.add_option('--eph_planetoffset', dest='eph_planetoffset', action='store_true', default=False,
+                  help='Do you want to search for x,y,z displacements in each planetary orbit? (default = False)')
 parser.add_option('--incGWline', dest='incGWline', action='store_true', default=False,
                   help='Do you want to include a single-frequency line in the GW spectrum? (default = False)')
 parser.add_option('--gwlinePrior', dest='gwlinePrior', action='store', type=str, default='uniform',
@@ -1089,6 +1091,8 @@ if args.det_signal:
             ephnames = args.which_ephs.split(',')
         if num_ephs > 1:
             pmin = np.append(pmin,np.zeros((num_ephs-1)*num_planets)) # weights
+        if args.eph_planetoffset:
+            pmin = np.append(pmin,-100.0*np.ones(3*num_planets)) # x,y,z displacements [km]
         
 
 pmax = np.array([])
@@ -1234,6 +1238,8 @@ if args.det_signal:
             pmax = np.append(pmax,1.0*np.ones(num_planets)) # signs
         if num_ephs > 1:
             pmax = np.append(pmax,np.ones((num_ephs-1)*num_planets)) # weights
+        if args.eph_planetoffset:
+            pmax = np.append(pmax,100.0*np.ones(3*num_planets)) # x,y,z displacements [km]
        
 
 ##################################################################################
@@ -1475,8 +1481,12 @@ def lnprob(xx):
                 planet_delta_sign = xx[param_ct+num_planets:param_ct+2*num_planets]
                 param_ct += 2*num_planets
             if num_ephs > 1:
-                planet_orbitwgts = xx[param_ct:]
+                planet_orbitwgts = xx[param_ct:param_ct+(num_planets*(num_ephs-1))]
                 planet_orbitwgts = planet_orbitwgts.reshape((num_planets,num_ephs-1))
+                param_ct += num_planets * (num_ephs-1)
+            if args.eph_planetoffset:
+                planet_orbitoffsets = xx[param_ct:]
+                planet_orbitoffsets = planet_orbitoffsets.reshape((num_planets,3))
             
     ############################
     ############################
@@ -1791,19 +1801,24 @@ def lnprob(xx):
                             mass_perturb.append(planet_delta_mass[jj])
                         elif args.eph_planetprior == 'loguniform':
                             mass_perturb.append(np.sign(planet_delta_sign[jj]) * 10.0**planet_delta_amp[jj])
+
+                        if args.eph_planetoffset:
+                            planet_offset = planet_orbitoffset[jj,:] * 1e3 / sc.c
+                        else:
+                            planet_offset = np.zeros(3)
                             
                         if num_ephs > 1:
                             weights = np.append(planet_orbitwgts[jj,:],
                                                 1.0 - np.sum(planet_orbitwgts[jj,:]))
                             planet_posvec = np.zeros((p.toas.shape[0],3))
                             for kk,key in enumerate(ephnames):
-                                planet_posvec += weights[kk] * p.planet_ssb[key][:,tag,:3]
+                                planet_posvec += weights[kk] * (p.planet_ssb[key][:,tag,:3] + planet_offset)
                             planet_delta_signal += (mass_perturb[jj] * \
                                                     np.dot(planet_posvec,psr_posvec))
                         else:
                             planet_posvec = np.zeros((p.toas.shape[0],3))
                             for kk,key in enumerate(ephnames):
-                                planet_posvec += p.planet_ssb[key][:,tag,:3]
+                                planet_posvec += (p.planet_ssb[key][:,tag,:3] + planet_offset)
                             planet_delta_signal += (mass_perturb[jj] * \
                                                     np.dot(planet_posvec,psr_posvec))
                     
@@ -3466,7 +3481,10 @@ if args.det_signal:
             for ii in planet_tags:
                 for jj in range(num_ephs-1):
                     parameters.append("planet{0}_orbitwgts{1}".format(ii,jj))
-            
+        if args.eph_planetoffset:
+            for ii in planet_tags:
+                for axis in ['x','y','z']:
+                    parameters.append("planet{0}_orbitoffsetaxis{1}".format(ii,axis))
 
 
 n_params = len(parameters)
@@ -3575,6 +3593,8 @@ if args.det_signal:
         file_tag += '_ephquad'
     if args.eph_planetdelta:
         file_tag += '_ephplanetdelta'+args.eph_planetprior
+    if args.eph_planetoffset:
+        file_tag += '_orbitoffset'
 if args.fixRed:
     red_tag = '_redFix'+'nm{0}'.format(nmodes_red)
 elif not args.fixRed:
@@ -3878,6 +3898,8 @@ elif args.sampler == 'ptmcmc':
                 x0 = np.append(x0,np.random.uniform(-1.0,1.0,num_planets))
             if num_ephs > 1:
                 x0 = np.append(x0,np.random.uniform(0.0,1.0,(num_ephs-1)*num_planets))
+            if args.eph_planetoffset:
+                x0 = np.append(x0,np.random.uniform(-100.0,100.0,3*num_planets))
 
     if rank==0:
         print "\n Your initial parameters are {0}\n".format(x0)
@@ -3981,6 +4003,8 @@ elif args.sampler == 'ptmcmc':
                 cov_diag = np.append(cov_diag,np.tile(0.1,num_planets))
             if num_ephs > 1:
                 cov_diag = np.append(cov_diag,np.tile(0.1,(num_ephs-1)*num_planets))
+            if args.eph_planetoffset:
+                cov_diag = np.append(cov_diag,np.tile(10.0,3*num_planets))
                 
     if rank==0:
         print "\n Running a quick profile on the likelihood to estimate evaluation speed...\n"
@@ -4245,6 +4269,11 @@ elif args.sampler == 'ptmcmc':
                 for ii in range(num_planets):
                     ids = [np.arange(param_ct,param_ct+(num_ephs-1))]
                     param_ct += (num_ephs-1)
+                    [ind.append(id) for id in ids]
+            if args.eph_planetoffset:
+                for ii in range(num_planets):
+                    ids = [np.arange(param_ct,param_ct+3)]
+                    param_ct += 3
                     [ind.append(id) for id in ids]
          
             
@@ -6376,6 +6405,104 @@ elif args.sampler == 'ptmcmc':
         
         return q, qxy
 
+    # planet orbital offset draws 
+    def drawFromEphPlanetOffsetPrior(parameters, iter, beta):
+
+        # post-jump parameters
+        q = parameters.copy()
+
+        # transition probability
+        qxy = 0
+
+        npsr = len(psr)
+        pct = 0
+        if not args.fixRed:
+            if args.redSpecModel == 'powerlaw':
+                pct = 2*npsr
+            elif args.redSpecModel == 'spectrum':
+                pct = npsr*nmodes_red
+    
+        if args.incDM and not args.fixDM:
+            if args.dmSpecModel == 'powerlaw':
+                pct += 2*npsr
+            elif args.dmSpecModel == 'spectrum':
+                pct += npsr*nmodes_dm
+
+        if args.varyWhite:
+            for ii,p in enumerate(psr):
+                systems = p.sysflagdict[args.sysflag_target]
+                pct += 2*len(systems)
+                pct += len(p.sysflagdict['nano-f'].keys())
+
+        if args.incBand:
+            if args.bandSpecModel == 'powerlaw':
+                pct += 2*(len(bands)-1)
+            elif args.bandSpecModel == 'spectrum':
+                pct += (len(bands)-1)*nmodes_band
+                    
+        if args.incClk:
+            if args.clkSpecModel == 'powerlaw':
+                pct += 2
+            elif args.clkSpecModel == 'spectrum':
+                pct += nmodes_red
+
+        if args.incCm:
+            if args.cmSpecModel == 'powerlaw':
+                pct += 2
+            elif args.cmSpecModel == 'spectrum':
+                pct += nmodes_red
+
+        if args.incEph and not args.jplBasis:
+            if args.ephSpecModel == 'powerlaw':
+                pct += 6
+            elif args.ephSpecModel == 'spectrum':
+                pct += 3*nmodes_eph
+
+        if args.incGWB:
+            if args.gwbSpecModel == 'powerlaw':
+                pct += 1
+                if not args.fix_slope:
+                    pct += 1
+            elif args.gwbSpecModel == 'spectrum':
+                pct += nmodes_red
+                if args.gwbPrior == 'gaussProc':
+                    pct += 1 + gwb_popparam_ndims
+            elif args.gwbSpecModel == 'turnover':
+                if args.gwb_fb2env is not None:
+                    pct += 2
+                elif args.gwb_fb2env is None:
+                    pct += 3
+            elif args.gwbSpecModel == 'gpEnvInterp':
+                pct += 2
+
+            if args.incCorr:
+                pct += num_corr_params
+                if args.gwbModelSelect:
+                    pct += 1
+
+        if args.incGWline:
+            pct += 4
+
+        if args.eph_planetdelta:
+            if args.eph_planetprior == 'official':
+                pct += num_planets
+            elif args.eph_planetprior == 'loguniform':
+                pct += 2*num_planets
+            if num_ephs > 1:
+                pct += num_planets * (num_ephs-1)
+
+
+        # choose a planet orbit to perturb
+        ind = np.unique(np.random.randint(0, num_planets, 1))[0]
+        if args.det_signal and args.eph_planetdelta and args.eph_planetoffset:
+            q[pct+3*ind:pct+3*(ind+1)] = \
+              np.random.uniform(pmin[pct+3*ind],
+                                pmax[pct+3*ind],3)
+            
+            qxy += 0
+        
+        return q, qxy
+
   
     # add jump proposals
     if not args.fixRed:
@@ -6444,6 +6571,8 @@ elif args.sampler == 'ptmcmc':
         sampler.addProposalToCycle(drawFromEphPlanetDeltaPrior, 10)
         if num_ephs > 1:
             sampler.addProposalToCycle(drawFromEphPlanetOrbitPrior, 10)
+        if args.eph_planetoffset:
+            sampler.addProposalToCycle(drawFromEphPlanetOffsetPrior, 10)
     
 
     sampler.sample(p0=x0, Niter=int(args.niter), thin=10,
