@@ -1805,8 +1805,7 @@ def lnprob(xx):
                             mass_perturb.append(np.sign(planet_delta_sign[jj]) * 10.0**planet_delta_amp[jj])
 
                         if args.eph_planetoffset:
-                            planet_offset = np.tile(planet_orbitoffsets[jj,0],3) * 1e3 / sc.c
-                            #planet_offset = planet_orbitoffsets[jj,:] * 1e3 / sc.c
+                            planet_offset = planet_orbitoffsets[jj,:] * 1e3 / sc.c
                         else:
                             planet_offset = np.zeros(3)
                         #print planet_offset
@@ -1822,6 +1821,7 @@ def lnprob(xx):
                         else:
                             planet_posvec = np.zeros((p.toas.shape[0],3))
                             for kk,key in enumerate(ephnames):
+                                print p.planet_ssb[key][:,tag,:3]
                                 planet_posvec += (p.planet_ssb[key][:,tag,:3] + planet_offset)
                             planet_delta_signal += (mass_perturb[jj] * \
                                                     np.dot(planet_posvec,psr_posvec))
@@ -3903,7 +3903,7 @@ elif args.sampler == 'ptmcmc':
             if num_ephs > 1:
                 x0 = np.append(x0,np.random.uniform(0.0,1.0,(num_ephs-1)*num_planets))
             if args.eph_planetoffset:
-                x0 = np.append(x0,np.random.uniform(-100.0,100.0,3*num_planets))
+                x0 = np.append(x0,np.random.uniform(-1e8,1e8,3*num_planets))
 
     if rank==0:
         print "\n Your initial parameters are {0}\n".format(x0)
