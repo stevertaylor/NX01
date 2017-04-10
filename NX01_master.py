@@ -1808,6 +1808,7 @@ def lnprob(xx):
                             planet_offset = planet_orbitoffsets[jj,:] * 1e3 / sc.c
                         else:
                             planet_offset = np.zeros(3)
+                        print planet_offset
                             
                         if num_ephs > 1:
                             weights = np.append(planet_orbitwgts[jj,:],
