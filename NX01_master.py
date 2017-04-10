@@ -1805,7 +1805,8 @@ def lnprob(xx):
                             mass_perturb.append(np.sign(planet_delta_sign[jj]) * 10.0**planet_delta_amp[jj])
 
                         if args.eph_planetoffset:
-                            planet_offset = planet_orbitoffsets[jj,:] * 1e3 / sc.c
+                            planet_offset = np.tile(planet_orbitoffsets[jj,0],3) * 1e3 / sc.c
+                            #planet_offset = planet_orbitoffsets[jj,:] * 1e3 / sc.c
                         else:
                             planet_offset = np.zeros(3)
                         #print planet_offset
