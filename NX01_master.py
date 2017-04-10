@@ -1093,7 +1093,7 @@ if args.det_signal:
         if num_ephs > 1:
             pmin = np.append(pmin,np.zeros((num_ephs-1)*num_planets)) # weights
         if args.eph_planetoffset:
-            pmin = np.append(pmin,-1e5*np.ones(3*num_planets)) # x,y,z displacements [km]
+            pmin = np.append(pmin,-1e8*np.ones(3*num_planets)) # x,y,z displacements [km]
         
 
 pmax = np.array([])
@@ -1241,7 +1241,7 @@ if args.det_signal:
         if num_ephs > 1:
             pmax = np.append(pmax,np.ones((num_ephs-1)*num_planets)) # weights
         if args.eph_planetoffset:
-            pmax = np.append(pmax,1e5*np.ones(3*num_planets)) # x,y,z displacements [km]
+            pmax = np.append(pmax,1e8*np.ones(3*num_planets)) # x,y,z displacements [km]
        
 
 ##################################################################################
@@ -1808,7 +1808,7 @@ def lnprob(xx):
                             planet_offset = planet_orbitoffsets[jj,:] * 1e3 / sc.c
                         else:
                             planet_offset = np.zeros(3)
-                        print planet_offset
+                        #print planet_offset
                             
                         if num_ephs > 1:
                             weights = np.append(planet_orbitwgts[jj,:],
