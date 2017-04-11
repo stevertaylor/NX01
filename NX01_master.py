@@ -3622,7 +3622,7 @@ if args.incGWB:
                                                        args.LMAX,physprior_tag,
                                                        evol_corr_tag,gamma_tag)
         elif args.gwbTypeCorr == 'dipoleOrf':
-8            file_tag += '_gwb{0}_dip{1}{2}'.format(args.gwbPrior,
+            file_tag += '_gwb{0}_dip{1}{2}'.format(args.gwbPrior,
                                                    evol_corr_tag,gamma_tag)
         elif args.gwbTypeCorr == 'clock':
             file_tag += '_gwb{0}_fulcorr{1}{2}'.format(args.gwbPrior,
@@ -4086,9 +4086,9 @@ elif args.sampler == 'ptmcmc':
         if args.eph_planetdelta:
             if args.eph_planetmass:
                 if args.eph_planetmassprior == 'official':
-                    massdiag = np.array([7.71489350e-12,4.79352991e-14,6.31466493e-15,
-                                         2.08290722e-15,1.54976690e-11,8.17306184e-12,
-                                         5.71923361e-11,7.96103855e-11,1.50162644e-12])
+                    massdiag = np.array([7.71489350e-12, 4.79352991e-14, 6.31466493e-15,
+                                         2.08290722e-15, 1.54976690e-11, 8.17306184e-12,
+                                         5.71923361e-11, 7.96103855e-11, 1.50162644e-12])
                     cov_diag = np.append(cov_diag,massdiag[planet_tags-1]**2.0)
                 elif args.eph_planetmassprior == 'loguniform':
                     cov_diag = np.append(cov_diag,np.tile(0.1,num_planets))
