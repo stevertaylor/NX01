@@ -781,6 +781,44 @@ if args.det_signal:
     tt = [np.min(p.toas) for p in psr]
     tref = np.min(tt)
 
+    if args.eph_quadratic:
+        ephem_design = []
+        for ii, p in enumerate(psr):
+
+            # define the pulsar position vector
+            pphi = p.psr_locs[0]
+            ptheta = np.pi/2. - p.psr_locs[1]
+            x = np.sin(ptheta)*np.cos(pphi)
+            y = np.sin(ptheta)*np.sin(pphi)
+            z = np.cos(ptheta)
+
+            normtime = (p.toas - tref)/365.25
+            tmp = np.zeros((p.toas.shape[0],3))
+            tmp[:,0] = 1.0
+            tmp[:,1] = normtime
+            tmp[:,2] = normtime**2.0
+            tmp = np.repeat(tmp,3,axis=1)
+            tmp[:,0::3] *= x
+            tmp[:,1::3] *= y
+            tmp[:,2::3] *= z
+            ephem_design.append( tmp )
+
+        ephem_design = np.vstack(ephem_design)
+        ephem_norm = np.sqrt(np.sum(ephem_design ** 2, axis=0))
+        ephem_design /= ephem_norm
+
+        ephem_Sigi = np.dot(ephem_design.T, ephem_design)
+
+        ephem_U, ephem_s, ephem_Vh = sl.svd(ephem_Sigi)
+        if not np.all(ephem_s > 0):
+            raise ValueError("ephem_Sigi singular according to SVD")
+        ephem_Sigma = np.dot(ephem_Vh.T, np.dot(np.diag(1.0 / ephem_s), ephem_U.T))
+
+        # set ephemeris-quadratic fisher matrix
+        ephem_fisher = ephem_Sigma
+        ephem_fisherU = ephem_U
+        ephem_fisherS = ephem_s
+
 ############################################
 # READ IN PICKLED GAUSSIAN PROCESS INSTANCE
 ############################################
@@ -1069,14 +1107,15 @@ if args.det_signal:
             pmin = np.append(pmin,np.zeros(len(psr)))
         if args.cgwModelSelect:
             pmin = np.append(pmin,-0.5)
-    elif args.bwm_search:
+    if args.bwm_search:
         pmin = np.append(pmin,[np.min([np.min(p.toas) for p in psr]),
                                -18.0,0.0,-1.0,0.0])
         if args.bwm_model_select:
             pmin = np.append(pmin,-0.5)
     if args.eph_quadratic:
-        pmin = np.append(pmin,np.tile([-10.0,-10.0],3)) # amps
-        pmin = np.append(pmin,np.tile([-1.0,-1.0],3)) # signs
+        pmin = np.append(pmin,-1000.0*np.ones(9)) # amps
+        #pmin = np.append(pmin,np.tile([-10.0,-10.0],3)) # amps
+        #pmin = np.append(pmin,np.tile([-1.0,-1.0],3)) # signs
     if args.eph_planetdelta:
         if args.eph_planetmass:
             if args.eph_planetmassprior == 'official':
@@ -1227,14 +1266,15 @@ if args.det_signal:
             pmax = np.append(pmax,2.0*np.pi*np.ones(len(psr)))
         if args.cgwModelSelect:
             pmax = np.append(pmax,1.5)
-    elif args.bwm_search:
+    if args.bwm_search:
         pmax = np.append(pmax,[np.max([np.max(p.toas) for p in psr]),
                                -11.0,2.0*np.pi,1.0,np.pi])
         if args.bwm_model_select:
             pmax = np.append(pmax,1.5)
     if args.eph_quadratic:
-        pmax = np.append(pmax,np.tile([0.0,0.0],3)) # amps
-        pmax = np.append(pmax,np.tile([1.0,1.0],3)) # signs
+        pmax = np.append(pmax,1000.0*np.ones(9)) # amps
+        #pmax = np.append(pmax,np.tile([0.0,0.0],3)) # amps
+        #pmax = np.append(pmax,np.tile([1.0,1.0],3)) # signs
     if args.eph_planetdelta:
         if args.eph_planetmass:
             if args.eph_planetmassprior == 'official':
@@ -1460,27 +1500,38 @@ def lnprob(xx):
 
     if args.det_signal:
         if args.cgw_search:
+            cgw_params = xx[param_ct:param_ct+11]
+            param_ct += 11
+            if args.ecc_search:
+                cgw_params = np.append(cgw_params,xx[param_ct])
+                param_ct += 1
+            if args.psrTerm:
+                cgw_params = np.append(cgw_params,xx[param_ct:param_ct+3*len(psr)])
+                param_ct += 3*len(psr)
             if args.cgwModelSelect:
-                cgw_params = xx[param_ct:-1]
                 # '0' is noise-only, '1' is CGW
-                nmodel = int(np.rint(xx[-1]))
-            else:
-                cgw_params = xx[param_ct:]
-        elif args.bwm_search:
+                nmodel_cgw = int(np.rint(xx[param_ct]))
+                param_ct += 1
+        if args.bwm_search:
             if args.bwm_model_select:
-                bwm_params = xx[param_ct:-1]
+                bwm_params = xx[param_ct:param_ct+5]
+                param_ct += 5
                 # '0' is noise-only, '1' is BWM
-                nmodel = int(np.rint(xx[-1]))
+                nmodel_bwm = int(np.rint(xx[param_ct]))
+                param_ct += 1
             else:
-                bwm_params = xx[param_ct:]
+                bwm_params = xx[param_ct:param_ct+5]
+                param_ct += 5
         # fix this for single GW signals as well as eph_quadratic / eph_planetdelta
         if args.eph_quadratic:
-            xquad1_amp, xquad2_amp, \
-              yquad1_amp, yquad2_amp, \
-              zquad1_amp, zquad2_amp = xx[param_ct:param_ct+6]
-            xquad1_sign, xquad2_sign, \
-              yquad1_sign, yquad2_sign, \
-              zquad1_sign, zquad2_sign = xx[param_ct+6:param_ct+12]
+            ephquad_params = xx[param_ct:param_ct+9]
+            param_ct += 9
+            #xquad1_amp, xquad2_amp, \
+            #  yquad1_amp, yquad2_amp, \
+            #  zquad1_amp, zquad2_amp = xx[param_ct:param_ct+6]
+            #xquad1_sign, xquad2_sign, \
+            #  yquad1_sign, yquad2_sign, \
+            #  zquad1_sign, zquad2_sign = xx[param_ct+6:param_ct+12]
         if args.eph_planetdelta:
             if args.eph_planetmass:
                 if args.eph_planetmassprior == 'official':
@@ -1497,6 +1548,7 @@ def lnprob(xx):
             if args.eph_planetoffset:
                 planet_orbitoffsets = xx[param_ct:param_ct+3*num_planets]
                 planet_orbitoffsets = planet_orbitoffsets.reshape((num_planets,3))
+                param_ct += 3*num_planets
             
     ############################
     ############################
@@ -1654,6 +1706,11 @@ def lnprob(xx):
 
     
         if args.det_signal:
+
+            detres = []
+            for ii,p in enumerate(psr):
+                detres.append(p.res)
+
             if args.cgw_search:
 
                 if args.ecc_search:
@@ -1683,7 +1740,7 @@ def lnprob(xx):
                     psrlp0 = np.array([None]*npsr)
             
                 cgw_res = []
-                detres = []
+                #detres = []
 
                 #########################
                 # Sometimes we might want
@@ -1745,52 +1802,61 @@ def lnprob(xx):
                         elif not args.epochTOAs:
                             cgw_res.append(tmp_res)
                         
-                    detres.append( p.res - cgw_res[ii] )
+                    #detres.append( p.res - cgw_res[ii] )
+                    detres[ii] -= cgw_res[ii]
 
 
-            elif args.bwm_search:
+            if args.bwm_search:
 
                 bwm_res = []
-                detres = []
+                #detres = []
                 for ii,p in enumerate(psr):
                     if args.bwm_model_select:
-                        if nmodel == 0:
+                        if nmodel_bwm == 0:
                             bwm_res.append( np.zeros(len(p.toas)) )
-                        elif nmodel == 1:
+                        elif nmodel_bwm == 1:
                             bwm_res.append( utils.bwmsignal(bwm_params,p,
                                                             antennaPattern=args.bwm_antenna) )
                     else:
                         bwm_res.append( utils.bwmsignal(bwm_params,p,
                                                         antennaPattern=args.bwm_antenna) )
-                    detres.append( p.res - bwm_res[ii] )
+                    #detres.append( p.res - bwm_res[ii] )
+                    detres[ii] -= bwm_res[ii]
 
             if args.eph_quadratic:
 
-                detres = []
-                for ii, p in enumerate(psr):
+                #detres = []
+                ephquad_signal = np.dot(ephem_design*ephem_norm,ephquad_params)
 
-                    # define the pulsar position vector
-                    pphi = p.psr_locs[0]
-                    ptheta = np.pi/2. - p.psr_locs[1]
-                    x = np.sin(ptheta)*np.cos(pphi)
-                    y = np.sin(ptheta)*np.sin(pphi)
-                    z = np.cos(ptheta)
+                toa_ct = 0
+                for ii,p in enumerate(psr):
+                    detres[ii] -= ephquad_signal[toa_ct:toa_ct+p.toas.shape[0]]
+                    toa_ct += p.toas.shape[0]
+                
+                #for ii, p in enumerate(psr):
+                #
+                #    # define the pulsar position vector
+                #    pphi = p.psr_locs[0]
+                #    ptheta = np.pi/2. - p.psr_locs[1]
+                #    x = np.sin(ptheta)*np.cos(pphi)
+                #    y = np.sin(ptheta)*np.sin(pphi)
+                #    z = np.cos(ptheta)
 
-                    normtime = (p.toas - tref)/365.25
-                    x_quad = (np.sign(xquad1_sign) * 10.0**xquad1_amp * normtime + \
-                              np.sign(xquad2_sign) * 10.0**xquad2_amp * normtime**2.0) * x
-                    y_quad = (np.sign(yquad1_sign) * 10.0**yquad1_amp * normtime + \
-                              np.sign(yquad2_sign) * 10.0**yquad2_amp * normtime**2.0) * y
-                    z_quad = (np.sign(zquad1_sign) * 10.0**zquad1_amp * normtime + \
-                              np.sign(zquad2_sign) * 10.0**zquad2_amp * normtime**2.0) * z
+                #    normtime = (p.toas - tref)/365.25
+                #    x_quad = (np.sign(xquad1_sign) * 10.0**xquad1_amp * normtime + \
+                #              np.sign(xquad2_sign) * 10.0**xquad2_amp * normtime**2.0) * x
+                #    y_quad = (np.sign(yquad1_sign) * 10.0**yquad1_amp * normtime + \
+                #              np.sign(yquad2_sign) * 10.0**yquad2_amp * normtime**2.0) * y
+                #    z_quad = (np.sign(zquad1_sign) * 10.0**zquad1_amp * normtime + \
+                #              np.sign(zquad2_sign) * 10.0**zquad2_amp * normtime**2.0) * z
 
-                    # need to alter this if you want a single GW source too
-                    detres.append( p.res - x_quad - y_quad - z_quad )
+                #    # need to alter this if you want a single GW source too
+                #    detres.append( p.res - x_quad - y_quad - z_quad )
 
             mass_perturb = None
             if args.eph_planetdelta:
 
-                detres = []
+                #detres = []
                 for ii, p in enumerate(psr):
 
                     # define the pulsar position vector
@@ -1837,7 +1903,8 @@ def lnprob(xx):
                                                     np.dot(planet_offset,psr_posvec))
                     
                     # need to alter this if you want a single GW source too
-                    detres.append( p.res - planet_delta_signal)
+                    #detres.append( p.res - planet_delta_signal)
+                    detres[ii] -= planet_delta_signal
 
             #############################################################
             # Recomputing some noise quantities involving 'residuals'.
@@ -3233,7 +3300,8 @@ def lnprob(xx):
         priorfac_eph = 0.0
 
     priorfac_planetmassdelta = 0.0
-    if args.eph_planetdelta and args.eph_planetmass and args.eph_planetmassprior == 'official':
+    if args.det_signal and args.eph_planetdelta and \
+      args.eph_planetmass and args.eph_planetmassprior == 'official':
         mu = 0.0
         sig = np.array([7.71489350e-12, 4.79352991e-14, 6.31466493e-15,
                         2.08290722e-15, 1.54976690e-11, 8.17306184e-12,
@@ -3474,17 +3542,20 @@ if args.det_signal:
             [parameters.append('gp0_'+p.name) for p in psr]
             [parameters.append('lp0_'+p.name) for p in psr]
         if args.cgwModelSelect:
-            parameters.append("nmodel")
-    elif args.bwm_search:
+            parameters.append("nmodel_cgw")
+    if args.bwm_search:
         parameters += ["burst_mjd", "burst_strain",
                        "phi", "costheta", "gwpol"]
         if args.bwm_model_select:
-            parameters.append("nmodel")
+            parameters.append("nmodel_bwm")
     if args.eph_quadratic:
-        parameters += ["eph_xquad1amp", "eph_xquad2amp", "eph_yquad1amp",
-                       "eph_yquad2amp", "eph_zquad1amp", "eph_zquad2amp",
-                       "eph_xquad1sign", "eph_xquad2sign", "eph_yquad1sign",
-                       "eph_yquad2sign", "eph_zquad1sign", "eph_zquad2sign"]
+        parameters += ["eph_xquad0amp", "eph_xquad1amp", "eph_xquad2amp",
+                       "eph_yquad0amp", "eph_yquad1amp", "eph_yquad2amp",
+                       "eph_zquad0amp", "eph_zquad1amp", "eph_zquad2amp"]
+        #parameters += ["eph_xquad1amp", "eph_xquad2amp", "eph_yquad1amp",
+        #               "eph_yquad2amp", "eph_zquad1amp", "eph_zquad2amp",
+        #               "eph_xquad1sign", "eph_xquad2sign", "eph_yquad1sign",
+        #               "eph_yquad2sign", "eph_zquad1sign", "eph_zquad2sign"]
     if args.eph_planetdelta:
         if args.eph_planetmass:
             if args.eph_planetmassprior == 'official':
@@ -3551,7 +3622,7 @@ if args.incGWB:
                                                        args.LMAX,physprior_tag,
                                                        evol_corr_tag,gamma_tag)
         elif args.gwbTypeCorr == 'dipoleOrf':
-            file_tag += '_gwb{0}_dip{1}{2}'.format(args.gwbPrior,
+8            file_tag += '_gwb{0}_dip{1}{2}'.format(args.gwbPrior,
                                                    evol_corr_tag,gamma_tag)
         elif args.gwbTypeCorr == 'clock':
             file_tag += '_gwb{0}_fulcorr{1}{2}'.format(args.gwbPrior,
@@ -3600,7 +3671,7 @@ if args.det_signal:
             file_tag += 'psrTerm'
         if args.cgwModelSelect:
             file_tag += 'ModSct'
-    elif args.bwm_search:
+    if args.bwm_search:
         file_tag += '_bwm'+args.bwm_antenna
         if args.bwm_model_select:
             file_tag += 'ModSct'
@@ -3899,13 +3970,14 @@ elif args.sampler == 'ptmcmc':
                 x0 = np.append(x0,np.random.uniform(0.0,2.0*np.pi,len(psr)))
             if args.cgwModelSelect:
                 x0 = np.append(x0,0.4)
-        elif args.bwm_search:
+        if args.bwm_search:
             x0 = np.append(x0,np.array([55100.0,-14.0,0.3,0.5,0.7]))
             if args.bwm_model_select:
                 x0 = np.append(x0,0.4)
         if args.eph_quadratic:
-            x0 = np.append(x0,np.array(np.tile([-7.0],6)))
-            x0 = np.append(x0,np.random.uniform(-1.0,1.0,6))
+            x0 = np.append(x0,np.random.uniform(-1000.0,1000.0,9))
+            #x0 = np.append(x0,np.array(np.tile([-7.0],6)))
+            #x0 = np.append(x0,np.random.uniform(-1.0,1.0,6))
         if args.eph_planetdelta:
             if args.eph_planetmass:
                 if args.eph_planetmassprior == 'official':
@@ -4003,13 +4075,14 @@ elif args.sampler == 'ptmcmc':
                 cov_diag = np.append(cov_diag,0.2*np.ones(len(psr)))
             if args.cgwModelSelect:
                 cov_diag = np.append(cov_diag,0.1)
-        elif args.bwm_search:
+        if args.bwm_search:
             cov_diag = np.append(cov_diag,np.array([100.0,0.1,0.1,0.1,0.1]))
             if args.bwm_model_select:
                 cov_diag = np.append(cov_diag,0.1)
         if args.eph_quadratic:
-            cov_diag = np.append(cov_diag,np.tile(0.1,6))
-            cov_diag = np.append(cov_diag,np.tile(0.1,6))
+            cov_diag = np.append(cov_diag,20.0*np.ones(9))
+            #cov_diag = np.append(cov_diag,np.tile(0.1,6))
+            #cov_diag = np.append(cov_diag,np.tile(0.1,6))
         if args.eph_planetdelta:
             if args.eph_planetmass:
                 if args.eph_planetmassprior == 'official':
@@ -4254,20 +4327,24 @@ elif args.sampler == 'ptmcmc':
                 param_ct += 3*len(psr)
                 [ind.append(id) for id in ids]
         ##### BWM #####
-        elif args.bwm_search:
+        if args.bwm_search:
             ids = [np.arange(param_ct,param_ct+5)]
             param_ct += 5
             [ind.append(id) for id in ids]
         ##### EPHEMERIS QUADRATIC #####
         if args.eph_quadratic:
             # amplitudes
-            ids = [np.arange(param_ct,param_ct+6)]
-            param_ct += 6
+            ids = [np.arange(param_ct,param_ct+9)]
+            param_ct += 9
             [ind.append(id) for id in ids]
-            # signs
-            ids = [np.arange(param_ct,param_ct+6)]
-            param_ct += 6
-            [ind.append(id) for id in ids]
+            ## amplitudes
+            #ids = [np.arange(param_ct,param_ct+6)]
+            #param_ct += 6
+            #[ind.append(id) for id in ids]
+            ## signs
+            #ids = [np.arange(param_ct,param_ct+6)]
+            #param_ct += 6
+            #[ind.append(id) for id in ids]
         ##### EPHEMERIS PLANET DELTA #####
         if args.eph_planetdelta:
             if args.eph_planetmass:
@@ -6136,6 +6213,15 @@ elif args.sampler == 'ptmcmc':
         if args.incGWline:
             pct += 4
 
+        if args.cgw_search:
+            pct += 11
+            if args.ecc_search:
+                pct += 1
+            if args.psrTerm:
+                pct += 3*len(psr)
+            if args.cgwModelSelect:
+                pct += 1
+
         # burst_mjd, burst_amp, phi, costheta, gwpol
         ind = np.unique(np.random.randint(0, 5, 1))
 
@@ -6223,12 +6309,123 @@ elif args.sampler == 'ptmcmc':
         if args.incGWline:
             pct += 4
 
-        if args.det_signal and args.bwm_search:
-            pct += 5
-            # indexing parameter is at end of list
-            q[pct] = np.random.uniform(pmin[pct], pmax[pct])
-            qxy += 0
+        if args.cgw_search:
+            pct += 11
+            if args.ecc_search:
+                pct += 1
+            if args.psrTerm:
+                pct += 3*len(psr)
+            if args.cgwModelSelect:
+                pct += 1
+
+        pct += 5
+        # indexing parameter is at end of list
+        q[pct] = np.random.uniform(pmin[pct], pmax[pct])
+        qxy += 0
         
+        return q, qxy
+
+    # bwm model index draws 
+    def drawFromEphemQuadFisherPrior(parameters, iter, beta):
+
+        # post-jump parameters
+        q = parameters.copy()
+
+        # transition probability
+        qxy = 0
+
+        npsr = len(psr)
+        pct = 0
+        if not args.fixRed:
+            if args.redSpecModel == 'powerlaw':
+                pct = 2*npsr
+            elif args.redSpecModel == 'spectrum':
+                pct = npsr*nmodes_red
+    
+        if args.incDM and not args.fixDM:
+            if args.dmSpecModel == 'powerlaw':
+                pct += 2*npsr
+            elif args.dmSpecModel == 'spectrum':
+                pct += npsr*nmodes_dm
+
+        if args.varyWhite:
+            for ii,p in enumerate(psr):
+                systems = p.sysflagdict[args.sysflag_target]
+                pct += 2*len(systems)
+                pct += len(p.sysflagdict['nano-f'].keys())
+
+        if args.incBand:
+            if args.bandSpecModel == 'powerlaw':
+                pct += 2*(len(bands)-1)
+            elif args.bandSpecModel == 'spectrum':
+                pct += (len(bands)-1)*nmodes_band
+                    
+        if args.incClk:
+            if args.clkSpecModel == 'powerlaw':
+                pct += 2
+            elif args.clkSpecModel == 'spectrum':
+                pct += nmodes_red
+
+        if args.incCm:
+            if args.cmSpecModel == 'powerlaw':
+                pct += 2
+            elif args.cmSpecModel == 'spectrum':
+                pct += nmodes_red
+
+        if args.incEph and not args.jplBasis:
+            if args.ephSpecModel == 'powerlaw':
+                pct += 6
+            elif args.ephSpecModel == 'spectrum':
+                pct += 3*nmodes_eph
+
+        if args.incGWB:
+            if args.gwbSpecModel == 'powerlaw':
+                pct += 1
+                if not args.fix_slope:
+                    pct += 1
+            elif args.gwbSpecModel == 'spectrum':
+                pct += nmodes_red
+                if args.gwbPrior == 'gaussProc':
+                    pct += 1 + gwb_popparam_ndims
+            elif args.gwbSpecModel == 'turnover':
+                if args.gwb_fb2env is not None:
+                    pct += 2
+                elif args.gwb_fb2env is None:
+                    pct += 3
+            elif args.gwbSpecModel == 'gpEnvInterp':
+                pct += 2
+
+            if args.incCorr:
+                pct += num_corr_params
+                if args.gwbModelSelect:
+                    pct += 1
+
+        if args.incGWline:
+            pct += 4
+
+        if args.cgw_search:
+            pct += 11
+            if args.ecc_search:
+                pct += 1
+            if args.psrTerm:
+                pct += 3*len(psr)
+            if args.cgwModelSelect:
+                pct += 1
+        if args.bwm_search:
+            if args.bwm_model_select:
+                pct += 6
+            else:
+                pct += 5
+
+        scale = np.random.uniform(1, 50)
+        # make correlated componentwise adaptive jump
+        ind = np.unique(np.random.randint(0, 9, 1))
+
+        q[pct:pct+9] += np.random.randn() / np.sqrt(ephem_fisherS[ind]) \
+          * ephem_fisherU[:, ind].flatten() * scale / ephem_norm
+
+        qxy += 0
+
         return q, qxy
 
     # planet mass perturbation draws 
@@ -6308,6 +6505,22 @@ elif args.sampler == 'ptmcmc':
 
         if args.incGWline:
             pct += 4
+
+        if args.cgw_search:
+            pct += 11
+            if args.ecc_search:
+                pct += 1
+            if args.psrTerm:
+                pct += 3*len(psr)
+            if args.cgwModelSelect:
+                pct += 1
+        if args.bwm_search:
+            if args.bwm_model_select:
+                pct += 6
+            else:
+                pct += 5
+        if args.eph_quadratic:
+            pct += 9
 
         # choose a planet mass to perturb
         ind = np.unique(np.random.randint(0, num_planets, 1))
@@ -6407,10 +6620,27 @@ elif args.sampler == 'ptmcmc':
         if args.incGWline:
             pct += 4
 
-        if args.eph_planetmassprior == 'official':
-            pct += num_planets
-        elif args.eph_planetmassprior == 'loguniform':
-            pct += 2*num_planets
+        if args.cgw_search:
+            pct += 11
+            if args.ecc_search:
+                pct += 1
+            if args.psrTerm:
+                pct += 3*len(psr)
+            if args.cgwModelSelect:
+                pct += 1
+        if args.bwm_search:
+            if args.bwm_model_select:
+                pct += 6
+            else:
+                pct += 5
+        if args.eph_quadratic:
+            pct += 9
+        if args.eph_planetdelta:
+            if args.eph_planetmass:
+                if args.eph_planetmassprior == 'official':
+                    pct += num_planets
+                elif args.eph_planetmassprior == 'loguniform':
+                    pct += 2*num_planets
 
         # choose a planet orbit to perturb
         ind = np.unique(np.random.randint(0, num_planets, 1))[0]
@@ -6500,13 +6730,29 @@ elif args.sampler == 'ptmcmc':
         if args.incGWline:
             pct += 4
 
-        if args.eph_planetmass:
-            if args.eph_planetmassprior == 'official':
-                pct += num_planets
-            elif args.eph_planetmassprior == 'loguniform':
-                pct += 2*num_planets
-            if num_ephs > 1:
-                pct += num_planets * (num_ephs-1)
+        if args.cgw_search:
+            pct += 11
+            if args.ecc_search:
+                pct += 1
+            if args.psrTerm:
+                pct += 3*len(psr)
+            if args.cgwModelSelect:
+                pct += 1
+        if args.bwm_search:
+            if args.bwm_model_select:
+                pct += 6
+            else:
+                pct += 5
+        if args.eph_quadratic:
+            pct += 9
+        if args.eph_planetdelta:
+            if args.eph_planetmass:
+                if args.eph_planetmassprior == 'official':
+                    pct += num_planets
+                elif args.eph_planetmassprior == 'loguniform':
+                    pct += 2*num_planets
+                if num_ephs > 1:
+                    pct += num_planets * (num_ephs-1)
 
         # choose a planet orbit to perturb
         ind = np.unique(np.random.randint(0, num_planets, 1))[0]
@@ -6578,11 +6824,13 @@ elif args.sampler == 'ptmcmc':
             sampler.addProposalToCycle(drawFromPtermEllPrior, 10)
         if args.cgwModelSelect:
             sampler.addProposalToCycle(drawFromCGWModelIndexPrior, 5)
-    elif args.det_signal and args.bwm_search:
+    if args.det_signal and args.bwm_search:
         sampler.addProposalToCycle(drawFromBWMPrior, 10)
         if args.bwm_model_select:
             sampler.addProposalToCycle(drawFromBWMModelIndexPrior, 5)
-    elif args.det_signal and args.eph_planetdelta:
+    if args.det_signal and args.eph_quadratic:
+        sampler.addProposalToCycle(drawFromEphemQuadFisherPrior, 40)
+    if args.det_signal and args.eph_planetdelta:
         if args.eph_planetmass:
             sampler.addProposalToCycle(drawFromEphPlanetDeltaPrior, 10)
             if num_ephs > 1:
