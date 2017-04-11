@@ -4113,7 +4113,7 @@ elif args.sampler == 'ptmcmc':
                 cov_diag = np.append(cov_diag,0.1)
                 param_ephquad += 1
         if args.eph_quadratic:
-            cov_diag = np.append(cov_diag,20.0*np.ones(9))
+            cov_diag = np.append(cov_diag,1e-18*np.ones(9))
             #cov_diag = np.append(cov_diag,np.tile(0.1,6))
             #cov_diag = np.append(cov_diag,np.tile(0.1,6))
         if args.eph_planetdelta:
@@ -4133,8 +4133,8 @@ elif args.sampler == 'ptmcmc':
 
     cov_diag = np.diag(cov_diag)
     # now including covariance in ephemeris quadratic parameters
-    if args.det_signal and args.eph_quadratic:
-        cov_diag[param_ephquad:param_ephquad+9,param_ephquad:param_ephquad+9] = ephem_fisher / ephem_norm**2.0
+    #if args.det_signal and args.eph_quadratic:
+    #    cov_diag[param_ephquad:param_ephquad+9,param_ephquad:param_ephquad+9] = ephem_fisher / ephem_norm**2.0
                 
     if rank==0:
         print "\n Running a quick profile on the likelihood to estimate evaluation speed...\n"
