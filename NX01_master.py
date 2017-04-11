@@ -3995,90 +3995,123 @@ elif args.sampler == 'ptmcmc':
 
     # Make a reasonable covariance matrix to commence sampling
     cov_diag = np.array([])
+    param_ephquad = 0
     if not args.fixRed:
         if args.redSpecModel == 'powerlaw':
             cov_diag = np.append(cov_diag,0.5*np.ones(len(psr)))
             cov_diag = np.append(cov_diag,0.5*np.ones(len(psr)))
+            param_ephquad += 2*len(psr)
         elif args.redSpecModel == 'spectrum':
             cov_diag = np.append(cov_diag,0.1*np.ones(len(psr)*nmodes_red))
+            param_ephquad += len(psr)*nmodes_red
     if args.incDM and not args.fixDM:
         if args.dmSpecModel == 'powerlaw':
             cov_diag = np.append(cov_diag,0.5*np.ones(len(psr)))
             cov_diag = np.append(cov_diag,0.5*np.ones(len(psr)))
+            param_ephquad += 2*len(psr)
         elif args.dmSpecModel == 'spectrum':
             cov_diag = np.append(cov_diag,0.1*np.ones(len(psr)*nmodes_dm))
+            param_ephquad += len(psr)*nmodes_dm
     if args.varyWhite:
         for ii,p in enumerate(psr):
             systems = p.sysflagdict[args.sysflag_target]
             cov_diag = np.append(cov_diag,0.5*np.ones(len(systems)))
             cov_diag = np.append(cov_diag,0.5*np.ones(len(systems)))
+            param_ephquad += 2*len(systems)
             if 'nano-f' in p.sysflagdict.keys() and len(p.sysflagdict['nano-f'].keys())>0:
                 cov_diag = np.append(cov_diag,0.5*np.ones(len(p.sysflagdict['nano-f'].keys())))
+                param_ephquad += len(p.sysflagdict['nano-f'].keys())
     if args.incBand:
         if args.bandSpecModel == 'powerlaw':
             cov_diag = np.append(cov_diag,0.5*np.ones(len(bands)-1))
             cov_diag = np.append(cov_diag,0.5*np.ones(len(bands)-1))
+            param_ephquad += len(bands)-1
         elif args.bandSpecModel == 'spectrum':
             cov_diag = np.append(cov_diag,0.1*np.ones((len(bands)-1)*nmodes_band))
+            param_ephquad += (len(bands)-1)*nmodes_band
     if args.incClk:
         if args.clkSpecModel == 'powerlaw':
             cov_diag = np.append(cov_diag,np.array([0.5,0.5]))
+            param_ephquad += 2
         elif args.clkSpecModel == 'spectrum':
             cov_diag = np.append(cov_diag,0.1*np.ones(nmodes_red))
+            param_ephquad += nmodes_red
     if args.incCm:
         if args.cmSpecModel == 'powerlaw':
             cov_diag = np.append(cov_diag,np.array([0.5,0.5]))
+            param_ephquad += 2
         elif args.cmSpecModel == 'spectrum':
             cov_diag = np.append(cov_diag,0.1*np.ones(nmodes_red))
+            param_ephquad += nmodes_red
     if args.incEph and not args.jplBasis:
         if args.ephSpecModel == 'powerlaw':
             cov_diag = np.append(cov_diag,np.array([0.5,0.5,0.5]))
             cov_diag = np.append(cov_diag,np.array([0.5,0.5,0.5]))
+            param_ephquad += 6
         elif args.ephSpecModel == 'spectrum':
             cov_diag = np.append(cov_diag,0.1*np.ones(3*nmodes_eph))
+            param_ephquad += 3*nmodes_eph
     if args.incGWB:
         if args.gwbSpecModel == 'powerlaw':
             cov_diag = np.append(cov_diag,0.5)
+            param_ephquad += 1
             if not args.fix_slope:
                 cov_diag = np.append(cov_diag,0.5)
+                param_ephquad += 1
         elif args.gwbSpecModel == 'spectrum':
             cov_diag = np.append(cov_diag,0.5*np.ones(nmodes_red))
+            param_ephquad += nmodes_red
             if args.gwbPrior == 'gaussProc':
                 # covariance is appropriate for all physical mechanisms
                 if gwb_popparam == 'starsecc':
                     cov_diag = np.append(cov_diag,np.array([0.5,0.05,0.05]))
+                    param_ephquad += 3
                 else:
-                    cov_diag = np.append(cov_diag,np.array([0.5,0.05])) 
+                    cov_diag = np.append(cov_diag,np.array([0.5,0.05]))
+                    param_ephquad += 2
         elif args.gwbSpecModel == 'turnover':
             cov_diag = np.append(cov_diag,0.5)
+            param_ephquad += 1
             if args.gwb_fb2env is not None:
                 cov_diag = np.append(cov_diag,0.2)
+                param_ephquad += 1
             elif args.gwb_fb2env is None:
                 cov_diag = np.append(cov_diag,np.array([0.5,0.1]))
+                param_ephquad += 2
         elif args.gwbSpecModel == 'gpEnvInterp':
             cov_diag = np.append(cov_diag,np.array([0.5,0.05]))
+            param_ephquad += 2
         if args.incCorr:
             cov_diag = np.append(cov_diag,0.05*np.ones(num_corr_params))
+            param_ephquad += num_corr_params
             if args.gwbModelSelect:
                 cov_diag = np.append(cov_diag,0.1)
+                param_ephquad += 1
     if args.incGWline:
         cov_diag = np.append(cov_diag,np.array([0.1,0.1,0.1,0.1]))
+        param_ephquad += 4
     if args.det_signal:
         if args.cgw_search:
             cov_diag = np.append(cov_diag,0.2*np.ones(11))
+            param_ephquad += 11
             if args.ecc_search:
                 cov_diag = np.append(cov_diag,0.05)
+                param_ephquad += 1
             if args.psrTerm:
                 cov_diag = np.append(cov_diag,np.array([p.h5Obj['pdistErr'].value
                                                         for p in psr])**2.0)
                 cov_diag = np.append(cov_diag,0.2*np.ones(len(psr)))
                 cov_diag = np.append(cov_diag,0.2*np.ones(len(psr)))
+                param_ephquad += 3*len(psr)
             if args.cgwModelSelect:
                 cov_diag = np.append(cov_diag,0.1)
+                param_ephquad += 1
         if args.bwm_search:
             cov_diag = np.append(cov_diag,np.array([100.0,0.1,0.1,0.1,0.1]))
+            param_ephquad += 5
             if args.bwm_model_select:
                 cov_diag = np.append(cov_diag,0.1)
+                param_ephquad += 1
         if args.eph_quadratic:
             cov_diag = np.append(cov_diag,20.0*np.ones(9))
             #cov_diag = np.append(cov_diag,np.tile(0.1,6))
@@ -4097,6 +4130,11 @@ elif args.sampler == 'ptmcmc':
                     cov_diag = np.append(cov_diag,np.tile(0.1,(num_ephs-1)*num_planets))
             if args.eph_planetoffset:
                 cov_diag = np.append(cov_diag,np.tile(10.0,3*num_planets))
+
+    cov_diag = np.diag(cov_diag)
+    # now including covariance in ephemeris quadratic parameters
+    if args.det_signal and args.eph_quadratic:
+        cov_diag[param_ephquad:param_ephquad+9,param_ephquad:param_ephquad+9] = ephem_fisher
                 
     if rank==0:
         print "\n Running a quick profile on the likelihood to estimate evaluation speed...\n"
@@ -4382,7 +4420,7 @@ elif args.sampler == 'ptmcmc':
 
     
     sampler = ptmcmc.PTSampler(ndim=n_params,logl=lnprob,logp=my_prior,
-                            cov=np.diag(cov_diag),
+                            cov=cov_diag,
                             outDir=args.dirExt+file_tag,
                             resume=args.resume, groups=ind)
 
