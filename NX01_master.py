@@ -1827,7 +1827,7 @@ def lnprob(xx):
 
                 #detres = []
                 ephquad_signal = np.dot(ephem_design*ephem_norm,ephquad_params)
-
+                print ephquad_signal
                 toa_ct = 0
                 for ii,p in enumerate(psr):
                     detres[ii] -= ephquad_signal[toa_ct:toa_ct+p.toas.shape[0]]
