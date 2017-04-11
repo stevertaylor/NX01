@@ -3487,9 +3487,9 @@ if args.det_signal:
                        "eph_yquad2sign", "eph_zquad1sign", "eph_zquad2sign"]
     if args.eph_planetdelta:
         if args.eph_planetmass:
-            if args.eph_planetprior == 'official':
+            if args.eph_planetmassprior == 'official':
                 parameters += ["planet{0}_delta_mass".format(ii) for ii in planet_tags]
-            elif args.eph_planetprior == 'loguniform':
+            elif args.eph_planetmassprior == 'loguniform':
                 parameters += ["planet{0}_delta_amp".format(ii) for ii in planet_tags]
                 parameters += ["planet{0}_delta_sign".format(ii) for ii in planet_tags]
             if num_ephs > 1:
