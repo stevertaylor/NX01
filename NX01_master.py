@@ -297,7 +297,7 @@ parser.add_option('--which_ephs', dest='which_ephs', action='store', type=str, d
                   help='Which ephemerides do you want to use in the planet-mass perturbation model [fitted, all, DE421, etc.] (default = fitted)')
 parser.add_option('--eph_planetnums', dest='eph_planetnums', action='store', type=str, default=None,
                   help='Which planets to include in planetary perturbation model [Mercury=1, Venus=2, etc.] (default = None)')
-parser.add_option('--eph_planetmassprior', dest='eph_planetprior', action='store', type=str, default='official',
+parser.add_option('--eph_planetmassprior', dest='eph_planetmassprior', action='store', type=str, default='official',
                   help='What kind fo prior do you want to place on the planet masses being perturbed [official, loguniform] (default = official)')
 parser.add_option('--eph_planetoffset', dest='eph_planetoffset', action='store_true', default=False,
                   help='Do you want to search for x,y,z displacements in each planetary orbit? (default = False)')
