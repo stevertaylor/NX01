@@ -3608,7 +3608,7 @@ if args.det_signal:
         file_tag += '_ephquad'
     if args.eph_planetdelta:
         if args.eph_planetmass:
-            file_tag += '_ephplanetmass'+args.eph_planetprior
+            file_tag += '_ephplanetmass'+args.eph_planetmassprior
         if args.eph_planetoffset:
             file_tag += '_ephorbitoffset'
 if args.fixRed:
