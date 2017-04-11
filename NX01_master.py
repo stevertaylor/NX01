@@ -4270,25 +4270,26 @@ elif args.sampler == 'ptmcmc':
             [ind.append(id) for id in ids]
         ##### EPHEMERIS PLANET DELTA #####
         if args.eph_planetdelta:
-            if args.eph_planetprior == 'official':
-                # mass perturbations
-                ids = [np.arange(param_ct,param_ct+num_planets)]
-                param_ct += num_planets
-                [ind.append(id) for id in ids]
-            elif args.eph_planetprior == 'loguniform':
-                # amplitudes
-                ids = [np.arange(param_ct,param_ct+num_planets)]
-                param_ct += num_planets
-                [ind.append(id) for id in ids]
-                # signs
-                ids = [np.arange(param_ct,param_ct+num_planets)]
-                param_ct += num_planets
-                [ind.append(id) for id in ids]
-            if num_ephs > 1:
-                for ii in range(num_planets):
-                    ids = [np.arange(param_ct,param_ct+(num_ephs-1))]
-                    param_ct += (num_ephs-1)
+            if args.eph_planetmass:
+                if args.eph_planetmassprior == 'official':
+                    # mass perturbations
+                    ids = [np.arange(param_ct,param_ct+num_planets)]
+                    param_ct += num_planets
                     [ind.append(id) for id in ids]
+                elif args.eph_planetmassprior == 'loguniform':
+                    # amplitudes
+                    ids = [np.arange(param_ct,param_ct+num_planets)]
+                    param_ct += num_planets
+                    [ind.append(id) for id in ids]
+                    # signs
+                    ids = [np.arange(param_ct,param_ct+num_planets)]
+                    param_ct += num_planets
+                    [ind.append(id) for id in ids]
+                if num_ephs > 1:
+                    for ii in range(num_planets):
+                        ids = [np.arange(param_ct,param_ct+(num_ephs-1))]
+                        param_ct += (num_ephs-1)
+                        [ind.append(id) for id in ids]
             if args.eph_planetoffset:
                 for ii in range(num_planets):
                     ids = [np.arange(param_ct,param_ct+3)]
