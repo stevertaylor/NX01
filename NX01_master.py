@@ -4136,7 +4136,7 @@ elif args.sampler == 'ptmcmc':
     cov_diag = np.diag(cov_diag)
     # now including covariance in ephemeris quadratic parameters
     if args.det_signal and args.eph_quadratic:
-        cov_diag[param_ephquad:param_ephquad+9,param_ephquad:param_ephquad+9] = ephem_fisher #/ ephem_norm**2.0
+        cov_diag[param_ephquad:param_ephquad+9,param_ephquad:param_ephquad+9] = 0.1 * ephem_fisher / ephem_norm**2.0
                 
     if rank==0:
         print "\n Running a quick profile on the likelihood to estimate evaluation speed...\n"
