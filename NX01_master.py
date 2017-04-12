@@ -3977,7 +3977,7 @@ elif args.sampler == 'ptmcmc':
             if args.bwm_model_select:
                 x0 = np.append(x0,0.4)
         if args.eph_quadratic:
-            x0 = np.append(x0,np.random.uniform(-1e-15,1e-15,9))
+            x0 = np.append(x0,np.zeros(9)) #np.random.uniform(-1e-15,1e-15,9))
             #x0 = np.append(x0,np.array(np.tile([-7.0],6)))
             #x0 = np.append(x0,np.random.uniform(-1.0,1.0,6))
         if args.eph_planetdelta:
