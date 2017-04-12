@@ -6867,8 +6867,8 @@ elif args.sampler == 'ptmcmc':
         sampler.addProposalToCycle(drawFromBWMPrior, 10)
         if args.bwm_model_select:
             sampler.addProposalToCycle(drawFromBWMModelIndexPrior, 5)
-    if args.det_signal and args.eph_quadratic:
-        sampler.addProposalToCycle(drawFromEphemQuadFisherPrior, 40)
+    #if args.det_signal and args.eph_quadratic:
+    #    sampler.addProposalToCycle(drawFromEphemQuadFisherPrior, 40)
     if args.det_signal and args.eph_planetdelta:
         if args.eph_planetmass:
             sampler.addProposalToCycle(drawFromEphPlanetDeltaPrior, 10)
