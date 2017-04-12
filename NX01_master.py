@@ -1832,7 +1832,7 @@ def lnprob(xx):
                 #print ephquad_signal
                 toa_ct = 0
                 for ii,p in enumerate(psr):
-                    detres[ii] -= (ephquad_signal[toa_ct:toa_ct+p.toas.shape[0]] - np.mean(ephquad_signal[toa_ct:toa_ct+p.toas.shape[0]]))
+                    detres[ii] -= ephquad_signal[toa_ct:toa_ct+p.toas.shape[0]]
                     toa_ct += p.toas.shape[0]
                 
                 #for ii, p in enumerate(psr):
@@ -4135,8 +4135,8 @@ elif args.sampler == 'ptmcmc':
 
     cov_diag = np.diag(cov_diag)
     # now including covariance in ephemeris quadratic parameters
-    if args.det_signal and args.eph_quadratic:
-        cov_diag[param_ephquad:param_ephquad+9,param_ephquad:param_ephquad+9] = ephem_fisher / ephem_norm**2.0
+    #if args.det_signal and args.eph_quadratic:
+    #    cov_diag[param_ephquad:param_ephquad+9,param_ephquad:param_ephquad+9] = ephem_fisher / ephem_norm**2.0
                 
     if rank==0:
         print "\n Running a quick profile on the likelihood to estimate evaluation speed...\n"
@@ -6867,8 +6867,8 @@ elif args.sampler == 'ptmcmc':
         sampler.addProposalToCycle(drawFromBWMPrior, 10)
         if args.bwm_model_select:
             sampler.addProposalToCycle(drawFromBWMModelIndexPrior, 5)
-    if args.det_signal and args.eph_quadratic:
-        sampler.addProposalToCycle(drawFromEphemQuadFisherPrior, 40)
+    #if args.det_signal and args.eph_quadratic:
+    #    sampler.addProposalToCycle(drawFromEphemQuadFisherPrior, 40)
     if args.det_signal and args.eph_planetdelta:
         if args.eph_planetmass:
             sampler.addProposalToCycle(drawFromEphPlanetDeltaPrior, 10)
