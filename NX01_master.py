@@ -1115,7 +1115,7 @@ if args.det_signal:
         if args.bwm_model_select:
             pmin = np.append(pmin,-0.5)
     if args.eph_quadratic:
-        pmin = np.append(pmin,-1e-9*np.ones(9)) # amps
+        pmin = np.append(pmin,-1e-11*np.ones(9)) # amps
         #pmin = np.append(pmin,np.tile([-10.0,-10.0],3)) # amps
         #pmin = np.append(pmin,np.tile([-1.0,-1.0],3)) # signs
     if args.eph_planetdelta:
@@ -1274,7 +1274,7 @@ if args.det_signal:
         if args.bwm_model_select:
             pmax = np.append(pmax,1.5)
     if args.eph_quadratic:
-        pmax = np.append(pmax,1e-9*np.ones(9)) # amps
+        pmax = np.append(pmax,1e-11*np.ones(9)) # amps
         #pmax = np.append(pmax,np.tile([0.0,0.0],3)) # amps
         #pmax = np.append(pmax,np.tile([1.0,1.0],3)) # signs
     if args.eph_planetdelta:
@@ -1832,7 +1832,7 @@ def lnprob(xx):
                 #print ephquad_signal
                 toa_ct = 0
                 for ii,p in enumerate(psr):
-                    detres[ii] -= ephquad_signal[toa_ct:toa_ct+p.toas.shape[0]]
+                    detres[ii] -= (ephquad_signal[toa_ct:toa_ct+p.toas.shape[0]] - np.mean(ephquad_signal[toa_ct:toa_ct+p.toas.shape[0]]))
                     toa_ct += p.toas.shape[0]
                 
                 #for ii, p in enumerate(psr):
@@ -3977,7 +3977,7 @@ elif args.sampler == 'ptmcmc':
             if args.bwm_model_select:
                 x0 = np.append(x0,0.4)
         if args.eph_quadratic:
-            x0 = np.append(x0,np.random.uniform(-1e-9,1e-9,9))
+            x0 = np.append(x0,np.random.uniform(-1e-11,1e-11,9))
             #x0 = np.append(x0,np.array(np.tile([-7.0],6)))
             #x0 = np.append(x0,np.random.uniform(-1.0,1.0,6))
         if args.eph_planetdelta:
