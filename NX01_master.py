@@ -6365,7 +6365,7 @@ elif args.sampler == 'ptmcmc':
         return q, qxy
 
     # ephmeris quadratic fisher draws 
-    def drawFromEphemQuadFisherPrior(parameters, iter, beta):
+    def drawFromEphemQuadPrior(parameters, iter, beta):
 
         # post-jump parameters
         q = parameters.copy()
