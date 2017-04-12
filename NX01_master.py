@@ -1832,7 +1832,7 @@ def lnprob(xx):
                 #print ephquad_signal
                 toa_ct = 0
                 for ii,p in enumerate(psr):
-                    detres[ii] -= ephquad_signal[toa_ct:toa_ct+p.toas.shape[0]]
+                    detres[ii] -= (ephquad_signal[toa_ct:toa_ct+p.toas.shape[0]] - np.mean(ephquad_signal[toa_ct:toa_ct+p.toas.shape[0]]))
                     toa_ct += p.toas.shape[0]
                 
                 #for ii, p in enumerate(psr):
