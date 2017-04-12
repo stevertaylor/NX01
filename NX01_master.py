@@ -6364,7 +6364,106 @@ elif args.sampler == 'ptmcmc':
         
         return q, qxy
 
-    # bwm model index draws 
+    # ephmeris quadratic fisher draws 
+    def drawFromEphemQuadFisherPrior(parameters, iter, beta):
+
+        # post-jump parameters
+        q = parameters.copy()
+
+        # transition probability
+        qxy = 0
+
+        npsr = len(psr)
+        pct = 0
+        if not args.fixRed:
+            if args.redSpecModel == 'powerlaw':
+                pct = 2*npsr
+            elif args.redSpecModel == 'spectrum':
+                pct = npsr*nmodes_red
+    
+        if args.incDM and not args.fixDM:
+            if args.dmSpecModel == 'powerlaw':
+                pct += 2*npsr
+            elif args.dmSpecModel == 'spectrum':
+                pct += npsr*nmodes_dm
+
+        if args.varyWhite:
+            for ii,p in enumerate(psr):
+                systems = p.sysflagdict[args.sysflag_target]
+                pct += 2*len(systems)
+                pct += len(p.sysflagdict['nano-f'].keys())
+
+        if args.incBand:
+            if args.bandSpecModel == 'powerlaw':
+                pct += 2*(len(bands)-1)
+            elif args.bandSpecModel == 'spectrum':
+                pct += (len(bands)-1)*nmodes_band
+                    
+        if args.incClk:
+            if args.clkSpecModel == 'powerlaw':
+                pct += 2
+            elif args.clkSpecModel == 'spectrum':
+                pct += nmodes_red
+
+        if args.incCm:
+            if args.cmSpecModel == 'powerlaw':
+                pct += 2
+            elif args.cmSpecModel == 'spectrum':
+                pct += nmodes_red
+
+        if args.incEph and not args.jplBasis:
+            if args.ephSpecModel == 'powerlaw':
+                pct += 6
+            elif args.ephSpecModel == 'spectrum':
+                pct += 3*nmodes_eph
+
+        if args.incGWB:
+            if args.gwbSpecModel == 'powerlaw':
+                pct += 1
+                if not args.fix_slope:
+                    pct += 1
+            elif args.gwbSpecModel == 'spectrum':
+                pct += nmodes_red
+                if args.gwbPrior == 'gaussProc':
+                    pct += 1 + gwb_popparam_ndims
+            elif args.gwbSpecModel == 'turnover':
+                if args.gwb_fb2env is not None:
+                    pct += 2
+                elif args.gwb_fb2env is None:
+                    pct += 3
+            elif args.gwbSpecModel == 'gpEnvInterp':
+                pct += 2
+
+            if args.incCorr:
+                pct += num_corr_params
+                if args.gwbModelSelect:
+                    pct += 1
+
+        if args.incGWline:
+            pct += 4
+
+        if args.cgw_search:
+            pct += 11
+            if args.ecc_search:
+                pct += 1
+            if args.psrTerm:
+                pct += 3*len(psr)
+            if args.cgwModelSelect:
+                pct += 1
+        if args.bwm_search:
+            if args.bwm_model_select:
+                pct += 6
+            else:
+                pct += 5
+
+        ind = np.unique(np.random.randint(0, 9, 1))
+        q[pct+ind] = np.random.uniform(pmin[pct+ind], pmax[pct+ind])
+
+        qxy += 0
+
+        return q, qxy
+
+    # ephmeris quadratic fisher draws 
     def drawFromEphemQuadFisherPrior(parameters, iter, beta):
 
         # post-jump parameters
@@ -6867,7 +6966,8 @@ elif args.sampler == 'ptmcmc':
         sampler.addProposalToCycle(drawFromBWMPrior, 10)
         if args.bwm_model_select:
             sampler.addProposalToCycle(drawFromBWMModelIndexPrior, 5)
-    #if args.det_signal and args.eph_quadratic:
+    if args.det_signal and args.eph_quadratic:
+        sampler.addProposalToCycle(drawFromEphemQuadPrior, 10)
     #    sampler.addProposalToCycle(drawFromEphemQuadFisherPrior, 40)
     if args.det_signal and args.eph_planetdelta:
         if args.eph_planetmass:
