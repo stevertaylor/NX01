@@ -138,7 +138,7 @@ def linBinning(T, logmode, f_min, nlin, nlog):
         return np.append(f_log, f_lin), np.append(w_log, w_lin)
 
     else:
-        return np.append(w_log, w_lin)
+        return f_lin, w_lin
 
 
 
