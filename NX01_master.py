@@ -36,6 +36,7 @@ import libstempo as T2
 import NX01_AnisCoefficients as anis
 import NX01_utils as utils
 import NX01_psr
+import rankreduced as rr
 
 try:
     import NX01_jitter as jitter
