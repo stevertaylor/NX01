@@ -2563,7 +2563,7 @@ def lnprob(xx):
                                 rho_pred[ii,0], rho_pred[ii,1] = mu_pred, np.sqrt(np.diag(cov_pred))
 
                         # transforming from zero-mean unit-variance variable to rho
-                        rho = 2.0*np.log10(Agwb) - np.log10(Tspan) + rho_spec*rho_pred[:,1] + rho_pred[:,0]
+                        rho = 2.0*np.log10(Agwb) + rho_spec*rho_pred[:,1] + rho_pred[:,0]
                     
             elif args.gwbSpecModel == 'turnover':
                 rho = np.log10(Agwb**2/12/np.pi**2 * \
