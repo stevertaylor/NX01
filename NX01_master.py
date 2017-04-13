@@ -744,7 +744,7 @@ if args.incDM:
     if args.nmodes_dm > 0:
         nmodes_dm = args.nmodes_dm + args.nmodes_log
     else:
-        nmodes_dm = nmodes_red + args.nmodes_log
+        nmodes_dm = nmodes_red
     fqs_dm, wgts_dm = rr.linBinning(Tmax, args.logmode, 1 / args.fmin / Tmax,
                                     nmodes_dm-args.nmodes_log, args.nmodes_log) 
 
@@ -762,7 +762,7 @@ if args.incEph:
         if args.nmodes_eph > 0:
             nmodes_eph = args.nmodes_eph + args.nmodes_log
         else:
-            nmodes_eph = nmodes_red + args.nmodes_log
+            nmodes_eph = nmodes_red
         ##
         if args.ephFreqs is None:
             fqs_eph, wgts_eph = rr.linBinning(Tmax, args.logmode, 1 / args.fmin / Tmax,
@@ -778,7 +778,7 @@ if args.incBand:
     if args.nmodes_band > 0:
         nmodes_band = args.nmodes_band + args.nmodes_log
     else:
-        nmodes_band = nmodes_red + args.nmodes_log
+        nmodes_band = nmodes_red
     fqs_band, wgts_band = rr.linBinning(Tmax, args.logmode, 1 / args.fmin / Tmax,
                                         nmodes_band-args.nmodes_log, args.nmodes_log) 
 
