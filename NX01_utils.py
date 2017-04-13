@@ -132,7 +132,7 @@ def makeDmTDcov(psr, Adm, gam_dm, tm):
     return Cdm
 
 
-def createFourierDesignmatrix_red(t, fqs, wgts=None, output_freqs=False,
+def createFourierDesignmatrix_red(t, fqs, wgts, output_freqs=False,
                                   pshift=False, Tspan=None, input_freqs=None):
     """
     Construct fourier design matrix from eq 11 of Lentati et al, 2013
@@ -160,9 +160,6 @@ def createFourierDesignmatrix_red(t, fqs, wgts=None, output_freqs=False,
     elif not pshift:
         ranphase = np.zeros(len(fqs))
 
-    if wgts is None:
-        wgts = np.ones(len(fqs))
-
     # The sine/cosine modes
     ct = 0
     for ii in range(0, 2*len(fqs)-1, 2):
@@ -181,7 +178,7 @@ def createFourierDesignmatrix_red(t, fqs, wgts=None, output_freqs=False,
     else:
         return F, ranphase
 
-def createFourierDesignmatrix_dm(t, fqs, wgts=None, obs_freqs,
+def createFourierDesignmatrix_dm(t, fqs, wgts, obs_freqs,
                                  output_freqs=False, Tspan=None,
                                  input_freqs=None):
     """
@@ -208,9 +205,6 @@ def createFourierDesignmatrix_dm(t, fqs, wgts=None, obs_freqs,
     K = 2.41 * 10.0**(-16.0)
     Dm = 1.0 / (K * obs_freqs**2.0) # ssbfreqs already in Hz
 
-    if wgts is None:
-        wgts = np.ones(len(fqs))
-
     # The sine/cosine modes
     ct = 0
     for ii in range(0, 2*len(fqs)-1, 2):
@@ -225,7 +219,7 @@ def createFourierDesignmatrix_dm(t, fqs, wgts=None, obs_freqs,
     else:
         return F
 
-def createFourierDesignmatrix_eph(t, fqs, wgts=None, psr_locs,
+def createFourierDesignmatrix_eph(t, fqs, wgts, psr_locs,
                                   output_freqs=False, Tspan=None,
                                   input_freqs=None):
     """
@@ -256,9 +250,6 @@ def createFourierDesignmatrix_eph(t, fqs, wgts=None, psr_locs,
     x = np.sin(theta)*np.cos(phi)
     y = np.sin(theta)*np.sin(phi)
     z = np.cos(theta)
-
-    if wgts is None:
-        wgts = np.ones(len(fqs))
 
     # The sine/cosine modes
     ct = 0
