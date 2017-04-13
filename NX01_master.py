@@ -180,7 +180,7 @@ parser.add_option('--redSpecModel', dest='redSpecModel', action='store', type=st
                   help='What kind of spectral model do you want for red timing-noise?: powerlaw, spectrum (default = powerlaw)')
 parser.add_option('--dmSpecModel', dest='dmSpecModel', action='store', type=str, default='powerlaw',
                   help='What kind of spectral model do you want for DM variations?: powerlaw, spectrum (default = powerlaw)')
-parser.add_option('--nmodes_dm', dest='nmodes_dm', action='store', type=int, default=None,
+parser.add_option('--nmodes_dm', dest='nmodes_dm', action='store', type=int, default=0,
                    help='Number of DM-variation modes in low-rank time-frequency approximation')
 parser.add_option('--incEph', dest='incEph', action='store_true', default=False,
                   help='Do you want to search for solar system ephemeris errors? (default = False)')
@@ -188,7 +188,7 @@ parser.add_option('--jplBasis', dest='jplBasis', action='store_true', default=Fa
                   help='Do you want to use the JPL GP basis? (default = False)')
 parser.add_option('--ephSpecModel', dest='ephSpecModel', action='store', type=str, default='powerlaw',
                   help='What kind of spectral model do you want for the solar system ephemeris errors?: powerlaw, spectrum (default = powerlaw)')
-parser.add_option('--nmodes_eph', dest='nmodes_eph', action='store', type=int, default=None,
+parser.add_option('--nmodes_eph', dest='nmodes_eph', action='store', type=int, default=0,
                    help='Number of ephemeris modes in low-rank time-frequency approximation')
 parser.add_option('--ephFreqs', dest='ephFreqs', action='store', type=str, default=None,
                   help='Provide the ephemeris-error model frequencies [Hz] as a comma delimited string (default = None)')
@@ -202,7 +202,7 @@ parser.add_option('--incBand', dest='incBand', action='store_true', default=Fals
                   help='Do you want to search for radio-band-dependent red-noise? (default = False)')
 parser.add_option('--bandSpecModel', dest='bandSpecModel', action='store', type=str, default='powerlaw',
                   help='What kind of spectral model do you want for the radio-band-dependent red-noise?: powerlaw, spectrum (default = powerlaw)')
-parser.add_option('--nmodes_band', dest='nmodes_band', action='store', type=int, default=None,
+parser.add_option('--nmodes_band', dest='nmodes_band', action='store', type=int, default=0,
                    help='Number of band modes in low-rank time-frequency approximation')
 parser.add_option('--bands', dest='bands', action='store', type=str, default=None,
                   help='Provide the radio-bands for band-noise as a comma delimited string (e.g. [0.0,1.0,2.0,3.0] gives 3 bands) (default = None)')
@@ -741,7 +741,7 @@ fqs_red, wgts_red = rr.linBinning(Tmax, args.logmode, 1 / args.fmin / Tmax,
 nmodes_dm = args.nmodes_dm + args.nmodes_log
 fqs_dm, wgts_dm = None, None
 if args.incDM:
-    if args.nmodes_dm is not None:
+    if args.nmodes_dm > 0:
         nmodes_dm = args.nmodes_dm + args.nmodes_log
     else:
         nmodes_dm = nmodes_red + args.nmodes_log
@@ -759,7 +759,7 @@ if args.incEph:
         ephPhivec = np.load('./data/jplephbasis/phivec.npy')
     else:
         nmodes_eph = args.nmodes_eph
-        if args.nmodes_eph is not None:
+        if args.nmodes_eph > 0:
             nmodes_eph = args.nmodes_eph + args.nmodes_log
         else:
             nmodes_eph = nmodes_red + args.nmodes_log
@@ -775,7 +775,7 @@ if args.incEph:
 nmodes_band = args.nmodes_band
 fqs_band, wgts_band = None, None
 if args.incBand:
-    if args.nmodes_band is not None:
+    if args.nmodes_band > 0:
         nmodes_band = args.nmodes_band + args.nmodes_log
     else:
         nmodes_band = nmodes_red + args.nmodes_log
