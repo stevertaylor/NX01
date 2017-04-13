@@ -739,6 +739,7 @@ fqs_red, wgts_red = rr.linBinning(Tmax, args.logmode, args.fmin,
 
 ### Define number of DM-variation modes and set sampling frequencies
 nmodes_dm = args.nmodes_dm
+fqs_dm, wgts_dm = None, None
 if args.incDM:
     if args.nmodes_dm is not None:
         nmodes_dm = args.nmodes_dm
@@ -749,6 +750,7 @@ if args.incDM:
 
 ### Define number of ephemeris-error modes and set sampling frequencies
 nmodes_eph = None
+fqs_eph, wgts_eph = None, None
 if args.incEph:
     if args.jplBasis:
         # No sampling frequencies here.
@@ -771,6 +773,7 @@ if args.incEph:
 
 ### Define number of band-noise modes and set sampling frequencies
 nmodes_band = args.nmodes_band
+fqs_band, wgts_band = None, None
 if args.incBand:
     if args.nmodes_band is not None:
         nmodes_band = args.nmodes_band
