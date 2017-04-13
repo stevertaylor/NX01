@@ -734,7 +734,7 @@ if args.nmodes is not None:
     nmodes_red = args.nmodes
 elif args.nmodes is None and args.cadence is not None:
     nmodes_red = int(round(0.5*Tmax/args.cadence))
-fqs_red, wgts_red = rr.linBinning(Tmax, args.logmode, args.fmin,
+fqs_red, wgts_red = rr.linBinning(Tmax, args.logmode, 1 / args.fmin / Tmax,
                                   nmodes_red, args.nmodes_log) 
 
 ### Define number of DM-variation modes and set sampling frequencies
@@ -745,7 +745,7 @@ if args.incDM:
         nmodes_dm = args.nmodes_dm
     else:
         nmodes_dm = nmodes_red
-    fqs_dm, wgts_dm = rr.linBinning(Tmax, args.logmode, args.fmin,
+    fqs_dm, wgts_dm = rr.linBinning(Tmax, args.logmode, 1 / args.fmin / Tmax,
                                     nmodes_dm, args.nmodes_log) 
 
 ### Define number of ephemeris-error modes and set sampling frequencies
@@ -765,7 +765,7 @@ if args.incEph:
             nmodes_eph = nmodes_red
         ##
         if args.ephFreqs is None:
-            fqs_eph, wgts_eph = rr.linBinning(Tmax, args.logmode, args.fmin,
+            fqs_eph, wgts_eph = rr.linBinning(Tmax, args.logmode, 1 / args.fmin / Tmax,
                                               nmodes_eph, args.nmodes_log) 
         elif args.ephFreqs is not None:
             fqs_eph = np.array([float(item) for item in args.ephFreqs.split(',')])
@@ -779,7 +779,7 @@ if args.incBand:
         nmodes_band = args.nmodes_band
     else:
         nmodes_band = nmodes_red
-    fqs_band, wgts_band = rr.linBinning(Tmax, args.logmode, args.fmin,
+    fqs_band, wgts_band = rr.linBinning(Tmax, args.logmode, 1 / args.fmin / Tmax,
                                         nmodes_band, args.nmodes_log) 
 
     if args.bands is None:
