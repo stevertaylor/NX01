@@ -23,6 +23,7 @@ from scipy.interpolate import interp1d
 from pkg_resources import resource_filename, Requirement
 import numexpr as ne
 import optparse
+import rankreduced as rr
 import ephem
 from ephem import *
 
@@ -131,13 +132,14 @@ def makeDmTDcov(psr, Adm, gam_dm, tm):
     return Cdm
 
 
-def createFourierDesignmatrix_red(t, nmodes, output_freqs=False, pshift=False,
-                                  Tspan=None, input_freqs=None):
+def createFourierDesignmatrix_red(t, fqs, wgts, output_freqs=False,
+                                  pshift=False, Tspan=None, input_freqs=None):
     """
     Construct fourier design matrix from eq 11 of Lentati et al, 2013
 
     @param t: vector of time series in seconds
-    @param nmodes: number of fourier coefficients to use
+    @param fqs: sampling frequencies [Hz]
+    @param wgts: square root of integral infinitesimal
     @param output_freqs: option to output frequencies
     @param pshift: option to add random phase shift
     @param Tspan: option to some other Tspan
@@ -150,35 +152,24 @@ def createFourierDesignmatrix_red(t, nmodes, output_freqs=False, pshift=False,
     """
 
     N = len(t)
-    F = np.zeros((N, 2*nmodes))
-
-    # define sampling frequencies
-    if input_freqs is None:
-        if Tspan is not None:
-            T = Tspan
-        else:
-            T = t.max() - t.min()
-        fqs = np.linspace(1/T, nmodes/T, nmodes)
-    elif input_freqs is not None:
-        fqs = np.array([float(item) for item \
-                        in input_freqs.split(',')])
+    F = np.zeros((N, 2*len(fqs)))
 
     # add random phase shift to basis functions
     if pshift:
-        ranphase = np.random.uniform(0.0, 2.0*np.pi, nmodes)
+        ranphase = np.random.uniform(0.0, 2.0*np.pi, len(fqs))
     elif not pshift:
-        ranphase = np.zeros(nmodes)
+        ranphase = np.zeros(len(fqs))
 
     # The sine/cosine modes
     ct = 0
-    for ii in range(0, 2*nmodes-1, 2):
+    for ii in range(0, 2*len(fqs)-1, 2):
 
         if pshift:
-            F[:,ii] = np.cos(2*np.pi*fqs[ct]*t + ranphase[ct])
-            F[:,ii+1] = np.sin(2*np.pi*fqs[ct]*t + ranphase[ct])
+            F[:,ii] = wgts[ct] * np.cos(2*np.pi*fqs[ct]*t*86400.0 + ranphase[ct])
+            F[:,ii+1] = wgts[ct] * np.sin(2*np.pi*fqs[ct]*t*86400.0 + ranphase[ct])
         elif not pshift:
-            F[:,ii] = np.cos(2*np.pi*fqs[ct]*t)
-            F[:,ii+1] = np.sin(2*np.pi*fqs[ct]*t)
+            F[:,ii] = wgts[ct] * np.cos(2*np.pi*fqs[ct]*t*86400.0)
+            F[:,ii+1] = wgts[ct] * np.sin(2*np.pi*fqs[ct]*t*86400.0)
             
         ct += 1
 
@@ -187,13 +178,15 @@ def createFourierDesignmatrix_red(t, nmodes, output_freqs=False, pshift=False,
     else:
         return F, ranphase
 
-def createFourierDesignmatrix_dm(t, nmodes, obs_freqs, output_freqs=False,
-                                 Tspan=None, input_freqs=None):
+def createFourierDesignmatrix_dm(t, fqs, wgts, obs_freqs,
+                                 output_freqs=False, Tspan=None,
+                                 input_freqs=None):
     """
     Construct fourier design matrix from eq 11 of Lentati et al, 2013
 
     @param t: vector of time series in seconds
-    @param nmodes: number of fourier coefficients to use
+    @param fqs: sampling frequencies [Hz]
+    @param wgts: square root of integral infinitesimal
     @param obs_freqs: pulsar radio observing frequencies
     @param output_freqs: option to output frequencies
     @param Tspan: option to some other Tspan
@@ -206,29 +199,19 @@ def createFourierDesignmatrix_dm(t, nmodes, obs_freqs, output_freqs=False,
     """
 
     N = len(t)
-    F = np.zeros((N, 2*nmodes))
-
-    # define sampling frequencies
-    if input_freqs is None:
-        if Tspan is not None:
-            T = Tspan
-        else:
-            T = t.max() - t.min()
-        fqs = np.linspace(1/T, nmodes/T, nmodes)
-    elif input_freqs is not None:
-        fqs = np.array([float(item) for item \
-                        in input_freqs.split(',')])
+    F = np.zeros((N, 2*len(fqs)))
 
     # compute the DM-variation vectors
     K = 2.41 * 10.0**(-16.0)
-    Dm = 1.0/(K * obs_freqs**2.0) # ssbfreqs already in Hz
+    Dm = 1.0 / (K * obs_freqs**2.0) # ssbfreqs already in Hz
 
     # The sine/cosine modes
     ct = 0
-    for ii in range(0, 2*nmodes-1, 2):
+    for ii in range(0, 2*len(fqs)-1, 2):
         
-        F[:,ii] = np.multiply(np.cos(2*np.pi*fqs[ct]*t),Dm)
-        F[:,ii+1] = np.multiply(np.sin(2*np.pi*fqs[ct]*t),Dm)
+        F[:,ii] = wgts[ct] * np.multiply(np.cos(2*np.pi*fqs[ct]*t*86400.0), Dm)
+        F[:,ii+1] = wgts[ct] * np.multiply(np.sin(2*np.pi*fqs[ct]*t*86400.0), Dm)
+        
         ct += 1
     
     if output_freqs:
@@ -236,13 +219,15 @@ def createFourierDesignmatrix_dm(t, nmodes, obs_freqs, output_freqs=False,
     else:
         return F
 
-def createFourierDesignmatrix_eph(t, nmodes, psr_locs, output_freqs=False,
-                                  Tspan=None, input_freqs=None):
+def createFourierDesignmatrix_eph(t, fqs, wgts, psr_locs,
+                                  output_freqs=False, Tspan=None,
+                                  input_freqs=None):
     """
     Construct fourier design matrix from eq 11 of Lentati et al, 2013
 
     @param t: vector of time series in seconds
-    @param nmodes: number of fourier coefficients to use
+    @param fqs: sampling frequencies [Hz]
+    @param wgts: square root of integral infinitesimal
     @param psr_locs: phi and theta coordinates of pulsar
     @param output_freqs: option to output frequencies
     @param Tspan: option to some other Tspan
@@ -255,20 +240,9 @@ def createFourierDesignmatrix_eph(t, nmodes, psr_locs, output_freqs=False,
     """
 
     N = len(t)
-    Fx = np.zeros((N, 2*nmodes))
-    Fy = np.zeros((N, 2*nmodes))
-    Fz = np.zeros((N, 2*nmodes))
-
-    # define sampling frequencies
-    if input_freqs is None:
-        if Tspan is not None:
-            T = Tspan
-        else:
-            T = t.max() - t.min()
-        fqs = np.linspace(1/T, nmodes/T, nmodes)
-    elif input_freqs is not None:
-        fqs = np.array([float(item) for item \
-                        in input_freqs.split(',')])
+    Fx = np.zeros((N, 2*len(fqs)))
+    Fy = np.zeros((N, 2*len(fqs)))
+    Fz = np.zeros((N, 2*len(fqs)))
 
     # define the pulsar position vector
     phi = psr_locs[0]
@@ -279,14 +253,15 @@ def createFourierDesignmatrix_eph(t, nmodes, psr_locs, output_freqs=False,
 
     # The sine/cosine modes
     ct = 0
-    for ii in range(0, 2*nmodes-1, 2):
+    for ii in range(0, 2*len(fqs)-1, 2):
         
-        Fx[:,ii] = np.cos(2*np.pi*fqs[ct]*t)
-        Fx[:,ii+1] = np.sin(2*np.pi*fqs[ct]*t)
-        Fy[:,ii] = np.cos(2*np.pi*fqs[ct]*t)
-        Fy[:,ii+1] = np.sin(2*np.pi*fqs[ct]*t)
-        Fz[:,ii] = np.cos(2*np.pi*fqs[ct]*t)
-        Fz[:,ii+1] = np.sin(2*np.pi*fqs[ct]*t)
+        Fx[:,ii] = np.cos(2*np.pi*fqs[ct]*t*86400.0)
+        Fx[:,ii+1] = np.sin(2*np.pi*fqs[ct]*t*86400.0)
+        Fy[:,ii] = np.cos(2*np.pi*fqs[ct]*t*86400.0)
+        Fy[:,ii+1] = np.sin(2*np.pi*fqs[ct]*t*86400.0)
+        Fz[:,ii] = np.cos(2*np.pi*fqs[ct]*t*86400.0)
+        Fz[:,ii+1] = np.sin(2*np.pi*fqs[ct]*t*86400.0)
+        
         ct += 1
 
     Fx = Fx * x

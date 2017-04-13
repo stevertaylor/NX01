@@ -102,7 +102,13 @@ parser.add_option('--jitterbin', dest='jitterbin', action='store', type=float, d
 parser.add_option('--grab_planets', dest='grab_planets', action='store_true', default=False,
                    help='Do you want to grab the planetary position vectors in your single-pulsar analysis (default = False)')
 parser.add_option('--nmodes', dest='nmodes', action='store', type=int, default=None,
-                   help='Number of modes in low-rank time-frequency approximation')
+                   help='Number of linear-spaced modes in low-rank time-frequency approximation')
+parser.add_option('--nmodes_log', dest='nmodes_log', action='store', type=int, default=0,
+                   help='Number of log-spaced modes in low-rank time-frequency approximation')
+parser.add_option('--logmode', dest='logmode', action='store', type=int, default=0,
+                   help='The index of the linear mode at which to transition to log-spacing (default = 0)')
+parser.add_option('--fmin', dest='fmin', action='store', type=float, default=10.0,
+                   help='Frequency down to which the log-spaced modes are sampled (default = 10.0, i.e. 1/10T)')
 parser.add_option('--cadence', dest='cadence', action='store', type=float,
                    help='Instead of nmodes, provide the observational cadence.')
 parser.add_option('--incDM', dest='incDM', action='store_true', default=False,
@@ -717,15 +723,18 @@ if args.incGWB and args.incCorr:
 if args.TmaxType == 'pta':
     Tmax = np.max([p.toas.max() for p in psr]) - \
       np.min([p.toas.min() for p in psr])
+    Tmax *= 86400.0
 else:
     Tmax = np.max([p.toas.max() - p.toas.min() for p in psr])
+    Tmax *= 86400.0
 
 ### Define number of red noise modes and set sampling frequencies
 if args.nmodes is not None:
     nmodes_red = args.nmodes
 elif args.nmodes is None and args.cadence is not None:
     nmodes_red = int(round(0.5*Tmax/args.cadence))
-fqs_red = np.linspace(1/Tmax, nmodes_red/Tmax, nmodes_red)
+fqs_red, wgts_red = rr.linBinning(Tmax, args.logmode, args.fmin,
+                                  args.nmodes_red, args.nmodes_log) 
 
 ### Define number of DM-variation modes and set sampling frequencies
 nmodes_dm = args.nmodes_dm
@@ -734,7 +743,8 @@ if args.incDM:
         nmodes_dm = args.nmodes_dm
     else:
         nmodes_dm = nmodes_red
-    fqs_dm = np.linspace(1/Tmax, nmodes_dm/Tmax, nmodes_dm)
+    fqs_dm, wgts_dm = rr.linBinning(Tmax, args.logmode, args.fmin,
+                                    args.nmodes_dm, args.nmodes_log) 
 
 ### Define number of ephemeris-error modes and set sampling frequencies
 nmodes_eph = None
@@ -752,7 +762,8 @@ if args.incEph:
             nmodes_eph = nmodes_red
         ##
         if args.ephFreqs is None:
-            fqs_eph = np.linspace(1/Tmax, nmodes_eph/Tmax, nmodes_eph)
+            fqs_eph, wgts_eph = rr.linBinning(Tmax, args.logmode, args.fmin,
+                                              args.nmodes_eph, args.nmodes_log) 
         elif args.ephFreqs is not None:
             fqs_eph = np.array([float(item) for item in args.ephFreqs.split(',')])
 
@@ -763,7 +774,8 @@ if args.incBand:
         nmodes_band = args.nmodes_band
     else:
         nmodes_band = nmodes_red
-    fqs_band = np.linspace(1/Tmax, nmodes_band/Tmax, nmodes_band)
+    fqs_band, wgts_band = rr.linBinning(Tmax, args.logmode, args.fmin,
+                                        args.nmodes_band, args.nmodes_log) 
 
     if args.bands is None:
         bands = np.array([0.0, 1.0, 2.0, 3.0])
@@ -771,8 +783,10 @@ if args.incBand:
         bands = np.array([float(item) for item in args.bands.split(',')])
 
 ### Make the basis matrices for all rank-reduced processes in model
-[p.makeTe(nmodes_red, Tmax, makeDM=args.incDM, nmodes_dm=nmodes_dm,
-          makeEph=args.incEph, jplBasis=args.jplBasis, nmodes_eph=nmodes_eph, ephFreqs=args.ephFreqs,
+[p.makeTe(Ttot=Tmax, fqs_red=fqs_red, wgts_red=wgts_red,
+          makeDM=args.incDM, fqs_dm=fqs_dm, wgts_dm=wgts_dm,
+          makeEph=args.incEph, jplBasis=args.jplBasis,
+          fqs_eph=fqs_eph, wgts_eph=wgts_eph, ephFreqs=args.ephFreqs,
           makeClk=args.incClk, clkDesign=args.clkDesign,
           makeBand=args.incBand, bands=args.bands, phaseshift=args.pshift) for p in psr]
 
@@ -2426,7 +2440,7 @@ def lnprob(xx):
         ################################################
         # parameterize intrinsic red noise as power law
     
-        Tspan = (1/fqs_red[0])*86400.0
+        Tspan = 1 / fqs_red[0]
 
         # parameterize intrinsic red-noise and DM-variations
         kappa = []
@@ -2439,7 +2453,7 @@ def lnprob(xx):
 
                 red_kappa_tmp = np.log10( Ared_tmp**2/12/np.pi**2 * \
                                     f1yr**(gam_red_tmp-3) * \
-                                    (fqs_red/86400.0)**(-gam_red_tmp)/Tspan )
+                                    fqs_red**(-gam_red_tmp) )
                 red_kappa_tmp = np.repeat(red_kappa_tmp, 2)
             
             if not args.fixRed:
@@ -2449,10 +2463,10 @@ def lnprob(xx):
                     
                     red_kappa_tmp = np.log10( Ared_tmp**2/12/np.pi**2 * \
                                             f1yr**(gam_red_tmp-3) * \
-                                            (fqs_red/86400.0)**(-gam_red_tmp)/Tspan )
+                                            fqs_red**(-gam_red_tmp) )
                     red_kappa_tmp = np.repeat(red_kappa_tmp, 2)
                 elif args.redSpecModel == 'spectrum':
-                    red_kappa_tmp = np.log10( 10.0**(2.0*red_spec[ii,:]) / Tspan)
+                    red_kappa_tmp = np.log10( 10.0**(2.0*red_spec[ii,:]) )
                     red_kappa_tmp = np.repeat(red_kappa_tmp, 2)
 
             # Construct DM-variations signal (if appropriate)
@@ -2463,7 +2477,7 @@ def lnprob(xx):
                     
                     dm_kappa_tmp = np.log10( Adm_tmp**2/12/np.pi**2 * \
                                             f1yr**(gam_dm_tmp-3) * \
-                                            (fqs_dm/86400.0)**(-gam_dm_tmp)/Tspan )
+                                            fqs_dm**(-gam_dm_tmp) )
                     dm_kappa_tmp = np.repeat(dm_kappa_tmp, 2)
 
                 if not args.fixDM:
@@ -2473,10 +2487,10 @@ def lnprob(xx):
                     
                         dm_kappa_tmp = np.log10( Adm_tmp**2/12/np.pi**2 * \
                                                 f1yr**(gam_dm_tmp-3) * \
-                                                (fqs_dm/86400.0)**(-gam_dm_tmp)/Tspan )
+                                                fqs_dm**(-gam_dm_tmp) )
                         dm_kappa_tmp = np.repeat(dm_kappa_tmp, 2)
                     elif args.dmSpecModel == 'spectrum':
-                        dm_kappa_tmp = np.log10( 10.0**(2.0*dm_spec[ii,:]) / Tspan)
+                        dm_kappa_tmp = np.log10( 10.0**(2.0*dm_spec[ii,:]) )
                         dm_kappa_tmp = np.repeat(dm_kappa_tmp, 2)
 
             if not args.incDM:
@@ -2517,10 +2531,10 @@ def lnprob(xx):
             if args.gwbSpecModel == 'powerlaw':
                 rho = np.log10(Agwb**2/12/np.pi**2 * \
                             f1yr**(gam_gwb-3) * \
-                            (fqs_red/86400.0)**(-gam_gwb)/Tspan)
+                            fqs_red**(-gam_gwb))
             elif args.gwbSpecModel == 'spectrum':
                 if args.gwbPrior != 'gaussProc':
-                    rho = np.log10( 10.0**(2.0*rho_spec) / Tspan )
+                    rho = np.log10( 10.0**(2.0*rho_spec) )
                 elif args.gwbPrior == 'gaussProc':
                     if gwb_popparam == 'starsecc':
                         rho_pred = np.zeros((len(fqs_red),2))
@@ -2532,7 +2546,7 @@ def lnprob(xx):
                                 rho_pred[ii,0], rho_pred[ii,1] = mu_pred, np.sqrt(np.diag(cov_pred))
 
                         # transforming from zero-mean unit-variance variable to rho
-                        rho = 2.0*np.log10(Agwb) - np.log10(12.0 * np.pi**2.0 * (fqs_red/86400.0)**3.0 * Tspan) + \
+                        rho = 2.0*np.log10(Agwb) - np.log10(12.0 * np.pi**2.0 * fqs_red**3.0) + \
                           rho_spec*rho_pred[:,1] + rho_pred[:,0]
                     else: 
                         rho_pred = np.zeros((len(fqs_red),2))
@@ -2549,8 +2563,8 @@ def lnprob(xx):
             elif args.gwbSpecModel == 'turnover':
                 rho = np.log10(Agwb**2/12/np.pi**2 * \
                             f1yr**(13.0/3.0-3.0) * \
-                            (fqs_red/86400.0)**(-13.0/3.0) / \
-                            (1.0+(fbend*86400.0/fqs_red)**kappaturn)/Tspan)
+                            fqs_red**(-13.0/3.0) / \
+                            (1.0+(fbend/fqs_red)**kappaturn))
             elif args.gwbSpecModel == 'gpEnvInterp':
                 #### CURRENTLY OUT OF USAGE ####
                 '''
@@ -2602,8 +2616,8 @@ def lnprob(xx):
         if args.incGWline:
         
             rho_line = np.zeros(nmodes_red)
-            idx = np.argmin(np.abs(fqs_red/86400.0 - freq_gwline))
-            rho_line[idx] = 10.0**(2.0*spec_gwline) / Tspan
+            idx = np.argmin(np.abs(fqs_red - freq_gwline))
+            rho_line[idx] = 10.0**(2.0*spec_gwline)
             rho_line = np.repeat(rho_line, 2)
             
             if args.incDM:
@@ -2644,10 +2658,10 @@ def lnprob(xx):
             if args.clkSpecModel == 'powerlaw':
                 kappa_clk = np.log10(Aclk**2/12/np.pi**2 * \
                             f1yr**(gam_clk-3) * \
-                            (fqs_red/86400.0)**(-gam_clk)/Tspan)
+                            fqs_red**(-gam_clk))
                 kappa_clk = np.repeat(kappa_clk, 2)
             elif args.clkSpecModel == 'spectrum':
-                kappa_clk = np.log10( 10.0**(2.0*clk_spec) / Tspan )
+                kappa_clk = np.log10( 10.0**(2.0*clk_spec) )
                 kappa_clk = np.repeat(kappa_clk, 2)
 
             if args.incDM:
@@ -2692,10 +2706,10 @@ def lnprob(xx):
             if args.cmSpecModel == 'powerlaw':
                 kappa_cm = np.log10(Acm**2/12/np.pi**2 * \
                             f1yr**(gam_cm-3) * \
-                            (fqs_red/86400.0)**(-gam_cm)/Tspan)
+                            fqs_red**(-gam_cm))
                 kappa_cm = np.repeat(kappa_cm, 2)
             elif args.cmSpecModel == 'spectrum':
-                kappa_cm = np.log10( 10.0**(2.0*cm_spec) / Tspan )
+                kappa_cm = np.log10( 10.0**(2.0*cm_spec) )
                 kappa_cm = np.repeat(kappa_cm, 2)
 
             if args.incDM:
@@ -2733,13 +2747,13 @@ def lnprob(xx):
                 if args.ephSpecModel == 'powerlaw':
                     kappa_ephx = np.log10(Aephx**2/12/np.pi**2 * \
                                         f1yr**(gam_ephx-3) * \
-                                        (fqs_eph/86400.0)**(-gam_ephx)/Tspan)
+                                        fqs_eph**(-gam_ephx))
                     kappa_ephy = np.log10(Aephy**2/12/np.pi**2 * \
                                         f1yr**(gam_ephy-3) * \
-                                        (fqs_eph/86400.0)**(-gam_ephy)/Tspan)
+                                        fqs_eph**(-gam_ephy))
                     kappa_ephz = np.log10(Aephz**2/12/np.pi**2 * \
                                         f1yr**(gam_ephz-3) * \
-                                        (fqs_eph/86400.0)**(-gam_ephz)/Tspan)
+                                        fqs_eph**(-gam_ephz))
                     kappa_eph = np.concatenate((kappa_ephx, kappa_ephy, kappa_ephz))
                     kappa_eph = np.repeat(kappa_eph, 2)
                 elif args.ephSpecModel == 'spectrum':
@@ -2778,13 +2792,13 @@ def lnprob(xx):
                     kappa_band = np.append(kappa_band,
                                            np.log10(Aband[ii]**2/12/np.pi**2 * \
                                                     f1yr**(gam_band[ii]-3) * \
-                                                    (fqs_band/86400.0)**(-gam_band[ii])/Tspan))
+                                                    fqs_band**(-gam_band[ii])))
                 kappa_band = np.repeat(kappa_band, 2)
                
             elif args.bandSpecModel == 'spectrum':
                 for ii in range(len(bands)-1):
                     kappa_band = np.append(kappa_band,
-                                           np.log10( 10.0**(2.0*band_spec[ii,:])))
+                                           np.log10( 10.0**(2.0*band_spec[ii,:]) ))
                 kappa_band = np.repeat(kappa_band, 2)
 
             
@@ -3759,13 +3773,13 @@ if args.sampler == 'mnest':
         fil.close()
 
         # Printing out the array of frequencies in the rank-reduced spectrum
-        np.save(dir_name+'/freq_array_red.npy', fqs_red/86400.0)
+        np.save(dir_name+'/freq_array_red.npy', fqs_red)
         if args.incDM:
-            np.save(dir_name+'/freq_array_dm.npy', fqs_dm/86400.0)
+            np.save(dir_name+'/freq_array_dm.npy', fqs_dm)
         if args.incBand:
-            np.save(dir_name+'/freq_array_band.npy', fqs_band/86400.0)
+            np.save(dir_name+'/freq_array_band.npy', fqs_band)
         if args.incEph and not args.jplBasis:
-            np.save(dir_name+'/freq_array_eph.npy', fqs_eph/86400.0)
+            np.save(dir_name+'/freq_array_eph.npy', fqs_eph)
 
         # Printing out the array of random phase shifts
         psr_phaseshifts = OrderedDict.fromkeys([p.name for p in psr])
@@ -3819,13 +3833,13 @@ elif args.sampler == 'pchord':
         fil.close()
 
         # Printing out the array of frequencies in the rank-reduced spectrum
-        np.save(dir_name+'/freq_array_red.npy', fqs_red/86400.0)
+        np.save(dir_name+'/freq_array_red.npy', fqs_red)
         if args.incDM:
-            np.save(dir_name+'/freq_array_dm.npy', fqs_dm/86400.0)
+            np.save(dir_name+'/freq_array_dm.npy', fqs_dm)
         if args.incBand:
-            np.save(dir_name+'/freq_array_band.npy', fqs_band/86400.0)
+            np.save(dir_name+'/freq_array_band.npy', fqs_band)
         if args.incEph and not args.jplBasis:
-            np.save(dir_name+'/freq_array_eph.npy', fqs_eph/86400.0)
+            np.save(dir_name+'/freq_array_eph.npy', fqs_eph)
 
         # Printing out the array of random phase shifts
         psr_phaseshifts = OrderedDict.fromkeys([p.name for p in psr])
@@ -4440,13 +4454,13 @@ elif args.sampler == 'ptmcmc':
         fil.close()
 
         # Printing out the array of frequencies in the rank-reduced spectrum
-        np.save(args.dirExt+file_tag+'/freq_array_red.npy', fqs_red/86400.0)
+        np.save(args.dirExt+file_tag+'/freq_array_red.npy', fqs_red)
         if args.incDM:
-            np.save(args.dirExt+file_tag+'/freq_array_dm.npy', fqs_dm/86400.0)
+            np.save(args.dirExt+file_tag+'/freq_array_dm.npy', fqs_dm)
         if args.incBand:
-            np.save(args.dirExt+file_tag+'/freq_array_band.npy', fqs_band/86400.0)
+            np.save(args.dirExt+file_tag+'/freq_array_band.npy', fqs_band)
         if args.incEph and not args.jplBasis:
-            np.save(args.dirExt+file_tag+'/freq_array_eph.npy', fqs_eph/86400.0)
+            np.save(args.dirExt+file_tag+'/freq_array_eph.npy', fqs_eph)
 
         # Printing out the array of random phase shifts
         psr_phaseshifts = OrderedDict.fromkeys([p.name for p in psr])
@@ -4465,7 +4479,7 @@ elif args.sampler == 'ptmcmc':
     # MCMC jump proposals
     #####################################
 
-    # red noise draws (from Justin Ellis' PAL2)
+    # red noise draws 
     def drawFromRedNoisePowerlawPrior(parameters, iter, beta):
     
         # post-jump parameters
@@ -4492,7 +4506,7 @@ elif args.sampler == 'ptmcmc':
 
         return q, qxy
 
-    # red noise draws (from Justin Ellis' PAL2)
+    # red noise draws 
     def drawFromRedNoiseSpectrumPrior(parameters, iter, beta):
     
         # post-jump parameters
