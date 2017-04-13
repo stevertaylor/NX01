@@ -190,7 +190,7 @@ parser.add_option('--ephSpecModel', dest='ephSpecModel', action='store', type=st
 parser.add_option('--nmodes_eph', dest='nmodes_eph', action='store', type=int, default=None,
                    help='Number of ephemeris modes in low-rank time-frequency approximation')
 parser.add_option('--ephFreqs', dest='ephFreqs', action='store', type=str, default=None,
-                  help='Provide the ephemeris-error model frequencies as a comma delimited string (default = None)')
+                  help='Provide the ephemeris-error model frequencies [Hz] as a comma delimited string (default = None)')
 parser.add_option('--incClk', dest='incClk', action='store_true', default=False,
                   help='Do you want to search for clock errors? (default = False)')
 parser.add_option('--clkDesign', dest='clkDesign', action='store_true', default=False,
@@ -734,7 +734,7 @@ if args.nmodes is not None:
 elif args.nmodes is None and args.cadence is not None:
     nmodes_red = int(round(0.5*Tmax/args.cadence))
 fqs_red, wgts_red = rr.linBinning(Tmax, args.logmode, args.fmin,
-                                  args.nmodes_red, args.nmodes_log) 
+                                  nmodes_red, args.nmodes_log) 
 
 ### Define number of DM-variation modes and set sampling frequencies
 nmodes_dm = args.nmodes_dm
@@ -744,7 +744,7 @@ if args.incDM:
     else:
         nmodes_dm = nmodes_red
     fqs_dm, wgts_dm = rr.linBinning(Tmax, args.logmode, args.fmin,
-                                    args.nmodes_dm, args.nmodes_log) 
+                                    nmodes_dm, args.nmodes_log) 
 
 ### Define number of ephemeris-error modes and set sampling frequencies
 nmodes_eph = None
@@ -763,9 +763,10 @@ if args.incEph:
         ##
         if args.ephFreqs is None:
             fqs_eph, wgts_eph = rr.linBinning(Tmax, args.logmode, args.fmin,
-                                              args.nmodes_eph, args.nmodes_log) 
+                                              nmodes_eph, args.nmodes_log) 
         elif args.ephFreqs is not None:
             fqs_eph = np.array([float(item) for item in args.ephFreqs.split(',')])
+            wgts_eph = np.ones(len(args.ephFreqs.split(',')))
 
 ### Define number of band-noise modes and set sampling frequencies
 nmodes_band = args.nmodes_band
@@ -775,7 +776,7 @@ if args.incBand:
     else:
         nmodes_band = nmodes_red
     fqs_band, wgts_band = rr.linBinning(Tmax, args.logmode, args.fmin,
-                                        args.nmodes_band, args.nmodes_log) 
+                                        nmodes_band, args.nmodes_log) 
 
     if args.bands is None:
         bands = np.array([0.0, 1.0, 2.0, 3.0])
@@ -2757,9 +2758,9 @@ def lnprob(xx):
                     kappa_eph = np.concatenate((kappa_ephx, kappa_ephy, kappa_ephz))
                     kappa_eph = np.repeat(kappa_eph, 2)
                 elif args.ephSpecModel == 'spectrum':
-                    kappa_ephx = np.log10( 10.0**(2.0*eph_spec[0,:]))
-                    kappa_ephy = np.log10( 10.0**(2.0*eph_spec[1,:]))
-                    kappa_ephz = np.log10( 10.0**(2.0*eph_spec[2,:]))
+                    kappa_ephx = np.log10( 10.0**(2.0*eph_spec[0,:]) )
+                    kappa_ephy = np.log10( 10.0**(2.0*eph_spec[1,:]) )
+                    kappa_ephz = np.log10( 10.0**(2.0*eph_spec[2,:]) )
                     kappa_eph = np.concatenate((kappa_ephx, kappa_ephy, kappa_ephz))
                     kappa_eph = np.repeat(kappa_eph, 2)
             
