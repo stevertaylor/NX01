@@ -7045,8 +7045,9 @@ elif args.sampler == 'ptmcmc':
         if args.eph_quadratic:
             pct += 9
 
-        q[pct:pct+(num_ephs-1)] = np.random.uniform(pmin[pct],
-                                                    pmax[pct],(num_ephs-1))
+        # choose an ephemeris to perturb
+        ind = np.unique(np.random.randint(0, (num_ephs-1), 1))[0]
+        q[pct+ind] = np.random.uniform(pmin[pct+ind],pmax[pct+ind])
             
         qxy += 0
         
