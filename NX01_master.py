@@ -1170,7 +1170,7 @@ if args.det_signal:
     elif args.eph_roemermix:
         num_ephs = len(psr[0].roemer.keys())
         ephnames = psr[0].roemer.keys()
-        pmin = np.append(pmin,np.zeros(num_ephs)) # weights
+        pmin = np.append(pmin,np.zeros(num_ephs-1)) # weights
 
         
 pmax = np.array([])
@@ -1322,7 +1322,7 @@ if args.det_signal:
         if args.eph_planetoffset:
             pmax = np.append(pmax,1e8*np.ones(3*num_planets)) # x,y,z displacements [km]
     elif args.eph_roemermix:
-        pmax = np.append(pmax,np.ones(num_ephs)) # weights       
+        pmax = np.append(pmax,np.ones(num_ephs-1)) # weights       
 
 ##################################################################################
 
@@ -1585,11 +1585,11 @@ def lnprob(xx):
                 planet_orbitoffsets = planet_orbitoffsets.reshape((num_planets,3))
                 param_ct += 3*num_planets
         elif args.eph_roemermix:
-            roemer_wgts = xx[param_ct:param_ct+num_ephs].copy()
+            roemer_wgts = xx[param_ct:param_ct+(num_ephs-1)].copy()
             param_ct += num_ephs
-            roemer_wgts /= np.sum(roemer_wgts)
-            #if np.sum(roemer_wgts) > 1.0:
-            #    return -np.inf
+            #roemer_wgts /= np.sum(roemer_wgts)
+            if np.sum(roemer_wgts) > 1.0:
+                return -np.inf
             
     ############################
     ############################
@@ -1948,8 +1948,8 @@ def lnprob(xx):
             
             elif args.eph_roemermix:
                 
-                #weights = np.append(roemer_wgts, 1.0 - np.sum(roemer_wgts))
-                weights = roemer_wgts
+                roemer_wgts = np.append(roemer_wgts, 1.0 - np.sum(roemer_wgts))
+                #weights = roemer_wgts
 
                 for ii, p in enumerate(psr):
 
@@ -1958,7 +1958,7 @@ def lnprob(xx):
 
                     # now, subtract weighted roemer sum over ephemerides
                     for kk,key in enumerate(ephnames):
-                        detres[ii] -= weights[kk] * p.roemer[key]
+                        detres[ii] -= roemer_wgts[kk] * p.roemer[key]
 
             #############################################################
             # Recomputing some noise quantities involving 'residuals'.
@@ -3631,7 +3631,7 @@ if args.det_signal:
                 for axis in ['x','y','z']:
                     parameters.append("planet{0}_orbitoffsetaxis{1}".format(ii,axis))
     elif args.eph_roemermix:
-        for key in ephnames:
+        for key in ephnames[:-1]:
             parameters.append("roemerweight_{0}".format(key))
 
 
@@ -4054,7 +4054,7 @@ elif args.sampler == 'ptmcmc':
             if args.eph_planetoffset:
                 x0 = np.append(x0,np.random.uniform(-1e8,1e8,3*num_planets))
         elif args.eph_roemermix:
-            x0 = np.append(x0,np.random.uniform(0.0,1.0/num_ephs,num_ephs))
+            x0 = np.append(x0,np.random.uniform(0.0,1.0/num_ephs,num_ephs-1))
 
     if rank==0:
         print "\n Your initial parameters are {0}\n".format(x0)
@@ -4197,7 +4197,7 @@ elif args.sampler == 'ptmcmc':
             if args.eph_planetoffset:
                 cov_diag = np.append(cov_diag,np.tile(10.0,3*num_planets))
         elif args.eph_roemermix:
-            cov_diag = np.append(cov_diag,0.1*np.ones(num_ephs))
+            cov_diag = np.append(cov_diag,0.1*np.ones(num_ephs-1))
 
     cov_diag = np.diag(cov_diag)
     # now including covariance in ephemeris quadratic parameters
@@ -4479,8 +4479,8 @@ elif args.sampler == 'ptmcmc':
                     param_ct += 3
                     [ind.append(id) for id in ids]
         elif args.eph_roemermix:
-            ids = [np.arange(param_ct,param_ct+num_ephs)]
-            param_ct += num_ephs
+            ids = [np.arange(param_ct,param_ct+num_ephs-1)]
+            param_ct += num_ephs-1
             [ind.append(id) for id in ids]
          
             
@@ -7072,9 +7072,12 @@ elif args.sampler == 'ptmcmc':
         #qxy += 0
 
         tmp = scistats.dirichlet(np.ones(num_ephs,dtype=int).tolist())
-        q[pct:pct+num_ephs] = tmp.rvs()
-        qxy -= np.log(tmp.pdf(q[pct:pct+num_ephs])) - \
-          np.log(tmp.pdf(parameters[pct:pct+num_ephs]))
+        q[pct:pct+num_ephs-1] = tmp.rvs()[:-1]
+        current = np.append(parameters[pct:pct+num_ephs-1].copy(),
+                            1.0-np.sum(parameters[pct:pct+num_ephs-1].copy()))
+        destination = np.append(q[pct:pct+num_ephs-1].copy(),
+                                1.0-np.sum(q[pct:pct+num_ephs-1].copy()))
+        qxy -= np.log(tmp.pdf(destination)) - np.log(tmp.pdf(current))
             
         return q, qxy
 
