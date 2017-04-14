@@ -3368,7 +3368,7 @@ def lnprob(xx):
     priorfac_roemermix = 0.0
     if args.det_signal and args.eph_roemermix:
         rmixprior = scistats.dirichlet(np.ones(num_ephs,dtype=int).tolist())
-        priorfac_roemermix += np.log(rmixprior.pdf(roemerwgts))
+        priorfac_roemermix += np.log(rmixprior.pdf(roemer_wgts))
     else:
         priorfac_roemermix = 0.0
         
