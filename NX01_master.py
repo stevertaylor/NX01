@@ -1169,7 +1169,7 @@ if args.det_signal:
     elif args.eph_roemermix:
         num_ephs = len(psr[0].roemer.keys())
         ephnames = psr[0].roemer.keys()
-        pmin = np.append(pmin,np.zeros(num_ephs-1)) # weights
+        pmin = np.append(pmin,np.zeros(num_ephs)) # weights
 
         
 pmax = np.array([])
@@ -1321,7 +1321,7 @@ if args.det_signal:
         if args.eph_planetoffset:
             pmax = np.append(pmax,1e8*np.ones(3*num_planets)) # x,y,z displacements [km]
     elif args.eph_roemermix:
-        pmax = np.append(pmax,np.ones(num_ephs-1)) # weights       
+        pmax = np.append(pmax,np.ones(num_ephs)) # weights       
 
 ##################################################################################
 
@@ -1584,8 +1584,8 @@ def lnprob(xx):
                 planet_orbitoffsets = planet_orbitoffsets.reshape((num_planets,3))
                 param_ct += 3*num_planets
         elif args.eph_roemermix:
-            roemer_wgts = xx[param_ct:param_ct+(num_ephs-1)]
-            param_ct += (num_ephs-1)
+            roemer_wgts = xx[param_ct:param_ct+num_ephs]
+            param_ct += num_ephs
             if np.sum(roemer_wgts) >= 1.0:
                 return -np.inf
             
@@ -1946,7 +1946,8 @@ def lnprob(xx):
             
             elif args.eph_roemermix:
                 
-                weights = np.append(roemer_wgts, 1.0 - np.sum(roemer_wgts))
+                #weights = np.append(roemer_wgts, 1.0 - np.sum(roemer_wgts))
+                weights = roemer_wgts
 
                 for ii, p in enumerate(psr):
 
@@ -3623,7 +3624,7 @@ if args.det_signal:
                 for axis in ['x','y','z']:
                     parameters.append("planet{0}_orbitoffsetaxis{1}".format(ii,axis))
     elif args.eph_roemermix:
-        for key in ephnames[:-1]:
+        for key in ephnames:
             parameters.append("roemerweight_{0}".format(key))
 
 
@@ -4046,7 +4047,7 @@ elif args.sampler == 'ptmcmc':
             if args.eph_planetoffset:
                 x0 = np.append(x0,np.random.uniform(-1e8,1e8,3*num_planets))
         elif args.eph_roemermix:
-            x0 = np.append(x0,np.random.uniform(0.0,1.0/num_ephs,(num_ephs-1)))
+            x0 = np.append(x0,np.random.uniform(0.0,1.0/num_ephs,num_ephs))
 
     if rank==0:
         print "\n Your initial parameters are {0}\n".format(x0)
@@ -4189,7 +4190,7 @@ elif args.sampler == 'ptmcmc':
             if args.eph_planetoffset:
                 cov_diag = np.append(cov_diag,np.tile(10.0,3*num_planets))
         elif args.eph_roemermix:
-            cov_diag = np.append(cov_diag,0.1*np.ones(num_ephs-1))
+            cov_diag = np.append(cov_diag,0.1*np.ones(num_ephs))
 
     cov_diag = np.diag(cov_diag)
     # now including covariance in ephemeris quadratic parameters
@@ -4471,8 +4472,8 @@ elif args.sampler == 'ptmcmc':
                     param_ct += 3
                     [ind.append(id) for id in ids]
         elif args.eph_roemermix:
-            ids = [np.arange(param_ct,param_ct+(num_ephs-1))]
-            param_ct += (num_ephs-1)
+            ids = [np.arange(param_ct,param_ct+num_ephs)]
+            param_ct += num_ephs
             [ind.append(id) for id in ids]
          
             
@@ -7059,7 +7060,7 @@ elif args.sampler == 'ptmcmc':
             pct += 9
 
         # choose an ephemeris to perturb
-        ind = np.unique(np.random.randint(0, (num_ephs-1), 1))[0]
+        ind = np.unique(np.random.randint(0, num_ephs, 1))[0]
         q[pct+ind] = np.random.uniform(pmin[pct+ind],pmax[pct+ind])
             
         qxy += 0
