@@ -24,6 +24,7 @@ from scipy import integrate
 from scipy import optimize
 from scipy import constants as sc
 from scipy import special as ss
+from scipy import stats as scistats
 from scipy import linalg as sl
 from scipy.interpolate import interp1d
 
@@ -3363,8 +3364,14 @@ def lnprob(xx):
                                                     / np.sqrt(2.0*np.pi*sig[jj]**2.0) )
     else:
         priorfac_planetmassdelta = 0.0
-        
 
+    priorfac_roemermix = 0.0
+    if args.det_signal and args.eph_roemermix:
+        rmixprior = scistats.dirichlet(np.ones(num_ephs,dtype=int).tolist())
+        priorfac_roemermix += np.log(rmixprior.pdf(roemerwgts))
+    else:
+        priorfac_roemermix = 0.0
+        
     priorfac_corr = 0.0
     if args.incGWB and args.incCorr:
         if args.gwbTypeCorr == 'modelIndep':
@@ -3456,11 +3463,10 @@ def lnprob(xx):
     # Finally, return the log-likelihood
     
     return (1.0/args.softParam) * (logLike + priorfac_gwb + priorfac_gwbmod + priorfac_gwline + \
-                                   priorfac_red + priorfac_dm + priorfac_clk + \
-                                   priorfac_cm + priorfac_eph + priorfac_planetmassdelta + \
+                                   priorfac_red + priorfac_dm + priorfac_clk + priorfac_cm + \
+                                   priorfac_eph + priorfac_planetmassdelta + priorfac_roemermix + \
                                    priorfac_band + priorfac_corr + priorfac_detsig)
      
-
 
 #########################
 #########################
@@ -7060,11 +7066,15 @@ elif args.sampler == 'ptmcmc':
             pct += 9
 
         # choose an ephemeris to perturb
-        ind = np.unique(np.random.randint(0, num_ephs, 1))[0]
-        q[pct+ind] = np.random.uniform(pmin[pct+ind],pmax[pct+ind])
+        #ind = np.unique(np.random.randint(0, num_ephs, 1))[0]
+        #q[pct+ind] = np.random.uniform(pmin[pct+ind],pmax[pct+ind])
+        #qxy += 0
+
+        tmp = scistats.dirichlet(np.ones(num_ephs,dtype=int).tolist())
+        q[pct:pct+num_ephs] = tmp.rvs()
+        qxy -= np.log(tmp.pdf(q[pct:pct+num_ephs])) - \
+          np.log(tmp.pdf(parameters[pct:pct+num_ephs]))
             
-        qxy += 0
-        
         return q, qxy
 
   
