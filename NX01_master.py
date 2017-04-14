@@ -4031,7 +4031,7 @@ elif args.sampler == 'ptmcmc':
             if args.eph_planetoffset:
                 x0 = np.append(x0,np.random.uniform(-1e8,1e8,3*num_planets))
         elif args.eph_roemermix:
-            x0 = np.append(x0,np.random.uniform(0.0,1.0,(num_ephs-1)))
+            x0 = np.append(x0,np.random.uniform(0.0,1.0/num_ephs,(num_ephs-1)))
 
     if rank==0:
         print "\n Your initial parameters are {0}\n".format(x0)
