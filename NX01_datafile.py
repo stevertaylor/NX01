@@ -355,7 +355,7 @@ class DataFile(object):
 
         # Roemer delay
         storeRoemerDict = pickle.dumps(psr.roemer)
-        self.writeData(psrGroup, 'RoemerDict', RoemerDict,
+        self.writeData(psrGroup, 'RoemerDict', storeRoemerDict,
                        overwrite=overwrite)
         
         # Save the planet position vectors
