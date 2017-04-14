@@ -38,10 +38,12 @@ class PsrObj(object):
     flags = None
     flagvals = None
     sysflagdict = None
+    tmask = None
     isort = None
     iisort = None
     ephemeris = None
     ephemname = None
+    roemer = None
     Fred = None
     Fdm = None
     Fephx = None
@@ -103,10 +105,12 @@ class PsrObj(object):
         self.Uinds = None
         self.name = "J0000+0000"
         self.sysflagdict = None
+        self.tmask = None
         self.isort = None
         self.iisort = None
         self.ephemeris = None
         self.ephemname = None
+        self.roemer = None
         self.Gres = None
         self.epflags = None
         self.detsig_avetoas = None
@@ -125,7 +129,8 @@ class PsrObj(object):
     Initialise the libstempo object.
     """
     def grab_all_vars(self, jitterbin=10., makeGmat=False, fastDesign=True,
-                      planetssb=False, allEphem=False, startMJD=None, endMJD=None):
+                      planetssb=False, allEphem=False,
+                      startMJD=None, endMJD=None):
         # jitterbin is in seconds
 
         print "--> Processing {0}".format(self.T2psr.name)
@@ -142,22 +147,6 @@ class PsrObj(object):
         for flag in self.flags:
             self.flagvals[flag] = self.T2psr.flagvals(flag)
 
-        if startMJD is not None and endMJD is not None:
-            mask = np.logical_and(self.T2psr.toas() >= startMJD,
-                                  self.T2psr.toas() <= endMJD)
-    
-            self.toas = self.toas[mask]
-            self.toaerrs = self.toaerrs[mask]
-            self.res = self.res[mask]
-            self.obs_freqs = self.obs_freqs[mask]
-    
-            self.Mmat = self.Mmat[mask,:]
-            dmx_mask = np.sum(self.Mmat, axis=0) != 0.0
-            self.Mmat = self.Mmat[:,dmx_mask]
-    
-            for flag in self.flags:
-                self.flagvals[flag] = self.T2psr.flagvals(flag)[mask]
-
         # getting ephemeris properties
         self.ephemeris = self.T2psr.ephemeris
         if '436' in self.T2psr.ephemeris:
@@ -168,7 +157,31 @@ class PsrObj(object):
             self.ephemname = 'DE430'
         elif '421' in self.T2psr.ephemeris:
             self.ephemname = 'DE421'
-        
+
+        # populating roemer-delay dictionary
+        self.roemer = OrderedDict()
+        self.roemer[self.ephemname] = np.double(self.T2psr.roemer)
+
+        # time filtering
+        if startMJD is not None and endMJD is not None:
+            self.tmask = np.logical_and(self.T2psr.toas() >= startMJD,
+                                        self.T2psr.toas() <= endMJD)
+    
+            self.toas = self.toas[self.tmask]
+            self.toaerrs = self.toaerrs[self.tmask]
+            self.res = self.res[self.tmask]
+            self.obs_freqs = self.obs_freqs[self.tmask]
+    
+            self.Mmat = self.Mmat[self.tmask,:]
+            dmx_mask = np.sum(self.Mmat, axis=0) != 0.0
+            self.Mmat = self.Mmat[:,dmx_mask]
+    
+            for flag in self.flags:
+                self.flagvals[flag] = self.T2psr.flagvals(flag)[self.tmask]
+
+            for eph in self.roemer:
+                self.roemer[eph] = self.roemer[eph][self.tmask]
+
         # get the position vectors of the planets
         if planetssb:
             if allEphem:
@@ -217,11 +230,9 @@ class PsrObj(object):
                 self.planet_ssb[self.ephemname][:,8,:] = self.T2psr.pluto_ssb
 
             if startMJD is not None and endMJD is not None:
-                mask = np.logical_and(self.T2psr.toas() >= startMJD,
-                                      self.T2psr.toas() <= endMJD)
                 for eph in self.planet_ssb:
                     self.planet_ssb[eph] = \
-                      self.planet_ssb[eph][mask,:,:]
+                      self.planet_ssb[eph][self.tmask,:,:]
 
             print "--> Grabbed the planet position-vectors at the pulsar timestamps."
 
@@ -242,6 +253,8 @@ class PsrObj(object):
                 self.res = self.res[self.isort]
                 self.obs_freqs = self.obs_freqs[self.isort]
                 self.Mmat = self.Mmat[self.isort, :]
+                for eph in self.roemer:
+                    self.roemer[eph] = self.roemer[eph][self.isort]
                 if planetssb:
                     for eph in self.planet_ssb:
                         self.planet_ssb[eph] = \
@@ -525,10 +538,12 @@ class PsrObjFromH5(object):
     G = None
     Mmat = None
     sysflagdict = None
+    tmask = None
     isort = None
     iisort = None
     ephemeris = None
     ephemname = None
+    roemer = None
     Fred = None
     Fdm = None
     Fephx = None
@@ -596,10 +611,12 @@ class PsrObjFromH5(object):
         self.Uinds = None
         self.name = "J0000+0000"
         self.sysflagdict = None
+        self.tmask = None
         self.isort = None
         self.iisort = None
         self.ephemeris = None
         self.ephemname = None
+        self.roemer = None
         self.Gres = None
         self.epflags = None
         self.detsig_avetoas = None
@@ -649,6 +666,8 @@ class PsrObjFromH5(object):
 
         self.ephemeris = self.h5Obj['ephemeris'].value
         self.ephemname = self.h5Obj['ephemname'].value
+
+        self.roemer = pickle.loads(self.h5Obj['RoemerDict'].value) 
         
         try:
             self.planet_ssb = pickle.loads(self.h5Obj['PlanetSSBDict'].value) 
@@ -682,6 +701,11 @@ class PsrObjFromH5(object):
         except:
             self.isort = None
             self.iisort = None
+
+        try:
+            self.tmask = self.h5Obj['tmask'].value
+        except:
+            self.tmask = None
 
         self.sysflagdict = pickle.loads(self.h5Obj['SysFlagDict'].value)
 

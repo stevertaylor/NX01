@@ -325,6 +325,11 @@ class DataFile(object):
             self.writeData(psrGroup, 'iisort', psr.iisort,
                            overwrite=overwrite)
 
+        # save TOA mask
+        if psr.tmask is not None:
+            self.writeData(psrGroup, 'tmask', psr.tmask,
+                           overwrite=overwrite)
+
         # pickle and store system flag dictionary
         storeFlagDict = pickle.dumps(psr.sysflagdict)
         self.writeData(psrGroup, 'SysFlagDict', storeFlagDict,
@@ -346,6 +351,11 @@ class DataFile(object):
         self.writeData(psrGroup, 'ephemeris', psr.ephemeris,
                        overwrite=overwrite)
         self.writeData(psrGroup, 'ephemname', psr.ephemname,
+                       overwrite=overwrite)
+
+        # Roemer delay
+        storeRoemerDict = pickle.dumps(psr.roemer)
+        self.writeData(psrGroup, 'RoemerDict', RoemerDict,
                        overwrite=overwrite)
         
         # Save the planet position vectors
