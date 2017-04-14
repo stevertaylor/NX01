@@ -1166,6 +1166,7 @@ if args.det_signal:
         num_ephs = len(psr[0].roemer.keys())
         ephnames = psr[0].roemer.keys()
         pmin = np.append(pmin,np.zeros(num_ephs-1)) # weights
+
         
 pmax = np.array([])
 if not args.fixRed:
@@ -1572,6 +1573,8 @@ def lnprob(xx):
                     planet_orbitwgts = xx[param_ct:param_ct+(num_planets*(num_ephs-1))]
                     planet_orbitwgts = planet_orbitwgts.reshape((num_planets,num_ephs-1))
                     param_ct += num_planets * (num_ephs-1)
+                    if np.sum(planet_orbitwgts) >= 1.0:
+                        return -np.inf
             if args.eph_planetoffset:
                 planet_orbitoffsets = xx[param_ct:param_ct+3*num_planets]
                 planet_orbitoffsets = planet_orbitoffsets.reshape((num_planets,3))
@@ -3607,9 +3610,8 @@ if args.det_signal:
                 for axis in ['x','y','z']:
                     parameters.append("planet{0}_orbitoffsetaxis{1}".format(ii,axis))
     elif args.eph_roemermix:
-        for key in ephnames:
-            if key != psr[0].ephemname:
-                parameters.append("roemerweight_{0}".format(key))
+        for key in ephnames[:-1]:
+            parameters.append("roemerweight_{0}".format(key))
 
 
 n_params = len(parameters)
