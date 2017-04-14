@@ -1585,10 +1585,10 @@ def lnprob(xx):
                 planet_orbitoffsets = planet_orbitoffsets.reshape((num_planets,3))
                 param_ct += 3*num_planets
         elif args.eph_roemermix:
-            roemer_wgts = xx[param_ct:param_ct+num_ephs]
+            roemer_wgts = xx[param_ct:param_ct+num_ephs].copy()
             param_ct += num_ephs
             roemer_wgts /= np.sum(roemer_wgts)
-            #if np.sum(roemer_wgts) != 1.0:
+            #if np.sum(roemer_wgts) > 1.0:
             #    return -np.inf
             
     ############################
