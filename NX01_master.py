@@ -3607,7 +3607,7 @@ if args.det_signal:
                 for axis in ['x','y','z']:
                     parameters.append("planet{0}_orbitoffsetaxis{1}".format(ii,axis))
     elif args.eph_roemermix:
-        for key in ephemnames:
+        for key in ephnames:
             parameters.append("roemerweight_{0}".format(key))
 
 
