@@ -7072,7 +7072,7 @@ elif args.sampler == 'ptmcmc':
         #qxy += 0
 
         tmp = scistats.dirichlet(np.ones(num_ephs,dtype=int).tolist())
-        print tmp.rvs()[0]
+        print tmp.rvs()[0][:-1]
         q[pct:pct+num_ephs-1] = tmp.rvs()[:-1]
         current = np.append(parameters[pct:pct+num_ephs-1].copy(),
                             1.0-np.sum(parameters[pct:pct+num_ephs-1].copy()))
