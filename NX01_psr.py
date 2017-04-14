@@ -29,6 +29,7 @@ class PsrObj(object):
     decj = None
     elong = None
     elat = None
+    psrPos = None
     toas = None
     toaerrs = None
     res = None
@@ -81,6 +82,7 @@ class PsrObj(object):
         self.decj = None
         self.elong = None
         self.elat = None
+        self.psrPos = None
         self.toas = None
         self.toaerrs = None
         self.res = None
@@ -137,6 +139,7 @@ class PsrObj(object):
         
         # basic quantities
         self.name = self.T2psr.name
+        self.psrPos = self.T2psr.psrPos
         self.toas = np.double(self.T2psr.toas())
         self.res = np.double(self.T2psr.residuals())
         self.toaerrs = np.double(self.T2psr.toaerrs) * 1e-6
@@ -483,7 +486,7 @@ class PsrObj(object):
                     fqs_tmp = fqs_eph
                     wgts_tmp = wgts_eph
                 self.Fephx, self.Fephy, self.Fephz = \
-                  utils.createFourierDesignmatrix_eph(self.toas, fqs_tmp, wgts_tmp, self.psr_locs,
+                  utils.createFourierDesignmatrix_eph(self.toas, fqs_tmp, wgts_tmp, self.psrPos,
                                                       Tspan=Ttot, input_freqs=ephFreqs)
                 self.Ftot = np.append(self.Ftot, self.Fephx, axis=1)
                 self.Ftot = np.append(self.Ftot, self.Fephy, axis=1)
@@ -528,6 +531,7 @@ class PsrObjFromH5(object):
     decj = None
     elong = None
     elat = None
+    psrPos = None
     parfile = None
     timfile = None
     noisefile = None
@@ -588,6 +592,7 @@ class PsrObjFromH5(object):
         self.decj = None
         self.elong = None
         self.elat = None
+        self.psrPos = None
         self.toas = None
         self.toaerrs = None
         self.res = None
@@ -663,6 +668,7 @@ class PsrObjFromH5(object):
         self.decj = self.h5Obj['decj'].value
         self.elong = self.h5Obj['elong'].value
         self.elat = self.h5Obj['elat'].value
+        self.psrPos = self.h5Obj['psrPos'].value
 
         self.ephemeris = self.h5Obj['ephemeris'].value
         self.ephemname = self.h5Obj['ephemname'].value

@@ -219,7 +219,7 @@ def createFourierDesignmatrix_dm(t, fqs, wgts, obs_freqs,
     else:
         return F
 
-def createFourierDesignmatrix_eph(t, fqs, wgts, psr_locs,
+def createFourierDesignmatrix_eph(t, fqs, wgts, psrPos,
                                   output_freqs=False, Tspan=None,
                                   input_freqs=None):
     """
@@ -228,7 +228,7 @@ def createFourierDesignmatrix_eph(t, fqs, wgts, psr_locs,
     @param t: vector of time series in seconds
     @param fqs: sampling frequencies [Hz]
     @param wgts: square root of integral infinitesimal
-    @param psr_locs: phi and theta coordinates of pulsar
+    @param psrPos: time-dependent position of pulsar
     @param output_freqs: option to output frequencies
     @param Tspan: option to some other Tspan
     @param input_freqs: user-defined sampling frequencies
@@ -245,28 +245,30 @@ def createFourierDesignmatrix_eph(t, fqs, wgts, psr_locs,
     Fz = np.zeros((N, 2*len(fqs)))
 
     # define the pulsar position vector
-    phi = psr_locs[0]
-    theta = np.pi/2. - psr_locs[1]
-    x = np.sin(theta)*np.cos(phi)
-    y = np.sin(theta)*np.sin(phi)
-    z = np.cos(theta)
+    #phi = psr_locs[0]
+    #theta = np.pi/2. - psr_locs[1]
+    #x = np.sin(theta)*np.cos(phi)
+    #y = np.sin(theta)*np.sin(phi)
+    #z = np.cos(theta)
 
     # The sine/cosine modes
     ct = 0
     for ii in range(0, 2*len(fqs)-1, 2):
         
-        Fx[:,ii] = np.cos(2*np.pi*fqs[ct]*t*86400.0)
-        Fx[:,ii+1] = np.sin(2*np.pi*fqs[ct]*t*86400.0)
-        Fy[:,ii] = np.cos(2*np.pi*fqs[ct]*t*86400.0)
-        Fy[:,ii+1] = np.sin(2*np.pi*fqs[ct]*t*86400.0)
-        Fz[:,ii] = np.cos(2*np.pi*fqs[ct]*t*86400.0)
-        Fz[:,ii+1] = np.sin(2*np.pi*fqs[ct]*t*86400.0)
+        Fx[:,ii] = np.cos(2*np.pi*fqs[ct]*t*86400.0) * psrPos[:,0]
+        Fx[:,ii+1] = np.sin(2*np.pi*fqs[ct]*t*86400.0) * psrPos[:,0]
+
+        Fy[:,ii] = np.cos(2*np.pi*fqs[ct]*t*86400.0) * psrPos[:,1]
+        Fy[:,ii+1] = np.sin(2*np.pi*fqs[ct]*t*86400.0) * psrPos[:,1]
+
+        Fz[:,ii] = np.cos(2*np.pi*fqs[ct]*t*86400.0) * psrPos[:,2]
+        Fz[:,ii+1] = np.sin(2*np.pi*fqs[ct]*t*86400.0) * psrPos[:,2]
         
         ct += 1
 
-    Fx = Fx * x
-    Fy = Fy * y
-    Fz = Fz * z
+    #Fx = Fx * x
+    #Fy = Fy * y
+    #Fz = Fz * z
 
     if output_freqs:
         return Fx, Fy, Fz, fqs

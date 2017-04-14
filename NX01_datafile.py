@@ -346,6 +346,8 @@ class DataFile(object):
                        overwrite=overwrite)
         self.writeData(psrGroup, 'elat', psr.elat,
                        overwrite=overwrite)
+        self.writeData(psrGroup, 'psrPos', psr.psrPos,
+                       overwrite=overwrite)
 
         # Save ephemeris properties
         self.writeData(psrGroup, 'ephemeris', psr.ephemeris,
