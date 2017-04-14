@@ -1587,7 +1587,7 @@ def lnprob(xx):
         elif args.eph_roemermix:
             roemer_wgts = xx[param_ct:param_ct+num_ephs]
             param_ct += num_ephs
-            if np.sum(roemer_wgts) >= 1.0:
+            if np.sum(roemer_wgts) != 1.0:
                 return -np.inf
             
     ############################
