@@ -308,6 +308,8 @@ parser.add_option('--eph_planetmassprior', dest='eph_planetmassprior', action='s
                   help='What kind fo prior do you want to place on the planet masses being perturbed [official, loguniform] (default = official)')
 parser.add_option('--eph_planetoffset', dest='eph_planetoffset', action='store_true', default=False,
                   help='Do you want to search for x,y,z displacements in each planetary orbit? (default = False)')
+parser.add_option('--eph_roemermix', dest='eph_roemermix', action='store_true', default=False,
+                  help='Do you want to include a mixture of Roemer delays in the model? (default = False)')
 parser.add_option('--incGWline', dest='incGWline', action='store_true', default=False,
                   help='Do you want to include a single-frequency line in the GW spectrum? (default = False)')
 parser.add_option('--gwlinePrior', dest='gwlinePrior', action='store', type=str, default='uniform',
@@ -1160,8 +1162,11 @@ if args.det_signal:
                 pmin = np.append(pmin,np.zeros((num_ephs-1)*num_planets)) # weights
         if args.eph_planetoffset:
             pmin = np.append(pmin,-1e8*np.ones(3*num_planets)) # x,y,z displacements [km]
+    elif args.eph_roemermix:
+        num_ephs = len(psr[0].roemer.keys())
+        ephnames = psr[0].roemer.keys()
+        pmin = np.append(pmin,np.zeros(num_ephs-1)) # weights
         
-
 pmax = np.array([])
 if not args.fixRed:
     if args.redSpecModel == 'powerlaw':
@@ -1310,7 +1315,8 @@ if args.det_signal:
                 pmax = np.append(pmax,np.ones((num_ephs-1)*num_planets)) # weights
         if args.eph_planetoffset:
             pmax = np.append(pmax,1e8*np.ones(3*num_planets)) # x,y,z displacements [km]
-       
+    elif args.eph_roemermix:
+        pmax = np.append(pmax,np.ones(num_ephs-1)) # weights       
 
 ##################################################################################
 
@@ -1570,6 +1576,11 @@ def lnprob(xx):
                 planet_orbitoffsets = xx[param_ct:param_ct+3*num_planets]
                 planet_orbitoffsets = planet_orbitoffsets.reshape((num_planets,3))
                 param_ct += 3*num_planets
+        elif args.eph_roemermix:
+            roemer_wgts = xx[param_ct:param_ct+(num_ephs-1)]
+            param_ct += (num_ephs-1)
+            if np.sum(roemer_wgts) >= 1.0:
+                return -np.inf
             
     ############################
     ############################
@@ -1730,7 +1741,7 @@ def lnprob(xx):
 
             detres = []
             for ii,p in enumerate(psr):
-                detres.append(p.res)
+                detres.append(p.res.copy())
 
             if args.cgw_search:
 
@@ -1761,7 +1772,6 @@ def lnprob(xx):
                     psrlp0 = np.array([None]*npsr)
             
                 cgw_res = []
-                #detres = []
 
                 #########################
                 # Sometimes we might want
@@ -1823,14 +1833,12 @@ def lnprob(xx):
                         elif not args.epochTOAs:
                             cgw_res.append(tmp_res)
                         
-                    #detres.append( p.res - cgw_res[ii] )
                     detres[ii] -= cgw_res[ii]
 
 
             if args.bwm_search:
 
                 bwm_res = []
-                #detres = []
                 for ii,p in enumerate(psr):
                     if args.bwm_model_select:
                         if nmodel_bwm == 0:
@@ -1841,14 +1849,12 @@ def lnprob(xx):
                     else:
                         bwm_res.append( utils.bwmsignal(bwm_params,p,
                                                         antennaPattern=args.bwm_antenna) )
-                    #detres.append( p.res - bwm_res[ii] )
                     detres[ii] -= bwm_res[ii]
 
             if args.eph_quadratic:
 
-                #detres = []
                 ephquad_signal = np.dot(ephem_design*ephem_norm,ephquad_params)
-                #print ephquad_signal
+
                 toa_ct = 0
                 for ii,p in enumerate(psr):
                     detres[ii] -= ephquad_signal[toa_ct:toa_ct+p.toas.shape[0]] 
@@ -1871,13 +1877,11 @@ def lnprob(xx):
                 #    z_quad = (np.sign(zquad1_sign) * 10.0**zquad1_amp * normtime + \
                 #              np.sign(zquad2_sign) * 10.0**zquad2_amp * normtime**2.0) * z
 
-                #    # need to alter this if you want a single GW source too
                 #    detres.append( p.res - x_quad - y_quad - z_quad )
 
             mass_perturb = None
             if args.eph_planetdelta:
 
-                #detres = []
                 for ii, p in enumerate(psr):
 
                     # define the pulsar position vector
@@ -1918,14 +1922,24 @@ def lnprob(xx):
 
                         if args.eph_planetoffset:
                             
-                            #planet_offset = np.tile(planet_orbitoffsets[jj,0],3) * 1e3 / sc.c
                             planet_offset = planet_orbitoffsets[jj,:] * 1e3 / sc.c
                             planet_delta_signal += (planet_masses[jj] * \
                                                     np.dot(planet_offset,psr_posvec))
                     
-                    # need to alter this if you want a single GW source too
-                    #detres.append( p.res - planet_delta_signal)
                     detres[ii] -= planet_delta_signal
+            
+            elif args.eph_roemermix:
+                
+                weights = np.append(roemer_wgts, 1.0 - np.sum(roemer_wgts))
+
+                for ii, p in enumerate(psr):
+
+                    # first, add back in fitted ephemeris roemer delay
+                    detres[ii] += p.roemer[p.ephemname]
+
+                    # now, subtract weighted roemer sum over ephemerides
+                    for kk,key in enumerate(ephnames):
+                        detres[ii] -= weights[kk] * p.roemer[key]
 
             #############################################################
             # Recomputing some noise quantities involving 'residuals'.
@@ -3592,6 +3606,9 @@ if args.det_signal:
             for ii in planet_tags:
                 for axis in ['x','y','z']:
                     parameters.append("planet{0}_orbitoffsetaxis{1}".format(ii,axis))
+    elif args.eph_roemermix:
+        for key in ephemnames:
+            parameters.append("roemerweight_{0}".format(key))
 
 
 n_params = len(parameters)
@@ -3703,6 +3720,8 @@ if args.det_signal:
             file_tag += '_ephplanetmass'+args.eph_planetmassprior
         if args.eph_planetoffset:
             file_tag += '_ephorbitoffset'
+    elif args.eph_roemermix:
+        file_tag += '_ephroemermix'
 if args.fixRed:
     red_tag = '_redFix'+'nm{0}'.format(nmodes_red)
 elif not args.fixRed:
@@ -4010,6 +4029,8 @@ elif args.sampler == 'ptmcmc':
                     x0 = np.append(x0,np.random.uniform(0.0,1.0,(num_ephs-1)*num_planets))
             if args.eph_planetoffset:
                 x0 = np.append(x0,np.random.uniform(-1e8,1e8,3*num_planets))
+        elif args.eph_roemermix:
+            x0 = np.append(x0,np.random.uniform(0.0,1.0,(num_ephs-1)))
 
     if rank==0:
         print "\n Your initial parameters are {0}\n".format(x0)
@@ -4151,6 +4172,8 @@ elif args.sampler == 'ptmcmc':
                     cov_diag = np.append(cov_diag,np.tile(0.1,(num_ephs-1)*num_planets))
             if args.eph_planetoffset:
                 cov_diag = np.append(cov_diag,np.tile(10.0,3*num_planets))
+        elif args.eph_roemermix:
+            cov_diag = np.append(cov_diag,0.1*np.ones(num_ephs-1))
 
     cov_diag = np.diag(cov_diag)
     # now including covariance in ephemeris quadratic parameters
@@ -4431,6 +4454,10 @@ elif args.sampler == 'ptmcmc':
                     ids = [np.arange(param_ct,param_ct+3)]
                     param_ct += 3
                     [ind.append(id) for id in ids]
+        elif args.eph_roemermix:
+            ids = [np.arange(param_ct,param_ct+(num_ephs-1))]
+            param_ct += (num_ephs-1)
+            [ind.append(id) for id in ids]
          
             
     ##### all parameters #####
@@ -6921,6 +6948,107 @@ elif args.sampler == 'ptmcmc':
         
         return q, qxy
 
+    # planet orbital offset draws 
+    def drawFromEphRoemerMixPrior(parameters, iter, beta):
+
+        # post-jump parameters
+        q = parameters.copy()
+
+        # transition probability
+        qxy = 0
+
+        npsr = len(psr)
+        pct = 0
+        if not args.fixRed:
+            if args.redSpecModel == 'powerlaw':
+                pct = 2*npsr
+            elif args.redSpecModel == 'spectrum':
+                pct = npsr*nmodes_red
+    
+        if args.incDM and not args.fixDM:
+            if args.dmSpecModel == 'powerlaw':
+                pct += 2*npsr
+            elif args.dmSpecModel == 'spectrum':
+                pct += npsr*nmodes_dm
+
+        if args.varyWhite:
+            for ii,p in enumerate(psr):
+                systems = p.sysflagdict[args.sysflag_target]
+                pct += 2*len(systems)
+                pct += len(p.sysflagdict['nano-f'].keys())
+
+        if args.incBand:
+            if args.bandSpecModel == 'powerlaw':
+                pct += 2*(len(bands)-1)
+            elif args.bandSpecModel == 'spectrum':
+                pct += (len(bands)-1)*nmodes_band
+                    
+        if args.incClk:
+            if args.clkSpecModel == 'powerlaw':
+                pct += 2
+            elif args.clkSpecModel == 'spectrum':
+                pct += nmodes_red
+
+        if args.incCm:
+            if args.cmSpecModel == 'powerlaw':
+                pct += 2
+            elif args.cmSpecModel == 'spectrum':
+                pct += nmodes_red
+
+        if args.incEph and not args.jplBasis:
+            if args.ephSpecModel == 'powerlaw':
+                pct += 6
+            elif args.ephSpecModel == 'spectrum':
+                pct += 3*nmodes_eph
+
+        if args.incGWB:
+            if args.gwbSpecModel == 'powerlaw':
+                pct += 1
+                if not args.fix_slope:
+                    pct += 1
+            elif args.gwbSpecModel == 'spectrum':
+                pct += nmodes_red
+                if args.gwbPrior == 'gaussProc':
+                    pct += 1 + gwb_popparam_ndims
+            elif args.gwbSpecModel == 'turnover':
+                if args.gwb_fb2env is not None:
+                    pct += 2
+                elif args.gwb_fb2env is None:
+                    pct += 3
+            elif args.gwbSpecModel == 'gpEnvInterp':
+                pct += 2
+
+            if args.incCorr:
+                pct += num_corr_params
+                if args.gwbModelSelect:
+                    pct += 1
+
+        if args.incGWline:
+            pct += 4
+
+        if args.cgw_search:
+            pct += 11
+            if args.ecc_search:
+                pct += 1
+            if args.psrTerm:
+                pct += 3*len(psr)
+            if args.cgwModelSelect:
+                pct += 1
+        if args.bwm_search:
+            if args.bwm_model_select:
+                pct += 6
+            else:
+                pct += 5
+        if args.eph_quadratic:
+            pct += 9
+
+        q[pct:pct+(num_ephs-1)] = np.random.uniform(pmin[pct],
+                                                    pmax[pct],(num_ephs-1))
+            
+        qxy += 0
+        
+        return q, qxy
+
   
     # add jump proposals
     if not args.fixRed:
@@ -6995,6 +7123,8 @@ elif args.sampler == 'ptmcmc':
                 sampler.addProposalToCycle(drawFromEphPlanetOrbitPrior, 10)
         if args.eph_planetoffset:
             sampler.addProposalToCycle(drawFromEphPlanetOffsetPrior, 10)
+    elif args.det_signal and args.eph_roemermix:
+        sampler.addProposalToCycle(drawFromEphRoemerMixPrior, 10)
     
 
     sampler.sample(p0=x0, Niter=int(args.niter), thin=10,
