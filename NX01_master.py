@@ -807,26 +807,33 @@ if args.det_signal:
         ephem_design = []
         for ii, p in enumerate(psr):
 
-            # define the pulsar position vector
-            #pphi = p.psr_locs[0]
-            #ptheta = np.pi/2. - p.psr_locs[1]
-            #x = np.sin(ptheta)*np.cos(pphi)
-            #y = np.sin(ptheta)*np.sin(pphi)
-            #z = np.cos(ptheta)
-
             normtime = (p.toas - tref)/365.25
             tmp = np.zeros((p.toas.shape[0],3))
             tmp[:,0] = 1.0
             tmp[:,1] = normtime
             tmp[:,2] = normtime**2.0
             tmp = np.repeat(tmp,3,axis=1)
-            #tmp[:,0::3] *= x
-            #tmp[:,1::3] *= y
-            #tmp[:,2::3] *= z
             for ii in range(3):
                 tmp[:,3*ii] *= p.psrPos[:,0]
                 tmp[:,3*ii+1] *= p.psrPos[:,1]
                 tmp[:,3*ii+2] *= p.psrPos[:,2]
+            #try:
+            #    for ii in range(3):
+            #        tmp[:,3*ii] *= p.psrPos[:,0]
+            #        tmp[:,3*ii+1] *= p.psrPos[:,1]
+            #        tmp[:,3*ii+2] *= p.psrPos[:,2]
+            #except KeyError:
+            #    # define the pulsar position vector
+            #    pphi = p.psr_locs[0]
+            #    ptheta = np.pi/2. - p.psr_locs[1]
+            #    x = np.sin(ptheta)*np.cos(pphi)
+            #    y = np.sin(ptheta)*np.sin(pphi)
+            #    z = np.cos(ptheta)
+            #
+            #    tmp[:,0::3] *= x
+            #    tmp[:,1::3] *= y
+            #    tmp[:,2::3] *= z
+                
             ephem_design.append( tmp )
 
         ephem_design = np.vstack(ephem_design)
@@ -1893,14 +1900,6 @@ def lnprob(xx):
 
                 for ii, p in enumerate(psr):
 
-                    # define the pulsar position vector
-                    #pphi = p.psr_locs[0]
-                    #ptheta = np.pi/2. - p.psr_locs[1]
-                    #x = np.sin(ptheta)*np.cos(pphi)
-                    #y = np.sin(ptheta)*np.sin(pphi)
-                    #z = np.cos(ptheta)
-                    #psr_posvec = np.array([x,y,z])
-
                     planet_delta_signal = np.zeros(p.toas.shape)
                     # sum over planets
                     dummy_tags = planet_tags - 1
@@ -1920,29 +1919,67 @@ def lnprob(xx):
                                 planet_posvec = np.zeros((p.toas.shape[0],3))
                                 for kk,key in enumerate(ephnames):
                                     planet_posvec += weights[kk] * p.planet_ssb[key][:,tag,:3]
-                                #planet_delta_signal += (mass_perturb[jj] * \
-                                #                        np.dot(planet_posvec,psr_posvec))
                                 planet_delta_signal += (mass_perturb[jj] * \
-                                                        np.array([np.dot(planet_posvec[aa,:], p.psrPos[aa,:]) \
-                                                                      for aa in range(p.toas.shape[0])]))
+                                                            np.array([np.dot(planet_posvec[aa,:], p.psrPos[aa,:]) \
+                                                                        for aa in range(p.toas.shape[0])]))
+                                #try:
+                                #    planet_delta_signal += (mass_perturb[jj] * \
+                                #                            np.array([np.dot(planet_posvec[aa,:], p.psrPos[aa,:]) \
+                                #                                        for aa in range(p.toas.shape[0])]))
+                                #except KeyError:
+                                #    # define the pulsar position vector
+                                #    pphi = p.psr_locs[0]
+                                #    ptheta = np.pi/2. - p.psr_locs[1]
+                                #    x = np.sin(ptheta)*np.cos(pphi)
+                                #    y = np.sin(ptheta)*np.sin(pphi)
+                                #    z = np.cos(ptheta)
+                                #    psr_posvec = np.array([x,y,z])
+                                #    planet_delta_signal += (mass_perturb[jj] * \
+                                #                            np.dot(planet_posvec,psr_posvec))
+                                    
                             else:
                                 planet_posvec = np.zeros((p.toas.shape[0],3))
                                 for kk,key in enumerate(ephnames):
                                     planet_posvec += p.planet_ssb[key][:,tag,:3]
-                                #planet_delta_signal += (mass_perturb[jj] * \
-                                #                        np.dot(planet_posvec,psr_posvec))
                                 planet_delta_signal += (mass_perturb[jj] * \
-                                                        np.array([np.dot(planet_posvec[aa,:], p.psrPos[aa,:]) \
-                                                                      for aa in range(p.toas.shape[0])]))
+                                                            np.array([np.dot(planet_posvec[aa,:], p.psrPos[aa,:]) \
+                                                                        for aa in range(p.toas.shape[0])]))
+                                #try:
+                                #    planet_delta_signal += (mass_perturb[jj] * \
+                                #                            np.array([np.dot(planet_posvec[aa,:], p.psrPos[aa,:]) \
+                                #                                        for aa in range(p.toas.shape[0])]))
+                                #except KeyError:
+                                #    # define the pulsar position vector
+                                #    pphi = p.psr_locs[0]
+                                #    ptheta = np.pi/2. - p.psr_locs[1]
+                                #    x = np.sin(ptheta)*np.cos(pphi)
+                                #    y = np.sin(ptheta)*np.sin(pphi)
+                                #    z = np.cos(ptheta)
+                                #    psr_posvec = np.array([x,y,z])
+                                #    planet_delta_signal += (mass_perturb[jj] * \
+                                #                            np.dot(planet_posvec,psr_posvec))
 
                         if args.eph_planetoffset:
                             
                             planet_offset = planet_orbitoffsets[jj,:] * 1e3 / sc.c
-                            #planet_delta_signal += (planet_masses[jj] * \
-                            #                        np.dot(planet_offset,psr_posvec))
                             planet_delta_signal += (planet_masses[jj] * \
-                                                        np.array([np.dot(planet_offset[aa,:], p.psrPos[aa,:]) \
-                                                                      for aa in range(p.toas.shape[0])]))
+                                                            np.array([np.dot(planet_offset[aa,:], p.psrPos[aa,:]) \
+                                                                        for aa in range(p.toas.shape[0])]))
+                            #try:
+                            #    planet_delta_signal += (planet_masses[jj] * \
+                            #                                np.array([np.dot(planet_offset[aa,:], p.psrPos[aa,:]) \
+                            #                                            for aa in range(p.toas.shape[0])]))
+                            #except KeyError:
+                            #    # define the pulsar position vector
+                            #    pphi = p.psr_locs[0]
+                            #    ptheta = np.pi/2. - p.psr_locs[1]
+                            #    x = np.sin(ptheta)*np.cos(pphi)
+                            #    y = np.sin(ptheta)*np.sin(pphi)
+                            #    z = np.cos(ptheta)
+                            #    psr_posvec = np.array([x,y,z])
+                            #    planet_delta_signal += (planet_masses[jj] * \
+                            #                            np.dot(planet_offset,psr_posvec))
+                                
                     
                     detres[ii] -= planet_delta_signal
             
