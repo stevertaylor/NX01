@@ -1156,7 +1156,7 @@ if args.det_signal:
                 pmin = np.append(pmin,-1.0*np.ones(num_planets)) # signs
             if args.which_ephs == 'fitted':
                 num_ephs = 1
-                ephnames = [psr[0].ephemeris]
+                ephnames = [psr[0].ephemname]
             elif args.which_ephs == 'all':
                 num_ephs = len(psr[0].planet_ssb.keys())
                 ephnames = psr[0].planet_ssb.keys()
