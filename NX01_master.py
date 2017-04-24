@@ -232,9 +232,9 @@ parser.add_option('--gwbStarsRange', dest='gwbStarsRange', action='store', type=
 parser.add_option('--gwbEccRange', dest='gwbEccRange', action='store', type=str, default='0.0,0.9',
                   help='Provide a lower and upper e0 range as a comma delimited string (default = None)')
 parser.add_option('--gwbPrior', dest='gwbPrior', action='store', type=str, default='uniform',
-                   help='Do you want to use a uniform prior on log_10(amplitude) for detection [loguniform], on amplitudes themselves for limits [uniform], an astrophysical prior (only when the amplitude is Agwb: for powerlaw, turnover, gpEnvInterp models) [sesana, mcwilliams], or a gaussian process prior [gaussProc] (default=\'uniform\')?')
+                   help='Do you want to use a uniform prior on log_10(amplitude) for detection [loguniform], on amplitudes themselves for limits [uniform], an astrophysical prior (only when the amplitude is Agwb: for powerlaw, turnover, gpEnvInterp models) [sesana, mcwilliams, mccma, korho], or a gaussian process prior [gaussProc] (default=\'uniform\')?')
 parser.add_option('--gwbHyperPrior', dest='gwbHyperPrior', action='store', type=str, default='uniform',
-                   help='When gwbPrior=gaussProc, do you want to use a uniform prior on log_10(Agwb) for detection [loguniform], on Agwb itself for limits [uniform], or an astrophysical prior [sesana, mcwilliams] (default=\'uniform\')?')
+                   help='When gwbPrior=gaussProc, do you want to use a uniform prior on log_10(Agwb) for detection [loguniform], on Agwb itself for limits [uniform], or an astrophysical prior [sesana, mcwilliams, mccma, korho] (default=\'uniform\')?')
 parser.add_option('--redPrior', dest='redPrior', action='store', type=str, default='uniform',
                    help='Do you want to use a uniform prior on log_10(Ared) for detection [loguniform], on Ared itself for limits [uniform] (default=\'uniform\')?')
 parser.add_option('--dmPrior', dest='dmPrior', action='store', type=str, default='uniform',
@@ -817,22 +817,6 @@ if args.det_signal:
                 tmp[:,3*ii] *= p.psrPos[:,0]
                 tmp[:,3*ii+1] *= p.psrPos[:,1]
                 tmp[:,3*ii+2] *= p.psrPos[:,2]
-            #try:
-            #    for ii in range(3):
-            #        tmp[:,3*ii] *= p.psrPos[:,0]
-            #        tmp[:,3*ii+1] *= p.psrPos[:,1]
-            #        tmp[:,3*ii+2] *= p.psrPos[:,2]
-            #except KeyError:
-            #    # define the pulsar position vector
-            #    pphi = p.psr_locs[0]
-            #    ptheta = np.pi/2. - p.psr_locs[1]
-            #    x = np.sin(ptheta)*np.cos(pphi)
-            #    y = np.sin(ptheta)*np.sin(pphi)
-            #    z = np.cos(ptheta)
-            #
-            #    tmp[:,0::3] *= x
-            #    tmp[:,1::3] *= y
-            #    tmp[:,2::3] *= z
                 
             ephem_design.append( tmp )
 
@@ -1922,20 +1906,6 @@ def lnprob(xx):
                                 planet_delta_signal += (mass_perturb[jj] * \
                                                             np.array([np.dot(planet_posvec[aa,:], p.psrPos[aa,:]) \
                                                                         for aa in range(p.toas.shape[0])]))
-                                #try:
-                                #    planet_delta_signal += (mass_perturb[jj] * \
-                                #                            np.array([np.dot(planet_posvec[aa,:], p.psrPos[aa,:]) \
-                                #                                        for aa in range(p.toas.shape[0])]))
-                                #except KeyError:
-                                #    # define the pulsar position vector
-                                #    pphi = p.psr_locs[0]
-                                #    ptheta = np.pi/2. - p.psr_locs[1]
-                                #    x = np.sin(ptheta)*np.cos(pphi)
-                                #    y = np.sin(ptheta)*np.sin(pphi)
-                                #    z = np.cos(ptheta)
-                                #    psr_posvec = np.array([x,y,z])
-                                #    planet_delta_signal += (mass_perturb[jj] * \
-                                #                            np.dot(planet_posvec,psr_posvec))
                                     
                             else:
                                 planet_posvec = np.zeros((p.toas.shape[0],3))
@@ -1944,20 +1914,6 @@ def lnprob(xx):
                                 planet_delta_signal += (mass_perturb[jj] * \
                                                             np.array([np.dot(planet_posvec[aa,:], p.psrPos[aa,:]) \
                                                                         for aa in range(p.toas.shape[0])]))
-                                #try:
-                                #    planet_delta_signal += (mass_perturb[jj] * \
-                                #                            np.array([np.dot(planet_posvec[aa,:], p.psrPos[aa,:]) \
-                                #                                        for aa in range(p.toas.shape[0])]))
-                                #except KeyError:
-                                #    # define the pulsar position vector
-                                #    pphi = p.psr_locs[0]
-                                #    ptheta = np.pi/2. - p.psr_locs[1]
-                                #    x = np.sin(ptheta)*np.cos(pphi)
-                                #    y = np.sin(ptheta)*np.sin(pphi)
-                                #    z = np.cos(ptheta)
-                                #    psr_posvec = np.array([x,y,z])
-                                #    planet_delta_signal += (mass_perturb[jj] * \
-                                #                            np.dot(planet_posvec,psr_posvec))
 
                         if args.eph_planetoffset:
                             
@@ -1965,28 +1921,12 @@ def lnprob(xx):
                             planet_delta_signal += (planet_masses[jj] * \
                                                             np.array([np.dot(planet_offset[aa,:], p.psrPos[aa,:]) \
                                                                         for aa in range(p.toas.shape[0])]))
-                            #try:
-                            #    planet_delta_signal += (planet_masses[jj] * \
-                            #                                np.array([np.dot(planet_offset[aa,:], p.psrPos[aa,:]) \
-                            #                                            for aa in range(p.toas.shape[0])]))
-                            #except KeyError:
-                            #    # define the pulsar position vector
-                            #    pphi = p.psr_locs[0]
-                            #    ptheta = np.pi/2. - p.psr_locs[1]
-                            #    x = np.sin(ptheta)*np.cos(pphi)
-                            #    y = np.sin(ptheta)*np.sin(pphi)
-                            #    z = np.cos(ptheta)
-                            #    psr_posvec = np.array([x,y,z])
-                            #    planet_delta_signal += (planet_masses[jj] * \
-                            #                            np.dot(planet_offset,psr_posvec))
-                                
                     
                     detres[ii] -= planet_delta_signal
             
             elif args.eph_roemermix:
                 
                 roemer_wgts = np.append(roemer_wgts, 1.0 - np.sum(roemer_wgts))
-                #weights = roemer_wgts
 
                 for ii, p in enumerate(psr):
 
@@ -3192,6 +3132,16 @@ def lnprob(xx):
                 sig = 0.26
                 priorfac_gwb = np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
                                     / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
+            elif args.gwbPrior == 'mccma':
+                mu = -14.95
+                sig = 0.12
+                priorfac_gwb = np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
+                                    / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
+            elif args.gwbPrior == 'korho':
+                mu = -14.82
+                sig = 0.08
+                priorfac_gwb = np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
+                                    / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
                 
         ### free spectral model ###
         elif args.gwbSpecModel == 'spectrum':
@@ -3229,6 +3179,16 @@ def lnprob(xx):
                     sig = 0.26
                     priorfac_gwb += np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
                                         / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
+                elif args.gwbHyperPrior == 'mccma':
+                    mu = -14.95
+                    sig = 0.12
+                    priorfac_gwb += np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
+                                        / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
+                elif args.gwbHyperPrior == 'korho':
+                    mu = -14.82
+                    sig = 0.08
+                    priorfac_gwb += np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
+                                        / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
                     
                 
         ### turnover spectral model ###
@@ -3246,6 +3206,16 @@ def lnprob(xx):
                 mu = -14.4
                 sig = 0.26
                 priorfac_gwb = np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
+                                    / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
+            elif args.gwbHyperPrior == 'mccma':
+                mu = -14.95
+                sig = 0.12
+                priorfac_gwb += np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
+                                    / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
+            elif args.gwbHyperPrior == 'korho':
+                mu = -14.82
+                sig = 0.08
+                priorfac_gwb += np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
                                     / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
             
 
@@ -5216,6 +5186,18 @@ elif args.sampler == 'ptmcmc':
             q[pct] = mu + np.random.randn() * sig
             qxy -= (mu - parameters[pct]) ** 2 / 2 / \
               sig ** 2 - (mu - q[pct]) ** 2 / 2 / s ** 2
+        elif args.gwbPrior == 'mccma':
+            mu = -14.95
+            sig = 0.12
+            q[pct] = mu + np.random.randn() * sig
+            qxy -= (mu - parameters[pct]) ** 2 / 2 / \
+              sig ** 2 - (mu - q[pct]) ** 2 / 2 / s ** 2
+        elif args.gwbPrior == 'korho':
+            mu = -14.82
+            sig = 0.08
+            q[pct] = mu + np.random.randn() * sig
+            qxy -= (mu - parameters[pct]) ** 2 / 2 / \
+              sig ** 2 - (mu - q[pct]) ** 2 / 2 / s ** 2
 
         # gamma
         if not args.fix_slope:
@@ -5381,6 +5363,18 @@ elif args.sampler == 'ptmcmc':
             q[pct] = mu + np.random.randn() * sig
             qxy -= (mu - parameters[pct]) ** 2 / 2 / \
               sig ** 2 - (mu - q[pct]) ** 2 / 2 / sig ** 2
+        elif args.gwbPrior == 'mccma':
+            mu = -14.95
+            sig = 0.12
+            q[pct] = mu + np.random.randn() * sig
+            qxy -= (mu - parameters[pct]) ** 2 / 2 / \
+              sig ** 2 - (mu - q[pct]) ** 2 / 2 / sig ** 2
+        elif args.gwbPrior == 'korho':
+            mu = -14.82
+            sig = 0.08
+            q[pct] = mu + np.random.randn() * sig
+            qxy -= (mu - parameters[pct]) ** 2 / 2 / \
+              sig ** 2 - (mu - q[pct]) ** 2 / 2 / sig ** 2
 
         if args.gwb_fb2env is not None:
             # environmental parameter
@@ -5469,6 +5463,18 @@ elif args.sampler == 'ptmcmc':
             q[pct] = mu + np.random.randn() * sig
             qxy -= (mu - parameters[pct]) ** 2 / 2 / \
               sig ** 2 - (mu - q[pct]) ** 2 / 2 / sig ** 2
+        elif args.gwbPrior == 'mccma':
+            mu = -14.95
+            sig = 0.12
+            q[pct] = mu + np.random.randn() * sig
+            qxy -= (mu - parameters[pct]) ** 2 / 2 / \
+              sig ** 2 - (mu - q[pct]) ** 2 / 2 / sig ** 2
+        elif args.gwbPrior == 'korho':
+            mu = -14.82
+            sig = 0.08
+            q[pct] = mu + np.random.randn() * sig
+            qxy -= (mu - parameters[pct]) ** 2 / 2 / \
+              sig ** 2 - (mu - q[pct]) ** 2 / 2 / sig ** 2
 
         # eccentricity
         q[pct+1] = np.random.uniform(pmin[pct+1], pmax[pct+1])
@@ -5551,6 +5557,18 @@ elif args.sampler == 'ptmcmc':
         elif args.gwbHyperPrior == 'mcwilliams':
             mu = -14.4
             sig = 0.26
+            q[pct] = mu + np.random.randn() * sig
+            qxy -= (mu - parameters[pct]) ** 2 / 2 / \
+              sig ** 2 - (mu - q[pct]) ** 2 / 2 / sig ** 2
+        elif args.gwbHyperPrior == 'mccma':
+            mu = -14.95
+            sig = 0.12
+            q[pct] = mu + np.random.randn() * sig
+            qxy -= (mu - parameters[pct]) ** 2 / 2 / \
+              sig ** 2 - (mu - q[pct]) ** 2 / 2 / sig ** 2
+        elif args.gwbHyperPrior == 'korho':
+            mu = -14.82
+            sig = 0.08
             q[pct] = mu + np.random.randn() * sig
             qxy -= (mu - parameters[pct]) ** 2 / 2 / \
               sig ** 2 - (mu - q[pct]) ** 2 / 2 / sig ** 2
