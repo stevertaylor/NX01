@@ -27,6 +27,7 @@ import functools
 # FIXME: Remove this after all Matplotlib monkeypatches are obsolete.
 import matplotlib
 import distutils.version
+from distutils.version import StrictVersion
 mpl_version = distutils.version.LooseVersion(matplotlib.__version__)
 
 from matplotlib.axes import Axes
