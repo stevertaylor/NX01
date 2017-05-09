@@ -170,6 +170,7 @@ class PsrObj(object):
             self.tmask = np.logical_and(self.T2psr.toas() >= startMJD,
                                         self.T2psr.toas() <= endMJD)
 
+            self.psrPos = self.psrPos[self.tmask]
             self.toas = self.toas[self.tmask]
             self.toaerrs = self.toaerrs[self.tmask]
             self.res = self.res[self.tmask]
@@ -251,6 +252,7 @@ class PsrObj(object):
                                                       which='jitterext', dt=jitterbin/86400.)
 
                 # sort data
+                self.psrPos = self.psrPos[self.isort]
                 self.toas = self.toas[self.isort]
                 self.toaerrs = self.toaerrs[self.isort]
                 self.res = self.res[self.isort]
@@ -432,7 +434,7 @@ class PsrObj(object):
 
         self.Fephx, self.Fephy, self.Fephz = \
           utils.createFourierDesignmatrix_eph(self.toas, fqs_eph, wgts_eph,
-                                              psr_locs=self.psr_locs, Tspan=Ttot)
+                                              self.psrPos, Tspan=Ttot)
 
     def makeFtot(self, nmodes, Ttot, phaseshift=False):
 
@@ -840,7 +842,7 @@ class PsrObjFromH5(object):
 
         self.Fephx, self.Fephy, self.Fephz = \
           utils.createFourierDesignmatrix_eph(self.toas, fqs_eph, wgts_eph,
-                                              psr_locs=self.psr_locs, Tspan=Ttot)
+                                              self.psrPos, Tspan=Ttot)
 
     def makeFtot(self, nmodes, Ttot, phaseshift=False):
 
