@@ -136,7 +136,7 @@ class PsrObj(object):
         # jitterbin is in seconds
 
         print "--> Processing {0}".format(self.T2psr.name)
-        
+
         # basic quantities
         self.name = self.T2psr.name
         self.psrPos = self.T2psr.psrPos
@@ -169,16 +169,16 @@ class PsrObj(object):
         if startMJD is not None and endMJD is not None:
             self.tmask = np.logical_and(self.T2psr.toas() >= startMJD,
                                         self.T2psr.toas() <= endMJD)
-    
+
             self.toas = self.toas[self.tmask]
             self.toaerrs = self.toaerrs[self.tmask]
             self.res = self.res[self.tmask]
             self.obs_freqs = self.obs_freqs[self.tmask]
-    
+
             self.Mmat = self.Mmat[self.tmask,:]
             dmx_mask = np.sum(self.Mmat, axis=0) != 0.0
             self.Mmat = self.Mmat[:,dmx_mask]
-    
+
             for flag in self.flags:
                 self.flagvals[flag] = self.T2psr.flagvals(flag)[self.tmask]
 
@@ -190,11 +190,11 @@ class PsrObj(object):
             if allEphem:
                 from jplephem.spk import SPK
                 from scipy import constants as sc
-                
+
                 ephemchoices = sorted(glob.glob(os.environ['TEMPO2']+'/ephemeris/*'))
                 matchers = ['421.bsp', '430t.bsp', '435t.bsp', '436t.bsp']
                 ephemfiles = [s for s in ephemchoices if any(xs in s for xs in matchers)]
-            
+
                 self.planet_ssb = OrderedDict()
                 for eph in ephemfiles:
 
@@ -206,13 +206,13 @@ class PsrObj(object):
                         ephemname = 'DE430'
                     elif '421' in eph:
                         ephemname = 'DE421'
-                        
+
                     kernel = SPK.open(eph)
                     jd = self.toas + mjd2jd
                     self.planet_ssb[ephemname] = np.zeros((self.toas.shape[0],9,6))
                     for ii in range(9):
                         position, velocity = kernel[0,ii+1].compute_and_differentiate(jd)
-                        position = np.hstack([position.T * 1e3 / sc.c, 
+                        position = np.hstack([position.T * 1e3 / sc.c,
                                               velocity.T * 1e3 / sc.c / 86400.])
                         self.planet_ssb[ephemname][:,ii,:] = position
             else:
@@ -249,7 +249,7 @@ class PsrObj(object):
                 except KeyError:
                     self.isort, self.iisort = utils.argsortTOAs(self.toas, self.flagvals['f'],
                                                       which='jitterext', dt=jitterbin/86400.)
-        
+
                 # sort data
                 self.toas = self.toas[self.isort]
                 self.toaerrs = self.toaerrs[self.isort]
@@ -264,7 +264,7 @@ class PsrObj(object):
                           self.planet_ssb[eph][self.isort, :, :]
 
                 print "--> Initial sorting of data."
-              
+
         # get the sky position
         # check for B name
         if 'B' in self.T2psr.name:
@@ -282,7 +282,7 @@ class PsrObj(object):
             ec = ephem.Ecliptic(eq, epoch=epoch)
             self.elong = np.double(ec.lon)
             self.elat = np.double(ec.lat)
-            
+
         elif 'ELONG' and 'ELAT' in self.T2psr.pars():
             self.elong = np.double(self.T2psr['ELONG'].val)
             self.elat = np.double(self.T2psr['ELAT'].val)
@@ -291,18 +291,18 @@ class PsrObj(object):
             eq = ephem.Equatorial(ec, epoch=epoch)
             self.raj = np.double(eq.ra)
             self.decj = np.double(eq.dec)
-            
+
             self.psr_locs = [self.raj, self.decj]
 
         print "--> Grabbed the pulsar position."
-        
+
         ################################################################################################
-            
+
         # These are all the relevant system flags used by the PTAs.
         system_flags = ['group','f','sys','g','h']
         self.sysflagdict = OrderedDict.fromkeys(system_flags)
 
-        # Put the systems into a dictionary which 
+        # Put the systems into a dictionary which
         # has the locations of their toa placements.
         for systm in self.sysflagdict:
             try:
@@ -344,9 +344,9 @@ class PsrObj(object):
                         nanoflagdict['nano-f'][subsys] = \
                           np.where(self.flagvals['f'][self.isort] == nano_flags[kk])
                     self.sysflagdict.update(nanoflagdict)
-                    
-                    
-        
+
+
+
         # If there are really no relevant flags,
         # then just make a full list of the toa indices.
         if np.all([self.sysflagdict[sys] is None for sys in self.sysflagdict]):
@@ -365,9 +365,9 @@ class PsrObj(object):
                     dummy_flags = self.flagvals['group'][self.isort]
                 except KeyError:
                     dummy_flags = self.flagvals['f'][self.isort]
-                
+
                 print "--> Sorted data."
-    
+
                 # get quantization matrix
                 avetoas, self.Umat, Ui = utils.quantize_split(self.toas, dummy_flags, dt=jitterbin/86400., calci=True)
                 print "--> Computed quantization matrix."
@@ -398,44 +398,44 @@ class PsrObj(object):
 
             self.Gc = Mm
         else:
-            print "--> Performing SVD of design matrix for stabilization..."   
+            print "--> Performing SVD of design matrix for stabilization..."
 
             if makeGmat:
                 u,s,v = np.linalg.svd(self.Mmat)
-                
+
                 self.G = u[:,len(s):len(u)]
                 self.Gres = np.dot(self.G.T, self.res)
-                
+
                 self.Gc =  u[:,:len(s)]
-                
+
             elif not makeGmat:
                 u,s,v = np.linalg.svd(self.Mmat, full_matrices=0)
 
                 self.Gc =  u
 
         print "--> Done reading in pulsar :-) \n"
-        
+
 
     def makeFred(self, fqs_red, wgts_red, Ttot, phaseshift=False):
-        
+
         self.Fred, self.ranphase = \
           utils.createFourierDesignmatrix_red(self.toas, fqs_red, wgts_red,
                                               pshift=phaseshift, Tspan=Ttot)
 
     def makeFdm(self, fqs_dm, wgts_dm, obs_freqs, Ttot):
-        
+
         self.Fdm = utils.createFourierDesignmatrix_dm(self.toas, fqs_dm, wgts_dm,
                                                       obs_freqs=self.obs_freqs,
                                                       Tspan=Ttot)
 
     def makeFeph(self, fqs_eph, wgts_eph, psr_locs, Ttot):
-        
+
         self.Fephx, self.Fephy, self.Fephz = \
           utils.createFourierDesignmatrix_eph(self.toas, fqs_eph, wgts_eph,
                                               psr_locs=self.psr_locs, Tspan=Ttot)
-    
+
     def makeFtot(self, nmodes, Ttot, phaseshift=False):
-        
+
         self.Fred, self.ranphase = \
           utils.createFourierDesignmatrix_red(self.toas, fqs_red, wgts_red,
                                              pshift=phaseshift, Tspan=Ttot)
@@ -507,7 +507,7 @@ class PsrObj(object):
                 bands = np.array([0.0, 1.0, 2.0, 3.0])
             elif bands is not None:
                 bands = np.array([float(item) for item in bands.split(',')])
-            
+
             Fband_tmp = utils.createFourierDesignmatrix_red(self.toas, fqs_tmp, wgts_tmp,
                                                             pshift=False, Tspan=Ttot)
             for ii in range(len(bands)-1):
@@ -515,10 +515,10 @@ class PsrObj(object):
                 Fband_dummy[np.logical(self.obs_freqs > 1e9*bands[ii],
                                        self.obs_freqs <= 1e9*bands[ii+1]),:] = 0.0
                 self.Ftot = np.append(self.Ftot, Fband_dummy, axis=1)
-        
+
         self.Te = np.append(self.Gc, self.Ftot, axis=1)
 
-    
+
 
 
 ######################
@@ -645,10 +645,10 @@ class PsrObjFromH5(object):
     """
     Read data from hdf5 file into pulsar object
     """
-    def grab_all_vars(self, rescale=True, sysflag_target=None): 
+    def grab_all_vars(self, rescale=True, sysflag_target=None):
 
         print "--> Extracting {0} from hdf5 file".format(self.h5Obj['name'].value)
-        
+
         # basic quantities
         self.name = self.h5Obj['name'].value
         self.parfile = self.h5Obj['parfilepath'].value
@@ -657,7 +657,7 @@ class PsrObjFromH5(object):
             self.noisefile = self.h5Obj['noisefilepath'].value
         except:
             self.noisefile = None
-        
+
         self.toas = self.h5Obj['TOAs'].value
         self.res = self.h5Obj['postfitRes'].value
         self.toaerrs = self.h5Obj['toaErr'].value
@@ -673,10 +673,10 @@ class PsrObjFromH5(object):
         self.ephemeris = self.h5Obj['ephemeris'].value
         self.ephemname = self.h5Obj['ephemname'].value
 
-        self.roemer = pickle.loads(self.h5Obj['RoemerDict'].value) 
-        
+        self.roemer = pickle.loads(self.h5Obj['RoemerDict'].value)
+
         try:
-            self.planet_ssb = pickle.loads(self.h5Obj['PlanetSSBDict'].value) 
+            self.planet_ssb = pickle.loads(self.h5Obj['PlanetSSBDict'].value)
         except:
             self.planet_ssb = None
 
@@ -782,7 +782,7 @@ class PsrObjFromH5(object):
             self.DMind = 0.0
             for ll in noiselines:
                 if 'RN-Amplitude' in ll:
-                    self.Redamp = 10.0**np.double(ll.split()[1]) # 1e-6 * f1yr * np.sqrt(12.0*np.pi**2.0) * np.double(ll.split()[1]) 
+                    self.Redamp = 10.0**np.double(ll.split()[1]) # 1e-6 * f1yr * np.sqrt(12.0*np.pi**2.0) * np.double(ll.split()[1])
                 if 'RN-spectral-index' in ll:
                     self.Redind = np.double(ll.split()[1])
                 if 'DM-Amplitude' in ll:
@@ -807,43 +807,43 @@ class PsrObjFromH5(object):
                 elif self.sysflagdict['be'] is not None:
                     # for nanograv 5-yr
                     systems = self.sysflagdict['be']
-                
+
             if rescale:
                 tmp_errs = self.toaerrs.copy()
 
                 for sysname in systems:
                     tmp_errs[systems[sysname]] *= self.efacs[sysname]
-                        
+
                 t2equad_bit = np.ones(len(tmp_errs))
                 for sysname in systems:
                     t2equad_bit[systems[sysname]] *= self.equads[sysname]
 
                 tmp_errs = np.sqrt( tmp_errs**2.0 + t2equad_bit**2.0 )
                 self.toaerrs = tmp_errs
-        
+
 
         print "--> Done extracting pulsar from hdf5 file :-) \n"
 
     def makeFred(self, fqs_red, wgts_red, Ttot, phaseshift=False):
-        
+
         self.Fred, self.ranphase = \
           utils.createFourierDesignmatrix_red(self.toas, fqs_red, wgts_red,
                                               pshift=phaseshift, Tspan=Ttot)
 
     def makeFdm(self, fqs_dm, wgts_dm, obs_freqs, Ttot):
-        
+
         self.Fdm = utils.createFourierDesignmatrix_dm(self.toas, fqs_dm, wgts_dm,
                                                       obs_freqs=self.obs_freqs,
                                                       Tspan=Ttot)
 
     def makeFeph(self, fqs_eph, wgts_eph, psr_locs, Ttot):
-        
+
         self.Fephx, self.Fephy, self.Fephz = \
           utils.createFourierDesignmatrix_eph(self.toas, fqs_eph, wgts_eph,
                                               psr_locs=self.psr_locs, Tspan=Ttot)
-    
+
     def makeFtot(self, nmodes, Ttot, phaseshift=False):
-        
+
         self.Fred, self.ranphase = \
           utils.createFourierDesignmatrix_red(self.toas, fqs_red, wgts_red,
                                              pshift=phaseshift, Tspan=Ttot)
@@ -894,7 +894,7 @@ class PsrObjFromH5(object):
                     fqs_tmp = fqs_eph
                     wgts_tmp = wgts_eph
                 self.Fephx, self.Fephy, self.Fephz = \
-                  utils.createFourierDesignmatrix_eph(self.toas, fqs_tmp, wgts_tmp, self.psr_locs,
+                  utils.createFourierDesignmatrix_eph(self.toas, fqs_tmp, wgts_tmp, self.psrPos,
                                                       Tspan=Ttot, input_freqs=ephFreqs)
                 self.Ftot = np.append(self.Ftot, self.Fephx, axis=1)
                 self.Ftot = np.append(self.Ftot, self.Fephy, axis=1)
@@ -915,7 +915,7 @@ class PsrObjFromH5(object):
                 bands = np.array([0.0, 1.0, 2.0, 3.0])
             elif bands is not None:
                 bands = np.array([float(item) for item in bands.split(',')])
-            
+
             Fband_tmp = utils.createFourierDesignmatrix_red(self.toas, fqs_tmp, wgts_tmp,
                                                             pshift=False, Tspan=Ttot)
             for ii in range(len(bands)-1):
@@ -923,5 +923,5 @@ class PsrObjFromH5(object):
                 Fband_dummy[np.logical(self.obs_freqs > 1e9*bands[ii],
                                        self.obs_freqs <= 1e9*bands[ii+1]),:] = 0.0
                 self.Ftot = np.append(self.Ftot, Fband_dummy, axis=1)
-        
+
         self.Te = np.append(self.Gc, self.Ftot, axis=1)
