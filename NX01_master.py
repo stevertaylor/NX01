@@ -51,24 +51,24 @@ except ImportError:
         import NX01_jitter as jitter
     except ImportError:
         error_warning = """\
-         _____ __  __ _____   ____  _____ _______   ______ _____  _____   ____  _____  _ _          
-        |_   _|  \/  |  __ \ / __ \|  __ \__   __| |  ____|  __ \|  __ \ / __ \|  __ \| | |         
-          | | | \  / | |__) | |  | | |__) | | |    | |__  | |__) | |__) | |  | | |__) | | |         
-          | | | |\/| |  ___/| |  | |  _  /  | |    |  __| |  _  /|  _  /| |  | |  _  /| | |         
-         _| |_| |  | | |    | |__| | | \ \  | |    | |____| | \ \| | \ \| |__| | | \ \|_|_|         
-        |_____|_|  |_|_|     \____/|_|  \_\ |_|    |______|_|  \_\_|  \_\\____/|_|  \_(_|_)         
-         _____ ____  __  __ _____ _____ _      ______        _ _____ _______ _______ ______ _____  
-        / ____/ __ \|  \/  |  __ \_   _| |    |  ____|      | |_   _|__   __|__   __|  ____|  __ \ 
+         _____ __  __ _____   ____  _____ _______   ______ _____  _____   ____  _____  _ _
+        |_   _|  \/  |  __ \ / __ \|  __ \__   __| |  ____|  __ \|  __ \ / __ \|  __ \| | |
+          | | | \  / | |__) | |  | | |__) | | |    | |__  | |__) | |__) | |  | | |__) | | |
+          | | | |\/| |  ___/| |  | |  _  /  | |    |  __| |  _  /|  _  /| |  | |  _  /| | |
+         _| |_| |  | | |    | |__| | | \ \  | |    | |____| | \ \| | \ \| |__| | | \ \|_|_|
+        |_____|_|  |_|_|     \____/|_|  \_\ |_|    |______|_|  \_\_|  \_\\____/|_|  \_(_|_)
+         _____ ____  __  __ _____ _____ _      ______        _ _____ _______ _______ ______ _____
+        / ____/ __ \|  \/  |  __ \_   _| |    |  ____|      | |_   _|__   __|__   __|  ____|  __ \
        | |   | |  | | \  / | |__) || | | |    | |__         | | | |    | |     | |  | |__  | |__) |
-       | |   | |  | | |\/| |  ___/ | | | |    |  __|    _   | | | |    | |     | |  |  __| |  _  / 
-       | |___| |__| | |  | | |    _| |_| |____| |____  | |__| |_| |_   | |     | |  | |____| | \ \ 
+       | |   | |  | | |\/| |  ___/ | | | |    |  __|    _   | | | |    | |     | |  |  __| |  _  /
+       | |___| |__| | |  | | |    _| |_| |____| |____  | |__| |_| |_   | |     | |  | |____| | \ \
         \_____\____/|_|  |_|_|   |_____|______|______|  \____/|_____|  |_|     |_|  |______|_|  \_\
         """
         print error_warning
         print "You need to run: " \
           "python setup-cython.py build_ext --inplace"
         sys.exit()
-    
+
 
 try:
     from mpi4py import MPI
@@ -321,7 +321,7 @@ parser.add_option('--constLike', dest='constLike', action='store_true', default=
 (args, x) = parser.parse_args()
 
 if args.jsonModel is not None:
-    
+
     with open(args.jsonModel) as json_file:
         json_data = json.load(json_file)
         json_file.close()
@@ -392,8 +392,8 @@ if args.jsonModel is not None:
 
 header = """\
 
-        
- /$$   /$$ /$$   /$$  /$$$$$$    /$$  
+
+ /$$   /$$ /$$   /$$  /$$$$$$    /$$
 | $$$ | $$| $$  / $$ /$$$_  $$ /$$$$      ________________        _
 | $$$$| $$|  $$/ $$/| $$$$\ $$|_  $$      \__(=======/_=_/____.--'-`--.___
 | $$ $$ $$ \  $$$$/ | $$ $$ $$  | $$                \ \   `,--,-.___.----'
@@ -402,23 +402,23 @@ header = """\
 | $$ \  $$| $$  \ $$|  $$$$$$/ /$$$$$$
 |__/  \__/|__/  |__/ \______/ |______/
 
-____    ____  ______    __    __      __    __       ___   ____    ____  _______    
-\   \  /   / /  __  \  |  |  |  |    |  |  |  |     /   \  \   \  /   / |   ____|   
- \   \/   / |  |  |  | |  |  |  |    |  |__|  |    /  ^  \  \   \/   /  |  |__      
-  \_    _/  |  |  |  | |  |  |  |    |   __   |   /  /_\  \  \      /   |   __|     
-    |  |    |  `--'  | |  `--'  |    |  |  |  |  /  _____  \  \    /    |  |____    
-    |__|     \______/   \______/     |__|  |__| /__/     \__\  \__/     |_______|   
-                                                                                    
-.___________. __    __   _______      ______   ______   .__   __. .__   __.         
-|           ||  |  |  | |   ____|    /      | /  __  \  |  \ |  | |  \ |  |         
-`---|  |----`|  |__|  | |  |__      |  ,----'|  |  |  | |   \|  | |   \|  |         
-    |  |     |   __   | |   __|     |  |     |  |  |  | |  . `  | |  . `  |         
-    |  |     |  |  |  | |  |____    |  `----.|  `--'  | |  |\   | |  |\   |         
-    |__|     |__|  |__| |_______|    \______| \______/  |__| \__| |__| \__|         
-                                                                                    
+____    ____  ______    __    __      __    __       ___   ____    ____  _______
+\   \  /   / /  __  \  |  |  |  |    |  |  |  |     /   \  \   \  /   / |   ____|
+ \   \/   / |  |  |  | |  |  |  |    |  |__|  |    /  ^  \  \   \/   /  |  |__
+  \_    _/  |  |  |  | |  |  |  |    |   __   |   /  /_\  \  \      /   |   __|
+    |  |    |  `--'  | |  `--'  |    |  |  |  |  /  _____  \  \    /    |  |____
+    |__|     \______/   \______/     |__|  |__| /__/     \__\  \__/     |_______|
+
+.___________. __    __   _______      ______   ______   .__   __. .__   __.
+|           ||  |  |  | |   ____|    /      | /  __  \  |  \ |  | |  \ |  |
+`---|  |----`|  |__|  | |  |__      |  ,----'|  |  |  | |   \|  | |   \|  |
+    |  |     |   __   | |   __|     |  |     |  |  |  | |  . `  | |  . `  |
+    |  |     |  |  |  | |  |____    |  `----.|  `--'  | |  |\   | |  |\   |
+    |__|     |__|  |__| |_______|    \______| \______/  |__| \__| |__| \__|
+
 """
 if rank == 0:
-    print header                             
+    print header
 
 # Do you want to use GPU acceleration?
 if args.use_gpu:
@@ -456,27 +456,27 @@ if args.psrlist is not None:
 if args.from_h5:
 
     tmp_psr = []
-    
+
     if args.psrIndices is not None:
         psr_inds = [int(item) for item in args.psrIndices.split(',')]
         for ii,tmp_name in zip(psr_inds,psr_pathinfo[psr_inds,0]):
             tmp_psr.append(h5.File(psr_pathinfo[ii,1], 'r')[tmp_name])
 
     else:
-    
+
         for ii,tmp_name in enumerate(psr_pathinfo[args.psrStartIndex:args.psrEndIndex,0],
                                      start=args.psrStartIndex):
             tmp_psr.append(h5.File(psr_pathinfo[ii,1], 'r')[tmp_name])
 
     psr = [NX01_psr.PsrObjFromH5(p) for p in tmp_psr]
-    
+
 else:
-    
+
     print 'Are you sure you do not want to use hdf5 files (recommended)?'
-    
+
     t2psr=[]
     if args.parfile is not None and args.timfile is not None:
-        
+
         t2psr.append( T2.tempopulsar(parfile=args.parfile,
                                      timfile=args.timfile,
                                      maxobs=int(4e4)) )
@@ -485,9 +485,9 @@ else:
             t2psr[0] = T2.tempopulsar(parfile=args.parfile,
                                       timfile=args.timfile,
                                       maxobs=int(4e4))
-            
+
     else:
-        
+
         for ii in range(args.psrStartIndex,args.psrEndIndex):
             t2psr.append( T2.tempopulsar( parfile=psr_pathinfo[ii,2],
                                           timfile=psr_pathinfo[ii,3],
@@ -520,10 +520,10 @@ positions = np.array(psr_positions).copy()
 num_corr_params = 0
 evol_corr_tag = ''
 if args.incGWB and args.incCorr:
-    
+
     if args.gwbTypeCorr == 'modelIndep':
 
-        gwfreqs_per_win = int(1.*args.nmodes/(1.*args.nwins)) 
+        gwfreqs_per_win = int(1.*args.nmodes/(1.*args.nwins))
         corr_modefreqs = np.arange(1,args.nmodes+1)
         corr_modefreqs = np.reshape(corr_modefreqs,
                                     (args.nwins,gwfreqs_per_win))
@@ -539,7 +539,7 @@ if args.incGWB and args.incCorr:
 
     elif args.gwbTypeCorr == 'pointSrc':
 
-        gwfreqs_per_win = int(1.*args.nmodes/(1.*args.nwins)) 
+        gwfreqs_per_win = int(1.*args.nmodes/(1.*args.nwins))
         corr_modefreqs = np.arange(1,args.nmodes+1)
         corr_modefreqs = np.reshape(corr_modefreqs,
                                     (args.nwins,gwfreqs_per_win))
@@ -555,31 +555,31 @@ if args.incGWB and args.incCorr:
             evol_corr_tag = '_evanis'
         else:
             evol_corr_tag = ''
-        
+
     elif args.gwbTypeCorr == 'spharmAnis':
-        
+
         # Computing all the correlation basis-functions for the array.
         CorrCoeff = np.array(anis.CorrBasis(positions,args.LMAX))
         # Computing the values of the spherical-harmonics up to order
-        # LMAX on a pre-specified grid  
-        harm_sky_vals = utils.SetupPriorSkyGrid(args.LMAX)              
-                                                            
+        # LMAX on a pre-specified grid
+        harm_sky_vals = utils.SetupPriorSkyGrid(args.LMAX)
+
         if args.anis_modefile is None:
-        
+
             # getting the number of GW frequencies per window
-            gwfreqs_per_win = int(1.*args.nmodes/(1.*args.nwins)) 
+            gwfreqs_per_win = int(1.*args.nmodes/(1.*args.nwins))
             corr_modefreqs = np.arange(1,args.nmodes+1)
             corr_modefreqs = np.reshape(corr_modefreqs,
                                         (args.nwins,gwfreqs_per_win))
 
             tmp_nwins = args.nwins
-    
+
         else:
 
             tmp_modefreqs = np.loadtxt(args.anis_modefile, skiprows=2)
             tmp_nwins = tmp_modefreqs.shape[0]
             corr_modefreqs = []
-    
+
             for ii in range(tmp_nwins):
                 corr_modefreqs.append(np.arange(tmp_modefreqs[ii,0],
                                                 tmp_modefreqs[ii,1]+1))
@@ -596,7 +596,7 @@ if args.incGWB and args.incCorr:
 
         monoOrf = 2.0*np.sqrt(np.pi)*anis.CorrBasis(positions,0)[0]
 
-        gwfreqs_per_win = int(1.*args.nmodes/(1.*args.nwins)) 
+        gwfreqs_per_win = int(1.*args.nmodes/(1.*args.nwins))
         corr_modefreqs = np.arange(1,args.nmodes+1)
         corr_modefreqs = np.reshape(corr_modefreqs,
                                     (args.nwins,gwfreqs_per_win))
@@ -613,7 +613,7 @@ if args.incGWB and args.incCorr:
     elif args.gwbTypeCorr == 'gwDisk':
 
         tmp_nwins = args.nwins
-        
+
         try:
             import healpy as hp
             import AnisCoefficients_pix as pixAnis
@@ -622,7 +622,7 @@ if args.incGWB and args.incCorr:
             npsrs = len(positions)
             pphi = positions[:,0]
             ptheta = positions[:,1]
-    
+
             # Create the pixels
             nside=32
             npixels = hp.nside2npix(32)
@@ -632,7 +632,7 @@ if args.incGWB and args.incCorr:
 
             # Create the signal response matrix
             F_e = pixAnis.signalResponse_fast(ptheta, pphi, gwtheta, gwphi)
-            
+
         except ImportError:
             print "ERROR: Could not import healpy!"
             print "WARNING: Defaulting to H&D search..."
@@ -641,7 +641,7 @@ if args.incGWB and args.incCorr:
             monoOrf = 2.0*np.sqrt(np.pi)*anis.CorrBasis(positions,0)[0]
             num_corr_params = 0
 
-        gwfreqs_per_win = int(1.*args.nmodes/(1.*args.nwins)) 
+        gwfreqs_per_win = int(1.*args.nmodes/(1.*args.nwins))
         corr_modefreqs = np.arange(1,args.nmodes+1)
         corr_modefreqs = np.reshape(corr_modefreqs,
                                     (args.nwins,gwfreqs_per_win))
@@ -659,7 +659,7 @@ if args.incGWB and args.incCorr:
             print "WARNING: Proceeding with Hellings and Downs..."
 
             customOrf = 2.0*np.sqrt(np.pi)*anis.CorrBasis(positions,0)[0]
-            
+
         elif args.userOrf is not None:
 
             if args.userOrf.split('.')[-1] != 'npy':
@@ -675,7 +675,7 @@ if args.incGWB and args.incCorr:
                     customOrf = 2.0*np.sqrt(np.pi)*anis.CorrBasis(positions,0)[0]
                 elif len(custom_positions)==len(psr):
                     customOrf = 2.0*np.sqrt(np.pi)*anis.CorrBasis(custom_positions,0)[0]
-                    
+
             elif args.userOrf.split('.')[-1] == 'npy':
                 loadOrf = np.load(args.userOrf)
                 if np.atleast_3d(loadOrf.T).shape[-1]>1:
@@ -696,7 +696,7 @@ if args.incGWB and args.incCorr:
 
     elif args.gwbTypeCorr == 'psrlocsVary':
 
-        gwfreqs_per_win = int(1.*args.nmodes/(1.*args.nwins)) 
+        gwfreqs_per_win = int(1.*args.nmodes/(1.*args.nwins))
         corr_modefreqs = np.arange(1,args.nmodes+1)
         corr_modefreqs = np.reshape(corr_modefreqs,
                                     (args.nwins,gwfreqs_per_win))
@@ -719,9 +719,9 @@ if args.incGWB and args.incCorr:
 
         tmp_nwins = args.nwins
         num_corr_params = 0
-              
+
 #############################################################################
-# GETTING MAXIMUM TIME, COMPUTING FOURIER DESIGN MATRICES, AND GETTING MODES 
+# GETTING MAXIMUM TIME, COMPUTING FOURIER DESIGN MATRICES, AND GETTING MODES
 #############################################################################
 
 if args.TmaxType == 'pta':
@@ -738,7 +738,7 @@ if args.nmodes is not None:
 elif args.nmodes is None and args.cadence is not None:
     nmodes_red = int(round(0.5*Tmax/args.cadence)) + args.nmodes_log
 fqs_red, wgts_red = rr.linBinning(Tmax, args.logmode, 1 / args.fmin / Tmax,
-                                  nmodes_red-args.nmodes_log, args.nmodes_log) 
+                                  nmodes_red-args.nmodes_log, args.nmodes_log)
 
 ### Define number of DM-variation modes and set sampling frequencies
 nmodes_dm = args.nmodes_dm + args.nmodes_log
@@ -749,7 +749,7 @@ if args.incDM:
     else:
         nmodes_dm = nmodes_red
     fqs_dm, wgts_dm = rr.linBinning(Tmax, args.logmode, 1 / args.fmin / Tmax,
-                                    nmodes_dm-args.nmodes_log, args.nmodes_log) 
+                                    nmodes_dm-args.nmodes_log, args.nmodes_log)
 
 ### Define number of ephemeris-error modes and set sampling frequencies
 nmodes_eph = None
@@ -769,7 +769,7 @@ if args.incEph:
         ##
         if args.ephFreqs is None:
             fqs_eph, wgts_eph = rr.linBinning(Tmax, args.logmode, 1 / args.fmin / Tmax,
-                                              nmodes_eph-args.nmodes_log, args.nmodes_log) 
+                                              nmodes_eph-args.nmodes_log, args.nmodes_log)
         elif args.ephFreqs is not None:
             fqs_eph = np.array([float(item) for item in args.ephFreqs.split(',')])
             wgts_eph = np.ones(len(args.ephFreqs.split(',')))
@@ -783,7 +783,7 @@ if args.incBand:
     else:
         nmodes_band = nmodes_red
     fqs_band, wgts_band = rr.linBinning(Tmax, args.logmode, 1 / args.fmin / Tmax,
-                                        nmodes_band-args.nmodes_log, args.nmodes_log) 
+                                        nmodes_band-args.nmodes_log, args.nmodes_log)
 
     if args.bands is None:
         bands = np.array([0.0, 1.0, 2.0, 3.0])
@@ -817,7 +817,7 @@ if args.det_signal:
                 tmp[:,3*ii] *= p.psrPos[:,0]
                 tmp[:,3*ii+1] *= p.psrPos[:,1]
                 tmp[:,3*ii+2] *= p.psrPos[:,2]
-                
+
             ephem_design.append( tmp )
 
         ephem_design = np.vstack(ephem_design)
@@ -846,11 +846,11 @@ gp = []
 if args.incGWB:
     if args.gwbPrior == 'gaussProc' or \
       args.gwbSpecModel == 'gpEnvInterp':
-        
+
         import george
         import NX01_gaussproc
         from NX01_gaussproc import gaussproc
-        
+
         gppkl = pickle.load( open( args.gpPickle, "rb" ) )
         # Set george kernel parameters to previously-trained MAP
         # Compute factorisation of kernel based on sampled points
@@ -879,7 +879,7 @@ if args.incGWB:
 ###############################################################
 
 if args.incGWB and args.gwbSpecModel=='turnover' and args.gwb_fb2env is not None:
-    
+
     class binary_env:
         def __init__(self, mechanism=None):
             self.mechanism = mechanism
@@ -895,7 +895,7 @@ if args.incGWB and args.gwbSpecModel=='turnover' and args.gwb_fb2env is not None
             except:
                 self.fil = None
                 print 'Could not find file!'
-    
+
             if self.fil is not None:
                 self.interpolant = interp1d(self.fil[:,0], self.fil[:,1])
             else:
@@ -907,11 +907,11 @@ if args.incGWB and args.gwbSpecModel=='turnover' and args.gwb_fb2env is not None
     fb2env = binary_env(mechanism=args.gwb_fb2env)
 
 #######################################
-# PRE-COMPUTING WHITE NOISE PROPERTIES 
+# PRE-COMPUTING WHITE NOISE PROPERTIES
 #######################################
 
 if not args.varyWhite:
-    
+
     loglike1 = 0
     logdet_N = []
     TtNT = []
@@ -923,51 +923,51 @@ if not args.varyWhite:
         # & log determinant of N
         new_err = (p.toaerrs).copy()
         if not args.noEcorr:
-        
+
             if p.ecorrs is not None and len(p.ecorrs)>0:
-    
+
                 Jamp.append(np.ones(len(p.epflags)))
                 for jj,nano_sysname in enumerate(p.sysflagdict['nano-f'].keys()):
                     Jamp[ii][np.where(p.epflags==nano_sysname)] *= \
                       p.ecorrs[nano_sysname]**2.0
-                    
+
                 Nx = jitter.cython_block_shermor_0D(p.res, new_err**2.,
                                                     Jamp[ii], p.Uinds)
                 d.append(np.dot(p.Te.T, Nx))
-            
+
                 logdet_N_dummy, TtNT_dummy = \
                 jitter.cython_block_shermor_2D(p.Te, new_err**2.,
                                                 Jamp[ii], p.Uinds)
                 logdet_N.append(logdet_N_dummy)
                 TtNT.append(TtNT_dummy)
-            
+
                 det_dummy, dtNdt = \
                 jitter.cython_block_shermor_1D(p.res, new_err**2.,
                                                 Jamp[ii], p.Uinds)
 
             else:
-            
+
                 d.append(np.dot(p.Te.T, p.res/( new_err**2.0 )))
-                
+
                 N = 1./( new_err**2.0 )
                 right = (N*p.Te.T).T
                 TtNT.append(np.dot(p.Te.T, right))
-    
+
                 logdet_N.append(np.sum(np.log( new_err**2.0 )))
-        
+
                 # triple product in likelihood function
                 dtNdt = np.sum(p.res**2.0/( new_err**2.0 ))
-        
+
         else:
 
             d.append(np.dot(p.Te.T, p.res/( new_err**2.0 )))
-            
+
             N = 1./( new_err**2.0 )
             right = (N*p.Te.T).T
             TtNT.append(np.dot(p.Te.T, right))
 
             logdet_N.append(np.sum(np.log( new_err**2.0 )))
-        
+
             # triple product in likelihood function
             dtNdt = np.sum(p.res**2.0/( new_err**2.0 ))
 
@@ -1000,7 +1000,7 @@ if args.eph_planetdelta:
     else:
         planet_tags = np.arange(1,10)
         num_planets = 9
-    
+
 
 pmin = np.array([])
 if not args.fixRed:
@@ -1163,7 +1163,7 @@ if args.det_signal:
         ephnames = psr[0].roemer.keys()
         pmin = np.append(pmin,np.zeros(num_ephs-1)) # weights
 
-        
+
 pmax = np.array([])
 if not args.fixRed:
     if args.redSpecModel == 'powerlaw':
@@ -1313,23 +1313,23 @@ if args.det_signal:
         if args.eph_planetoffset:
             pmax = np.append(pmax,1e8*np.ones(3*num_planets)) # x,y,z displacements [km]
     elif args.eph_roemermix:
-        pmax = np.append(pmax,np.ones(num_ephs-1)) # weights       
+        pmax = np.append(pmax,np.ones(num_ephs-1)) # weights
 
 ##################################################################################
 
 
 def my_prior(xx):
-           
+
     logp = 0.
-    
+
     if np.all(xx <= pmax) and np.all(xx >= pmin):
         logp = np.sum(np.log(1/(pmax-pmin)))
     else:
         logp = -np.inf
-    
+
     return logp
-    
-    
+
+
 def lnprob(xx):
 
     npsr = len(psr)
@@ -1355,15 +1355,15 @@ def lnprob(xx):
         mode_count += 2*nmodes_red
     if args.incBand and ((len(bands)-1)>0):
         mode_count += 2*(len(bands)-1)*nmodes_band
-    
+
     ###############################
     # Splitting up parameter vector
 
     param_ct = 0
-    
+
     ###############################
     # Including per-pulsar red noise
-    
+
     if not args.fixRed:
         if args.redSpecModel == 'powerlaw':
             Ared = 10.0**xx[:npsr]
@@ -1375,7 +1375,7 @@ def lnprob(xx):
 
     ####################################
     # Including per-pulsar DM variations
-    
+
     if args.incDM and not args.fixDM:
         if args.dmSpecModel == 'powerlaw':
             Adm = 10.0**xx[param_ct:param_ct+npsr]
@@ -1387,17 +1387,17 @@ def lnprob(xx):
 
     ####################################
     # Including per-pulsar white-noise
-    
+
     if args.varyWhite:
         EFAC = []
         EQUAD = []
         ECORR = []
         for ii,p in enumerate(psr):
             systems = p.sysflagdict[args.sysflag_target]
-            
+
             EFAC.append( xx[param_ct:param_ct+len(systems)] )
             param_ct += len(systems)
-    
+
             EQUAD.append( 10.0**xx[param_ct:param_ct+len(systems)] )
             param_ct += len(systems)
 
@@ -1407,7 +1407,7 @@ def lnprob(xx):
 
     #########################################
     # Including band-dependent red noise
-    
+
     if args.incBand:
         if args.bandSpecModel == 'powerlaw':
             Aband = [10.0**xx[param_ct+ii] for ii in range((len(bands)-1))]
@@ -1420,7 +1420,7 @@ def lnprob(xx):
 
     #########################################
     # Including clock errors
-    
+
     if args.incClk:
         if args.clkSpecModel == 'powerlaw':
             Aclk = 10.0**xx[param_ct]
@@ -1432,7 +1432,7 @@ def lnprob(xx):
 
     #########################################
     # Including a common uncorrelated process
-    
+
     if args.incCm:
         if args.cmSpecModel == 'powerlaw':
             Acm = 10.0**xx[param_ct]
@@ -1444,7 +1444,7 @@ def lnprob(xx):
 
     #########################################
     # Including solar-system ephemeris errors
-    
+
     if args.incEph:
         if args.jplBasis:
             pass
@@ -1463,7 +1463,7 @@ def lnprob(xx):
 
     ############################
     # Including a GW background
-    
+
     if args.incGWB:
         # GWB parameters
         if args.gwbSpecModel == 'powerlaw':
@@ -1581,7 +1581,7 @@ def lnprob(xx):
             #roemer_wgts /= np.sum(roemer_wgts)
             if np.sum(roemer_wgts) > 1.0:
                 return -np.inf
-            
+
     ############################
     ############################
     # Now, evaluating likelihood
@@ -1590,11 +1590,11 @@ def lnprob(xx):
 
         if args.incGWB and args.incCorr:
             if args.gwbTypeCorr == 'spharmAnis':
-            
+
                 ################################################
                 # Reshaping freq-dependent anis coefficients,
                 # and testing for power distribution physicality.
-            
+
                 orf_coeffs = orf_coeffs.reshape((tmp_nwins,
                                                 ((args.LMAX+1)**2)-1))
                 clm = np.array([[0.0]*((args.LMAX+1)**2)
@@ -1605,7 +1605,7 @@ def lnprob(xx):
 
                     for kk in range(tmp_nwins):
                         for ii in range(1,((args.LMAX+1)**2)):
-                            clm[kk,ii] = orf_coeffs[kk,ii-1]   
+                            clm[kk,ii] = orf_coeffs[kk,ii-1]
 
                         if not args.noPhysPrior:
                             # Testing for physicality of power distribution.
@@ -1616,7 +1616,7 @@ def lnprob(xx):
 
                 ################################################
                 # Reshaping freq-dependent corr coefficients
-                
+
                 orf_coeffs = orf_coeffs.reshape((2,tmp_nwins*len(psr)))
                 varyPhi = orf_coeffs[0,:].reshape((tmp_nwins,len(psr)))
                 varyTheta = np.arccos(orf_coeffs[1,:]).reshape((tmp_nwins,len(psr)))
@@ -1632,7 +1632,7 @@ def lnprob(xx):
 
                 npairs = int(npsr*(npsr-1)/2)
                 phi_corr = orf_coeffs.copy().reshape((tmp_nwins,npairs))
- 
+
                 for ii in range(tmp_nwins): # number of frequency windows
                     for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
                         upper_triang = np.zeros((npsr,npsr))
@@ -1655,15 +1655,15 @@ def lnprob(xx):
                                 np.prod( np.sin(np.array(phi_els[bb-1])[0:aa]) )
 
                 logLike = 0.0
-        
+
         else:
 
             logLike = 0.0
-        
+
     elif not args.constLike:
 
         if args.varyWhite:
-            
+
             loglike1_tmp = 0
             logdet_Ntmp = []
             TtNT_tmp = []
@@ -1674,19 +1674,19 @@ def lnprob(xx):
                 scaled_err = (p.toaerrs).copy()
                 systems = p.sysflagdict[args.sysflag_target]
                 for jj,sysname in enumerate(systems):
-                    scaled_err[systems[sysname]] *= EFAC[ii][jj] 
+                    scaled_err[systems[sysname]] *= EFAC[ii][jj]
                 ###
                 white_noise = np.ones(len(scaled_err))
                 for jj,sysname in enumerate(systems):
                     white_noise[systems[sysname]] *= EQUAD[ii][jj]
-    
+
                 new_err = np.sqrt( scaled_err**2.0 + white_noise**2.0 )
                 ########
 
                 # compute ( T.T * N^-1 * T )
                 # & log determinant of N
                 if not args.noEcorr:
-        
+
                     if 'nano-f' in p.sysflagdict.keys() and len(ECORR[ii])>0:
 
                         Jamp_tmp.append(np.ones(len(p.epflags)))
@@ -1697,46 +1697,46 @@ def lnprob(xx):
                         Nx = jitter.cython_block_shermor_0D(p.res, new_err**2.,
                                                             Jamp_tmp[ii], p.Uinds)
                         dtmp.append(np.dot(p.Te.T, Nx))
-            
+
                         logdet_N_dummy, TtNT_dummy = \
                         jitter.cython_block_shermor_2D(p.Te, new_err**2.,
                                                         Jamp_tmp[ii], p.Uinds)
                         logdet_Ntmp.append(logdet_N_dummy)
                         TtNT_tmp.append(TtNT_dummy)
-            
+
                         det_dummy, dtNdt = \
                         jitter.cython_block_shermor_1D(p.res, new_err**2.,
                                                         Jamp_tmp[ii], p.Uinds)
 
                     else:
-            
+
                         dtmp.append(np.dot(p.Te.T, p.res/( new_err**2.0 )))
-            
+
                         N = 1./( new_err**2.0 )
                         right = (N*p.Te.T).T
                         TtNT_tmp.append(np.dot(p.Te.T, right))
-    
+
                         logdet_Ntmp.append(np.sum(np.log( new_err**2.0 )))
-        
+
                         # triple product in likelihood function
                         dtNdt = np.sum(p.res**2.0/( new_err**2.0 ))
-        
+
                 else:
-        
+
                     dtmp.append(np.dot(p.Te.T, p.res/( new_err**2.0 )))
-            
+
                     N = 1./( new_err**2.0 )
                     right = (N*p.Te.T).T
                     TtNT_tmp.append(np.dot(p.Te.T, right))
 
                     logdet_Ntmp.append(np.sum(np.log( new_err**2.0 )))
-        
+
                     # triple product in likelihood function
                     dtNdt = np.sum(p.res**2.0/( new_err**2.0 ))
 
                 loglike1_tmp += -0.5 * (logdet_Ntmp[ii] + dtNdt)
 
-    
+
         if args.det_signal:
 
             detres = []
@@ -1770,13 +1770,13 @@ def lnprob(xx):
                     psrdists = np.array([None]*npsr)
                     psrgp0 = np.array([None]*npsr)
                     psrlp0 = np.array([None]*npsr)
-            
+
                 cgw_res = []
 
                 #########################
                 # Sometimes we might want
                 # to fix cgw parameters
-                
+
                 if args.fixcgwFreq is None:
                     orbfreq_tmp = orbfreq
                 elif args.fixcgwFreq is not None:
@@ -1791,7 +1791,7 @@ def lnprob(xx):
                     gwtheta_tmp = gwtheta
                 elif args.fixcgwTheta is not None:
                     gwtheta_tmp = args.fixcgwTheta
-                
+
                 if args.ecc_search:
                     if args.fixcgwEcc is None:
                         ecc_tmp = e0
@@ -1808,15 +1808,15 @@ def lnprob(xx):
                     hstrain_tmp = hstrain
                 elif args.cgwPrior == 'mdloguniform':
                     hstrain_tmp = None
-                    
+
                 for ii,p in enumerate(psr):
 
                     if args.cgwModelSelect and nmodel == 0:
-                        
+
                         cgw_res.append( np.zeros(len(p.toas)) )
-                        
+
                     elif (args.cgwModelSelect and nmodel == 1) or not args.cgwModelSelect:
-                           
+
                         tmp_res = utils.ecc_cgw_signal(p, gwtheta_tmp, gwphi_tmp, mc,
                                                     dist, hstrain_tmp, orbfreq_tmp,
                                                     gwinc, gwpol, gwgamma_tmp, ecc_tmp,
@@ -1825,14 +1825,14 @@ def lnprob(xx):
                                                     periEv=args.periEv, psrTerm=args.psrTerm,
                                                     tref=tref, epochTOAs=args.epochTOAs,
                                                     noEccEvolve=args.noEccEvolve)
-                    
+
                         if args.epochTOAs:
                             cgw_res.append(np.ones(len(p.toas)))
                             for cc, swave in enumerate(tmp_res):
                                 cgw_res[ii][p.detsig_Uinds[cc,0]:p.detsig_Uinds[cc,1]] *= swave
                         elif not args.epochTOAs:
                             cgw_res.append(tmp_res)
-                        
+
                     detres[ii] -= cgw_res[ii]
 
 
@@ -1857,9 +1857,9 @@ def lnprob(xx):
 
                 toa_ct = 0
                 for ii,p in enumerate(psr):
-                    detres[ii] -= ephquad_signal[toa_ct:toa_ct+p.toas.shape[0]] 
+                    detres[ii] -= ephquad_signal[toa_ct:toa_ct+p.toas.shape[0]]
                     toa_ct += p.toas.shape[0]
-                
+
                 #for ii, p in enumerate(psr):
                 #
                 #    # define the pulsar position vector
@@ -1891,7 +1891,7 @@ def lnprob(xx):
                     for jj,tag in enumerate(dummy_tags):
 
                         if args.eph_planetmass:
-                        
+
                             if args.eph_planetmassprior == 'official':
                                 mass_perturb.append(planet_delta_mass[jj])
                             elif args.eph_planetmassprior == 'loguniform':
@@ -1906,7 +1906,7 @@ def lnprob(xx):
                                 planet_delta_signal += (mass_perturb[jj] * \
                                                             np.array([np.dot(planet_posvec[aa,:], p.psrPos[aa,:]) \
                                                                         for aa in range(p.toas.shape[0])]))
-                                    
+
                             else:
                                 planet_posvec = np.zeros((p.toas.shape[0],3))
                                 for kk,key in enumerate(ephnames):
@@ -1916,31 +1916,31 @@ def lnprob(xx):
                                                                         for aa in range(p.toas.shape[0])]))
 
                         if args.eph_planetoffset:
-                            
+
                             planet_offset = planet_orbitoffsets[jj,:] * 1e3 / sc.c
                             planet_delta_signal += (planet_masses[jj] * \
                                                             np.array([np.dot(planet_offset[aa,:], p.psrPos[aa,:]) \
                                                                         for aa in range(p.toas.shape[0])]))
-                    
+
                     detres[ii] -= planet_delta_signal
-            
+
             elif args.eph_roemermix:
-                
+
                 roemer_wgts = np.append(roemer_wgts, 1.0 - np.sum(roemer_wgts))
 
                 for ii, p in enumerate(psr):
 
                     # first, add back in fitted ephemeris roemer delay
-                    detres[ii] += p.roemer[p.ephemname]
+                    detres[ii] -= p.roemer[p.ephemname]
 
                     # now, subtract weighted roemer sum over ephemerides
                     for kk,key in enumerate(ephnames):
-                        detres[ii] -= roemer_wgts[kk] * p.roemer[key]
+                        detres[ii] += roemer_wgts[kk] * p.roemer[key]
 
             #############################################################
             # Recomputing some noise quantities involving 'residuals'.
             # Unfortunately necessary when we have a deterministic signal.
-        
+
             loglike1_tmp = 0
             dtNdt = []
             for ii,p in enumerate(psr):
@@ -1952,16 +1952,16 @@ def lnprob(xx):
                     scaled_err = (p.toaerrs).copy()
                     systems = p.sysflagdict[args.sysflag_target]
                     for jj,sysname in enumerate(systems):
-                        scaled_err[systems[sysname]] *= EFAC[ii][jj] 
+                        scaled_err[systems[sysname]] *= EFAC[ii][jj]
                     ###
                     white_noise = np.ones(len(scaled_err))
                     for jj,sysname in enumerate(systems):
                         white_noise[systems[sysname]] *= EQUAD[ii][jj]
-    
+
                     new_err = np.sqrt( scaled_err**2.0 + white_noise**2.0 )
                 elif not args.varyWhite:
                     new_err = (p.toaerrs).copy()
-                    
+
                 if not args.noEcorr:
 
                     if (args.varyWhite and len(ECORR[ii]>0)) or \
@@ -1975,21 +1975,21 @@ def lnprob(xx):
                         dtNdt.append(dtNdt_dummy)
 
                     else:
-            
+
                         dtmp[ii] = np.dot(p.Te.T, detres[ii]/( new_err**2.0 ))
                         dtNdt.append(np.sum(detres[ii]**2.0/( new_err**2.0 )))
-                
+
                 else:
-        
+
                     dtmp[ii] = np.dot(p.Te.T, detres[ii]/( new_err**2.0 ))
                     dtNdt.append(np.sum(detres[ii]**2.0/( new_err**2.0 )))
 
                 loglike1_tmp += -0.5 * (logdet_Ntmp[ii] + dtNdt[ii])
-        
-        
+
+
         if args.incGWB and args.incCorr:
             ## (option to de-restrict clms by phys prior)... and gwb_modindex==1:
-            
+
             if args.gwbTypeCorr == 'modelIndep':
 
                 npairs = int(npsr*(npsr-1)/2)
@@ -2017,14 +2017,14 @@ def lnprob(xx):
                         for aa in range(1,upper_triang.shape[1]):
                             for bb in range(aa+1,upper_triang.shape[1]):
                                 upper_triang[aa,bb] = np.cos(phi_els[bb-1][aa]) * \
-                                np.prod( np.sin(np.array(phi_els[bb-1])[0:aa]) )   
+                                np.prod( np.sin(np.array(phi_els[bb-1])[0:aa]) )
 
                         tmp = np.dot( upper_triang.T, upper_triang )
                         ORF.append( tmp )
                         ORF.append( tmp )
-                
+
                 if args.incDM:
-                    for ii in range(2*nmodes_dm): 
+                    for ii in range(2*nmodes_dm):
                         ORF.append( np.zeros((npsr,npsr)) )
 
                 if args.incEph:
@@ -2039,12 +2039,12 @@ def lnprob(xx):
                 if args.incClk and args.clkDesign:
                     for ii in range(2*nmodes_red):
                         ORF.append( np.zeros((npsr,npsr)) )
-                       
+
                 if args.incBand:
                     for kk in range(len(bands)-1):
                         for ii in range(2*nmodes_band):
                             ORF.append( np.zeros((npsr,npsr)) )
-                           
+
                 ORF = np.array(ORF)
                 ORFtot = ORF
 
@@ -2084,9 +2084,9 @@ def lnprob(xx):
                         tmp = corr_curve[ii,:,:]
                         ORF.append( tmp )
                         ORF.append( tmp )
-                
+
                 if args.incDM:
-                    for ii in range(2*nmodes_dm): 
+                    for ii in range(2*nmodes_dm):
                         ORF.append( np.zeros((npsr,npsr)) )
 
                 if args.incEph:
@@ -2101,21 +2101,21 @@ def lnprob(xx):
                 if args.incClk and args.clkDesign:
                     for ii in range(2*nmodes_red):
                         ORF.append( np.zeros((npsr,npsr)) )
-                       
+
                 if args.incBand:
                     for kk in range(len(bands)-1):
                         for ii in range(2*nmodes_band):
                             ORF.append( np.zeros((npsr,npsr)) )
-                           
+
                 ORF = np.array(ORF)
                 ORFtot = ORF
-            
+
             elif args.gwbTypeCorr == 'spharmAnis':
-            
+
                 ################################################
                 # Reshaping freq-dependent anis coefficients,
                 # and testing for power distribution physicality.
-            
+
                 orf_coeffs = orf_coeffs.reshape((tmp_nwins,
                                                 ((args.LMAX+1)**2)-1))
                 clm = np.array([[0.0]*((args.LMAX+1)**2)
@@ -2126,7 +2126,7 @@ def lnprob(xx):
 
                     for kk in range(tmp_nwins):
                         for ii in range(1,((args.LMAX+1)**2)):
-                            clm[kk,ii] = orf_coeffs[kk,ii-1]   
+                            clm[kk,ii] = orf_coeffs[kk,ii-1]
 
                         if not args.noPhysPrior:
                             # Testing for physicality of power distribution.
@@ -2135,7 +2135,7 @@ def lnprob(xx):
 
                 ############################################################
                 # Computing frequency-dependent overlap reduction functions.
-        
+
                 ORF=[]
                 for ii in range(tmp_nwins): # number of frequency windows
                     for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
@@ -2143,9 +2143,9 @@ def lnprob(xx):
                                       for kk in range(len(CorrCoeff)))
                         ORF.append( tmp )
                         ORF.append( tmp )
-                
+
                 if args.incDM:
-                    for ii in range(2*nmodes_dm): 
+                    for ii in range(2*nmodes_dm):
                         ORF.append( np.zeros((npsr,npsr)) )
 
                 if args.incEph:
@@ -2160,17 +2160,17 @@ def lnprob(xx):
                 if args.incClk and args.clkDesign:
                     for ii in range(2*nmodes_red):
                         ORF.append( np.zeros((npsr,npsr)) )
-                       
+
                 if args.incBand:
                     for kk in range(len(bands)-1):
                         for ii in range(2*nmodes_band):
                             ORF.append( np.zeros((npsr,npsr)) )
-                           
+
                 ORF = np.array(ORF)
                 ORFtot = ORF
 
             elif args.gwbTypeCorr == 'dipoleOrf':
-            
+
                 orf_coeffs = orf_coeffs.reshape((tmp_nwins,3))
                 dipphi, dipcostheta, dipwgt = \
                   orf_coeffs[:,0], orf_coeffs[:,1], orf_coeffs[:,2]
@@ -2199,27 +2199,27 @@ def lnprob(xx):
                             # maximal-dipole orf expression from Anholm et al. (2009)
                             gammaDip[kk,ii,jj] = (3.0/8.0) * (cpsra+cpsrb) * \
                               ( np.cos(zetaab) - (4.0/3.0) - \
-                                4.0*np.tan(zetaab/2.)**2.0*np.log(np.sin(zetaab/2.)) ) 
-                           
+                                4.0*np.tan(zetaab/2.)**2.0*np.log(np.sin(zetaab/2.)) )
+
                             gammaDip[kk,jj,ii] = gammaDip[kk,ii,jj]
 
                             if ii == jj:
                                 # scaling for pulsar-term
                                 gammaDip[kk,ii,jj] *= 2.0
-                
+
 
                 ############################################################
                 # Computing frequency-dependent overlap reduction functions.
-        
+
                 ORF=[]
                 for ii in range(tmp_nwins): # number of frequency windows
                     for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
                         tmp = monoOrf + dipwgt[ii]*gammaDip[ii,:,:]
                         ORF.append( tmp )
                         ORF.append( tmp )
-                
+
                 if args.incDM:
-                    for ii in range(2*nmodes_dm): 
+                    for ii in range(2*nmodes_dm):
                         ORF.append( np.zeros((npsr,npsr)) )
 
                 if args.incEph:
@@ -2234,20 +2234,20 @@ def lnprob(xx):
                 if args.incClk and args.clkDesign:
                     for ii in range(2*nmodes_red):
                         ORF.append( np.zeros((npsr,npsr)) )
-                       
+
                 if args.incBand:
                     for kk in range(len(bands)-1):
                         for ii in range(2*nmodes_band):
                             ORF.append( np.zeros((npsr,npsr)) )
-                           
+
                 ORF = np.array(ORF)
                 ORFtot = ORF
 
             elif args.gwbTypeCorr == 'custom':
-            
+
                 ############################################################
                 # Computing frequency-dependent overlap reduction functions.
-        
+
                 ORF=[]
                 for ii in range(nmodes_red): # number of frequencies
                     if np.atleast_3d(customOrf.T).shape[-1]>1:
@@ -2258,9 +2258,9 @@ def lnprob(xx):
                         tmp = customOrf
                         ORF.append( tmp )
                         ORF.append( tmp )
-                
+
                 if args.incDM:
-                    for ii in range(2*nmodes_dm): 
+                    for ii in range(2*nmodes_dm):
                         ORF.append( np.zeros((npsr,npsr)) )
 
                 if args.incEph:
@@ -2275,17 +2275,17 @@ def lnprob(xx):
                 if args.incClk and args.clkDesign:
                     for ii in range(2*nmodes_red):
                         ORF.append( np.zeros((npsr,npsr)) )
-                       
+
                 if args.incBand:
                     for kk in range(len(bands)-1):
                         for ii in range(2*nmodes_band):
                             ORF.append( np.zeros((npsr,npsr)) )
-                           
+
                 ORF = np.array(ORF)
                 ORFtot = ORF
 
             elif args.gwbTypeCorr == 'gwDisk':
-            
+
                 ################################################
                 # Reshaping freq-dependent anis coefficients,
                 # and testing for power distribution physicality.
@@ -2312,7 +2312,7 @@ def lnprob(xx):
 
                 ############################################################
                 # Computing frequency-dependent overlap reduction functions.
-        
+
                 ORF=[]
                 for ii in range(tmp_nwins): # number of frequency windows
                     for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
@@ -2324,9 +2324,9 @@ def lnprob(xx):
                             tmp = monoOrf
                             ORF.append( tmp )
                             ORF.append( tmp )
-                  
+
                 if args.incDM:
-                    for ii in range(2*nmodes_dm): 
+                    for ii in range(2*nmodes_dm):
                         ORF.append( np.zeros((npsr,npsr)) )
 
                 if args.incEph:
@@ -2341,28 +2341,28 @@ def lnprob(xx):
                 if args.incClk and args.clkDesign:
                     for ii in range(2*nmodes_red):
                         ORF.append( np.zeros((npsr,npsr)) )
-                       
+
                 if args.incBand:
                     for kk in range(len(bands)-1):
                         for ii in range(2*nmodes_band):
                             ORF.append( np.zeros((npsr,npsr)) )
-                           
+
                 ORF = np.array(ORF)
                 ORFtot = ORF
 
             elif args.gwbTypeCorr == 'psrlocsVary':
-            
+
                 ################################################
                 # Reshaping freq-dependent anis coefficients,
                 # and testing for power distribution physicality.
-            
+
                 orf_coeffs = orf_coeffs.reshape((2,tmp_nwins*len(psr)))
                 varyPhi = orf_coeffs[0,:].reshape((tmp_nwins,len(psr)))
                 varyTheta = np.arccos(orf_coeffs[1,:]).reshape((tmp_nwins,len(psr)))
 
                 ############################################################
                 # Computing frequency-dependent overlap reduction functions.
-        
+
                 ORF=[]
                 for ii in range(tmp_nwins): # number of frequency windows
                     varyLocs = np.zeros((len(psr),2))
@@ -2374,9 +2374,9 @@ def lnprob(xx):
                         tmp = monoOrf
                         ORF.append( tmp )
                         ORF.append( tmp )
-                       
+
                 if args.incDM:
-                    for ii in range(2*nmodes_dm): 
+                    for ii in range(2*nmodes_dm):
                         ORF.append( np.zeros((npsr,npsr)) )
 
                 if args.incEph:
@@ -2391,15 +2391,15 @@ def lnprob(xx):
                 if args.incClk and args.clkDesign:
                     for ii in range(2*nmodes_red):
                         ORF.append( np.zeros((npsr,npsr)) )
-                       
+
                 if args.incBand:
                     for kk in range(len(bands)-1):
                         for ii in range(2*nmodes_band):
                             ORF.append( np.zeros((npsr,npsr)) )
-                           
+
                 ORF = np.array(ORF)
                 ORFtot = ORF
-                
+
             elif args.gwbTypeCorr == 'clock':
 
                 ORF=[]
@@ -2408,9 +2408,9 @@ def lnprob(xx):
                         tmp = np.ones((npsr,npsr)) + 1e-5*np.diag(np.ones(npsr))
                         ORF.append( tmp )
                         ORF.append( tmp ) # clock signal is completely correlated
-                      
+
                 if args.incDM:
-                    for ii in range(2*nmodes_dm): 
+                    for ii in range(2*nmodes_dm):
                         ORF.append( np.zeros((npsr,npsr)) )
 
                 if args.incEph:
@@ -2425,24 +2425,24 @@ def lnprob(xx):
                 if args.incClk and args.clkDesign:
                     for ii in range(2*nmodes_red):
                         ORF.append( np.zeros((npsr,npsr)) )
-                       
+
                 if args.incBand:
                     for kk in range(len(bands)-1):
                         for ii in range(2*nmodes_band):
                             ORF.append( np.zeros((npsr,npsr)) )
-                           
+
                 ORF = np.array(ORF)
                 ORFtot = ORF
 
         if args.incGWline:
-    
+
             gwline_orf = np.zeros((npsr,npsr))
 
             Fp = np.zeros(npsr)
             Fc = np.zeros(npsr)
             for ii in range(npsr):
                 Fp[ii], Fc[ii] = utils.fplus_fcross(psr[ii], theta_gwline, phi_gwline)
-        
+
             for ii in range(npsr):
                 for jj in range(ii,npsr):
                     gwline_orf[ii,jj] = (3.0/(8.0*np.pi)) * (Fp[ii]*Fp[jj] + Fc[ii]*Fc[jj])
@@ -2451,16 +2451,16 @@ def lnprob(xx):
                     if ii == jj:
                         # scaling for pulsar-term
                         gwline_orf[ii,jj] *= 2.0
-        
+
         ################################################
         # parameterize intrinsic red noise as power law
-    
+
         Tspan = 1 / fqs_red[0]
 
         # parameterize intrinsic red-noise and DM-variations
         kappa = []
         for ii in range(npsr):
-        
+
             # Construct red noise signal
             if args.fixRed:
                 Ared_tmp = np.max([psr[ii].Redamp, psr[ii].parRedamp])
@@ -2470,12 +2470,12 @@ def lnprob(xx):
                                     f1yr**(gam_red_tmp-3) * \
                                     fqs_red**(-gam_red_tmp) )
                 red_kappa_tmp = np.repeat(red_kappa_tmp, 2)
-            
+
             if not args.fixRed:
                 if args.redSpecModel == 'powerlaw':
                     Ared_tmp = Ared[ii]
                     gam_red_tmp = gam_red[ii]
-                    
+
                     red_kappa_tmp = np.log10( Ared_tmp**2/12/np.pi**2 * \
                                             f1yr**(gam_red_tmp-3) * \
                                             fqs_red**(-gam_red_tmp) )
@@ -2489,7 +2489,7 @@ def lnprob(xx):
                 if args.fixDM:
                     Adm_tmp = np.max([psr[ii].DMamp, psr[ii].parDMamp])
                     gam_dm_tmp = np.max([psr[ii].DMind, psr[ii].parDMind])
-                    
+
                     dm_kappa_tmp = np.log10( Adm_tmp**2/12/np.pi**2 * \
                                             f1yr**(gam_dm_tmp-3) * \
                                             fqs_dm**(-gam_dm_tmp) )
@@ -2499,7 +2499,7 @@ def lnprob(xx):
                     if args.dmSpecModel == 'powerlaw':
                         Adm_tmp = Adm[ii]
                         gam_dm_tmp = gam_dm[ii]
-                    
+
                         dm_kappa_tmp = np.log10( Adm_tmp**2/12/np.pi**2 * \
                                                 f1yr**(gam_dm_tmp-3) * \
                                                 fqs_dm**(-gam_dm_tmp) )
@@ -2535,11 +2535,11 @@ def lnprob(xx):
                                          eph_padding,
                                          clk_padding,
                                          band_padding)))
-            
-    
+
+
         ###################################
         # construct elements of sigma array
-    
+
         sigdiag = []
         if args.incGWB:
 
@@ -2563,7 +2563,7 @@ def lnprob(xx):
                         # transforming from zero-mean unit-variance variable to rho
                         rho = 2.0*np.log10(Agwb) - np.log10(12.0 * np.pi**2.0 * fqs_red**3.0) + \
                           rho_spec*rho_pred[:,1] + rho_pred[:,0]
-                    else: 
+                    else:
                         rho_pred = np.zeros((len(fqs_red),2))
                         for ii,freq in enumerate(fqs_red):
                             mu_pred, cov_pred = gp[ii].predict(gppkl[ii].y, env_param)
@@ -2574,7 +2574,7 @@ def lnprob(xx):
 
                         # transforming from zero-mean unit-variance variable to rho
                         rho = 2.0*np.log10(Agwb) + rho_spec*rho_pred[:,1] + rho_pred[:,0]
-                    
+
             elif args.gwbSpecModel == 'turnover':
                 rho = np.log10(Agwb**2/12/np.pi**2 * \
                             f1yr**(13.0/3.0-3.0) * \
@@ -2597,12 +2597,12 @@ def lnprob(xx):
 
                 '''
             rho = np.repeat(rho, 2)
-            
+
             if args.incDM:
                 dm_padding = np.zeros(2*nmodes_dm)
             elif not args.incDM:
                 dm_padding = np.array([])
-                
+
             if args.incEph:
                 if args.jplBasis:
                     eph_padding = np.zeros(nmodes_eph)
@@ -2620,26 +2620,26 @@ def lnprob(xx):
                 band_padding = np.zeros((len(bands)-1)*2*nmodes_band)
             elif not args.incBand:
                 band_padding = np.array([])
-                    
+
             gwbspec = np.concatenate( (10**rho, dm_padding,
                                        eph_padding, clk_padding,
                                        band_padding) )
-            
+
             if args.incCorr:
                 sig_gwboffdiag = []
 
         if args.incGWline:
-        
+
             rho_line = np.zeros(nmodes_red)
             idx = np.argmin(np.abs(fqs_red - freq_gwline))
             rho_line[idx] = 10.0**(2.0*spec_gwline)
             rho_line = np.repeat(rho_line, 2)
-            
+
             if args.incDM:
                 dm_padding = np.zeros(2*nmodes_dm)
             elif not args.incDM:
                 dm_padding = np.array([])
-            
+
             if args.incEph:
                 if args.jplBasis:
                     eph_padding = np.zeros(nmodes_eph)
@@ -2657,13 +2657,13 @@ def lnprob(xx):
                 band_padding = np.zeros((len(bands)-1)*2*nmodes_band)
             elif not args.incBand:
                 band_padding = np.array([])
-            
+
             gwline_spec = np.concatenate( (rho_line,
                                            dm_padding,
                                            eph_padding,
                                            clk_padding,
                                            band_padding) )
-           
+
             if args.incCorr:
                 sig_gwlineoffdiag = []
 
@@ -2683,7 +2683,7 @@ def lnprob(xx):
                 dm_padding = np.zeros(2*nmodes_dm)
             elif not args.incDM:
                 dm_padding = np.array([])
-                
+
             if args.incEph:
                 if args.jplBasis:
                     eph_padding = np.zeros(nmodes_eph)
@@ -2711,7 +2711,7 @@ def lnprob(xx):
                                            eph_padding,
                                            clk_padding,
                                            band_padding) )
-            
+
             if args.incCorr:
                 sig_clkoffdiag = []
 
@@ -2731,7 +2731,7 @@ def lnprob(xx):
                 dm_padding = np.zeros(2*nmodes_dm)
             elif not args.incDM:
                 dm_padding = np.array([])
-                
+
             if args.incEph:
                 if args.jplBasis:
                     eph_padding = np.zeros(nmodes_eph)
@@ -2749,11 +2749,11 @@ def lnprob(xx):
                 band_padding = np.zeros((len(bands)-1)*2*nmodes_band)
             elif not args.incBand:
                 band_padding = np.array([])
-                    
+
             cmspec = np.concatenate( (10**kappa_cm, dm_padding,
                                       eph_padding, clk_padding,
                                       band_padding) )
-            
+
         if args.incEph:
 
             if args.jplBasis:
@@ -2777,7 +2777,7 @@ def lnprob(xx):
                     kappa_ephz = np.log10( 10.0**(2.0*eph_spec[2,:]) )
                     kappa_eph = np.concatenate((kappa_ephx, kappa_ephy, kappa_ephz))
                     kappa_eph = np.repeat(kappa_eph, 2)
-            
+
             red_padding = np.zeros(2*nmodes_red)
             if args.incDM:
                 dm_padding = np.zeros(2*nmodes_dm)
@@ -2797,7 +2797,7 @@ def lnprob(xx):
             eph_kappa = np.concatenate( (red_padding, dm_padding,
                                          10**kappa_eph, clk_padding,
                                          band_padding) )
-            
+
 
         if args.incBand:
 
@@ -2809,14 +2809,14 @@ def lnprob(xx):
                                                     f1yr**(gam_band[ii]-3) * \
                                                     fqs_band**(-gam_band[ii])))
                 kappa_band = np.repeat(kappa_band, 2)
-               
+
             elif args.bandSpecModel == 'spectrum':
                 for ii in range(len(bands)-1):
                     kappa_band = np.append(kappa_band,
                                            np.log10( 10.0**(2.0*band_spec[ii,:]) ))
                 kappa_band = np.repeat(kappa_band, 2)
 
-            
+
             red_padding = np.zeros(2*nmodes_red)
             if args.incDM:
                 dm_padding = np.zeros(2*nmodes_dm)
@@ -2839,8 +2839,8 @@ def lnprob(xx):
             band_kappa = np.concatenate( (red_padding, dm_padding,
                                          eph_padding, clk_padding,
                                          10.0**kappa_band) )
-            
-        
+
+
 
         for ii in range(npsr):
             tot = np.zeros(mode_count)
@@ -2849,9 +2849,9 @@ def lnprob(xx):
             tot += kappa[ii]
 
             if args.incGWB:
-            
+
                 if args.incCorr and gwb_modindex==1:
-                
+
                     offdiag = np.zeros(mode_count)
 
                     # off diagonal terms
@@ -2861,16 +2861,16 @@ def lnprob(xx):
                     tot += ORFtot[:,ii,ii]*gwbspec
 
                     sig_gwboffdiag.append(offdiag)
-                
+
                 if not args.incCorr or gwb_modindex==0:
-                    
+
                     # diagonal terms
                     tot += gwbspec
 
             if args.incGWline:
-            
+
                 if args.incCorr:
-                
+
                     offdiag = np.zeros(mode_count)
 
                     # off diagonal terms
@@ -2880,16 +2880,16 @@ def lnprob(xx):
                     tot += gwline_orf[ii,ii] * gwline_spec
 
                     sig_gwlineoffdiag.append(offdiag)
-                
+
                 if not args.incCorr:
-                
+
                     # diagonal terms
                     tot += gwline_spec
 
             if args.incClk:
-            
+
                 if args.incCorr:
-                
+
                     offdiag = np.zeros(mode_count)
 
                     # off diagonal terms
@@ -2903,9 +2903,9 @@ def lnprob(xx):
                         tot += clkspec
 
                     sig_clkoffdiag.append(offdiag)
-                
+
                 if not args.incCorr:
-                
+
                     # diagonal terms
                     tot += clkspec
 
@@ -2923,91 +2923,91 @@ def lnprob(xx):
 
                 # diagonal terms
                 tot += band_kappa
-                
+
             # fill in lists of arrays
             sigdiag.append(tot)
 
 
         ###############################################
         # Computing Phi and Sigma matrices without GWB
-    
+
         if not args.incGWB and not args.incGWline and not args.incClk:
 
             for ii,p in enumerate(psr):
-            
-                # compute Phi inverse 
+
+                # compute Phi inverse
                 red_phi = np.diag(1./sigdiag[ii])
                 logdet_Phi = np.sum(np.log(sigdiag[ii]))
 
                 # now fill in real covariance matrix
-                Phi = np.zeros( TtNT_tmp[ii].shape ) 
+                Phi = np.zeros( TtNT_tmp[ii].shape )
                 for kk in range(0,mode_count):
                     Phi[kk+p.Gc.shape[1],kk+p.Gc.shape[1]] = red_phi[kk,kk]
 
                 # symmeterize Phi
                 Phi = Phi + Phi.T - np.diag(np.diag(Phi))
-    
+
                 # compute sigma
                 Sigma = TtNT_tmp[ii] + Phi
-                
-                # cholesky decomp 
+
+                # cholesky decomp
                 try:
                     cf = sl.cho_factor(Sigma)
                     expval2 = sl.cho_solve(cf, dtmp[ii])
                     logdet_Sigma = np.sum(2*np.log(np.diag(cf[0])))
 
                 except np.linalg.LinAlgError:
-                
+
                     print 'Cholesky Decomposition Failed!!'
                     return -np.inf
-                
+
                 logLike += -0.5 * (logdet_Phi + logdet_Sigma) + \
                 0.5 * (np.dot(dtmp[ii], expval2))
 
             logLike += loglike1_tmp
-        
+
 
         if args.incGWB or args.incGWline or args.incClk:
-    
+
             if not args.incCorr or (args.incCorr and args.incGWB and gwb_modindex==0
                                     and not args.incGWline and not args.incClk):
-            
+
                 for ii,p in enumerate(psr):
-            
-                    # compute Phi inverse 
+
+                    # compute Phi inverse
                     red_phi = np.diag(1./sigdiag[ii])
                     logdet_Phi = np.sum(np.log(sigdiag[ii]))
 
                     # now fill in real covariance matrix
-                    Phi = np.zeros( TtNT_tmp[ii].shape ) 
+                    Phi = np.zeros( TtNT_tmp[ii].shape )
                     for kk in range(0,mode_count):
                         Phi[kk+p.Gc.shape[1],kk+p.Gc.shape[1]] = red_phi[kk,kk]
 
                     # symmeterize Phi
                     Phi = Phi + Phi.T - np.diag(np.diag(Phi))
-    
+
                     # compute sigma
                     Sigma = TtNT_tmp[ii] + Phi
-                    
-                    # cholesky decomp 
+
+                    # cholesky decomp
                     try:
-                    
+
                         cf = sl.cho_factor(Sigma)
                         expval2 = sl.cho_solve(cf, dtmp[ii])
                         logdet_Sigma = np.sum(2*np.log(np.diag(cf[0])))
 
                     except np.linalg.LinAlgError:
-                        
+
                         print 'Cholesky Decomposition Failed!!'
                         return -np.inf
-                
+
                     logLike += -0.5 * (logdet_Phi + logdet_Sigma) + \
                     0.5 * (np.dot(dtmp[ii], expval2))
 
                 logLike += loglike1_tmp
 
             elif args.incCorr:
-        
+
                 #####################
                 # compute Phi matrix
 
@@ -3016,7 +3016,7 @@ def lnprob(xx):
                     for jj in range(ii,npsr):
 
                         if ii == jj:
-                            smallMatrix[:,ii,jj] = sigdiag[jj] 
+                            smallMatrix[:,ii,jj] = sigdiag[jj]
                         else:
                             if args.incGWB and gwb_modindex==1:
                                 smallMatrix[:,ii,jj] += ORFtot[:,ii,jj] * sig_gwboffdiag[jj]
@@ -3025,31 +3025,31 @@ def lnprob(xx):
                             if args.incClk:
                                 smallMatrix[:,ii,jj] += sig_clkoffdiag[jj]
                             smallMatrix[:,jj,ii] = smallMatrix[:,ii,jj]
-    
+
                 ###################################
                 # invert Phi matrix frequency-wise
-    
+
                 logdet_Phi = 0
                 for ii in range(mode_count):
 
                     try:
-    
+
                         L = sl.cho_factor(smallMatrix[ii,:,:])
                         smallMatrix[ii,:,:] = sl.cho_solve(L, np.eye(npsr))
                         logdet_Phi += np.sum(2*np.log(np.diag(L[0])))
 
                     except np.linalg.LinAlgError:
-    
+
                         ###################################################
                         # Break if we have non-positive-definiteness of Phi
-            
+
                         print 'Cholesky Decomposition Failed!! Rejecting...'
                         return -np.inf
 
 
                 bigTtNT = sl.block_diag(*TtNT_tmp)
                 Phi = np.zeros_like( bigTtNT )
-    
+
                 # now fill in real covariance matrix
                 ind = [0]
                 ind = np.append(ind,np.cumsum([TtNT_tmp[ii].shape[0]
@@ -3060,15 +3060,15 @@ def lnprob(xx):
                 for ii in range(npsr):
                     for jj in range(npsr):
                         Phi[ind[ii],ind[jj]] = smallMatrix[:,ii,jj]
-            
+
                 # compute sigma
                 Sigma = bigTtNT + Phi
-            
+
                 # cholesky decomp for second term in exponential
                 if args.use_gpu:
 
                     try:
-                
+
                         dtmp = np.concatenate(dtmp)
                         Sigma_gpu = gpuarray.to_gpu( Sigma.astype(np.float64).copy() )
                         expval2_gpu = gpuarray.to_gpu( dtmp.astype(np.float64).copy() )
@@ -3077,16 +3077,16 @@ def lnprob(xx):
                         logdet_Sigma = np.sum(2.0*np.log(np.diag(Sigma_gpu.get())))
 
                     except cula.culaDataError:
-    
+
                         print 'Cholesky Decomposition Failed (GPU error!!)'
                         return -np.inf
 
                     logLike = -0.5 * (logdet_Phi + logdet_Sigma) + \
                       0.5 * (np.dot(dtmp, expval2_gpu.get() )) + \
                       loglike1_tmp
-            
+
                 else:
-        
+
                     try:
 
                         dtmp = np.concatenate(dtmp)
@@ -3101,7 +3101,7 @@ def lnprob(xx):
                             logdet_Sigma = np.sum(2*np.log(np.diag(cf[0])))
 
                     except np.linalg.LinAlgError or sks.CholmodError:
-                    
+
                         print 'Cholesky Decomposition Failed second time!! Breaking...'
                         return -np.inf
 
@@ -3110,11 +3110,11 @@ def lnprob(xx):
                       0.5 * (np.dot(dtmp, expval2)) + \
                       loglike1_tmp
 
-    
+
 
     ################################################
     # Multiplying likelihood by appropriate Jacobian
-    
+
     if args.incGWB:
         ### powerlaw spectral model ###
         if args.gwbSpecModel == 'powerlaw':
@@ -3142,7 +3142,7 @@ def lnprob(xx):
                 sig = 0.08
                 priorfac_gwb = np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
                                     / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
-                
+
         ### free spectral model ###
         elif args.gwbSpecModel == 'spectrum':
             if args.gwbPrior == 'uniform':
@@ -3189,8 +3189,8 @@ def lnprob(xx):
                     sig = 0.08
                     priorfac_gwb += np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
                                         / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
-                    
-                
+
+
         ### turnover spectral model ###
         elif args.gwbSpecModel == 'turnover':
             if args.gwbPrior == 'uniform':
@@ -3217,7 +3217,7 @@ def lnprob(xx):
                 sig = 0.08
                 priorfac_gwb += np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
                                     / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
-            
+
 
         ### gp interpolation spectral model ###
         elif args.gwbSpecModel == 'gpEnvInterp':
@@ -3238,10 +3238,10 @@ def lnprob(xx):
                 priorfac_gwb = np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
                                     / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
             '''
-                
+
     elif not args.incGWB:
         priorfac_gwb = 0.0
-         
+
 
     if args.incGWline:
         if args.gwlinePrior == 'uniform':
@@ -3250,7 +3250,7 @@ def lnprob(xx):
             priorfac_gwline = 0.0
     elif not args.incGWline:
         priorfac_gwline = 0.0
-        
+
 
     if not args.fixRed:
         ### powerlaw spectral model ###
@@ -3267,7 +3267,7 @@ def lnprob(xx):
                 priorfac_red = 0.0
     elif args.fixRed:
         priorfac_red = 0.0
-        
+
 
     if args.incDM and not args.fixDM:
         ### powerlaw spectral model ###
@@ -3285,14 +3285,14 @@ def lnprob(xx):
     elif args.fixDM or not args.incDM:
         priorfac_dm = 0.0
 
-        
+
     priorfac_band = 0.0
     if args.incBand:
         ### powerlaw spectral model ###
         if args.bandSpecModel == 'powerlaw':
             if args.bandPrior == 'uniform':
                 for ii in range(len(bands)-1):
-                    priorfac_band += np.log(Aband[ii] * np.log(10.0)) 
+                    priorfac_band += np.log(Aband[ii] * np.log(10.0))
             elif args.bandPrior == 'loguniform':
                 priorfac_band = 0.0
         ### free spectral model ###
@@ -3305,12 +3305,12 @@ def lnprob(xx):
     elif not args.incBand:
         priorfac_band = 0.0
 
-        
+
     if args.incClk:
         ### powerlaw spectral model ###
         if args.clkSpecModel == 'powerlaw':
             if args.clkPrior == 'uniform':
-                priorfac_clk = np.log(Aclk * np.log(10.0)) 
+                priorfac_clk = np.log(Aclk * np.log(10.0))
             elif args.clkPrior == 'loguniform':
                 priorfac_clk = 0.0
         ### free spectral model ###
@@ -3327,7 +3327,7 @@ def lnprob(xx):
         ### powerlaw spectral model ###
         if args.cmSpecModel == 'powerlaw':
             if args.cmPrior == 'uniform':
-                priorfac_cm = np.log(Acm * np.log(10.0)) 
+                priorfac_cm = np.log(Acm * np.log(10.0))
             elif args.cmPrior == 'loguniform':
                 priorfac_cm = 0.0
         ### free spectral model ###
@@ -3338,7 +3338,7 @@ def lnprob(xx):
                 priorfac_cm = 0.0
     elif not args.incCm:
         priorfac_cm = 0.0
-        
+
 
     if args.incEph and not args.jplBasis:
         ### powerlaw spectral model ###
@@ -3346,7 +3346,7 @@ def lnprob(xx):
             if args.ephPrior == 'uniform':
                 priorfac_eph = np.log(Aephx * np.log(10.0)) + \
                   np.log(Aephy * np.log(10.0)) + \
-                  np.log(Aephz * np.log(10.0)) 
+                  np.log(Aephz * np.log(10.0))
             elif args.ephPrior == 'loguniform':
                 priorfac_eph = 0.0
         ### free spectral model ###
@@ -3379,7 +3379,7 @@ def lnprob(xx):
         priorfac_roemermix += np.log(rmixprior.pdf(roemer_wgts))
     else:
         priorfac_roemermix = 0.0
-        
+
     priorfac_corr = 0.0
     if args.incGWB and args.incCorr:
         if args.gwbTypeCorr == 'modelIndep':
@@ -3388,22 +3388,22 @@ def lnprob(xx):
                 ct = 0
                 for ii in range(len(phi_els)):
                     for jj in range(len(phi_els[ii])):
-                        
+
                         dummy_utriang = upper_triang[jj:,ii+1].copy()
                         dummy_utriang[0] = -np.sin(phi_els[ii][jj]) * dummy_utriang[0] / np.cos(phi_els[ii][jj])
                         dummy_utriang[1:] = np.cos(phi_els[ii][jj]) * dummy_utriang[1:] / np.sin(phi_els[ii][jj])
-    
+
                         dummy_utriang = np.append(np.zeros(len(upper_triang[:jj,ii+1])), dummy_utriang)
-    
+
                         deriv = np.zeros_like(upper_triang)
                         deriv[:,ii+1] = np.dot(upper_triang.T, dummy_utriang)
                         deriv = deriv + deriv.T
 
-                        jacobian[:,ct] = deriv[np.triu_indices(npsr,k=1)] 
+                        jacobian[:,ct] = deriv[np.triu_indices(npsr,k=1)]
                         ct += 1
 
                 tmp = np.linalg.slogdet(jacobian)
-                priorfac_corr = 0.5*tmp[1] 
+                priorfac_corr = 0.5*tmp[1]
             elif args.corrJacobian == 'simple':
                 priorfac_corr = np.sum(np.log(np.abs(np.array([-np.sin(phi_els[ii][0])
                                                                for ii in range(len(phi_els))]))))
@@ -3444,7 +3444,7 @@ def lnprob(xx):
         elif gwb_modindex == 1:
             priorfac_gwbmod = ( np.log( 1.0 / (1.0 + args.gwbCorrModWgt) )
                                 - np.log(1.0/2.0) )
-        
+
     ### Jacobian and prior on cgw properties ###
     if args.det_signal:
         if args.cgw_search:
@@ -3465,16 +3465,16 @@ def lnprob(xx):
             priorfac_detsig = 0.0
     elif not args.det_signal:
         priorfac_detsig = 0.0
-        
+
 
     #####################################
     # Finally, return the log-likelihood
-    
+
     return (1.0/args.softParam) * (logLike + priorfac_gwb + priorfac_gwbmod + priorfac_gwline + \
                                    priorfac_red + priorfac_dm + priorfac_clk + priorfac_cm + \
                                    priorfac_eph + priorfac_planetmassdelta + priorfac_roemermix + \
                                    priorfac_band + priorfac_corr + priorfac_detsig)
-     
+
 
 #########################
 #########################
@@ -3562,7 +3562,7 @@ if args.incGWB:
         parameters += ["Agwb", "ecc"]
     if args.incCorr:
         if args.gwbTypeCorr == 'modelIndep':
-            for ii in range(tmp_nwins): 
+            for ii in range(tmp_nwins):
                 for jj in range(int(len(psr)*(len(psr)-1)/2)):
                     parameters.append('phi_corr_win{0}_val{1}'.format(ii+1,jj+1))
         elif args.gwbTypeCorr == 'pointSrc':
@@ -3571,7 +3571,7 @@ if args.incGWB:
                     parameters += ["gwb_phi_win{0}".format(ii+1),
                                    "gwb_costheta_win{0}".format(ii+1)]
         elif args.gwbTypeCorr == 'spharmAnis':
-            for ii in range(tmp_nwins): 
+            for ii in range(tmp_nwins):
                 for jj in range((args.LMAX+1)**2 - 1):
                     parameters.append('clm_win{0}_val{1}'.format(ii+1,jj+1))
         elif args.gwbTypeCorr == 'dipoleOrf':
@@ -3792,15 +3792,15 @@ file_tag += red_tag + dm_tag + band_tag + \
 if rank == 0:
     print "\n Now, we sample... \n"
     print """\
-     _______ .__   __.   _______      ___       _______  _______  __  
-    |   ____||  \ |  |  /  _____|    /   \     /  _____||   ____||  | 
-    |  |__   |   \|  | |  |  __     /  ^  \   |  |  __  |  |__   |  | 
-    |   __|  |  . `  | |  | |_ |   /  /_\  \  |  | |_ | |   __|  |  | 
-    |  |____ |  |\   | |  |__| |  /  _____  \ |  |__| | |  |____ |__| 
-    |_______||__| \__|  \______| /__/     \__\ \______| |_______|(__) 
-    
+     _______ .__   __.   _______      ___       _______  _______  __
+    |   ____||  \ |  |  /  _____|    /   \     /  _____||   ____||  |
+    |  |__   |   \|  | |  |  __     /  ^  \   |  |  __  |  |__   |  |
+    |   __|  |  . `  | |  | |_ |   /  /_\  \  |  | |_ | |   __|  |  |
+    |  |____ |  |\   | |  |__| |  /  _____  \ |  |__| | |  |____ |__|
+    |_______||__| \__|  \______| /__/     \__\ \______| |_______|(__)
+
     """
-   
+
 ##########################
 # Define function wrappers
 ##########################
@@ -3815,7 +3815,7 @@ if args.sampler == 'mnest':
     if rank == 0:
         if not os.path.exists(dir_name):
             os.makedirs(dir_name)
-        
+
         if args.incCorr:
             # Copy the anisotropy modefile into the results directory
             if args.anis_modefile is not None:
@@ -3852,16 +3852,16 @@ if args.sampler == 'mnest':
     def prior_func(xx,ndim,nparams):
         for ii in range(nparams):
             xx[ii] = pmin[ii] + xx[ii]*(pmax[ii]-pmin[ii])
-            
+
     def like_func(xx,ndim,nparams):
         xx = np.array([xx[ii] for ii in range(nparams)])
-        return lnprob(xx)        
-    
+        return lnprob(xx)
+
     pymultinest.run(like_func, prior_func, n_params,
                     importance_nested_sampling = args.ins,
-                    resume = args.resume, verbose = True, 
+                    resume = args.resume, verbose = True,
                     n_live_points = args.nlive,
-                    outputfiles_basename=u'{0}/mnest_'.format(dir_name), 
+                    outputfiles_basename=u'{0}/mnest_'.format(dir_name),
                     sampling_efficiency = args.sampleEff,
                     const_efficiency_mode = args.constEff)
 
@@ -3875,7 +3875,7 @@ elif args.sampler == 'pchord':
 
         if not os.path.exists(dir_name+'/clusters'):
             os.mkdir(dir_name+'/clusters')
-        
+
         if args.incCorr:
             # Copy the anisotropy modefile into the results directory
             if args.anis_modefile is not None:
@@ -3913,7 +3913,7 @@ elif args.sampler == 'pchord':
         for ii in range(len(xx)):
             xx[ii] = pmin[ii] + xx[ii]*(pmax[ii]-pmin[ii])
         return xx
-            
+
     def like_func(xx):
         xx = np.array([xx[ii] for ii in range(len(xx))])
         return lnprob(xx)
@@ -3923,7 +3923,7 @@ elif args.sampler == 'pchord':
                     output_basename='{0}/pchord_'.format(dir_name))
 
 elif args.sampler == 'ptmcmc':
-    
+
     # Start the sampling off with some reasonable parameter choices
     x0 = np.array([])
     if not args.fixRed:
@@ -4210,14 +4210,14 @@ elif args.sampler == 'ptmcmc':
     # now including covariance in ephemeris quadratic parameters
     if args.det_signal and args.eph_quadratic:
         cov_diag[param_ephquad:param_ephquad+9,param_ephquad:param_ephquad+9] = ephem_fisher / ephem_norm**2.0
-                
+
     if rank==0:
         print "\n Running a quick profile on the likelihood to estimate evaluation speed...\n"
         cProfile.run('lnprob(x0)')
 
     ########################################
     # Creating parameter sampling groupings
-    
+
     ind = []
     param_ct = 0
     ##### red noise #####
@@ -4232,7 +4232,7 @@ elif args.sampler == 'ptmcmc':
             ids = np.arange(0,nmodes_red*len(psr)).reshape((len(psr),nmodes_red))
             [ind.append(id) for id in ids if len(id) > 0]
             param_ct += nmodes_red*len(psr)
-            
+
     ##### DM noise #####
     if args.incDM and not args.fixDM:
         if args.dmSpecModel == 'powerlaw':
@@ -4282,7 +4282,7 @@ elif args.sampler == 'ptmcmc':
             ids = np.arange(param_ct,param_ct+(len(bands)-1)*nmodes_band).reshape(((len(bands)-1),nmodes_band))
             [ind.append(id) for id in ids if len(id) > 0]
             param_ct += (len(bands)-1)*nmodes_band
-    
+
     ##### Clock errors #####
     if args.incClk:
         if args.clkSpecModel == 'powerlaw':
@@ -4317,7 +4317,7 @@ elif args.sampler == 'ptmcmc':
             ids = np.arange(param_ct,param_ct+3*nmodes_eph).reshape((3,nmodes_eph))
             [ind.append(id) for id in ids if len(id) > 0]
             param_ct += 3*nmodes_eph
-        
+
     ##### GWB #####
     if args.incGWB:
         if args.gwbSpecModel == 'powerlaw':
@@ -4409,13 +4409,13 @@ elif args.sampler == 'ptmcmc':
         ids = [[param_ct]]
         [ind.append(id) for id in ids]
         param_ct += 1
-            
+
     ##### GW line #####
     if args.incGWline:
         ids = [np.arange(param_ct,param_ct+4)]
         param_ct += 4
         [ind.append(id) for id in ids]
-       
+
     ##### DET SIGNAL #####
     if args.det_signal:
         ##### CW #####
@@ -4489,15 +4489,15 @@ elif args.sampler == 'ptmcmc':
             ids = [np.arange(param_ct,param_ct+num_ephs-1)]
             param_ct += num_ephs-1
             [ind.append(id) for id in ids]
-         
-            
+
+
     ##### all parameters #####
     all_inds = range(len(x0))
     ind.insert(0, all_inds)
     if rank == 0:
         print "Your parameter index groupings for sampling are {0}".format(ind)
 
-    
+
     sampler = ptmcmc.PTSampler(ndim=n_params,logl=lnprob,logp=my_prior,
                             cov=cov_diag,
                             outDir=args.dirExt+file_tag,
@@ -4542,9 +4542,9 @@ elif args.sampler == 'ptmcmc':
     # MCMC jump proposals
     #####################################
 
-    # red noise draws 
+    # red noise draws
     def drawFromRedNoisePowerlawPrior(parameters, iter, beta):
-    
+
         # post-jump parameters
         q = parameters.copy()
 
@@ -4563,15 +4563,15 @@ elif args.sampler == 'ptmcmc':
             elif args.redPrior == 'uniform':
                 q[ii] = np.random.uniform(pmin[ii], pmax[ii])
                 qxy += 0
-    
+
             q[npsr+ii] = np.random.uniform(pmin[npsr+ii], pmax[npsr+ii])
             qxy += 0
 
         return q, qxy
 
-    # red noise draws 
+    # red noise draws
     def drawFromRedNoiseSpectrumPrior(parameters, iter, beta):
-    
+
         # post-jump parameters
         q = parameters.copy()
 
@@ -4593,7 +4593,7 @@ elif args.sampler == 'ptmcmc':
 
         return q, qxy
 
-    # dm var draws 
+    # dm var draws
     def drawFromDMNoisePowerlawPrior(parameters, iter, beta):
 
         # post-jump parameters
@@ -4620,7 +4620,7 @@ elif args.sampler == 'ptmcmc':
             elif args.dmPrior == 'uniform':
                 q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
                 qxy += 0
-    
+
             q[pct+npsr+ii] = np.random.uniform(pmin[pct+npsr+ii], pmax[pct+npsr+ii])
             qxy += 0
 
@@ -4702,7 +4702,7 @@ elif args.sampler == 'ptmcmc':
 
         return q, qxy
 
-    # ephemeris error draws 
+    # ephemeris error draws
     def drawFromBandNoisePowerlawPrior(parameters, iter, beta):
 
         # post-jump parameters
@@ -4718,7 +4718,7 @@ elif args.sampler == 'ptmcmc':
                 pct = 2*npsr
             elif args.redSpecModel == 'spectrum':
                 pct = npsr*nmodes_red
-    
+
         if args.incDM and not args.fixDM:
             if args.dmSpecModel == 'powerlaw':
                 pct += 2*npsr
@@ -4746,7 +4746,7 @@ elif args.sampler == 'ptmcmc':
             q[pct+(len(bands)-1)+ii] = np.random.uniform(pmin[pct+(len(bands)-1)+ii],
                                                          pmax[pct+(len(bands)-1)+ii])
             qxy += 0
-        
+
         return q, qxy
 
     def drawFromBandNoiseSpectrumPrior(parameters, iter, beta):
@@ -4764,7 +4764,7 @@ elif args.sampler == 'ptmcmc':
                 pct = 2*npsr
             elif args.redSpecModel == 'spectrum':
                 pct = npsr*nmodes_red
-    
+
         if args.incDM and not args.fixDM:
             if args.dmSpecModel == 'powerlaw':
                 pct += 2*npsr
@@ -4787,10 +4787,10 @@ elif args.sampler == 'ptmcmc':
             elif args.bandPrior == 'uniform':
                 q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
                 qxy += 0
-        
+
         return q, qxy
-    
-    # clock draws 
+
+    # clock draws
     def drawFromClkNoisePowerlawPrior(parameters, iter, beta):
 
         # post-jump parameters
@@ -4831,7 +4831,7 @@ elif args.sampler == 'ptmcmc':
         elif args.clkPrior == 'uniform':
             q[pct] = np.random.uniform(pmin[pct], pmax[pct])
             qxy += 0
-    
+
         q[pct+1] = np.random.uniform(pmin[pct+1], pmax[pct+1])
         qxy += 0
 
@@ -4884,7 +4884,7 @@ elif args.sampler == 'ptmcmc':
 
         return q, qxy
 
-    # clock draws 
+    # clock draws
     def drawFromCmNoisePowerlawPrior(parameters, iter, beta):
 
         # post-jump parameters
@@ -4931,7 +4931,7 @@ elif args.sampler == 'ptmcmc':
         elif args.cmPrior == 'uniform':
             q[pct] = np.random.uniform(pmin[pct], pmax[pct])
             qxy += 0
-    
+
         q[pct+1] = np.random.uniform(pmin[pct+1], pmax[pct+1])
         qxy += 0
 
@@ -4970,7 +4970,7 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*(len(bands)-1)
             elif args.bandSpecModel == 'spectrum':
                 pct += (len(bands)-1)*nmodes_band
-                    
+
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -4990,7 +4990,7 @@ elif args.sampler == 'ptmcmc':
 
         return q, qxy
 
-    # ephemeris error draws 
+    # ephemeris error draws
     def drawFromEphNoisePowerlawPrior(parameters, iter, beta):
 
         # post-jump parameters
@@ -5006,7 +5006,7 @@ elif args.sampler == 'ptmcmc':
                 pct = 2*npsr
             elif args.redSpecModel == 'spectrum':
                 pct = npsr*nmodes_red
-    
+
         if args.incDM and not args.fixDM:
             if args.dmSpecModel == 'powerlaw':
                 pct += 2*npsr
@@ -5024,7 +5024,7 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*(len(bands)-1)
             elif args.bandSpecModel == 'spectrum':
                 pct += (len(bands)-1)*nmodes_band
-                    
+
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -5039,7 +5039,7 @@ elif args.sampler == 'ptmcmc':
 
         # choose either x,y or z for varying
         ind = np.random.randint(0, 3, 1)
-        
+
         # amplitude
         if args.ephPrior == 'loguniform':
             q[pct+2*ind] = np.random.uniform(pmin[pct+2*ind], pmax[pct+2*ind])
@@ -5051,7 +5051,7 @@ elif args.sampler == 'ptmcmc':
         # gamma
         q[pct+2*ind+1] = np.random.uniform(pmin[pct+2*ind+1], pmax[pct+2*ind+1])
         qxy += 0
-        
+
         return q, qxy
 
     def drawFromEphNoiseSpectrumPrior(parameters, iter, beta):
@@ -5069,7 +5069,7 @@ elif args.sampler == 'ptmcmc':
                 pct = 2*npsr
             elif args.redSpecModel == 'spectrum':
                 pct = npsr*nmodes_red
-    
+
         if args.incDM and not args.fixDM:
             if args.dmSpecModel == 'powerlaw':
                 pct += 2*npsr
@@ -5087,7 +5087,7 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*(len(bands)-1)
             elif args.bandSpecModel == 'spectrum':
                 pct += (len(bands)-1)*nmodes_band
-        
+
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -5110,10 +5110,10 @@ elif args.sampler == 'ptmcmc':
             elif args.ephPrior == 'uniform':
                 q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
                 qxy += 0
-        
+
         return q, qxy
-    
-    # gwb draws 
+
+    # gwb draws
     def drawFromGWBPowerlawPrior(parameters, iter, beta):
 
         # post-jump parameters
@@ -5129,7 +5129,7 @@ elif args.sampler == 'ptmcmc':
                 pct = 2*npsr
             elif args.redSpecModel == 'spectrum':
                 pct = npsr*nmodes_red
-    
+
         if args.incDM and not args.fixDM:
             if args.dmSpecModel == 'powerlaw':
                 pct += 2*npsr
@@ -5148,7 +5148,7 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*(len(bands)-1)
             elif args.bandSpecModel == 'spectrum':
                 pct += (len(bands)-1)*nmodes_band
-                    
+
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -5203,7 +5203,7 @@ elif args.sampler == 'ptmcmc':
         if not args.fix_slope:
             q[pct+1] = np.random.uniform(pmin[pct+1], pmax[pct+1])
             qxy += 0
-        
+
         return q, qxy
 
     def drawFromGWBSpectrumPrior(parameters, iter, beta):
@@ -5221,7 +5221,7 @@ elif args.sampler == 'ptmcmc':
                 pct = 2*npsr
             elif args.redSpecModel == 'spectrum':
                 pct = npsr*nmodes_red
-    
+
         if args.incDM and not args.fixDM:
             if args.dmSpecModel == 'powerlaw':
                 pct += 2*npsr
@@ -5239,7 +5239,7 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*(len(bands)-1)
             elif args.bandSpecModel == 'spectrum':
                 pct += (len(bands)-1)*nmodes_band
-                
+
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -5264,7 +5264,7 @@ elif args.sampler == 'ptmcmc':
             '''
             Agwb = q[pct+nmode]
             ecc = q[pct+nmode+1]
-                
+
             hc_pred = np.zeros((len(fqs_red),2))
             for ii,freq in enumerate(fqs_red):
                 hc_pred[ii,0], mse = gp[ii].predict(ecc, eval_MSE=True)
@@ -5289,7 +5289,7 @@ elif args.sampler == 'ptmcmc':
                 q[pct+ii] = mu + np.random.randn() * sig
                 qxy -= (mu - parameters[pct+ii]) ** 2 / 2 / \
                   sig ** 2 - (mu - q[pct+ii]) ** 2 / 2 / sig ** 2
-                
+
         return q, qxy
 
     def drawFromGWBTurnoverPrior(parameters, iter, beta):
@@ -5307,7 +5307,7 @@ elif args.sampler == 'ptmcmc':
                 pct = 2*npsr
             elif args.redSpecModel == 'spectrum':
                 pct = npsr*nmodes_red
-    
+
         if args.incDM and not args.fixDM:
             if args.dmSpecModel == 'powerlaw':
                 pct += 2*npsr
@@ -5325,7 +5325,7 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*(len(bands)-1)
             elif args.bandSpecModel == 'spectrum':
                 pct += (len(bands)-1)*nmodes_band
-                    
+
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -5380,16 +5380,16 @@ elif args.sampler == 'ptmcmc':
             # environmental parameter
             q[pct+1] = np.random.uniform(pmin[pct+1], pmax[pct+1])
             qxy += 0
-    
+
         elif args.gwb_fb2env is None:
             # kappa
             q[pct+1] = np.random.uniform(pmin[pct+1], pmax[pct+1])
             qxy += 0
-    
+
             # fbend
             q[pct+2] = np.random.uniform(pmin[pct+2], pmax[pct+2])
             qxy += 0
-            
+
         return q, qxy
 
     def drawFromGWBGaussProcPrior(parameters, iter, beta):
@@ -5407,7 +5407,7 @@ elif args.sampler == 'ptmcmc':
                 pct = 2*npsr
             elif args.redSpecModel == 'spectrum':
                 pct = npsr*nmodes_red
-    
+
         if args.incDM and not args.fixDM:
             if args.dmSpecModel == 'powerlaw':
                 pct += 2*npsr
@@ -5425,7 +5425,7 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*(len(bands)-1)
             elif args.bandSpecModel == 'spectrum':
                 pct += (len(bands)-1)*nmodes_band
-                    
+
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -5479,7 +5479,7 @@ elif args.sampler == 'ptmcmc':
         # eccentricity
         q[pct+1] = np.random.uniform(pmin[pct+1], pmax[pct+1])
         qxy += 0
-        
+
         return q, qxy
 
     def drawFromGWBSpectrumHyperPrior(parameters, iter, beta):
@@ -5501,7 +5501,7 @@ elif args.sampler == 'ptmcmc':
                 pct = 2*npsr
             elif args.redSpecModel == 'spectrum':
                 pct = npsr*nmodes_red
-    
+
         if args.incDM and not args.fixDM:
             if args.dmSpecModel == 'powerlaw':
                 pct += 2*npsr
@@ -5519,7 +5519,7 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*(len(bands)-1)
             elif args.bandSpecModel == 'spectrum':
                 pct += (len(bands)-1)*nmodes_band
-                    
+
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -5540,7 +5540,7 @@ elif args.sampler == 'ptmcmc':
 
         # adding nmodes of gwb spectrum
         pct += nmodes_red
-           
+
         # hyper priors on spectral parameters: amplitude
         if args.gwbHyperPrior == 'loguniform':
             q[pct] = np.random.uniform(pmin[pct], pmax[pct])
@@ -5577,9 +5577,9 @@ elif args.sampler == 'ptmcmc':
         ind = np.unique(np.random.randint(0, gwb_popparam_ndims, 1))
         q[pct+1+ind] = np.random.uniform(pmin[pct+1+ind], pmax[pct+1+ind])
         qxy += 0
-        
+
         return q, qxy
-    
+
     def drawFromGWBcorrPrior(parameters, iter, beta):
 
         # post-jump parameters
@@ -5595,7 +5595,7 @@ elif args.sampler == 'ptmcmc':
                 pct = 2*npsr
             elif args.redSpecModel == 'spectrum':
                 pct = npsr*nmodes_red
-    
+
         if args.incDM and not args.fixDM:
             if args.dmSpecModel == 'powerlaw':
                 pct += 2*npsr
@@ -5613,7 +5613,7 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*(len(bands)-1)
             elif args.bandSpecModel == 'spectrum':
                 pct += (len(bands)-1)*nmodes_band
-                    
+
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -5677,7 +5677,7 @@ elif args.sampler == 'ptmcmc':
                 pct = 2*npsr
             elif args.redSpecModel == 'spectrum':
                 pct = npsr*nmodes_red
-    
+
         if args.incDM and not args.fixDM:
             if args.dmSpecModel == 'powerlaw':
                 pct += 2*npsr
@@ -5695,7 +5695,7 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*(len(bands)-1)
             elif args.bandSpecModel == 'spectrum':
                 pct += (len(bands)-1)*nmodes_band
-    
+
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -5739,7 +5739,7 @@ elif args.sampler == 'ptmcmc':
 
         return q, qxy
 
-    # gwline draws 
+    # gwline draws
     def drawFromGWlinePrior(parameters, iter, beta):
 
         # post-jump parameters
@@ -5755,7 +5755,7 @@ elif args.sampler == 'ptmcmc':
                 pct = 2*npsr
             elif args.redSpecModel == 'spectrum':
                 pct = npsr*nmodes_red
-    
+
         if args.incDM and not args.fixDM:
             if args.dmSpecModel == 'powerlaw':
                 pct += 2*npsr
@@ -5773,7 +5773,7 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*(len(bands)-1)
             elif args.bandSpecModel == 'spectrum':
                 pct += (len(bands)-1)*nmodes_band
-                    
+
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -5821,10 +5821,10 @@ elif args.sampler == 'ptmcmc':
         for ii in ind:
             q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
             qxy += 0
-        
+
         return q, qxy
 
-    # cgw draws 
+    # cgw draws
     def drawFromCWPrior(parameters, iter, beta):
 
         # post-jump parameters
@@ -5840,7 +5840,7 @@ elif args.sampler == 'ptmcmc':
                 pct = 2*npsr
             elif args.redSpecModel == 'spectrum':
                 pct = npsr*nmodes_red
-    
+
         if args.incDM and not args.fixDM:
             if args.dmSpecModel == 'powerlaw':
                 pct += 2*npsr
@@ -5858,7 +5858,7 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*(len(bands)-1)
             elif args.bandSpecModel == 'spectrum':
                 pct += (len(bands)-1)*nmodes_band
-                    
+
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -5913,10 +5913,10 @@ elif args.sampler == 'ptmcmc':
         for ii in ind:
             q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
             qxy += 0
-        
+
         return q, qxy
 
-    # cgw distance draws 
+    # cgw distance draws
     def drawFromPsrDistPrior(parameters, iter, beta):
 
         # post-jump parameters
@@ -5932,7 +5932,7 @@ elif args.sampler == 'ptmcmc':
                 pct = 2*npsr
             elif args.redSpecModel == 'spectrum':
                 pct = npsr*nmodes_red
-    
+
         if args.incDM and not args.fixDM:
             if args.dmSpecModel == 'powerlaw':
                 pct += 2*npsr
@@ -5950,7 +5950,7 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*(len(bands)-1)
             elif args.bandSpecModel == 'spectrum':
                 pct += (len(bands)-1)*nmodes_band
-                    
+
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -6008,7 +6008,7 @@ elif args.sampler == 'ptmcmc':
             q[pct+ii] = mu + np.random.randn() * sig
             qxy -= (mu - parameters[pct+ii]) ** 2 / 2 / \
                 sig ** 2 - (mu - q[pct+ii]) ** 2 / 2 / sig ** 2
-        
+
         return q, qxy
 
     # cgw psrterm gamma0
@@ -6027,7 +6027,7 @@ elif args.sampler == 'ptmcmc':
                 pct = 2*npsr
             elif args.redSpecModel == 'spectrum':
                 pct = npsr*nmodes_red
-    
+
         if args.incDM and not args.fixDM:
             if args.dmSpecModel == 'powerlaw':
                 pct += 2*npsr
@@ -6045,7 +6045,7 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*(len(bands)-1)
             elif args.bandSpecModel == 'spectrum':
                 pct += (len(bands)-1)*nmodes_band
-                    
+
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -6102,7 +6102,7 @@ elif args.sampler == 'ptmcmc':
         for ii in ind:
             q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
             qxy += 0
-        
+
         return q, qxy
 
 
@@ -6122,7 +6122,7 @@ elif args.sampler == 'ptmcmc':
                 pct = 2*npsr
             elif args.redSpecModel == 'spectrum':
                 pct = npsr*nmodes_red
-    
+
         if args.incDM and not args.fixDM:
             if args.dmSpecModel == 'powerlaw':
                 pct += 2*npsr
@@ -6140,7 +6140,7 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*(len(bands)-1)
             elif args.bandSpecModel == 'spectrum':
                 pct += (len(bands)-1)*nmodes_band
-                    
+
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -6199,7 +6199,7 @@ elif args.sampler == 'ptmcmc':
         for ii in ind:
             q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
             qxy += 0
-        
+
         return q, qxy
 
     # cgw psrterm l0
@@ -6218,7 +6218,7 @@ elif args.sampler == 'ptmcmc':
                 pct = 2*npsr
             elif args.redSpecModel == 'spectrum':
                 pct = npsr*nmodes_red
-    
+
         if args.incDM and not args.fixDM:
             if args.dmSpecModel == 'powerlaw':
                 pct += 2*npsr
@@ -6236,7 +6236,7 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*(len(bands)-1)
             elif args.bandSpecModel == 'spectrum':
                 pct += (len(bands)-1)*nmodes_band
-                    
+
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -6295,13 +6295,13 @@ elif args.sampler == 'ptmcmc':
 
         q[pct] = np.random.uniform(pmin[pct], pmax[pct])
         qxy += 0
-        
-        return q, qxy
-    
 
-    # bwm draws 
+        return q, qxy
+
+
+    # bwm draws
     def drawFromBWMPrior(parameters, iter, beta):
-    
+
         # post-jump parameters
         q = parameters.copy()
 
@@ -6315,7 +6315,7 @@ elif args.sampler == 'ptmcmc':
                 pct = 2*npsr
             elif args.redSpecModel == 'spectrum':
                 pct = npsr*nmodes_red
-    
+
         if args.incDM and not args.fixDM:
             if args.dmSpecModel == 'powerlaw':
                 pct += 2*npsr
@@ -6333,7 +6333,7 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*(len(bands)-1)
             elif args.bandSpecModel == 'spectrum':
                 pct += (len(bands)-1)*nmodes_band
-                    
+
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -6392,10 +6392,10 @@ elif args.sampler == 'ptmcmc':
         for ii in ind:
             q[pct+ii] = np.random.uniform(pmin[pct+ii], pmax[pct+ii])
             qxy += 0
-        
+
         return q, qxy
 
-    # bwm model index draws 
+    # bwm model index draws
     def drawFromBWMModelIndexPrior(parameters, iter, beta):
 
         # post-jump parameters
@@ -6411,7 +6411,7 @@ elif args.sampler == 'ptmcmc':
                 pct = 2*npsr
             elif args.redSpecModel == 'spectrum':
                 pct = npsr*nmodes_red
-    
+
         if args.incDM and not args.fixDM:
             if args.dmSpecModel == 'powerlaw':
                 pct += 2*npsr
@@ -6429,7 +6429,7 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*(len(bands)-1)
             elif args.bandSpecModel == 'spectrum':
                 pct += (len(bands)-1)*nmodes_band
-                    
+
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -6486,10 +6486,10 @@ elif args.sampler == 'ptmcmc':
         # indexing parameter is at end of list
         q[pct] = np.random.uniform(pmin[pct], pmax[pct])
         qxy += 0
-        
+
         return q, qxy
 
-    # ephmeris quadratic fisher draws 
+    # ephmeris quadratic fisher draws
     def drawFromEphemQuadPrior(parameters, iter, beta):
 
         # post-jump parameters
@@ -6505,7 +6505,7 @@ elif args.sampler == 'ptmcmc':
                 pct = 2*npsr
             elif args.redSpecModel == 'spectrum':
                 pct = npsr*nmodes_red
-    
+
         if args.incDM and not args.fixDM:
             if args.dmSpecModel == 'powerlaw':
                 pct += 2*npsr
@@ -6523,7 +6523,7 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*(len(bands)-1)
             elif args.bandSpecModel == 'spectrum':
                 pct += (len(bands)-1)*nmodes_band
-                    
+
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -6588,7 +6588,7 @@ elif args.sampler == 'ptmcmc':
 
         return q, qxy
 
-    # ephmeris quadratic fisher draws 
+    # ephmeris quadratic fisher draws
     def drawFromEphemQuadFisherPrior(parameters, iter, beta):
 
         # post-jump parameters
@@ -6604,7 +6604,7 @@ elif args.sampler == 'ptmcmc':
                 pct = 2*npsr
             elif args.redSpecModel == 'spectrum':
                 pct = npsr*nmodes_red
-    
+
         if args.incDM and not args.fixDM:
             if args.dmSpecModel == 'powerlaw':
                 pct += 2*npsr
@@ -6622,7 +6622,7 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*(len(bands)-1)
             elif args.bandSpecModel == 'spectrum':
                 pct += (len(bands)-1)*nmodes_band
-                    
+
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -6691,7 +6691,7 @@ elif args.sampler == 'ptmcmc':
 
         return q, qxy
 
-    # planet mass perturbation draws 
+    # planet mass perturbation draws
     def drawFromEphPlanetDeltaPrior(parameters, iter, beta):
 
         # post-jump parameters
@@ -6707,7 +6707,7 @@ elif args.sampler == 'ptmcmc':
                 pct = 2*npsr
             elif args.redSpecModel == 'spectrum':
                 pct = npsr*nmodes_red
-    
+
         if args.incDM and not args.fixDM:
             if args.dmSpecModel == 'powerlaw':
                 pct += 2*npsr
@@ -6725,7 +6725,7 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*(len(bands)-1)
             elif args.bandSpecModel == 'spectrum':
                 pct += (len(bands)-1)*nmodes_band
-                    
+
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -6797,15 +6797,15 @@ elif args.sampler == 'ptmcmc':
               sig[ind] ** 2 - (mu - q[pct+ind]) ** 2 / 2 / sig[ind] ** 2
         elif args.eph_planetmassprior == 'loguniform':
             q[pct+ind] = np.random.uniform(pmin[pct+ind], pmax[pct+ind])
-                
+
         if args.eph_planetmassprior != 'official':
             q[pct+ind+num_planets] = np.random.uniform(pmin[pct+ind+num_planets],
                                                        pmax[pct+ind+num_planets])
         qxy += 0
-        
+
         return q, qxy
 
-    # planet orbit perturbation draws 
+    # planet orbit perturbation draws
     def drawFromEphPlanetOrbitPrior(parameters, iter, beta):
 
         # post-jump parameters
@@ -6821,7 +6821,7 @@ elif args.sampler == 'ptmcmc':
                 pct = 2*npsr
             elif args.redSpecModel == 'spectrum':
                 pct = npsr*nmodes_red
-    
+
         if args.incDM and not args.fixDM:
             if args.dmSpecModel == 'powerlaw':
                 pct += 2*npsr
@@ -6839,7 +6839,7 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*(len(bands)-1)
             elif args.bandSpecModel == 'spectrum':
                 pct += (len(bands)-1)*nmodes_band
-                    
+
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -6910,12 +6910,12 @@ elif args.sampler == 'ptmcmc':
         q[pct+(num_ephs-1)*ind:pct+(num_ephs-1)*(ind+1)] = \
           np.random.uniform(pmin[pct+(num_ephs-1)*ind],
                             pmax[pct+(num_ephs-1)*ind],(num_ephs-1))
-            
+
         qxy += 0
-        
+
         return q, qxy
 
-    # planet orbital offset draws 
+    # planet orbital offset draws
     def drawFromEphPlanetOffsetPrior(parameters, iter, beta):
 
         # post-jump parameters
@@ -6931,7 +6931,7 @@ elif args.sampler == 'ptmcmc':
                 pct = 2*npsr
             elif args.redSpecModel == 'spectrum':
                 pct = npsr*nmodes_red
-    
+
         if args.incDM and not args.fixDM:
             if args.dmSpecModel == 'powerlaw':
                 pct += 2*npsr
@@ -6949,7 +6949,7 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*(len(bands)-1)
             elif args.bandSpecModel == 'spectrum':
                 pct += (len(bands)-1)*nmodes_band
-                    
+
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -7022,12 +7022,12 @@ elif args.sampler == 'ptmcmc':
         q[pct+3*ind:pct+3*(ind+1)] = \
           np.random.uniform(pmin[pct+3*ind],
                             pmax[pct+3*ind],3)
-            
+
         qxy += 0
-        
+
         return q, qxy
 
-    # planet orbital offset draws 
+    # planet orbital offset draws
     def drawFromEphRoemerMixPrior(parameters, iter, beta):
 
         # post-jump parameters
@@ -7043,7 +7043,7 @@ elif args.sampler == 'ptmcmc':
                 pct = 2*npsr
             elif args.redSpecModel == 'spectrum':
                 pct = npsr*nmodes_red
-    
+
         if args.incDM and not args.fixDM:
             if args.dmSpecModel == 'powerlaw':
                 pct += 2*npsr
@@ -7061,7 +7061,7 @@ elif args.sampler == 'ptmcmc':
                 pct += 2*(len(bands)-1)
             elif args.bandSpecModel == 'spectrum':
                 pct += (len(bands)-1)*nmodes_band
-                    
+
         if args.incClk:
             if args.clkSpecModel == 'powerlaw':
                 pct += 2
@@ -7133,10 +7133,10 @@ elif args.sampler == 'ptmcmc':
         destination = np.append(q[pct:pct+num_ephs-1].copy(),
                                 1.0-np.sum(q[pct:pct+num_ephs-1].copy()))
         qxy -= np.log(tmp.pdf(destination)) - np.log(tmp.pdf(current))
-            
+
         return q, qxy
 
-  
+
     # add jump proposals
     if not args.fixRed:
         if args.redSpecModel == 'powerlaw':
@@ -7212,7 +7212,7 @@ elif args.sampler == 'ptmcmc':
             sampler.addProposalToCycle(drawFromEphPlanetOffsetPrior, 10)
     elif args.det_signal and args.eph_roemermix:
         sampler.addProposalToCycle(drawFromEphRoemerMixPrior, 10)
-    
+
 
     sampler.sample(p0=x0, Niter=int(args.niter), thin=10,
                 covUpdate=1000, AMweight=20,
