@@ -1930,10 +1930,10 @@ def lnprob(xx):
 
                 for ii, p in enumerate(psr):
 
-                    # first, add back in fitted ephemeris roemer delay
+                    # first, subtract out fitted ephemeris roemer delay
                     detres[ii] -= p.roemer[p.ephemname]
 
-                    # now, subtract weighted roemer sum over ephemerides
+                    # now, add in weighted roemer sum over ephemerides
                     for kk,key in enumerate(ephnames):
                         detres[ii] += roemer_wgts[kk] * p.roemer[key]
 
