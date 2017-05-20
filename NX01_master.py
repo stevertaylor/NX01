@@ -232,9 +232,9 @@ parser.add_option('--gwbStarsRange', dest='gwbStarsRange', action='store', type=
 parser.add_option('--gwbEccRange', dest='gwbEccRange', action='store', type=str, default='0.0,0.9',
                   help='Provide a lower and upper e0 range as a comma delimited string (default = None)')
 parser.add_option('--gwbPrior', dest='gwbPrior', action='store', type=str, default='uniform',
-                   help='Do you want to use a uniform prior on log_10(amplitude) for detection [loguniform], on amplitudes themselves for limits [uniform], an astrophysical prior (only when the amplitude is Agwb: for powerlaw, turnover, gpEnvInterp models) [sesana, mcwilliams, mccma, korho], or a gaussian process prior [gaussProc] (default=\'uniform\')?')
+                   help='Do you want to use a uniform prior on log_10(amplitude) for detection [loguniform], on amplitudes themselves for limits [uniform], an astrophysical prior (only when the amplitude is Agwb: for powerlaw, turnover, gpEnvInterp models) [s13, s16_shankar, s16_korho, mop14, sbs16_mcma, sbs16_korho], or a gaussian process prior [gaussProc] (default=\'uniform\')?')
 parser.add_option('--gwbHyperPrior', dest='gwbHyperPrior', action='store', type=str, default='uniform',
-                   help='When gwbPrior=gaussProc, do you want to use a uniform prior on log_10(Agwb) for detection [loguniform], on Agwb itself for limits [uniform], or an astrophysical prior [sesana, mcwilliams, mccma, korho] (default=\'uniform\')?')
+                   help='When gwbPrior=gaussProc, do you want to use a uniform prior on log_10(Agwb) for detection [loguniform], on Agwb itself for limits [uniform], or an astrophysical prior [s13, s16_shankar, s16_korho, mop14, sbs16_mcma, sbs16_korho] (default=\'uniform\')?')
 parser.add_option('--redPrior', dest='redPrior', action='store', type=str, default='uniform',
                    help='Do you want to use a uniform prior on log_10(Ared) for detection [loguniform], on Ared itself for limits [uniform] (default=\'uniform\')?')
 parser.add_option('--dmPrior', dest='dmPrior', action='store', type=str, default='uniform',
@@ -1577,7 +1577,7 @@ def lnprob(xx):
                 param_ct += 3*num_planets
         elif args.eph_roemermix:
             roemer_wgts = xx[param_ct:param_ct+(num_ephs-1)].copy()
-            param_ct += num_ephs
+            param_ct += num_ephs-1
             #roemer_wgts /= np.sum(roemer_wgts)
             if np.sum(roemer_wgts) > 1.0:
                 return -np.inf
@@ -3122,22 +3122,32 @@ def lnprob(xx):
                 priorfac_gwb = np.log(Agwb * np.log(10.0))
             elif args.gwbPrior == 'loguniform':
                 priorfac_gwb = 0.0
-            elif args.gwbPrior == 'sesana':
+            elif args.gwbPrior == 's13':
                 mu = -15.0
                 sig = 0.22
                 priorfac_gwb = np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
                                     / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
-            elif args.gwbPrior == 'mcwilliams':
+            elif args.gwbPrior == 's16_shankar':
+                mu = -15.37
+                sig = 0.26
+                priorfac_gwb = np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
+                                    / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
+            elif args.gwbPrior == 's16_korho':
+                mu = -14.9
+                sig = 0.22
+                priorfac_gwb = np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
+                                    / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
+            elif args.gwbPrior == 'mop14':
                 mu = -14.4
                 sig = 0.26
                 priorfac_gwb = np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
                                     / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
-            elif args.gwbPrior == 'mccma':
+            elif args.gwbPrior == 'sbs16_mccma':
                 mu = -14.95
                 sig = 0.12
                 priorfac_gwb = np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
                                     / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
-            elif args.gwbPrior == 'korho':
+            elif args.gwbPrior == 'sbs16_korho':
                 mu = -14.82
                 sig = 0.08
                 priorfac_gwb = np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
@@ -3169,22 +3179,32 @@ def lnprob(xx):
                     priorfac_gwb += np.log(Agwb * np.log(10.0))
                 elif args.gwbHyperPrior == 'loguniform':
                     priorfac_gwb += 0.0
-                elif args.gwbHyperPrior == 'sesana':
+                elif args.gwbHyperPrior == 's13':
                     mu = -15.0
                     sig = 0.22
                     priorfac_gwb += np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
                                         / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
-                elif args.gwbHyperPrior == 'mcwilliams':
+                elif args.gwbHyperPrior == 's16_shankar':
+                    mu = -15.37
+                    sig = 0.26
+                    priorfac_gwb = np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
+                                        / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
+                elif args.gwbHyperPrior == 's16_korho':
+                    mu = -14.9
+                    sig = 0.22
+                    priorfac_gwb = np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
+                                        / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
+                elif args.gwbHyperPrior == 'mop14':
                     mu = -14.4
                     sig = 0.26
                     priorfac_gwb += np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
                                         / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
-                elif args.gwbHyperPrior == 'mccma':
+                elif args.gwbHyperPrior == 'sbs16_mccma':
                     mu = -14.95
                     sig = 0.12
                     priorfac_gwb += np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
                                         / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
-                elif args.gwbHyperPrior == 'korho':
+                elif args.gwbHyperPrior == 'sbs16_korho':
                     mu = -14.82
                     sig = 0.08
                     priorfac_gwb += np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
@@ -3197,22 +3217,32 @@ def lnprob(xx):
                 priorfac_gwb = np.log(Agwb * np.log(10.0))
             elif args.gwbPrior == 'loguniform':
                 priorfac_gwb = 0.0
-            elif args.gwbPrior == 'sesana':
+            elif args.gwbPrior == 's13':
                 mu = -15.0
                 sig = 0.22
                 priorfac_gwb = np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
                                     / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
-            elif args.gwbPrior == 'mcwilliams':
+            elif args.gwbPrior == 's16_shankar':
+                mu = -15.37
+                sig = 0.26
+                priorfac_gwb = np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
+                                    / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
+            elif args.gwbPrior == 's16_korho':
+                mu = -14.9
+                sig = 0.22
+                priorfac_gwb = np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
+                                    / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
+            elif args.gwbPrior == 'mop14':
                 mu = -14.4
                 sig = 0.26
                 priorfac_gwb = np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
                                     / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
-            elif args.gwbHyperPrior == 'mccma':
+            elif args.gwbHyperPrior == 'sbs16_mccma':
                 mu = -14.95
                 sig = 0.12
                 priorfac_gwb += np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
                                     / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
-            elif args.gwbHyperPrior == 'korho':
+            elif args.gwbHyperPrior == 'sbs16_korho':
                 mu = -14.82
                 sig = 0.08
                 priorfac_gwb += np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
@@ -5174,25 +5204,37 @@ elif args.sampler == 'ptmcmc':
         elif args.gwbPrior == 'uniform':
             q[pct] = np.random.uniform(pmin[pct], pmax[pct])
             qxy += 0
-        elif args.gwbPrior == 'sesana':
+        elif args.gwbPrior == 's13':
             mu = -15
             sig = 0.22
             q[pct] = mu + np.random.randn() * sig
             qxy -= (mu - parameters[pct]) ** 2 / 2 / \
               sig ** 2 - (mu - q[pct]) ** 2 / 2 / s ** 2
-        elif args.gwbPrior == 'mcwilliams':
+        elif args.gwbPrior == 's16_shankar':
+            mu = -15.37
+            sig = 0.26
+            q[pct] = mu + np.random.randn() * sig
+            qxy -= (mu - parameters[pct]) ** 2 / 2 / \
+              sig ** 2 - (mu - q[pct]) ** 2 / 2 / s ** 2
+        elif args.gwbPrior == 's16_korho':
+            mu = -14.9
+            sig = 0.22
+            q[pct] = mu + np.random.randn() * sig
+            qxy -= (mu - parameters[pct]) ** 2 / 2 / \
+              sig ** 2 - (mu - q[pct]) ** 2 / 2 / s ** 2
+        elif args.gwbPrior == 'mop14':
             mu = -14.4
             sig = 0.26
             q[pct] = mu + np.random.randn() * sig
             qxy -= (mu - parameters[pct]) ** 2 / 2 / \
               sig ** 2 - (mu - q[pct]) ** 2 / 2 / s ** 2
-        elif args.gwbPrior == 'mccma':
+        elif args.gwbPrior == 'sbs16_mccma':
             mu = -14.95
             sig = 0.12
             q[pct] = mu + np.random.randn() * sig
             qxy -= (mu - parameters[pct]) ** 2 / 2 / \
               sig ** 2 - (mu - q[pct]) ** 2 / 2 / s ** 2
-        elif args.gwbPrior == 'korho':
+        elif args.gwbPrior == 'sbs16_korho':
             mu = -14.82
             sig = 0.08
             q[pct] = mu + np.random.randn() * sig
@@ -5351,25 +5393,37 @@ elif args.sampler == 'ptmcmc':
         elif args.gwbPrior == 'uniform':
             q[pct] = np.random.uniform(pmin[pct], pmax[pct])
             qxy += 0
-        elif args.gwbPrior == 'sesana':
+        elif args.gwbPrior == 's13':
             mu = -15
             sig = 0.22
             q[pct] = mu + np.random.randn() * sig
             qxy -= (mu - parameters[pct]) ** 2 / 2 / \
               sig ** 2 - (mu - q[pct]) ** 2 / 2 / sig ** 2
-        elif args.gwbPrior == 'mcwilliams':
+        elif args.gwbPrior == 's16_shankar':
+            mu = -15.37
+            sig = 0.26
+            q[pct] = mu + np.random.randn() * sig
+            qxy -= (mu - parameters[pct]) ** 2 / 2 / \
+              sig ** 2 - (mu - q[pct]) ** 2 / 2 / sig ** 2
+        elif args.gwbPrior == 's16_korho':
+            mu = -14.9
+            sig = 0.22
+            q[pct] = mu + np.random.randn() * sig
+            qxy -= (mu - parameters[pct]) ** 2 / 2 / \
+              sig ** 2 - (mu - q[pct]) ** 2 / 2 / sig ** 2
+        elif args.gwbPrior == 'mop14':
             mu = -14.4
             sig = 0.26
             q[pct] = mu + np.random.randn() * sig
             qxy -= (mu - parameters[pct]) ** 2 / 2 / \
               sig ** 2 - (mu - q[pct]) ** 2 / 2 / sig ** 2
-        elif args.gwbPrior == 'mccma':
+        elif args.gwbPrior == 'sbs16_mccma':
             mu = -14.95
             sig = 0.12
             q[pct] = mu + np.random.randn() * sig
             qxy -= (mu - parameters[pct]) ** 2 / 2 / \
               sig ** 2 - (mu - q[pct]) ** 2 / 2 / sig ** 2
-        elif args.gwbPrior == 'korho':
+        elif args.gwbPrior == 'sbs16_korho':
             mu = -14.82
             sig = 0.08
             q[pct] = mu + np.random.randn() * sig
