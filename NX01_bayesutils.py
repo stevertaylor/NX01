@@ -37,12 +37,10 @@ Plotting codes from Justin Ellis' PAL2 package, with additions by Steve Taylor
 
 """
 
-
 """
 Given a 2D matrix of (marginalised) likelihood levels, this function returns
 the 1, 2, 3- sigma levels. The 2D matrix is usually either a 2D histogram or a
 likelihood scan
-
 """
 def getsigmalevels(hist2d, sig_levels=[0.68, 0.95, 0.997]):
   # We will draw contours with these levels
@@ -83,70 +81,56 @@ def getsigmalevels(hist2d, sig_levels=[0.68, 0.95, 0.997]):
   return level1, level2, level3
 
 
-def confinterval(samples, sigma=0.68, onesided=False, weights=None, bins=40,
-                type='equalArea', kde=False):
+def confinterval(samples, sigma=0.68, onesided=False, weights=None,
+                 bins=40, type='equalArea'):
     """
-
     Given a list of samples, return the desired cofidence intervals.
     Returns the minimum and maximum confidence levels
-
     @param samples: Samples that we wish to get confidence intervals
-
-    @param sigmalevel: Sigma level 1, 2, or 3 sigma, will return 
+    @param sigmalevel: Sigma level 1, 2, or 3 sigma, will return
                        corresponding confidence limits
-
     @param onesided: Boolean to use onesided or twosided confidence
                      limits.
-
+    @param weights: Histogram Weights.
+    @param bins: Number of histogram bins
+    @param type: equalArea: Integrates from sides of posterior
+                 minArea: Brute force search for confidence interval with smallest
+                          paramter range
+                 equalProb: Integrates from MAP downwards
     """
-
-    ## Create the histogram
-    #hist, xedges = np.histogram(samples, bins=bins, weights=weights)
-    #xedges = np.delete(xedges, -1) + 0.5*(xedges[1] - xedges[0])
-
-    ## CDF
-    #cdf = np.cumsum(hist/hist.sum())
-
-    ## interpolate
-    #x = np.linspace(xedges.min(), xedges.max(), 10000)
-    #ifunc = interp.interp1d(xedges, cdf, kind='cubic')
-    #y = ifunc(x)
 
     ecdf = ECDF(samples)
 
     # Create the binning
     x = np.linspace(min(samples), max(samples), 1000)
-
-    if kde:
-        kd = gaussian_kde(samples)
-        y = np.cumsum(kd.pdf(x) / np.sum(kd.pdf(x)))
-    else:
-        ecdf = ECDF(samples)
-        y = ecdf(x)
+    ecdf = ECDF(samples)
+    y = ecdf(x)
 
     # Find the intervals
     if type == 'equalArea' or onesided:
-        x2min = y[0]
         if onesided:
-            bound = 1 - sigma
+            x2max = x[np.flatnonzero(y<=sigma)[-1]]
+            x2min = x2max
         else:
-            bound = 0.5*(1-sigma)
+            x2min = x[np.flatnonzero(y<=0.5*(1-sigma))[-1]]
+            x2max = x[np.flatnonzero(y>=1-0.5*(1-sigma))[0]]
 
-        for i in range(len(y)):
-            if y[i] >= bound:
-                x2min = x[i]
-                break
+    if type == 'minArea':
+        delta, xmin, xmax = np.zeros(len(y)), np.zeros(len(y)), np.zeros(len(y))
+        start = 0
+        for ii in range(len(y)):
+            ind = np.flatnonzero((y-y[ii])>=sigma)
+            if len(ind) == 0:
+                delta[ii] = np.inf
+            else:
+                delta[ii] = x[ind[0]] - x[ii]
+                xmin[ii] = x[ii]
+                xmax[ii] = x[ind[0]]
 
-        x2max = y[-1]
-        if onesided:
-            bound = sigma
-        else:
-            bound = 1 - 0.5 * (1 - sigma)
+        minind = np.argmin(delta)
+        x2min = xmin[minind]
+        x2max = xmax[minind]
 
-        for i in reversed(range(len(y))):
-            if y[i] <= bound:
-                x2max = x[i]
-                break
 
     if type == 'equalProb' and not(onesided):
         hist, xedges = np.histogram(samples, bins=bins, weights=weights)
@@ -162,12 +146,11 @@ def confinterval(samples, sigma=0.68, onesided=False, weights=None, bins=40,
 
     return x2min, x2max
 
-
 def makesubplot2d(ax, samples1, samples2, cmap=None, color='k', weights=None,
                   smooth=True, bins=[40, 40], contours=True, x_range=None,
                   y_range=None, logx=False, logy=False, logz=False, lw=1.5,
                   conf_levels=[0.68, 0.95, 0.99]):
-    
+
     if x_range is None:
         xmin = np.min(samples1)
         xmax = np.max(samples1)
@@ -184,7 +167,7 @@ def makesubplot2d(ax, samples1, samples2, cmap=None, color='k', weights=None,
 
     if logx:
         bins[0] = np.logspace(np.log10(xmin), np.log10(xmax), bins[0])
-    
+
     if logy:
         bins[1] = np.logspace(np.log10(ymin), np.log10(ymax), bins[1])
 
@@ -198,24 +181,24 @@ def makesubplot2d(ax, samples1, samples2, cmap=None, color='k', weights=None,
                 if hist2d[ii,jj] <= 0:
                     hist2d[ii,jj] = 1
 
-    
+
     xedges = np.delete(xedges, -1) + 0.5*(xedges[1] - xedges[0])
     yedges = np.delete(yedges, -1) + 0.5*(yedges[1] - yedges[0])
-    
+
     # gaussian smoothing
     if smooth:
         hist2d = filter.gaussian_filter(hist2d, sigma=0.75)
 
     if contours:
-        
+
         level1, level2, level3 = getsigmalevels(hist2d, conf_levels)
-        
+
         contourlevels = (level1, level2, level3)
-        
+
         contourcolors = (color, color, color)
         contourlinestyles = ('-', '--', '-.')
         contourlinewidths = (lw, lw, lw)
-        
+
 
         c1 = ax.contour(xedges,yedges,hist2d.T,contourlevels[:2], \
                         colors=contourcolors[:2], linestyles=contourlinestyles[:2], \
@@ -232,7 +215,7 @@ def makesubplot2d(ax, samples1, samples2, cmap=None, color='k', weights=None,
         ax.set_xscale('log')
     if logy:
         ax.set_yscale('log')
-        
+
 
 def getMeanAndStd(samples, weights=None, bins=50):
     """
@@ -241,7 +224,7 @@ def getMeanAndStd(samples, weights=None, bins=50):
 
     hist, xedges = np.histogram(samples, bins, normed=True, weights=weights)
     xedges = np.delete(xedges, -1) + 0.5*(xedges[1] - xedges[0])
-    
+
     # pdf
     p = hist/np.sum(hist)
 
@@ -254,11 +237,11 @@ def getMeanAndStd(samples, weights=None, bins=50):
 
     return m, std
 
-        
+
 def makesubplot1d(ax, samples, weights=None, interpolate=False, smooth=True,\
-                  label=None, bins=30, range=None, color='k', 
+                  label=None, bins=30, range=None, color='k',
                   orientation='vertical', logbin=False, **kwargs):
-    """ 
+    """
     Make histogram of samples
 
     """
@@ -276,8 +259,8 @@ def makesubplot1d(ax, samples, weights=None, interpolate=False, smooth=True,\
         if interpolate:
             f = interp.interp1d(xedges, hist, kind='cubic')
             if logbin:
-                xedges = np.logspace(np.log10(xedges.min()), 
-                                     np.log10(xedges.max()), 
+                xedges = np.logspace(np.log10(xedges.min()),
+                                     np.log10(xedges.max()),
                                      10000)
             else:
                 xedges = np.linspace(xedges.min(), xedges.max(), 10000)
@@ -296,7 +279,7 @@ def makesubplot1d(ax, samples, weights=None, interpolate=False, smooth=True,\
             ax.plot(xedges, hist, color=color, **kwargs)
 
 def getMax(samples, weights=None, range=None, bins=50):
-    """ 
+    """
     Make histogram of samples
 
     """
@@ -318,7 +301,7 @@ def getMax(samples, weights=None, range=None, bins=50):
     hist = f(xedges)
 
     return xedges[np.argmax(hist)]
-        
+
 
 # make triangle plot of marginalized posterior distribution
 def triplot(chain, color='k', weights=None, interpolate=False, smooth=True, \
@@ -347,7 +330,7 @@ def triplot(chain, color='k', weights=None, interpolate=False, smooth=True, \
     # get number of parameters
     ndim = chain.shape[1]
     parameters = np.linspace(0,ndim-1,ndim)
-    
+
     if axarr is not None:
         f = plt.gcf()
         #fig, axarr = plt.subplots(nrows=len(parameters), ncols=len(parameters),figsize=figsize)
@@ -362,10 +345,10 @@ def triplot(chain, color='k', weights=None, interpolate=False, smooth=True, \
 
             # get ranges
             if ranges:
-                xmin, xmax = confinterval(chain[:, parameters[ii]], sigma=0.95, 
+                xmin, xmax = confinterval(chain[:, parameters[ii]], sigma=0.95,
                                           type='equalProb')
                 x_range = [xmin, xmax]
-                xmin, xmax = confinterval(chain[:, parameters[jj]], sigma=0.95, 
+                xmin, xmax = confinterval(chain[:, parameters[jj]], sigma=0.95,
                                           type='equalProb')
                 y_range = [xmin, xmax]
 
@@ -407,7 +390,7 @@ def triplot(chain, color='k', weights=None, interpolate=False, smooth=True, \
                 else:
                     # Make a 2D plot
                     makesubplot2d(axarr[jj][ii], chain[:,parameters[ii]],
-                                  chain[:,parameters[jj]], cmap=cmap, 
+                                  chain[:,parameters[jj]], cmap=cmap,
                                   color=color, weights=weights,
                                   smooth=smooth, lw=lw, x_range=x_range,
                                   y_range=y_range)
@@ -439,24 +422,24 @@ def triplot(chain, color='k', weights=None, interpolate=False, smooth=True, \
     # overall plot title
     if title:
         f.suptitle(title, fontsize=14, y=0.90)
-     
-    # make plots closer together 
+
+    # make plots closer together
     f.subplots_adjust(hspace=0.1)
     f.subplots_adjust(wspace=0.1)
 
     return axarr
 
 
-def pol2cart(lon, lat): 
-    """ 
-    Utility function to convert longitude,latitude on a unit sphere to 
+def pol2cart(lon, lat):
+    """
+    Utility function to convert longitude,latitude on a unit sphere to
     cartesian co-ordinates.
 
-    """ 
+    """
 
-    x = np.cos(lat)*np.cos(lon) 
-    y = np.cos(lat)*np.sin(lon) 
-    z = np.sin(lat) 
+    x = np.cos(lat)*np.cos(lon)
+    y = np.cos(lat)*np.sin(lon)
+    z = np.sin(lat)
 
     return np.array([x,y,z])
 
@@ -468,15 +451,15 @@ def greedy_bin_sky(skypos, skycarts):
 
     """
 
-    N = len(skycarts) 
+    N = len(skycarts)
     skycarts = np.array(skycarts)
     bins = np.zeros(N)
-    for raSample, decSample in skypos: 
-        sampcart = pol2cart(raSample, decSample) 
+    for raSample, decSample in skypos:
+        sampcart = pol2cart(raSample, decSample)
         dx = np.dot(skycarts, sampcart)
         maxdx = np.argmax(dx)
         bins[maxdx] += 1
-        
+
     # fill in skymap
     histIndices = np.argsort(bins)[::-1]    # in decreasing order
     NSamples = len(skypos)
@@ -484,7 +467,7 @@ def greedy_bin_sky(skypos, skycarts):
     frac = 0.0
     skymap = np.zeros(N)
     for i in histIndices:
-        frac = float(bins[i])/float(NSamples) 
+        frac = float(bins[i])/float(NSamples)
         skymap[i] = frac
 
     return skymap
@@ -662,12 +645,12 @@ def makespectrumplot(ax, chain, parstart=1, numfreqs=10, freqs=None, \
         fmin, fmax = confinterval(chain[:, parstart+ii], sigma=0.68)
         yval[ii] = (fmax + fmin) * 0.5
         yerr[ii] = (fmax - fmin) * 0.5
-    
+
     retvals = []
     if values:
         retvals.append(yval)
         retvals.append(yerr)
-    
+
 
     # For plotting reference spectra
     pfreqs = 10 ** ufreqs
@@ -759,7 +742,7 @@ def makePostPlots(chain, labels, outDir='./postplots'):
         plt.xlabel(labels[ii])
         ax.xaxis.set_major_locator(xmajorLocator)
         ax.yaxis.set_major_locator(ymajorLocator)
-        
+
         plt.savefig(outDir + '/' + labels[ii] + '_post.png', bbox_inches='tight', \
                    dpi=200)
 
@@ -789,7 +772,7 @@ def makePostPlots_show(chain, ndim, labels):
         ax = fig.add_subplot(122)
         ax.hist(chain[:,ii], 50, lw=2, color='b', normed=True)
         plt.xlabel(labels[ii])
-    
+
         ax.xaxis.set_major_locator(xmajorLocator)
         ax.yaxis.set_major_locator(ymajorLocator)
 
@@ -798,11 +781,11 @@ def makeCDF(sample, linestyle=None, linewidth=None, labels=None,
             legendbox=False, title=None, tex=True):
     if tex == True:
         plt.rcParams['text.usetex'] = True
-    
+
     fig, ax = plt.subplots()
 
     ecdf = sm.distributions.ECDF(sample)
-  
+
     x = np.linspace(min(sample), max(sample))
     y = ecdf(x)
     plt.step(x, y, linestyle, lw=linewidth)
@@ -828,7 +811,7 @@ def makeCDF(sample, linestyle=None, linewidth=None, labels=None,
     plt.vlines(x=up95, ymin=0.0, ymax=0.95, linewidth=3.0, linestyle='dashed', color='red')
 
     plt.legend(loc='lower right', shadow=True, frameon=True, prop={'size':15})
-    
+
     ax.xaxis.set_minor_locator(AutoMinorLocator(5))
     ax.yaxis.set_minor_locator(AutoMinorLocator(5))
     if labels:
@@ -856,7 +839,7 @@ def make_all_CDF(sample0, sample1, sample2, sample3, linestyle=None, linewidth=N
    x1 = np.linspace(min(sample1), max(sample1))
    y1 = ecdf1(x1)
 
-   x2 = np.linspace(min(sample2), max(sample2))    
+   x2 = np.linspace(min(sample2), max(sample2))
    y2 = ecdf2(x2)
 
    x3 = np.linspace(min(sample3), max(sample3))
@@ -910,7 +893,7 @@ def makeSkyMap(samples, lmax, nside=32, cmap=None, strain=None, tex=True,
     skypos=[]
     for ii in range(npix):
         skypos.append(np.array(hp.pix2ang(nside,ii)))
-    
+
     skypos = np.array(skypos)
 
     harmvals = utils.SetupSkymapPlottingGrid(lmax,skypos)
@@ -925,7 +908,7 @@ def makeSkyMap(samples, lmax, nside=32, cmap=None, strain=None, tex=True,
     else:
         #### !!!!!
         samples = np.append(2.*np.sqrt(np.pi), samples)
-            
+
     pwr = utils.GWpower(samples, harmvals)
     print pwr, samples
 
@@ -1065,7 +1048,7 @@ def OScrossPower(angSep, crossCorr, crossCorrErr, tex=True):
     for ii in range(rows):
         for jj in range(ii+1,cols):
            seps.append(np.arccos(angSep[ii,jj]))
-            
+
     #ax.plot(seps, crossCorr, 'k', color='#1B2ACC')
     #ax.fill_between(seps, crossCorr-crossCorrErr, crossCorr-crossCorrErr,
            #alpha=0.2, edgecolor='#1B2ACC', facecolor='#089FFF', linewidth=4,
@@ -1087,7 +1070,7 @@ def OScrossPower(angSep, crossCorr, crossCorrErr, tex=True):
 
 def postdensity_getclr(dat, nedges, cfvalue):
     # get the bound
-    
+
     counts, edges = np.histogram(dat, nedges)
     counts = np.float64(np.array(counts))/len(dat)
 
@@ -1128,12 +1111,3 @@ def postdensity_getupper(dat, nedges, cfvalue):
             break
 
     return x2max
-
-
-
-
-
-
-
-
-
