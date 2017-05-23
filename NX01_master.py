@@ -3187,12 +3187,12 @@ def lnprob(xx):
                 elif args.gwbHyperPrior == 's16_shankar':
                     mu = -15.37
                     sig = 0.26
-                    priorfac_gwb = np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
+                    priorfac_gwb += np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
                                         / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
                 elif args.gwbHyperPrior == 's16_korho':
                     mu = -14.9
                     sig = 0.22
-                    priorfac_gwb = np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
+                    priorfac_gwb += np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
                                         / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
                 elif args.gwbHyperPrior == 'mop14':
                     mu = -14.4
@@ -3237,15 +3237,15 @@ def lnprob(xx):
                 sig = 0.26
                 priorfac_gwb = np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
                                     / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
-            elif args.gwbHyperPrior == 'sbs16_mccma':
+            elif args.gwbPrior == 'sbs16_mccma':
                 mu = -14.95
                 sig = 0.12
-                priorfac_gwb += np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
+                priorfac_gwb = np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
                                     / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
-            elif args.gwbHyperPrior == 'sbs16_korho':
+            elif args.gwbPrior == 'sbs16_korho':
                 mu = -14.82
                 sig = 0.08
-                priorfac_gwb += np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
+                priorfac_gwb = np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
                                     / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
 
 
@@ -5505,25 +5505,37 @@ elif args.sampler == 'ptmcmc':
         elif args.gwbPrior == 'uniform':
             q[pct] = np.random.uniform(pmin[pct], pmax[pct])
             qxy += 0
-        elif args.gwbPrior == 'sesana':
+        elif args.gwbPrior == 's13':
             mu = -15
             sig = 0.22
             q[pct] = mu + np.random.randn() * sig
             qxy -= (mu - parameters[pct]) ** 2 / 2 / \
               sig ** 2 - (mu - q[pct]) ** 2 / 2 / sig ** 2
-        elif args.gwbPrior == 'mcwilliams':
+        elif args.gwbPrior == 's16_shankar':
+            mu = -15.37
+            sig = 0.26
+            q[pct] = mu + np.random.randn() * sig
+            qxy -= (mu - parameters[pct]) ** 2 / 2 / \
+              sig ** 2 - (mu - q[pct]) ** 2 / 2 / s ** 2
+        elif args.gwbPrior == 's16_korho':
+            mu = -14.9
+            sig = 0.22
+            q[pct] = mu + np.random.randn() * sig
+            qxy -= (mu - parameters[pct]) ** 2 / 2 / \
+              sig ** 2 - (mu - q[pct]) ** 2 / 2 / s ** 2
+        elif args.gwbPrior == 'mop14':
             mu = -14.4
             sig = 0.26
             q[pct] = mu + np.random.randn() * sig
             qxy -= (mu - parameters[pct]) ** 2 / 2 / \
               sig ** 2 - (mu - q[pct]) ** 2 / 2 / sig ** 2
-        elif args.gwbPrior == 'mccma':
+        elif args.gwbPrior == 'sbs16_mccma':
             mu = -14.95
             sig = 0.12
             q[pct] = mu + np.random.randn() * sig
             qxy -= (mu - parameters[pct]) ** 2 / 2 / \
               sig ** 2 - (mu - q[pct]) ** 2 / 2 / sig ** 2
-        elif args.gwbPrior == 'korho':
+        elif args.gwbPrior == 'sbs16_korho':
             mu = -14.82
             sig = 0.08
             q[pct] = mu + np.random.randn() * sig
@@ -5602,25 +5614,25 @@ elif args.sampler == 'ptmcmc':
         elif args.gwbHyperPrior == 'uniform':
             q[pct] = np.random.uniform(pmin[pct], pmax[pct])
             qxy += 0
-        elif args.gwbHyperPrior == 'sesana':
+        elif args.gwbHyperPrior == 's13':
             mu = -15
             sig = 0.22
             q[pct] = mu + np.random.randn() * sig
             qxy -= (mu - parameters[pct]) ** 2 / 2 / \
               sig ** 2 - (mu - q[pct]) ** 2 / 2 / sig ** 2
-        elif args.gwbHyperPrior == 'mcwilliams':
+        elif args.gwbHyperPrior == 'mop14':
             mu = -14.4
             sig = 0.26
             q[pct] = mu + np.random.randn() * sig
             qxy -= (mu - parameters[pct]) ** 2 / 2 / \
               sig ** 2 - (mu - q[pct]) ** 2 / 2 / sig ** 2
-        elif args.gwbHyperPrior == 'mccma':
+        elif args.gwbHyperPrior == 'sbs16_mccma':
             mu = -14.95
             sig = 0.12
             q[pct] = mu + np.random.randn() * sig
             qxy -= (mu - parameters[pct]) ** 2 / 2 / \
               sig ** 2 - (mu - q[pct]) ** 2 / 2 / sig ** 2
-        elif args.gwbHyperPrior == 'korho':
+        elif args.gwbHyperPrior == 'sbs16_korho':
             mu = -14.82
             sig = 0.08
             q[pct] = mu + np.random.randn() * sig
