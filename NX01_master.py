@@ -313,6 +313,8 @@ parser.add_option('--eph_roemermix', dest='eph_roemermix', action='store_true', 
                   help='Do you want to include a mixture of Roemer delays in the model? (default = False)')
 parser.add_option('--eph_dirichlet_alpha', dest='eph_dirichlet_alpha', action='store', type=float, default=1.0,
                   help='What value of the dirichlet concentration do you want to use? (default = 1.0)')
+parser.add_option('--eph_de_rotated', dest='eph_de_rotated', action='store_true', default=False,
+                  help='Do you want to use the rotated ephemerides for consistent ICRF? (default = False)')
 parser.add_option('--incGWline', dest='incGWline', action='store_true', default=False,
                   help='Do you want to include a single-frequency line in the GW spectrum? (default = False)')
 parser.add_option('--gwlinePrior', dest='gwlinePrior', action='store', type=str, default='uniform',
@@ -1580,7 +1582,6 @@ def lnprob(xx):
         elif args.eph_roemermix:
             roemer_wgts = xx[param_ct:param_ct+(num_ephs-1)].copy()
             param_ct += num_ephs-1
-            #roemer_wgts /= np.sum(roemer_wgts)
             if np.sum(roemer_wgts) > 1.0:
                 return -np.inf
 
@@ -1937,7 +1938,16 @@ def lnprob(xx):
 
                     # now, add in weighted roemer sum over ephemerides
                     for kk,key in enumerate(ephnames):
-                        detres[ii] += roemer_wgts[kk] * p.roemer[key]
+                        if not args.eph_de_rotated:
+                            detres[ii] += roemer_wgts[kk] * p.roemer[key]
+                        elif args.eph_de_rotated:
+                            mjd = np.load('./data/de_rot/mjd-rot.npy')
+                            ssb_position = np.load('./data/de_rot/de{0}-rot.npy'.format(key.split('DE')[1]))
+                            psrposeq = np.array([np.sin(np.pi/2.-p.decj) * np.cos(p.raj),
+                                                np.sin(np.pi/2.-p.decj) * np.sin(p.raj),
+                                                np.cos(np.pi/2.-p.decj)])
+                            detres[ii] += roemer_wgts[kk] * np.dot(np.array([np.interp(p.toas, mjd, ssb_position[:,ii])
+                                                                            for ii in range(3)]).T, psrposeq)
 
             #############################################################
             # Recomputing some noise quantities involving 'residuals'.
@@ -3784,7 +3794,7 @@ if args.det_signal:
         if args.eph_planetoffset:
             file_tag += '_ephorbitoffset'
     elif args.eph_roemermix:
-        file_tag += '_ephroemermix'
+        file_tag += '_ephroemermix'+args.eph_dirichlet_alpha+'_derotate'+args.eph_de_rotated
 if args.fixRed:
     red_tag = '_redFix'+'nm{0}'.format(nmodes_red)
 elif not args.fixRed:
