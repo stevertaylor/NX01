@@ -1163,8 +1163,13 @@ if args.det_signal:
         if args.eph_planetoffset:
             pmin = np.append(pmin,-1e8*np.ones(3*num_planets)) # x,y,z displacements [km]
     elif args.eph_roemermix:
-        num_ephs = len(psr[0].roemer.keys())
-        ephnames = psr[0].roemer.keys()
+        if not args.eph_de_rotated:
+            num_ephs = len(psr[0].roemer.keys())
+            ephnames = psr[0].roemer.keys()
+        elif args.eph_de_rotated:
+            num_ephs = len(sorted(glob.glob('./data/de_rot/de*.npy')))
+            ephnames = ['DE'+ii.split('rot/de')[-1].split('-rot.npy')[0]
+                        for ii in sorted(glob.glob('./data/de_rot/de*.npy'))]
         pmin = np.append(pmin,np.zeros(num_ephs-1)) # weights
 
 
