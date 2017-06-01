@@ -301,8 +301,8 @@ parser.add_option('--eph_planetdelta', dest='eph_planetdelta', action='store_tru
                   help='Do you want to include a deterministic planetary-property perturbation in the ephemeris model? (default = False)')
 parser.add_option('--eph_planetmass', dest='eph_planetmass', action='store_true', default=False,
                   help='Perturb the planetary masses in the Roemer delay correction? (default = False)')
-parser.add_option('--which_ephs', dest='which_ephs', action='store', type=str, default='fitted',
-                  help='Which ephemerides do you want to use in the planet-mass perturbation model [fitted, all, DE421, etc.] (default = fitted)')
+parser.add_option('--which_ephs', dest='which_ephs', action='store', type=str, default='all',
+                  help='Which ephemerides do you want to use in the ephemeris-perturbation models? [fitted, all, DE421, etc.] (default = all)')
 parser.add_option('--eph_planetnums', dest='eph_planetnums', action='store', type=str, default=None,
                   help='Which planets to include in planetary perturbation model [Mercury=1, Venus=2, etc.] (default = None)')
 parser.add_option('--eph_planetmassprior', dest='eph_planetmassprior', action='store', type=str, default='official',
@@ -1163,13 +1163,20 @@ if args.det_signal:
         if args.eph_planetoffset:
             pmin = np.append(pmin,-1e8*np.ones(3*num_planets)) # x,y,z displacements [km]
     elif args.eph_roemermix:
-        if not args.eph_de_rotated:
-            num_ephs = len(psr[0].roemer.keys())
-            ephnames = psr[0].roemer.keys()
-        elif args.eph_de_rotated:
-            num_ephs = len(sorted(glob.glob('./data/de_rot/de*.npy')))
-            ephnames = ['DE'+ii.split('rot/de')[-1].split('-rot.npy')[0]
-                        for ii in sorted(glob.glob('./data/de_rot/de*.npy'))]
+        if args.which_ephs == 'fitted':
+            num_ephs = 1
+            ephnames = [psr[0].ephemname]
+        elif args.which_ephs == 'all':
+            if not args.eph_de_rotated:
+                num_ephs = len(psr[0].roemer.keys())
+                ephnames = psr[0].roemer.keys()
+            elif args.eph_de_rotated:
+                num_ephs = len(sorted(glob.glob('./data/de_rot/de*.npy')))
+                ephnames = ['DE'+ii.split('rot/de')[-1].split('-rot.npy')[0]
+                            for ii in sorted(glob.glob('./data/de_rot/de*.npy'))]
+        else:
+            num_ephs = len(args.which_ephs.split(','))
+            ephnames = args.which_ephs.split(',')
         pmin = np.append(pmin,np.zeros(num_ephs-1)) # weights
 
 
