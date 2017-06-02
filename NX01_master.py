@@ -3806,7 +3806,7 @@ if args.det_signal:
         if args.eph_planetoffset:
             file_tag += '_ephorbitoffset'
     elif args.eph_roemermix:
-        file_tag += '_ephroemermix'+args.eph_dirichlet_alpha+'_derotate'+args.eph_de_rotated
+        file_tag += '_ephroemermix'+str(args.eph_dirichlet_alpha)+'_derotate'+args.eph_de_rotated
 if args.fixRed:
     red_tag = '_redFix'+'nm{0}'.format(nmodes_red)
 elif not args.fixRed:
