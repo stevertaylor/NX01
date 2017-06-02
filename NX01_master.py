@@ -3429,7 +3429,7 @@ def lnprob(xx):
 
     priorfac_roemermix = 0.0
     if args.det_signal and args.eph_roemermix:
-        rmixprior = scistats.dirichlet(args.eph_dirichlet_alpha * np.ones(num_ephs,dtype=int).tolist())
+        rmixprior = scistats.dirichlet( (args.eph_dirichlet_alpha * np.ones(num_ephs,dtype=int)).tolist() )
         priorfac_roemermix += np.log(rmixprior.pdf(roemer_wgts))
     else:
         priorfac_roemermix = 0.0
@@ -7218,7 +7218,7 @@ elif args.sampler == 'ptmcmc':
         #q[pct+ind] = np.random.uniform(pmin[pct+ind],pmax[pct+ind])
         #qxy += 0
 
-        tmp = scistats.dirichlet(args.eph_dirichlet_alpha * np.ones(num_ephs,dtype=int).tolist())
+        tmp = scistats.dirichlet( (args.eph_dirichlet_alpha * np.ones(num_ephs,dtype=int)).tolist() )
         q[pct:pct+num_ephs-1] = tmp.rvs()[0][:-1]
         current = np.append(parameters[pct:pct+num_ephs-1].copy(),
                             1.0-np.sum(parameters[pct:pct+num_ephs-1].copy()))
