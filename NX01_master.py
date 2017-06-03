@@ -1958,8 +1958,8 @@ def lnprob(xx):
                             psrposeq = np.array([np.sin(np.pi/2.-p.decj) * np.cos(p.raj),
                                                 np.sin(np.pi/2.-p.decj) * np.sin(p.raj),
                                                 np.cos(np.pi/2.-p.decj)])
-                            detres[ii] += roemer_wgts[kk] * np.dot(np.array([np.interp(p.toas, mjd, ssb_position[:,ii])
-                                                                            for ii in range(3)]).T, psrposeq)
+                            detres[ii] += roemer_wgts[kk] * np.dot(np.array([np.interp(p.toas, mjd, ssb_position[:,aa])
+                                                                            for aa in range(3)]).T, psrposeq)
 
             #############################################################
             # Recomputing some noise quantities involving 'residuals'.
