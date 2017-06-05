@@ -1946,7 +1946,17 @@ def lnprob(xx):
                 for ii, p in enumerate(psr):
 
                     # first, subtract out fitted ephemeris roemer delay
-                    detres[ii] -= p.roemer[p.ephemname]
+                    if not args.eph_de_rotated:
+                        detres[ii] -= p.roemer[p.ephemname]
+                    elif args.eph_de_rotated:
+                        mjd = np.load('./data/de_rot/mjd-rot.npy')
+                        ssb_position = np.load('./data/de_rot/de{0}-rot.npy'.format(p.ephemname.split('DE')[1]))
+                        psrposeq = np.array([np.sin(np.pi/2.-p.decj) * np.cos(p.raj),
+                                            np.sin(np.pi/2.-p.decj) * np.sin(p.raj),
+                                            np.cos(np.pi/2.-p.decj)])
+                        detres[ii] -= np.dot(np.array([np.interp(p.toas, mjd, ssb_position[:,aa])
+                                                      for aa in range(3)]).T, psrposeq)
+
 
                     # now, add in weighted roemer sum over ephemerides
                     for kk,key in enumerate(ephnames):
