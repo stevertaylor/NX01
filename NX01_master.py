@@ -4741,7 +4741,8 @@ elif args.sampler == 'ptmcmc':
             else:
                 systems = p.sysflagdict[args.sysflag_target]
                 pct += 2*len(systems)
-                pct += len(p.sysflagdict['nano-f'].keys())
+                if 'nano-f' in psr[ind[0]].sysflagdict.keys() and len(psr[ind[0]].sysflagdict['nano-f'].keys())>0:
+                    pct += len(p.sysflagdict['nano-f'].keys())
 
         systems = psr[ind[0]].sysflagdict[args.sysflag_target]
         q[pct:pct+len(systems)] = np.random.uniform(pmin[pct:pct+len(systems)],
