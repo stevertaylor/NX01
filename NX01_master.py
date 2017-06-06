@@ -1171,9 +1171,9 @@ if args.det_signal:
                 num_ephs = len(psr[0].roemer.keys())
                 ephnames = psr[0].roemer.keys()
             elif args.eph_de_rotated:
-                num_ephs = len(sorted(glob.glob('./data/de_rot/de*.npy')))
+                num_ephs = len(sorted(glob.glob('./data/de_rot/de*-rot.npy')))
                 ephnames = ['DE'+ii.split('rot/de')[-1].split('-rot.npy')[0]
-                            for ii in sorted(glob.glob('./data/de_rot/de*.npy'))]
+                            for ii in sorted(glob.glob('./data/de_rot/de*-rot.npy'))]
         else:
             num_ephs = len(args.which_ephs.split(','))
             ephnames = args.which_ephs.split(',')
@@ -1330,6 +1330,32 @@ if args.det_signal:
             pmax = np.append(pmax,1e8*np.ones(3*num_planets)) # x,y,z displacements [km]
     elif args.eph_roemermix:
         pmax = np.append(pmax,np.ones(num_ephs-1)) # weights
+
+##################################################################################
+
+## Collecting rotated ephemeris time-series
+if args.det_signal and args.eph_roemermix and args.eph_de_rotated:
+    mjd = np.load('./data/de_rot/mjd-rot.npy')
+
+    ssb_position_orig = OrderedDict.fromkeys(ephnames)
+    ssb_position_rot = OrderedDict.fromkeys(ephnames)
+    for key in ssb_position:
+        ssb_position_orig[key] = np.load('./data/de_rot/de{0}-orig.npy'.format(key.split('DE')[1]))
+        ssb_position_rot[key] = np.load('./data/de_rot/de{0}-rot.npy'.format(key.split('DE')[1]))
+
+    psr_roemer_orig = OrderedDict.fromkeys([p.name for p in psr])
+    psr_roemer_rot = OrderedDict.fromkeys([p.name for p in psr])
+    for ii, p in enumerate(psr):
+        psrposeq = np.array([np.sin(np.pi/2.-p.decj) * np.cos(p.raj),
+                            np.sin(np.pi/2.-p.decj) * np.sin(p.raj),
+                            np.cos(np.pi/2.-p.decj)])
+        psr_roemer_orig[p.name] = OrderedDict.fromkeys(ephnames)
+        psr_roemer_rot[p.name] = OrderedDict.fromkeys(ephnames)
+        for key in ephnames:
+            psr_roemer_orig[p.name][key] = np.dot(np.array([np.interp(p.toas, mjd, ssb_position_orig[key][:,aa])
+                                                           for aa in range(3)]).T, psrposeq)
+            psr_roemer_rot[p.name][key] = np.dot(np.array([np.interp(p.toas, mjd, ssb_position_rot[key][:,aa])
+                                                           for aa in range(3)]).T, psrposeq)
 
 ##################################################################################
 
@@ -1949,27 +1975,14 @@ def lnprob(xx):
                     if not args.eph_de_rotated:
                         detres[ii] -= p.roemer[p.ephemname]
                     elif args.eph_de_rotated:
-                        mjd = np.load('./data/de_rot/mjd-rot.npy')
-                        ssb_position = np.load('./data/de_rot/de{0}-rot.npy'.format(p.ephemname.split('DE')[1]))
-                        psrposeq = np.array([np.sin(np.pi/2.-p.decj) * np.cos(p.raj),
-                                            np.sin(np.pi/2.-p.decj) * np.sin(p.raj),
-                                            np.cos(np.pi/2.-p.decj)])
-                        detres[ii] -= np.dot(np.array([np.interp(p.toas, mjd, ssb_position[:,aa])
-                                                      for aa in range(3)]).T, psrposeq)
-
+                        detres[ii] -= psr_roemer_orig[p.name][p.ephemname]
 
                     # now, add in weighted roemer sum over ephemerides
                     for kk,key in enumerate(ephnames):
                         if not args.eph_de_rotated:
                             detres[ii] += roemer_wgts[kk] * p.roemer[key]
                         elif args.eph_de_rotated:
-                            mjd = np.load('./data/de_rot/mjd-rot.npy')
-                            ssb_position = np.load('./data/de_rot/de{0}-rot.npy'.format(key.split('DE')[1]))
-                            psrposeq = np.array([np.sin(np.pi/2.-p.decj) * np.cos(p.raj),
-                                                np.sin(np.pi/2.-p.decj) * np.sin(p.raj),
-                                                np.cos(np.pi/2.-p.decj)])
-                            detres[ii] += roemer_wgts[kk] * np.dot(np.array([np.interp(p.toas, mjd, ssb_position[:,aa])
-                                                                            for aa in range(3)]).T, psrposeq)
+                            detres[ii] += roemer_wgts[kk] * psr_roemer_rot[p.name][key]
 
             #############################################################
             # Recomputing some noise quantities involving 'residuals'.
