@@ -1339,7 +1339,7 @@ if args.det_signal and args.eph_roemermix and args.eph_de_rotated:
 
     ssb_position_orig = OrderedDict.fromkeys(ephnames)
     ssb_position_rot = OrderedDict.fromkeys(ephnames)
-    for key in ssb_position:
+    for key in ssb_position_rot:
         ssb_position_orig[key] = np.load('./data/de_rot/de{0}-orig.npy'.format(key.split('DE')[1]))
         ssb_position_rot[key] = np.load('./data/de_rot/de{0}-rot.npy'.format(key.split('DE')[1]))
 
