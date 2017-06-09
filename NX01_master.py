@@ -1337,10 +1337,11 @@ if args.det_signal:
 if args.det_signal and args.eph_roemermix and args.eph_de_rotated:
     mjd = np.load(os.getcwd()+'/data/de_rot/mjd-rot.npy')
 
-    ssb_position_orig = OrderedDict.fromkeys(ephnames)
+    ssb_position_orig = OrderedDict.fromkeys([psr[0].ephemname])
+    ssb_position_orig[psr[0].ephemname] = np.load(os.getcwd()+'/data/de_rot/de{0}-orig.npy'.format(key.split('DE')[1]))
+
     ssb_position_rot = OrderedDict.fromkeys(ephnames)
     for key in ssb_position_rot:
-        ssb_position_orig[key] = np.load(os.getcwd()+'/data/de_rot/de{0}-orig.npy'.format(key.split('DE')[1]))
         ssb_position_rot[key] = np.load(os.getcwd()+'/data/de_rot/de{0}-rot.npy'.format(key.split('DE')[1]))
 
     psr_roemer_orig = OrderedDict.fromkeys([p.name for p in psr])
@@ -1349,11 +1350,11 @@ if args.det_signal and args.eph_roemermix and args.eph_de_rotated:
         psrposeq = np.array([np.sin(np.pi/2.-p.decj) * np.cos(p.raj),
                             np.sin(np.pi/2.-p.decj) * np.sin(p.raj),
                             np.cos(np.pi/2.-p.decj)])
-        psr_roemer_orig[p.name] = OrderedDict.fromkeys(ephnames)
+        psr_roemer_rot[p.name] = OrderedDict.fromkeys([p.ephemname])
+        psr_roemer_orig[p.name][p.ephemname] = np.dot(np.array([np.interp(p.toas, mjd, ssb_position_orig[p.ephemname][:,aa])
+                                                      for aa in range(3)]).T, psrposeq)
         psr_roemer_rot[p.name] = OrderedDict.fromkeys(ephnames)
         for key in ephnames:
-            psr_roemer_orig[p.name][key] = np.dot(np.array([np.interp(p.toas, mjd, ssb_position_orig[key][:,aa])
-                                                           for aa in range(3)]).T, psrposeq)
             psr_roemer_rot[p.name][key] = np.dot(np.array([np.interp(p.toas, mjd, ssb_position_rot[key][:,aa])
                                                            for aa in range(3)]).T, psrposeq)
 
