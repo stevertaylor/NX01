@@ -160,6 +160,8 @@ class PsrObj(object):
             self.ephemname = 'DE430'
         elif '421' in self.T2psr.ephemeris:
             self.ephemname = 'DE421'
+        elif '418' in self.T2psr.ephemeris:
+            self.ephemname = 'DE418'
 
         # populating roemer-delay dictionary
         self.roemer = OrderedDict()

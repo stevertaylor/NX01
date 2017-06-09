@@ -1350,7 +1350,7 @@ if args.det_signal and args.eph_roemermix and args.eph_de_rotated:
         psrposeq = np.array([np.sin(np.pi/2.-p.decj) * np.cos(p.raj),
                             np.sin(np.pi/2.-p.decj) * np.sin(p.raj),
                             np.cos(np.pi/2.-p.decj)])
-        psr_roemer_rot[p.name] = OrderedDict.fromkeys([p.ephemname])
+        psr_roemer_orig[p.name] = OrderedDict.fromkeys([p.ephemname])
         psr_roemer_orig[p.name][p.ephemname] = np.dot(np.array([np.interp(p.toas, mjd, ssb_position_orig[p.ephemname][:,aa])
                                                       for aa in range(3)]).T, psrposeq)
         psr_roemer_rot[p.name] = OrderedDict.fromkeys(ephnames)
