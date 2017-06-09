@@ -423,7 +423,7 @@ ____    ____  ______    __    __      __    __       ___   ____    ____  _______
 """
 if rank == 0:
     print header
-    print os.getcwd(), os.path.realpath(__file__)
+    print os.path.realpath(__file__).split('/NX01_master.py')[0]
 
 # Do you want to use GPU acceleration?
 if args.use_gpu:
