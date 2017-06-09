@@ -423,7 +423,7 @@ ____    ____  ______    __    __      __    __       ___   ____    ____  _______
 """
 if rank == 0:
     print header
-    print os.getcwd()
+    print os.getcwd(), os.path.realpath(__file__)
 
 # Do you want to use GPU acceleration?
 if args.use_gpu:
