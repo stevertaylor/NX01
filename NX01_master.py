@@ -7336,7 +7336,7 @@ elif args.sampler == 'ptmcmc':
                 sampler.addProposalToCycle(drawFromEphPlanetOrbitPrior, 10)
         if args.eph_planetoffset:
             sampler.addProposalToCycle(drawFromEphPlanetOffsetPrior, 10)
-    elif args.det_signal and args.eph_roemermix: and num_ephs > 1:
+    elif args.det_signal and args.eph_roemermix and num_ephs > 1:
         sampler.addProposalToCycle(drawFromEphRoemerMixPrior, 10)
 
 
