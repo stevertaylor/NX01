@@ -423,7 +423,8 @@ ____    ____  ______    __    __      __    __       ___   ____    ____  _______
 """
 if rank == 0:
     print header
-    print os.path.realpath(__file__).split('/NX01_master.py')[0]
+
+nxdir = os.path.realpath(__file__).split('/NX01_master.py')[0]
 
 # Do you want to use GPU acceleration?
 if args.use_gpu:
@@ -764,7 +765,7 @@ if args.incEph:
         # No sampling frequencies here.
         # Basis is in planet mass perturbations.
         nmodes_eph = 7
-        ephPhivec = np.load(os.getcwd()+'/data/jplephbasis/phivec.npy')
+        ephPhivec = np.load(nxdir+'/data/jplephbasis/phivec.npy')
     else:
         nmodes_eph = args.nmodes_eph
         if args.nmodes_eph > 0:
@@ -890,10 +891,10 @@ if args.incGWB and args.gwbSpecModel=='turnover' and args.gwb_fb2env is not None
             self.mechanism = mechanism
             if self.mechanism == 'stars':
                 self.kappa = 10./3.
-                self.interpPath = os.getcwd()+'/data/nano9yr_turnover_mappings/stars_mapping.txt'
+                self.interpPath = nxdir+'/data/nano9yr_turnover_mappings/stars_mapping.txt'
             elif self.mechanism == 'gas':
                 self.kappa = 7./3.
-                self.interpPath = os.getcwd()+'/data/nano9yr_turnover_mappings/gas_mapping.txt'
+                self.interpPath = nxdir+'/data/nano9yr_turnover_mappings/gas_mapping.txt'
             # setup fturn vs envParam interpolant
             try:
                 self.fil = np.loadtxt(self.interpPath)
@@ -1172,9 +1173,9 @@ if args.det_signal:
                 num_ephs = len(psr[0].roemer.keys())
                 ephnames = psr[0].roemer.keys()
             elif args.eph_de_rotated:
-                num_ephs = len(sorted(glob.glob(os.getcwd()+'/data/de_rot/de*-rot.npy')))
+                num_ephs = len(sorted(glob.glob(nxdir+'/data/de_rot/de*-rot.npy')))
                 ephnames = ['DE'+ii.split('rot/de')[-1].split('-rot.npy')[0]
-                            for ii in sorted(glob.glob(os.getcwd()+'/data/de_rot/de*-rot.npy'))]
+                            for ii in sorted(glob.glob(nxdir+'/data/de_rot/de*-rot.npy'))]
         else:
             num_ephs = len(args.which_ephs.split(','))
             ephnames = args.which_ephs.split(',')
@@ -1338,14 +1339,14 @@ if args.det_signal:
 
 ## Collecting rotated ephemeris time-series
 if args.det_signal and args.eph_roemermix and args.eph_de_rotated:
-    mjd = np.load(os.getcwd()+'/data/de_rot/mjd-rot.npy')
+    mjd = np.load(nxdir+'/data/de_rot/mjd-rot.npy')
 
     ssb_position_orig = OrderedDict.fromkeys([psr[0].ephemname])
-    ssb_position_orig[psr[0].ephemname] = np.load(os.getcwd()+'/data/de_rot/de{0}-orig.npy'.format(psr[0].ephemname.split('DE')[1]))
+    ssb_position_orig[psr[0].ephemname] = np.load(nxdir+'/data/de_rot/de{0}-orig.npy'.format(psr[0].ephemname.split('DE')[1]))
 
     ssb_position_rot = OrderedDict.fromkeys(ephnames)
     for key in ssb_position_rot:
-        ssb_position_rot[key] = np.load(os.getcwd()+'/data/de_rot/de{0}-rot.npy'.format(key.split('DE')[1]))
+        ssb_position_rot[key] = np.load(nxdir+'/data/de_rot/de{0}-rot.npy'.format(key.split('DE')[1]))
 
     psr_roemer_orig = OrderedDict.fromkeys([p.name for p in psr])
     psr_roemer_rot = OrderedDict.fromkeys([p.name for p in psr])
