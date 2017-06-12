@@ -313,6 +313,8 @@ parser.add_option('--eph_roemermix', dest='eph_roemermix', action='store_true', 
                   help='Do you want to include a mixture of Roemer delays in the model? (default = False)')
 parser.add_option('--eph_dirichlet_alpha', dest='eph_dirichlet_alpha', action='store', type=float, default=1.0,
                   help='What value of the dirichlet concentration do you want to use? (default = 1.0)')
+parser.add_option('--eph_roemermix_dx', dest='eph_roemermix_dx', action='store_true', default=False,
+                  help='Do you want to include an arbitrarily-weighted mixture of Roemer delay offsets from the mean? (default = False)')
 parser.add_option('--eph_de_rotated', dest='eph_de_rotated', action='store_true', default=False,
                   help='Do you want to use the rotated ephemerides for consistent ICRF? (default = False)')
 parser.add_option('--incGWline', dest='incGWline', action='store_true', default=False,
@@ -1181,6 +1183,23 @@ if args.det_signal:
             ephnames = args.which_ephs.split(',')
         if num_ephs > 1:
             pmin = np.append(pmin,np.zeros(num_ephs-1)) # weights
+    elif args.eph_roemermix_dx:
+        if args.which_ephs == 'fitted':
+            num_ephs = 1
+            ephnames = [psr[0].ephemname]
+        elif args.which_ephs == 'all':
+            if not args.eph_de_rotated:
+                num_ephs = len(psr[0].roemer.keys())
+                ephnames = psr[0].roemer.keys()
+            elif args.eph_de_rotated:
+                num_ephs = len(sorted(glob.glob(nxdir+'/data/de_rot/de*-rot.npy')))
+                ephnames = ['DE'+ii.split('rot/de')[-1].split('-rot.npy')[0]
+                            for ii in sorted(glob.glob(nxdir+'/data/de_rot/de*-rot.npy'))]
+        else:
+            num_ephs = len(args.which_ephs.split(','))
+            ephnames = args.which_ephs.split(',')
+        if num_ephs > 1:
+            pmin = np.append(pmin,-10.0*np.ones(num_ephs)) # weights
 
 
 pmax = np.array([])
@@ -1334,11 +1353,15 @@ if args.det_signal:
     elif args.eph_roemermix:
         if num_ephs > 1:
             pmax = np.append(pmax,np.ones(num_ephs-1)) # weights
+    elif args.eph_roemermix_dx:
+        if num_ephs > 1:
+            pmax = np.append(pmax,10.0*np.ones(num_ephs)) # weights
 
 ##################################################################################
 
 ## Collecting rotated ephemeris time-series
-if args.det_signal and args.eph_roemermix and args.eph_de_rotated:
+if (args.det_signal and args.eph_roemermix and args.eph_de_rotated) or
+    (args.det_signal and args.eph_roemermix_dx and args.eph_de_rotated):
     mjd = np.load(nxdir+'/data/de_rot/mjd-rot.npy')
 
     ssb_position_orig = OrderedDict.fromkeys([psr[0].ephemname])
@@ -1628,6 +1651,10 @@ def lnprob(xx):
                 param_ct += num_ephs-1
                 if np.sum(roemer_wgts) > 1.0:
                     return -np.inf
+        elif args.eph_roemermix_dx:
+            if num_ephs > 1:
+                roemer_wgts = xx[param_ct:param_ct+num_ephs].copy()
+                param_ct += num_ephs
 
     ############################
     ############################
@@ -1992,6 +2019,31 @@ def lnprob(xx):
                             detres[ii] += roemer_wgts[kk] * p.roemer[key]
                         elif args.eph_de_rotated:
                             detres[ii] += roemer_wgts[kk] * psr_roemer_rot[p.name][key]
+
+            elif args.eph_roemermix_dx:
+
+                if num_ephs == 1:
+                    roemer_wgts = [1.0]
+
+                for ii, p in enumerate(psr):
+
+                    # first, subtract out fitted ephemeris roemer delay
+                    if not args.eph_de_rotated:
+                        detres[ii] -= p.roemer[p.ephemname]
+                        roemer_mean = np.mean([p.roemer[key] for key in ephnames])
+                    elif args.eph_de_rotated:
+                        detres[ii] -= psr_roemer_orig[p.name][p.ephemname]
+                        roemer_mean = np.mean([psr_roemer_rot[p.name][key] for key in ephnames])
+
+                    # add back in average roemer delay
+                    detres[ii] += roemer_mean
+
+                    # now, add in arbitrarily weighted roemer offsets from mean
+                    for kk,key in enumerate(ephnames):
+                        if not args.eph_de_rotated:
+                            detres[ii] += roemer_wgts[kk] * (p.roemer[key] - roemer_mean)
+                        elif args.eph_de_rotated:
+                            detres[ii] += roemer_wgts[kk] * (psr_roemer_rot[p.name][key] - roemer_mean)
 
             #############################################################
             # Recomputing some noise quantities involving 'residuals'.
@@ -3726,6 +3778,9 @@ if args.det_signal:
     elif args.eph_roemermix:
         for key in ephnames[:-1]:
             parameters.append("roemerweight_{0}".format(key))
+    elif args.eph_roemermix_dx:
+        for key in ephnames:
+            parameters.append("roemerweight_dx_{0}".format(key))
 
 
 n_params = len(parameters)
@@ -3839,6 +3894,10 @@ if args.det_signal:
             file_tag += '_ephorbitoffset'
     elif args.eph_roemermix:
         file_tag += '_ephroemermix'+str(args.eph_dirichlet_alpha)
+        if args.eph_de_rotated:
+            file_tag += '_derotate'
+    elif args.eph_roemermix_dx:
+        file_tag += '_ephroemermix_dx'
         if args.eph_de_rotated:
             file_tag += '_derotate'
 if args.fixRed:
@@ -4151,6 +4210,9 @@ elif args.sampler == 'ptmcmc':
         elif args.eph_roemermix:
             if num_ephs > 1:
                 x0 = np.append(x0,np.random.uniform(0.0,1.0/num_ephs,num_ephs-1))
+        elif args.eph_roemermix_dx:
+            if num_ephs > 1:
+                x0 = np.append(x0,np.random.uniform(0.0,1.0/num_ephs,num_ephs))
 
     if rank==0:
         print "\n Your initial parameters are {0}\n".format(x0)
@@ -4295,6 +4357,9 @@ elif args.sampler == 'ptmcmc':
         elif args.eph_roemermix:
             if num_ephs > 1:
                 cov_diag = np.append(cov_diag,0.1*np.ones(num_ephs-1))
+        elif args.eph_roemermix_dx:
+            if num_ephs > 1:
+                cov_diag = np.append(cov_diag,0.1*np.ones(num_ephs))
 
     cov_diag = np.diag(cov_diag)
     # now including covariance in ephemeris quadratic parameters
@@ -4579,6 +4644,11 @@ elif args.sampler == 'ptmcmc':
             if num_ephs > 1:
                 ids = [np.arange(param_ct,param_ct+num_ephs-1)]
                 param_ct += num_ephs-1
+                [ind.append(id) for id in ids]
+        elif args.eph_roemermix_dx:
+            if num_ephs > 1:
+                ids = [np.arange(param_ct,param_ct+num_ephs)]
+                param_ct += num_ephs
                 [ind.append(id) for id in ids]
 
 
@@ -7264,6 +7334,106 @@ elif args.sampler == 'ptmcmc':
 
         return q, qxy
 
+    def drawFromEphRoemerMixDXPrior(parameters, iter, beta):
+
+        # post-jump parameters
+        q = parameters.copy()
+
+        # transition probability
+        qxy = 0
+
+        npsr = len(psr)
+        pct = 0
+        if not args.fixRed:
+            if args.redSpecModel == 'powerlaw':
+                pct = 2*npsr
+            elif args.redSpecModel == 'spectrum':
+                pct = npsr*nmodes_red
+
+        if args.incDM and not args.fixDM:
+            if args.dmSpecModel == 'powerlaw':
+                pct += 2*npsr
+            elif args.dmSpecModel == 'spectrum':
+                pct += npsr*nmodes_dm
+
+        if args.varyWhite:
+            for ii,p in enumerate(psr):
+                systems = p.sysflagdict[args.sysflag_target]
+                pct += 2*len(systems)
+                pct += len(p.sysflagdict['nano-f'].keys())
+
+        if args.incBand:
+            if args.bandSpecModel == 'powerlaw':
+                pct += 2*(len(bands)-1)
+            elif args.bandSpecModel == 'spectrum':
+                pct += (len(bands)-1)*nmodes_band
+
+        if args.incClk:
+            if args.clkSpecModel == 'powerlaw':
+                pct += 2
+            elif args.clkSpecModel == 'spectrum':
+                pct += nmodes_red
+
+        if args.incCm:
+            if args.cmSpecModel == 'powerlaw':
+                pct += 2
+            elif args.cmSpecModel == 'spectrum':
+                pct += nmodes_red
+
+        if args.incEph and not args.jplBasis:
+            if args.ephSpecModel == 'powerlaw':
+                pct += 6
+            elif args.ephSpecModel == 'spectrum':
+                pct += 3*nmodes_eph
+
+        if args.incGWB:
+            if args.gwbSpecModel == 'powerlaw':
+                pct += 1
+                if not args.fix_slope:
+                    pct += 1
+            elif args.gwbSpecModel == 'spectrum':
+                pct += nmodes_red
+                if args.gwbPrior == 'gaussProc':
+                    pct += 1 + gwb_popparam_ndims
+            elif args.gwbSpecModel == 'turnover':
+                if args.gwb_fb2env is not None:
+                    pct += 2
+                elif args.gwb_fb2env is None:
+                    pct += 3
+            elif args.gwbSpecModel == 'gpEnvInterp':
+                pct += 2
+
+            if args.incCorr:
+                pct += num_corr_params
+                if args.gwbModelSelect:
+                    pct += 1
+
+        if args.incGWline:
+            pct += 4
+
+        if args.cgw_search:
+            pct += 11
+            if args.ecc_search:
+                pct += 1
+            if args.psrTerm:
+                pct += 3*len(psr)
+            if args.cgwModelSelect:
+                pct += 1
+        if args.bwm_search:
+            if args.bwm_model_select:
+                pct += 6
+            else:
+                pct += 5
+        if args.eph_quadratic:
+            pct += 9
+
+        # choose an ephemeris to perturb
+        ind = np.unique(np.random.randint(0, num_ephs, 1))[0]
+        q[pct+ind] = np.random.uniform(pmin[pct+ind],pmax[pct+ind])
+        qxy += 0
+
+        return q, qxy
+
 
     # add jump proposals
     if not args.fixRed:
@@ -7340,6 +7510,8 @@ elif args.sampler == 'ptmcmc':
             sampler.addProposalToCycle(drawFromEphPlanetOffsetPrior, 10)
     elif args.det_signal and args.eph_roemermix and num_ephs > 1:
         sampler.addProposalToCycle(drawFromEphRoemerMixPrior, 10)
+    elif args.det_signal and args.eph_roemermix_dx and num_ephs > 1:
+        sampler.addProposalToCycle(drawFromEphRoemerMixDXPrior, 10)
 
 
     sampler.sample(p0=x0, Niter=int(args.niter), thin=10,
