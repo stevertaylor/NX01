@@ -1360,8 +1360,8 @@ if args.det_signal:
 ##################################################################################
 
 ## Collecting rotated ephemeris time-series
-if (args.det_signal and args.eph_roemermix and args.eph_de_rotated) or
-    (args.det_signal and args.eph_roemermix_dx and args.eph_de_rotated):
+if ((args.det_signal and args.eph_roemermix and args.eph_de_rotated) or
+    (args.det_signal and args.eph_roemermix_dx and args.eph_de_rotated)):
     mjd = np.load(nxdir+'/data/de_rot/mjd-rot.npy')
 
     ssb_position_orig = OrderedDict.fromkeys([psr[0].ephemname])
