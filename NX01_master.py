@@ -443,10 +443,7 @@ if args.use_gpu:
 
 if args.sparse_cholesky:
     import scipy.sparse as sps
-    try:
-        import sksparse.cholmod as sks
-    except ImportError:
-        import scikits.sparse.cholmod as sks 
+    import sksparse.cholmod as sks
 
 if args.sampler == 'mnest':
     import pymultinest
