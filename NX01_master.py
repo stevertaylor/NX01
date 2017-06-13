@@ -2030,10 +2030,10 @@ def lnprob(xx):
                     # first, subtract out fitted ephemeris roemer delay
                     if not args.eph_de_rotated:
                         detres[ii] -= p.roemer[p.ephemname]
-                        roemer_mean = np.mean([p.roemer[key] for key in ephnames])
+                        roemer_mean = np.mean([p.roemer[key] for key in ephnames],axis=0)
                     elif args.eph_de_rotated:
                         detres[ii] -= psr_roemer_orig[p.name][p.ephemname]
-                        roemer_mean = np.mean([psr_roemer_rot[p.name][key] for key in ephnames])
+                        roemer_mean = np.mean([psr_roemer_rot[p.name][key] for key in ephnames],axis=0)
 
                     # add back in average roemer delay
                     detres[ii] += roemer_mean
