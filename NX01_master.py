@@ -3901,7 +3901,10 @@ if args.det_signal:
         if args.eph_planetoffset:
             file_tag += '_ephorbitoffset'
     elif args.eph_roemermix:
-        file_tag += '_ephroemermix'+str(args.eph_dirichlet_alpha)
+        if args.eph_roemerwgts_fix is None:
+            file_tag += '_ephroemermix'+str(args.eph_dirichlet_alpha)
+        elif args.eph_roemerwgts_fix is not None:
+            file_tag += '_ephroemermixFix'
         if args.eph_de_rotated:
             file_tag += '_derotate'
     elif args.eph_roemermix_dx:
