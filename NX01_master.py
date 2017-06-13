@@ -1199,7 +1199,7 @@ if args.det_signal:
             num_ephs = len(args.which_ephs.split(','))
             ephnames = args.which_ephs.split(',')
         if num_ephs > 1:
-            pmin = np.append(pmin,-10.0*np.ones(num_ephs)) # weights
+            pmin = np.append(pmin,-50.0*np.ones(num_ephs)) # weights
 
 
 pmax = np.array([])
@@ -1355,7 +1355,7 @@ if args.det_signal:
             pmax = np.append(pmax,np.ones(num_ephs-1)) # weights
     elif args.eph_roemermix_dx:
         if num_ephs > 1:
-            pmax = np.append(pmax,10.0*np.ones(num_ephs)) # weights
+            pmax = np.append(pmax,50.0*np.ones(num_ephs)) # weights
 
 ##################################################################################
 
@@ -4359,7 +4359,7 @@ elif args.sampler == 'ptmcmc':
                 cov_diag = np.append(cov_diag,0.1*np.ones(num_ephs-1))
         elif args.eph_roemermix_dx:
             if num_ephs > 1:
-                cov_diag = np.append(cov_diag,0.1*np.ones(num_ephs))
+                cov_diag = np.append(cov_diag,1.0*np.ones(num_ephs))
 
     cov_diag = np.diag(cov_diag)
     # now including covariance in ephemeris quadratic parameters
