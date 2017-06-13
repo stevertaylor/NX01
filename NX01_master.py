@@ -311,6 +311,8 @@ parser.add_option('--eph_planetoffset', dest='eph_planetoffset', action='store_t
                   help='Do you want to search for x,y,z displacements in each planetary orbit? (default = False)')
 parser.add_option('--eph_roemermix', dest='eph_roemermix', action='store_true', default=False,
                   help='Do you want to include a mixture of Roemer delays in the model? (default = False)')
+parser.add_option('--eph_roemerwgts_fix', dest='eph_roemerwgts_fix', action='store', type=str, default=None,
+                  help='Manually define the weights of the ephemerides (default = None)')
 parser.add_option('--eph_dirichlet_alpha', dest='eph_dirichlet_alpha', action='store', type=float, default=1.0,
                   help='What value of the dirichlet concentration do you want to use? (default = 1.0)')
 parser.add_option('--eph_roemermix_dx', dest='eph_roemermix_dx', action='store_true', default=False,
@@ -2000,10 +2002,13 @@ def lnprob(xx):
 
             elif args.eph_roemermix:
 
-                if num_ephs > 1:
-                    roemer_wgts = np.append(roemer_wgts, 1.0 - np.sum(roemer_wgts))
-                else:
-                    roemer_wgts = [1.0]
+                if args.eph_roemerwgts_fix is not None:
+                    roemer_wgts = np.array(args.eph_roemerwgts_fix.split(',')).astype(np.float64)
+                elif args.eph_roemerwgts_fix is None:
+                    if num_ephs > 1:
+                        roemer_wgts = np.append(roemer_wgts, 1.0 - np.sum(roemer_wgts))
+                    else:
+                        roemer_wgts = [1.0]
 
                 for ii, p in enumerate(psr):
 
@@ -3512,7 +3517,7 @@ def lnprob(xx):
         priorfac_planetmassdelta = 0.0
 
     priorfac_roemermix = 0.0
-    if args.det_signal and args.eph_roemermix:
+    if args.det_signal and args.eph_roemermix and (args.eph_roemerwgts_fix is None):
         rmixprior = scistats.dirichlet( (args.eph_dirichlet_alpha * np.ones(num_ephs,dtype=int)).tolist() )
         priorfac_roemermix += np.log(rmixprior.pdf(roemer_wgts))
     else:
