@@ -2004,6 +2004,7 @@ def lnprob(xx):
 
                 if args.eph_roemerwgts_fix is not None:
                     roemer_wgts = np.array(args.eph_roemerwgts_fix.split(',')).astype(np.float64)
+                    print roemer_wgts
                     if len(roemer_wgts) != num_ephs:
                         return 'Supplied ephemeris weights do not match number of ephemerides!'
                 elif args.eph_roemerwgts_fix is None:
