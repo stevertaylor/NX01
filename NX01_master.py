@@ -118,7 +118,7 @@ parser.add_option('--logmode', dest='logmode', action='store', type=int, default
 parser.add_option('--fmin', dest='fmin', action='store', type=float, default=10.0,
                    help='Frequency down to which the log-spaced modes are sampled (default = 10.0, i.e. 1/10T)')
 parser.add_option('--cadence', dest='cadence', action='store', type=float,
-                   help='Instead of nmodes, provide the observational cadence.')
+                   help='Instead of nmodes, provide the observational cadence in days.')
 parser.add_option('--incDM', dest='incDM', action='store_true', default=False,
                    help='Search for DM variations in the data as a Gaussian process (False)? (default=False)')
 parser.add_option('--varyWhite', dest='varyWhite', action='store_true', default=False,
@@ -497,12 +497,12 @@ else:
         t2psr.append( T2.tempopulsar(parfile=args.parfile,
                                      timfile=args.timfile,
                                      maxobs=int(4e4), ephem=args.ephem) )
-
-        t2psr[0].fit(iters=args.fitIters)
-        if np.any(~np.isfinite(t2psr[0].residuals())):
-            t2psr[0] = T2.tempopulsar(parfile=args.parfile,
-                                      timfile=args.timfile,
-                                      maxobs=int(4e4), ephem=args.ephem)
+        if args.fitIters > 0:
+            t2psr[0].fit(iters=args.fitIters)
+            if np.any(~np.isfinite(t2psr[0].residuals())):
+                t2psr[0] = T2.tempopulsar(parfile=args.parfile,
+                                          timfile=args.timfile,
+                                          maxobs=int(4e4), ephem=args.ephem)
 
     else:
 
@@ -510,11 +510,12 @@ else:
             t2psr.append( T2.tempopulsar( parfile=psr_pathinfo[ii,2],
                                           timfile=psr_pathinfo[ii,3],
                                           maxobs=int(4e4), ephem=args.ephem ) )
-            t2psr[ii].fit(iters=args.fitIters)
-            if np.any(~np.isfinite(t2psr[ii].residuals())):
-                t2psr[ii] = T2.tempopulsar( parfile=psr_pathinfo[ii,2],
-                                            timfile=psr_pathinfo[ii,3],
-                                            maxobs=int(4e4), ephem=args.ephem )
+            if args.fitIters > 0:
+                t2psr[ii].fit(iters=args.fitIters)
+                if np.any(~np.isfinite(t2psr[ii].residuals())):
+                    t2psr[ii] = T2.tempopulsar( parfile=psr_pathinfo[ii,2],
+                                                timfile=psr_pathinfo[ii,3],
+                                                maxobs=int(4e4), ephem=args.ephem )
 
     psr = [NX01_psr.PsrObj(p) for p in t2psr]
 
@@ -754,7 +755,7 @@ else:
 if args.nmodes is not None:
     nmodes_red = args.nmodes + args.nmodes_log
 elif args.nmodes is None and args.cadence is not None:
-    nmodes_red = int(round(0.5*Tmax/args.cadence)) + args.nmodes_log
+    nmodes_red = int(round(0.5 * Tmax / (args.cadence * 86400.0))) + args.nmodes_log
 fqs_red, wgts_red = rr.linBinning(Tmax, args.logmode, 1 / args.fmin / Tmax,
                                   nmodes_red-args.nmodes_log, args.nmodes_log)
 
