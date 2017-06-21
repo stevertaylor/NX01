@@ -992,6 +992,10 @@ if not args.varyWhite:
 
         loglike1 += -0.5 * (logdet_N[ii] + dtNdt)
 
+    bigTtNT = sl.block_diag(*TtNT)
+
+bigTtNT_shape = tuple(np.repeat(np.sum([p.Te.shape[1] for p in psr]), 2))
+
 ##########################
 # SETTING UP PRIOR RANGES
 ##########################
@@ -1422,6 +1426,7 @@ def lnprob(xx):
         TtNT_tmp = list(TtNT)
         Jamp_tmp = list(Jamp)
         logdet_Ntmp = list(logdet_N)
+        bigTtNT_tmp = bigTtNT.copy()
 
     mode_count = 2*nmodes_red
     if args.incDM:
@@ -3171,9 +3176,11 @@ def lnprob(xx):
                         print 'Cholesky Decomposition Failed!! Rejecting...'
                         return -np.inf
 
-
-                bigTtNT = sl.block_diag(*TtNT_tmp)
-                Phi = np.zeros_like( bigTtNT )
+                if not args.varyWhite:
+                    Sigma = bigTtNT_tmp
+                elif args.varyWhite:
+                    Sigma = sl.block_diag(*TtNT_tmp)
+                Phi = np.zeros(bigTtNT_shape)
 
                 # now fill in real covariance matrix
                 ind = [0]
@@ -3187,7 +3194,7 @@ def lnprob(xx):
                         Phi[ind[ii],ind[jj]] = smallMatrix[:,ii,jj]
 
                 # compute sigma
-                Sigma = bigTtNT + Phi
+                Sigma += Phi
 
                 # cholesky decomp for second term in exponential
                 if args.use_gpu:
@@ -4389,6 +4396,7 @@ elif args.sampler == 'ptmcmc':
     if rank==0:
         print "\n Running a quick profile on the likelihood to estimate evaluation speed...\n"
         cProfile.run('lnprob(x0)')
+        print "\n Likelihood value is {0}".format(lnprob(x0))
 
     ########################################
     # Creating parameter sampling groupings
