@@ -753,7 +753,8 @@ class PsrObjFromH5(object):
                 self.parRedind = np.double(ll.split()[1])
 
             if 'TNDMAmp' in ll:
-                self.parDMamp = 10.0**np.double(ll.split()[1]) * np.sqrt(12.0*np.pi**2.0)
+                # DM-amps use TempoNest convention
+                self.parDMamp = 10.0**np.double(ll.split()[1])
             if 'TNDMGam' in ll:
                 self.parDMind = np.double(ll.split()[1])
 
@@ -790,8 +791,8 @@ class PsrObjFromH5(object):
                 if 'RN-spectral-index' in ll:
                     self.Redind = np.double(ll.split()[1])
                 if 'DM-Amplitude' in ll:
-                    # special edit below since AP's DM-amps use TN convention
-                    self.DMamp = 10.0**np.double(ll.split()[1]) * np.sqrt(12.0*np.pi**2.0)
+                    # DM-amps use TempoNest convention
+                    self.DMamp = 10.0**np.double(ll.split()[1])
                 if 'DM-spectral-index' in ll:
                     self.DMind = np.double(ll.split()[1])
 

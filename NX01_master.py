@@ -1226,7 +1226,6 @@ if not args.fixRed:
         pmax = np.append(pmax,3.0*np.ones(len(psr)*nmodes_red))
 if args.incDM and not args.fixDM:
     if args.dmSpecModel == 'powerlaw':
-        # slightly higher than red due to normalisation
         pmax = np.append(pmax,-8.0*np.ones(len(psr)))
         pmax = np.append(pmax,7.0*np.ones(len(psr)))
     elif args.dmSpecModel == 'spectrum':
@@ -2616,11 +2615,12 @@ def lnprob(xx):
 
             # Construct DM-variations signal (if appropriate)
             if args.incDM:
+                # DM-amps use TempoNest convention
                 if args.fixDM:
                     Adm_tmp = np.max([psr[ii].DMamp, psr[ii].parDMamp])
                     gam_dm_tmp = np.max([psr[ii].DMind, psr[ii].parDMind])
 
-                    dm_kappa_tmp = np.log10( Adm_tmp**2/12/np.pi**2 * \
+                    dm_kappa_tmp = np.log10( Adm_tmp**2 * \
                                             f1yr**(gam_dm_tmp-3) * \
                                             fqs_dm**(-gam_dm_tmp) )
                     dm_kappa_tmp = np.repeat(dm_kappa_tmp, 2)
@@ -2630,7 +2630,7 @@ def lnprob(xx):
                         Adm_tmp = Adm[ii]
                         gam_dm_tmp = gam_dm[ii]
 
-                        dm_kappa_tmp = np.log10( Adm_tmp**2/12/np.pi**2 * \
+                        dm_kappa_tmp = np.log10( Adm_tmp**2 * \
                                                 f1yr**(gam_dm_tmp-3) * \
                                                 fqs_dm**(-gam_dm_tmp) )
                         dm_kappa_tmp = np.repeat(dm_kappa_tmp, 2)

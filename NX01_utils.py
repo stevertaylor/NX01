@@ -202,15 +202,15 @@ def createFourierDesignmatrix_dm(t, fqs, wgts, obs_freqs,
     F = np.zeros((N, 2*len(fqs)))
 
     # compute the DM-variation vectors
-    K = 2.41 * 10.0**(-16.0)
+    K = 2.41e-16
     Dm = 1.0 / (K * obs_freqs**2.0) # ssbfreqs already in Hz
 
     # The sine/cosine modes
     ct = 0
     for ii in range(0, 2*len(fqs)-1, 2):
 
-        F[:,ii] = wgts[ct] * np.multiply(np.cos(2*np.pi*fqs[ct]*t*86400.0), Dm)
-        F[:,ii+1] = wgts[ct] * np.multiply(np.sin(2*np.pi*fqs[ct]*t*86400.0), Dm)
+        F[:,ii] = wgts[ct] * np.cos(2*np.pi*fqs[ct]*t*86400.0) * Dm
+        F[:,ii+1] = wgts[ct] * np.sin(2*np.pi*fqs[ct]*t*86400.0) * Dm
 
         ct += 1
 
