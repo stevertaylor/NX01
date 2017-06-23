@@ -3108,7 +3108,7 @@ def lnprob(xx):
 
                     # diagonal terms
                     if args.clkDesign:
-                        tot += (1.0 + 1e-5)*clkspec
+                        tot += (1.0 + 1e-5) * clkspec
                     elif not args.clkDesign:
                         tot += clkspec
 
@@ -3129,7 +3129,7 @@ def lnprob(xx):
                     offdiag += dipspec
 
                     # diagonal terms
-                    tot += (1.0 + 1e-5)*dipspec
+                    tot += (1.0 + 1e-5) * dipspec
 
                     sig_dipoffdiag.append(offdiag)
 
