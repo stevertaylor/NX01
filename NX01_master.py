@@ -745,6 +745,18 @@ if args.incGWB and args.incCorr:
         tmp_nwins = args.nwins
         num_corr_params = 0
 
+# Creating correlation matrix for Cosinusoidal process
+if args.incDip and args.incCorr:
+
+    psr_posvec = np.array([np.sin(positions[:,1]) * np.cos(positions[:,0]),
+                            np.sin(positions[:,1]) * np.sin(positions[:,0]),
+                            np.cos(positions[:,1])]).T
+
+    DipoleCorr = np.dot(psr_posvec, psr_posvec.T)
+
+    if DipoleCorr.shape != (npsr,npsr):
+        print "ERROR: Cosinusoidal-process correlation matrix is not the right shape!"
+
 #############################################################################
 # GETTING MAXIMUM TIME, COMPUTING FOURIER DESIGN MATRICES, AND GETTING MODES
 #############################################################################
@@ -3117,7 +3129,7 @@ def lnprob(xx):
                     offdiag += dipspec
 
                     # diagonal terms
-                    tot += dipspec
+                    tot += (1.0 + 1e-5)*dipspec
 
                     sig_dipoffdiag.append(offdiag)
 
@@ -3242,7 +3254,7 @@ def lnprob(xx):
                             if args.incClk:
                                 smallMatrix[:,ii,jj] += sig_clkoffdiag[jj]
                             if args.incDip:
-                                smallMatrix[:,ii,jj] += DipCorr[ii,jj] * sig_dipoffdiag[jj]
+                                smallMatrix[:,ii,jj] += DipoleCorr[ii,jj] * sig_dipoffdiag[jj]
                             smallMatrix[:,jj,ii] = smallMatrix[:,ii,jj]
 
                 ###################################
