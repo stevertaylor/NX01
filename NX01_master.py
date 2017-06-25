@@ -748,13 +748,14 @@ if args.incGWB and args.incCorr:
 # Creating correlation matrix for Cosinusoidal process
 if args.incDip and args.incCorr:
 
+    npsrs = len(positions)
     psr_posvec = np.array([np.sin(positions[:,1]) * np.cos(positions[:,0]),
                             np.sin(positions[:,1]) * np.sin(positions[:,0]),
                             np.cos(positions[:,1])]).T
 
     DipoleCorr = np.dot(psr_posvec, psr_posvec.T)
 
-    if DipoleCorr.shape != (npsr,npsr):
+    if DipoleCorr.shape != (npsrs,npsrs):
         print "ERROR: Cosinusoidal-process correlation matrix is not the right shape!"
 
 #############################################################################
