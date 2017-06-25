@@ -4538,7 +4538,7 @@ elif args.sampler == 'ptmcmc':
     if rank==0:
         print "\n Running a quick profile on the likelihood to estimate evaluation speed...\n"
         cProfile.run('lnprob(x0)')
-        print "\n Likelihood value is {0}".format(lnprob(x0))
+        print "\n Log-ikelihood value is {0}".format(lnprob(x0))
 
     ########################################
     # Creating parameter sampling groupings
