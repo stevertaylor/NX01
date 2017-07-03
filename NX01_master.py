@@ -3111,7 +3111,7 @@ def lnprob(xx):
                     if args.clkDesign:
                         tot += (1.0 + 1e-5) * clkspec
                     elif not args.clkDesign:
-                        tot += clkspec
+                        tot += (1.0 + 1e-5) * clkspec
 
                     sig_clkoffdiag.append(offdiag)
 
@@ -3348,7 +3348,7 @@ def lnprob(xx):
 
     ################################################
     # Multiplying likelihood by appropriate Jacobian
-
+    priorfac_gwb = 0.0
     if args.incGWB:
         ### powerlaw spectral model ###
         if args.gwbSpecModel == 'powerlaw':
