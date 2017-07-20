@@ -34,6 +34,121 @@ SOLAR2S = sc.G / sc.c**3 * 1.98855e30
 KPC2S = sc.parsec / sc.c * 1e3
 MPC2S = sc.parsec / sc.c * 1e6
 
+e_ecl = 23.43704 * np.pi / 180.0
+M_ecl = np.array([[1.0, 0.0, 0.0],
+                  [0.0, np.cos(e_ecl), -np.sin(e_ecl)],
+                  [0.0, np.sin(e_ecl), np.cos(e_ecl)]])
+
+
+def ecl2eq_vec(x):
+    """
+    Rotate (n,3) vector time series from ecliptic to equatorial.
+    """
+
+    return np.einsum('jk,ik->ij',M_ecl,x)
+
+
+def eq2ecl_vec(x):
+    """
+    Rotate (n,3) vector time series from equatorial to ecliptic.
+    """
+
+    return np.einsum('kj,ik->ij',M_ecl,x)
+
+
+def euler_vec(z,y,x,n):
+    """
+    Return (n,3,3) tensor with each (3,3) block containing an
+    Euler rotation with angles z, y, x. Optionally each of z, y, x
+    can be a vector of length n.
+    """
+
+    L = np.zeros((n,3,3),'d')
+    cosx, sinx = np.cos(x), np.sin(x)
+    L[:,0,0] = 1
+    L[:,1,1] = L[:,2,2] = cosx
+    L[:,1,2] = -sinx; L[:,2,1] = sinx
+
+    N = np.zeros((n,3,3),'d')
+    cosy, siny = np.cos(y), np.sin(y)
+    N[:,0,0] = N[:,2,2] = cosy
+    N[:,1,1] = 1
+    N[:,0,2] = siny; N[:,2,0] = -siny
+
+    ret = np.einsum('ijk,ikl->ijl',L,N)
+
+    M = np.zeros((n,3,3),'d')
+    cosz, sinz = np.cos(z), np.sin(z)
+    M[:,0,0] = M[:,1,1] = cosz
+    M[:,0,1] = -sinz; M[:,1,0] = sinz
+    M[:,2,2] = 1
+
+    ret = np.einsum('ijk,ikl->ijl',ret,M)
+
+    return ret
+
+
+t_offset = 55197.0
+
+
+def rotate(mjd,planet,x,y,z,dz,offset=None,equatorial=False):
+    """Rotate planet trajectory given as (n,3) tensor,
+    by ecliptic Euler angles x, y, z, and by z rate
+    dz. The rate has units of deg/year, and is referred
+    to offset 2010/1/1. dates must be given in MJD."""
+
+    if equatorial:
+        planet = eq2ecl_vec(planet)
+
+    E = euler_vec(z + dz * (mjd - t_offset) / 365.25, y, x,
+                  planet.shape[0])
+
+    planet = np.einsum('ijk,ik->ij',E,planet)
+
+    if offset is not None:
+        planet = np.array(offset) + planet
+
+    if equatorial:
+        planet = ecl2eq_vec(planet)
+
+    return planet
+
+
+def dmass(earth,planet,dm_over_Msun):
+    return earth + dm_over_Msun * planet
+
+
+def dorbit(mjd,earth,planet,x,y,z,dz,m_over_Msun):
+    E = euler_vec(z + dz * (mjd - t_offset) / 365.25 ,y, x,
+                  planet.shape[0])
+
+    dplanet = np.einsum('ijk,ik->ij',E,planet) - planet
+
+    return earth + m_over_Msun * dplanet
+
+
+def physical_model(x,mjd,earth,jupiter,uranus,neptune,equatorial=True):
+    # it's a twelve parameter model (with argument x, see below for priors).
+    # Feed it the TOA vector (size n) and Earth-to-SSB, Jupiter-to-SSB, etc.
+    # (n,3) arrays. Set equatorial=True or False depending on the tempo2
+    # coordinate frame, which matches the par-file coordinates.
+
+    # frame rotation (three angles, a rate, and an absolute offset)
+    # use priors 1e-9, 5e-9, 5e-7, 1e-10, 1e-8, 5e-9, 1e-10
+    # (based on systematic comparisons between ephemerides)
+    earth = rotate(mjd,earth,x[0],x[1],x[2],x[3],offset=x[4:7],equatorial=equatorial)
+
+    # uranus - uncertainty 3e-11, use twice that for prior (DE430-435 fit likes 6e-11)
+    earth = dmass(earth,uranus,x[7])
+
+    # neptune - uncertainty 8e-11, use twice that for prior (DE421-430 fit likes 6e-11 also)
+    earth = dmass(earth,neptune,x[8])
+
+    # rotate jupiter (use 2e-8 prior for the three angles; no rate)
+    earth = dorbit(mjd,earth,jupiter,x[9],x[10],x[11],0,0.0009547918983127075)
+
+    return earth
+
 
 def sumTermCovarianceMatrix_fast(tm, fL, gam):
     """

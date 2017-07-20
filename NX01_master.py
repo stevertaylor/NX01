@@ -1407,6 +1407,8 @@ if args.det_signal:
 ## Collecting rotated ephemeris time-series
 if ((args.det_signal and args.eph_roemermix and args.eph_de_rotated) or
     (args.det_signal and args.eph_roemermix_dx and args.eph_de_rotated)):
+    # All loaded .npy data is in equatorial coordinates.
+    # Pulsar position vector must also be equatorial.
     mjd = np.load(nxdir+'/data/de_rot/mjd-rot.npy')
 
     ssb_position_orig = OrderedDict.fromkeys([psr[0].ephemname])
@@ -2030,6 +2032,9 @@ def lnprob(xx):
                                 mass_perturb.append(np.sign(planet_delta_sign[jj]) * 10.0**planet_delta_amp[jj])
 
                             if num_ephs > 1:
+                                # allEphem option needs to be corrected
+                                # planet_posvec should be in same coordinate system as psrPos
+                                # psrPos will be in coordinate system of .par file
                                 weights = np.append(planet_orbitwgts[jj,:],
                                                     1.0 - np.sum(planet_orbitwgts[jj,:]))
                                 planet_posvec = np.zeros((p.toas.shape[0],3))
@@ -2040,6 +2045,8 @@ def lnprob(xx):
                                                                         for aa in range(p.toas.shape[0])]))
 
                             else:
+                                # Will work if planet_ssb comes from TEMPO2
+                                # There will be consistency in coordinate systems
                                 planet_posvec = np.zeros((p.toas.shape[0],3))
                                 for kk,key in enumerate(ephnames):
                                     planet_posvec += p.planet_ssb[key][:,tag,:3]
@@ -2048,7 +2055,7 @@ def lnprob(xx):
                                                                         for aa in range(p.toas.shape[0])]))
 
                         if args.eph_planetoffset:
-
+                            # Pulsar positions must all be in same frame
                             planet_offset = planet_orbitoffsets[jj,:] * 1e3 / sc.c
                             planet_delta_signal += (planet_masses[jj] * \
                                                             np.array([np.dot(planet_offset[aa,:], p.psrPos[aa,:]) \
