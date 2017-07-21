@@ -86,7 +86,7 @@ def createSignalResponse_pol(pphi, ptheta, gwphi, gwtheta, plus=True, norm=True)
     Omega = np.array([-np.sin(gwtheta)*np.cos(gwphi), \
                       -np.sin(gwtheta)*np.sin(gwphi), \
                       -np.cos(gwtheta)])
-    
+
     mhat = np.array([-np.sin(gwphi), np.cos(gwphi), np.zeros(gwphi.shape)])
     nhat = np.array([-np.cos(gwphi)*np.cos(gwtheta), \
                      -np.cos(gwtheta)*np.sin(gwphi), \
@@ -95,7 +95,7 @@ def createSignalResponse_pol(pphi, ptheta, gwphi, gwtheta, plus=True, norm=True)
     p = np.array([np.cos(pphi)*np.sin(ptheta), \
                   np.sin(pphi)*np.sin(ptheta), \
                   np.cos(ptheta)])
-    
+
     # There is a factor of 3/2 difference between the Hellings & Downs
     # integral, and the one presented in Jenet et al. (2005; also used by Gair
     # et al. 2014). This factor 'normalises' the correlation matrix.
@@ -138,16 +138,16 @@ def almFromClm(clm):
     for ll in range(0, maxl+1):
         for mm in range(-ll, ll+1):
             almindex = hp.Alm.getidx(maxl, ll, abs(mm))
-            
+
             if mm == 0:
                 alm[almindex] += clm[clmindex]
             elif mm < 0:
                 alm[almindex] -= 1j * clm[clmindex] / np.sqrt(2)
             elif mm > 0:
                 alm[almindex] += clm[clmindex] / np.sqrt(2)
-            
+
             clmindex += 1
-    
+
     return alm
 
 
@@ -172,16 +172,16 @@ def clmFromAlm(alm):
     for ll in range(0, maxl+1):
         for mm in range(-ll, ll+1):
             almindex = hp.Alm.getidx(maxl, ll, abs(mm))
-            
+
             if mm == 0:
                 clm[clmindex] = alm[almindex].real
             elif mm < 0:
                 clm[clmindex] = - alm[almindex].imag * np.sqrt(2)
             elif mm > 0:
                 clm[clmindex] = alm[almindex].real * np.sqrt(2)
-            
+
             clmindex += 1
-    
+
     return clm
 
 
@@ -219,7 +219,7 @@ def mapFromClm(clm, nside):
     """
     npixels = hp.nside2npix(nside)
     pixels = hp.pix2ang(nside, np.arange(npixels), nest=False)
-    
+
     h = np.zeros(npixels)
 
     ind = 0
@@ -265,15 +265,15 @@ def clmFromMap(h, lmax):
     npixels = len(h)
     nside = hp.npix2nside(npixels)
     pixels = hp.pix2ang(nside, np.arange(npixels), nest=False)
-    
+
     clm = np.zeros( (lmax+1)**2 )
-    
+
     ind = 0
     for ll in range(lmax+1):
         for mm in range(-ll, ll+1):
             clm[ind] += np.sum(h * real_sph_harm(mm, ll, pixels[1], pixels[0]))
             ind += 1
-            
+
     return clm * 4 * np.pi / npixels
 
 

@@ -56,7 +56,7 @@ def eq2ecl_vec(x):
     return np.einsum('kj,ik->ij',M_ecl,x)
 
 
-def euler_vec(z,y,x,n):
+def euler_vec(z, y, x, n):
     """
     Return (n,3,3) tensor with each (3,3) block containing an
     Euler rotation with angles z, y, x. Optionally each of z, y, x
@@ -91,11 +91,14 @@ def euler_vec(z,y,x,n):
 t_offset = 55197.0
 
 
-def rotate(mjd,planet,x,y,z,dz,offset=None,equatorial=False):
-    """Rotate planet trajectory given as (n,3) tensor,
+def ss_framerotate(mjd, planet, x, y, z, dz,
+                   offset=None, equatorial=False):
+    """
+    Rotate planet trajectory given as (n,3) tensor,
     by ecliptic Euler angles x, y, z, and by z rate
     dz. The rate has units of deg/year, and is referred
-    to offset 2010/1/1. dates must be given in MJD."""
+    to offset 2010/1/1. dates must be given in MJD.
+    """
 
     if equatorial:
         planet = eq2ecl_vec(planet)
@@ -114,11 +117,11 @@ def rotate(mjd,planet,x,y,z,dz,offset=None,equatorial=False):
     return planet
 
 
-def dmass(earth,planet,dm_over_Msun):
+def dmass(earth, planet, dm_over_Msun):
     return earth + dm_over_Msun * planet
 
 
-def dorbit(mjd,earth,planet,x,y,z,dz,m_over_Msun):
+def dorbit(mjd, earth, planet, x, y, z, dz, m_over_Msun):
     E = euler_vec(z + dz * (mjd - t_offset) / 365.25 ,y, x,
                   planet.shape[0])
 
@@ -127,7 +130,7 @@ def dorbit(mjd,earth,planet,x,y,z,dz,m_over_Msun):
     return earth + m_over_Msun * dplanet
 
 
-def physical_model(x,mjd,earth,jupiter,uranus,neptune,equatorial=True):
+def ssephem_physical_model(x, mjd, earth, jupiter, uranus, neptune, equatorial=True):
     # it's a twelve parameter model (with argument x, see below for priors).
     # Feed it the TOA vector (size n) and Earth-to-SSB, Jupiter-to-SSB, etc.
     # (n,3) arrays. Set equatorial=True or False depending on the tempo2
@@ -136,7 +139,8 @@ def physical_model(x,mjd,earth,jupiter,uranus,neptune,equatorial=True):
     # frame rotation (three angles, a rate, and an absolute offset)
     # use priors 1e-9, 5e-9, 5e-7, 1e-10, 1e-8, 5e-9, 1e-10
     # (based on systematic comparisons between ephemerides)
-    earth = rotate(mjd,earth,x[0],x[1],x[2],x[3],offset=x[4:7],equatorial=equatorial)
+    earth = ss_framerotate(mjd, earth, x[0], x[1], x[2], x[3],
+                           offset=x[4:7], equatorial=equatorial)
 
     # uranus - uncertainty 3e-11, use twice that for prior (DE430-435 fit likes 6e-11)
     earth = dmass(earth,uranus,x[7])
@@ -145,7 +149,9 @@ def physical_model(x,mjd,earth,jupiter,uranus,neptune,equatorial=True):
     earth = dmass(earth,neptune,x[8])
 
     # rotate jupiter (use 2e-8 prior for the three angles; no rate)
-    earth = dorbit(mjd,earth,jupiter,x[9],x[10],x[11],0,0.0009547918983127075)
+    earth = dorbit(mjd, earth, jupiter,
+                   x[9], x[10], x[11],
+                   0.0, 0.0009547918983127075)
 
     return earth
 

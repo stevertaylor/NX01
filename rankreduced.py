@@ -100,7 +100,7 @@ def pl_cov(t, Si=4.33, fL=1.0/20, approx_ksum=False):
         del x
 
         corr = -(fL**(-2+2*alpha)) * (power + ksum)
-        
+
     return corr
 
 
@@ -120,7 +120,7 @@ def linBinning(T, logmode, f_min, nlin, nlog):
     """
     if logmode < 0:
         raise ValueError("Cannot do log-spacing when all frequencies are linearly sampled")
-        
+
     # First the linear spacing and weights
     df_lin = 1.0 / T
     f_min_lin = (1.0 + logmode) / T
@@ -134,7 +134,7 @@ def linBinning(T, logmode, f_min, nlin, nlog):
         df_log = (f_max_log - f_min_log) / (nlog)
         f_log = np.exp(np.linspace(f_min_log+0.5*df_log, f_max_log-0.5*df_log, nlog))
         w_log = np.sqrt(df_log * f_log)
-    
+
         return np.append(f_log, f_lin), np.append(w_log, w_lin)
 
     else:
@@ -156,10 +156,10 @@ def simpsonBinning(T, logmode, f_min, nlin, nlog):
     """
     if logmode < 1:
         raise ValueError("Cannot do log-spacing when all frequencies are linearly sampled")
-        
+
     if nlin%2==0 or nlog%2==0:
         raise ValueError("Simpson's rule requires nlin and nlog to be odd")
-        
+
     # First the linear spacing and weights
     df_lin = 1.0 / T
     f_min_lin = (logmode) / T
@@ -171,7 +171,7 @@ def simpsonBinning(T, logmode, f_min, nlin, nlog):
     w_simp_lin[0] = 1.0
     w_simp_lin[-1] = 1.0
     w_simp_lin[:] *= 1.0/3.0
-    
+
     # Now the log-spacing, and weights
     f_min_log = np.log(f_min)
     f_max_log = np.log( (logmode)/T )
@@ -208,7 +208,7 @@ def get_rr_rep(t, T, fmin, nlin, nlog, simpson=False):
     else:
         freqs, weights = linBinning(T, 0, f_min=fmin, nlin=nlin, nlog=nlog)
     freqs_nd = np.array([freqs, freqs]).T.flatten()
-    weights_nd = np.array([weights, weights]).T.flatten()    
+    weights_nd = np.array([weights, weights]).T.flatten()
 
     # Set the F-matrix
     Fmat = np.zeros((len(t), len(freqs_nd)))
@@ -268,17 +268,17 @@ def get_rr_cholesky_rep(N, Fmat, psd):
     @param N:       Vector with the elements of the diagonal matrix N
     @param Fmat:    (n x m) matrix consisting of the reduced rank basis
     @param psd:     PSD of the rank-reduced approximation
-    
+
     @return: The Z-B-D decomposition for the Cholesky factor
     """
     Z = Fmat * np.sqrt(psd)
     m = Z.shape[1]
     n = N.shape[0]
-    
+
     M = np.eye(m)
     B = np.zeros((n, m))
     D = np.zeros(n)
-    
+
     # Create D and B
     for ii in range(n):
         t = np.dot(M, Z[ii, :])
@@ -287,7 +287,7 @@ def get_rr_cholesky_rep(N, Fmat, psd):
         if D[ii] > 0:
             B[ii, :] = t / D[ii]
             M = M - np.outer(t, t) / D[ii]          # Perhaps use the BLAS DSYRK here?
-    
+
     # Construct B
     #BF = B.T * np.sqrt(D)
 
@@ -299,16 +299,16 @@ def get_rr_cholesky(N, Fmat, psd):
     Use the Smola and Vishwanathan method to obtain the lower-triangular
     Cholesky decomposition L of a matrix C = N + FF^{T} = LL^{T}.
     This is a fast version of lowRankUpdate_slow, assuming that N is diagonal.
-    
+
     @param N:       Vector with the elements of the diagonal matrix N
     @param Fmat:    (n x m) matrix consisting of the reduced rank basis
     @param psd:     PSD of the rank-reduced approximation
-    
+
     @return: The lower-triangular Cholesky decomposition of C
     """
     n = N.shape[0]
     Z, B, D = get_rr_cholesky_rep(N, Fmat, psd)
-    
+
     # Construct L
     L = np.tril(np.dot(Z, B.T * np.sqrt(D)), -1)
     L[range(n), range(n)] = np.sqrt(D)
@@ -530,7 +530,7 @@ if __name__ == '__main__':
 
     # Figure out whether the O(n) Cholesky decompositions are ok
     # (should work for any y)
-    #L = sl.cholesky(Cov, lower=True)    # Use L or CrrL ? 
+    #L = sl.cholesky(Cov, lower=True)    # Use L or CrrL ?
     Ly = get_rr_Lx(W, Fmat, rrpsd, y)
     Lya = np.dot(CrrL, y)
     print "Ly == Lya:", np.allclose(Ly, Lya, atol=atol*np.mean(np.fabs(Ly)))
