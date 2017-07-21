@@ -142,6 +142,7 @@ class PsrObj(object):
         self.psrPos = self.T2psr.psrPos
         if 'ELONG' and 'ELAT' in self.T2psr.pars():
             # converting to equatorial
+            print "--> Converting pulsar position time-series to equatorial"
             self.psrPos = utils.ecl2eq_vec(self.psrPos)
         self.toas = np.double(self.T2psr.toas())
         self.res = np.double(self.T2psr.residuals())
@@ -244,6 +245,7 @@ class PsrObj(object):
 
                 if 'ELONG' and 'ELAT' in self.T2psr.pars():
                     # Converting to equatorial if necessary
+                    print "--> Converting planet position time-series to equatorial"
                     for ii in range(9):
                         # position
                         self.planet_ssb[self.ephemname][:,ii,:3] = \
