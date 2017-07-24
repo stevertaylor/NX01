@@ -2130,7 +2130,7 @@ def lnprob(xx):
 
                 #eph_physmodel_params =
                 for ii, p in enumerate(psr):
-
+                    
                     # first, construct the true geocenter to barycenter roemer
                     tmp_roemer = np.einsum('ij,ij->i',p.planet_ssb[p.ephemname][:,2,:3],p.psrPos)
                     # now construct perturbation from physical model
