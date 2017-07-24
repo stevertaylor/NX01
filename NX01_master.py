@@ -1229,7 +1229,8 @@ if args.det_signal:
         pmin = np.append(pmin,np.array([-1e-9, -5e-9, -5e-7,
                                         -1e-10, -1e-8, -5e-9,
                                         -1e-10, -6e-11, -16e-11,
-                                        -2e-8, -2e-8, -2e-8]))
+                                        -10e-8, -10e-8, -10e-8]))
+                                        #-2e-8, -2e-8, -2e-8]))
     elif args.eph_roemermix_dx:
         if args.which_ephs == 'fitted':
             num_ephs = 1
@@ -1409,7 +1410,8 @@ if args.det_signal:
         pmax = np.append(pmax,np.array([1e-9, 5e-9, 5e-7,
                                         1e-10, 1e-8, 5e-9,
                                         1e-10, 6e-11, 16e-11,
-                                        2e-8, 2e-8, 2e-8]))
+                                        10e-8, 10e-8, 10e-8]))
+                                        #2e-8, 2e-8, 2e-8]))
     elif args.eph_roemermix_dx:
         if num_ephs > 1:
             pmax = np.append(pmax,50.0*np.ones(num_ephs)) # weights
@@ -2130,7 +2132,7 @@ def lnprob(xx):
 
                 #eph_physmodel_params =
                 for ii, p in enumerate(psr):
-                    
+
                     # first, construct the true geocenter to barycenter roemer
                     tmp_roemer = np.einsum('ij,ij->i',p.planet_ssb[p.ephemname][:,2,:3],p.psrPos)
                     # now construct perturbation from physical model
