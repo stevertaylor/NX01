@@ -1228,8 +1228,9 @@ if args.det_signal:
     elif args.eph_physmodel:
         pmin = np.append(pmin,np.array([-1e-9, -5e-9, -5e-7,
                                         -1e-10, -1e-8, -5e-9,
-                                        -1e-10, -6e-11, -16e-11,
+                                        -1e-10, -3.43154016e-10, -4.77662313e-10,
                                         -10e-8, -10e-8, -10e-8]))
+                                        #-1e-10, -6e-11, -16e-11,
                                         #-2e-8, -2e-8, -2e-8]))
     elif args.eph_roemermix_dx:
         if args.which_ephs == 'fitted':
@@ -1409,8 +1410,9 @@ if args.det_signal:
     elif args.eph_physmodel:
         pmax = np.append(pmax,np.array([1e-9, 5e-9, 5e-7,
                                         1e-10, 1e-8, 5e-9,
-                                        1e-10, 6e-11, 16e-11,
+                                        1e-10, 3.43154016e-10, 4.77662313e-10,
                                         10e-8, 10e-8, 10e-8]))
+                                        #1e-10, 6e-11, 16e-11,
                                         #2e-8, 2e-8, 2e-8]))
     elif args.eph_roemermix_dx:
         if num_ephs > 1:
