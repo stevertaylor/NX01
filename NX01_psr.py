@@ -296,7 +296,7 @@ class PsrObj(object):
             epoch = '1950'
         else:
             epoch = '2000'
-        if 'RAJ' and 'DECJ' in self.T2psr.pars():
+        if 'RAJ' and 'DECJ' in self.T2psr.pars(which='set'):
             self.raj = np.double(self.T2psr['RAJ'].val)
             self.decj = np.double(self.T2psr['DECJ'].val)
 
@@ -308,7 +308,7 @@ class PsrObj(object):
             self.elong = np.double(ec.lon)
             self.elat = np.double(ec.lat)
 
-        elif 'ELONG' and 'ELAT' in self.T2psr.pars():
+        elif 'ELONG' and 'ELAT' in self.T2psr.pars(which='set'):
             self.elong = np.double(self.T2psr['ELONG'].val)
             self.elat = np.double(self.T2psr['ELAT'].val)
 
