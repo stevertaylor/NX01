@@ -328,7 +328,7 @@ parser.add_option('--eph_roemerwgts_fix', dest='eph_roemerwgts_fix', action='sto
 parser.add_option('--eph_dirichlet_alpha', dest='eph_dirichlet_alpha', action='store', type=float, default=1.0,
                   help='What value of the dirichlet concentration do you want to use? (default = 1.0)')
 parser.add_option('--eph_physmodel', dest='eph_physmodel', action='store_true', default=False,
-                  help='Do you want to use frame rotation, Uranus+Neptune mass perturbations, and Jupiter orbit perturbation? (default = False)')
+                  help='Do you want to use frame rotation, Jupiter+Saturn+Uranus+Neptune mass perturbations, and Jupiter orbit perturbation? (default = False)')
 parser.add_option('--eph_roemermix_dx', dest='eph_roemermix_dx', action='store_true', default=False,
                   help='Do you want to include an arbitrarily-weighted mixture of Roemer delay offsets from the mean? (default = False)')
 parser.add_option('--eph_de_rotated', dest='eph_de_rotated', action='store_true', default=False,
@@ -1228,10 +1228,12 @@ if args.det_signal:
     elif args.eph_physmodel:
         pmin = np.append(pmin,np.array([-1e-9, -5e-9, -5e-7,
                                         -1e-10, -1e-8, -5e-9,
-                                        -1e-10, -3.43154016e-10, -4.77662313e-10,
+                                        -1e-10, -9.29860141e-10, -4.90383710e-10,
+                                        -3.43154016e-9, -4.77662313e-9,
                                         -10e-8, -10e-8, -10e-8]))
-                                        #-1e-10, -6e-11, -16e-11,
-                                        #-2e-8, -2e-8, -2e-8]))
+                                        # -1e-10, -3.43154016e-10, -4.77662313e-10, # IAU uranus/neptune
+                                        #-1e-10, -6e-11, -16e-11, # original mass-priors
+                                        #-2e-8, -2e-8, -2e-8])) # original jup-orbit
     elif args.eph_roemermix_dx:
         if args.which_ephs == 'fitted':
             num_ephs = 1
@@ -1410,10 +1412,12 @@ if args.det_signal:
     elif args.eph_physmodel:
         pmax = np.append(pmax,np.array([1e-9, 5e-9, 5e-7,
                                         1e-10, 1e-8, 5e-9,
-                                        1e-10, 3.43154016e-10, 4.77662313e-10,
+                                        1e-10, 9.29860141e-10, 4.90383710e-10,
+                                        3.43154016e-9, 4.77662313e-9,
                                         10e-8, 10e-8, 10e-8]))
-                                        #1e-10, 6e-11, 16e-11,
-                                        #2e-8, 2e-8, 2e-8]))
+                                        # 1e-10, 3.43154016e-10, 4.77662313e-10, # IAU uranus/neptune
+                                        #1e-10, 6e-11, 16e-11, # original mass-priors
+                                        #2e-8, 2e-8, 2e-8])) # original jup-orbit
     elif args.eph_roemermix_dx:
         if num_ephs > 1:
             pmax = np.append(pmax,50.0*np.ones(num_ephs)) # weights
@@ -1728,8 +1732,8 @@ def lnprob(xx):
                 if np.sum(roemer_wgts) > 1.0:
                     return -np.inf
         elif args.eph_physmodel:
-            eph_physmodel_params = xx[param_ct:param_ct+12].copy()
-            param_ct += 12
+            eph_physmodel_params = xx[param_ct:param_ct+14].copy()
+            param_ct += 14
         elif args.eph_roemermix_dx:
             if num_ephs > 1:
                 roemer_wgts = xx[param_ct:param_ct+num_ephs].copy()
@@ -2132,17 +2136,17 @@ def lnprob(xx):
 
             elif args.eph_physmodel:
 
-                #eph_physmodel_params =
                 for ii, p in enumerate(psr):
 
                     # first, construct the true geocenter to barycenter roemer
                     tmp_roemer = np.einsum('ij,ij->i',p.planet_ssb[p.ephemname][:,2,:3],p.psrPos)
                     # now construct perturbation from physical model
                     tmp_earth = utils.ssephem_physical_model(eph_physmodel_params, p.toas,
-                                                             p.planet_ssb[p.ephemname][:,2,:3],
-                                                             p.planet_ssb[p.ephemname][:,4,:3],
-                                                             p.planet_ssb[p.ephemname][:,6,:3],
-                                                             p.planet_ssb[p.ephemname][:,7,:3],
+                                                             p.planet_ssb[p.ephemname][:,2,:3], # earth
+                                                             p.planet_ssb[p.ephemname][:,4,:3], # jupiter
+                                                             p.planet_ssb[p.ephemname][:,5,:3], # saturn
+                                                             p.planet_ssb[p.ephemname][:,6,:3], # uranus
+                                                             p.planet_ssb[p.ephemname][:,7,:3], # neptune
                                                              equatorial=True)
                     # subtract off old roemer, add in new one
                     detres[ii] -= tmp_roemer
@@ -3969,8 +3973,9 @@ if args.det_signal:
             parameters.append("roemerweight_{0}".format(key))
     elif args.eph_physmodel:
         parameters += ["frame_ang1", "frame_ang2", "frame_ang3", "frame_rate",
-                       "frame_offset1", "frame_offset2", "frame_offset3", "uranus_dM",
-                       "neptune_dM", "jupiter_ang1", "jupiter_ang2", "jupiter_ang3"]
+                       "frame_offset1", "frame_offset2", "frame_offset3", "jupiter_dM",
+                       "saturn_dM", "uranus_dM", "neptune_dM",
+                       "jupiter_ang1", "jupiter_ang2", "jupiter_ang3"]
     elif args.eph_roemermix_dx:
         for key in ephnames:
             parameters.append("roemerweight_dx_{0}".format(key))
@@ -4420,7 +4425,7 @@ elif args.sampler == 'ptmcmc':
             if num_ephs > 1:
                 x0 = np.append(x0,np.random.uniform(0.0,1.0/num_ephs,num_ephs-1))
         elif args.eph_physmodel:
-            x0 = np.append(x0,np.zeros(12))
+            x0 = np.append(x0,np.zeros(14))
         elif args.eph_roemermix_dx:
             if num_ephs > 1:
                 x0 = np.append(x0,np.random.uniform(0.0,1.0/num_ephs,num_ephs))
@@ -4577,8 +4582,8 @@ elif args.sampler == 'ptmcmc':
                 cov_diag = np.append(cov_diag,0.1*np.ones(num_ephs-1))
         elif args.eph_physmodel:
             cov_diag = np.append(cov_diag,0.2*np.array([1e-9, 5e-9, 5e-7, 1e-10,
-                                                        1e-8, 5e-9, 1e-10, 6e-11,
-                                                        16e-11, 2e-8, 2e-8, 2e-8]))
+                                                        1e-8, 5e-9, 1e-10, 6e-11, 6e-11,
+                                                        6e-11, 16e-11, 2e-8, 2e-8, 2e-8]))
         elif args.eph_roemermix_dx:
             if num_ephs > 1:
                 cov_diag = np.append(cov_diag,1.0*np.ones(num_ephs))
@@ -4881,7 +4886,7 @@ elif args.sampler == 'ptmcmc':
                 [ind.append(id) for id in ids]
         elif args.eph_physmodel:
             # all
-            ids = [np.arange(param_ct,param_ct+12)]
+            ids = [np.arange(param_ct,param_ct+14)]
             [ind.append(id) for id in ids]
             # three frame rotation angles
             ids = [np.arange(param_ct,param_ct+3)]
@@ -4892,16 +4897,22 @@ elif args.sampler == 'ptmcmc':
             # absolute offset
             ids = [np.arange(param_ct+4,param_ct+7)]
             [ind.append(id) for id in ids]
-            # uranus
+            # jupiter
             ids = [np.arange(param_ct+7,param_ct+8)]
             [ind.append(id) for id in ids]
-            # neptune
+            # saturn
             ids = [np.arange(param_ct+8,param_ct+9)]
             [ind.append(id) for id in ids]
-            # jupiter rotation
-            ids = [np.arange(param_ct+9,param_ct+12)]
+            # uranus
+            ids = [np.arange(param_ct+9,param_ct+10)]
             [ind.append(id) for id in ids]
-            param_ct += 12
+            # neptune
+            ids = [np.arange(param_ct+10,param_ct+11)]
+            [ind.append(id) for id in ids]
+            # jupiter rotation
+            ids = [np.arange(param_ct+11,param_ct+14)]
+            [ind.append(id) for id in ids]
+            param_ct += 14
         elif args.eph_roemermix_dx:
             if num_ephs > 1:
                 ids = [np.arange(param_ct,param_ct+num_ephs)]
@@ -7948,7 +7959,7 @@ elif args.sampler == 'ptmcmc':
             pct += 9
 
         # choose a physical model parameter to perturb
-        ind = np.unique(np.random.randint(0, 12, 1))[0]
+        ind = np.unique(np.random.randint(0, 14, 1))[0]
         q[pct+ind] = np.random.uniform(pmin[pct+ind],pmax[pct+ind])
         qxy += 0
 

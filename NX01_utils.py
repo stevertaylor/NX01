@@ -130,8 +130,9 @@ def dorbit(mjd, earth, planet, x, y, z, dz, m_over_Msun):
     return earth + m_over_Msun * dplanet
 
 
-def ssephem_physical_model(x, mjd, earth, jupiter, uranus, neptune, equatorial=True):
-    # it's a twelve parameter model (with argument x, see below for priors).
+def ssephem_physical_model(x, mjd, earth, jupiter, saturn,
+                           uranus, neptune, equatorial=True):
+    # it's a 14 parameter model (with argument x, see below for priors).
     # Feed it the TOA vector (size n) and Earth-to-SSB, Jupiter-to-SSB, etc.
     # (n,3) arrays. Set equatorial=True or False depending on the tempo2
     # coordinate frame, which matches the par-file coordinates.
@@ -142,15 +143,21 @@ def ssephem_physical_model(x, mjd, earth, jupiter, uranus, neptune, equatorial=T
     earth = ss_framerotate(mjd, earth, x[0], x[1], x[2], x[3],
                            offset=x[4:7], equatorial=equatorial)
 
+    # jupiter
+    earth = dmass(earth,jupiter,x[7])
+
+    # saturn
+    earth = dmass(earth,saturn,x[8])
+
     # uranus - uncertainty 3e-11, use twice that for prior (DE430-435 fit likes 6e-11)
-    earth = dmass(earth,uranus,x[7])
+    earth = dmass(earth,uranus,x[9])
 
     # neptune - uncertainty 8e-11, use twice that for prior (DE421-430 fit likes 6e-11 also)
-    earth = dmass(earth,neptune,x[8])
+    earth = dmass(earth,neptune,x[10])
 
     # rotate jupiter (use 2e-8 prior for the three angles; no rate)
     earth = dorbit(mjd, earth, jupiter,
-                   x[9], x[10], x[11],
+                   x[11], x[12], x[13],
                    0.0, 0.0009547918983127075)
 
     return earth
