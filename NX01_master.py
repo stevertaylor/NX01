@@ -1226,10 +1226,11 @@ if args.det_signal:
         if num_ephs > 1:
             pmin = np.append(pmin,np.zeros(num_ephs-1)) # weights
     elif args.eph_physmodel:
+        # mass priors are 10x larger than IAU uncertainties
         pmin = np.append(pmin,np.array([-1e-9, -5e-9, -5e-7,
                                         -1e-10, -1e-8, -5e-9,
-                                        -1e-10, -9.29860141e-10, -4.90383710e-10,
-                                        -3.43154016e-9, -4.77662313e-9,
+                                        -1e-10, 10.0 * -9.29860141e-11, 100.0 * -4.90383710e-11,
+                                        100.0 * -3.43154016e-10, 5.0 * 10.0 * -4.77662313e-10,
                                         -10e-8, -10e-8, -10e-8]))
                                         # -1e-10, -3.43154016e-10, -4.77662313e-10, # IAU uranus/neptune
                                         #-1e-10, -6e-11, -16e-11, # original mass-priors
@@ -1410,10 +1411,11 @@ if args.det_signal:
         if num_ephs > 1:
             pmax = np.append(pmax,np.ones(num_ephs-1)) # weights
     elif args.eph_physmodel:
+        # mass priors are 10x larger than IAU uncertainties
         pmax = np.append(pmax,np.array([1e-9, 5e-9, 5e-7,
                                         1e-10, 1e-8, 5e-9,
-                                        1e-10, 9.29860141e-10, 4.90383710e-10,
-                                        3.43154016e-9, 4.77662313e-9,
+                                        1e-10, 10.0 * 9.29860141e-11, 100.0 * 4.90383710e-11,
+                                        100.0 * 3.43154016e-10, 5.0 * 10.0 * 4.77662313e-10,
                                         10e-8, 10e-8, 10e-8]))
                                         # 1e-10, 3.43154016e-10, 4.77662313e-10, # IAU uranus/neptune
                                         #1e-10, 6e-11, 16e-11, # original mass-priors
