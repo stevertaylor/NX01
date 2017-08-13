@@ -1468,7 +1468,7 @@ if args.eph_physmodel and args.epochTOAs:
         for jj in range(9):
             planet_epochposvec_tmp[:,jj,:] = np.array([np.interp(p.detsig_avetoas,
                                                                 p.toas,
-                                                                p.planet_ssb[p.ephemname][:,:,aa])
+                                                                p.planet_ssb[p.ephemname][:,jj,aa])
                                                                 for aa in range(3)]).T
         planet_epochposvecs.append(planet_epochposvec_tmp)
 
