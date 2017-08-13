@@ -1228,10 +1228,10 @@ if args.det_signal:
     elif args.eph_physmodel:
         # mass priors are 10x larger than IAU uncertainties
         pmin = np.append(pmin,np.array([-1e-9, -5e-9, -5e-7,
-                                        -1e-10, -1e-8, -5e-9,
+                                        -10e-10, -1e-8, -5e-9,
                                         -1e-10, 10.0 * -9.29860141e-11, 100.0 * -4.90383710e-11,
                                         100.0 * -3.43154016e-10, 5.0 * 10.0 * -4.77662313e-10,
-                                        -10e-8, -10e-8, -10e-8]))
+                                        -100e-8, -100e-8, -100e-8]))
                                         # -1e-10, -3.43154016e-10, -4.77662313e-10, # IAU uranus/neptune
                                         #-1e-10, -6e-11, -16e-11, # original mass-priors
                                         #-2e-8, -2e-8, -2e-8])) # original jup-orbit
@@ -1413,10 +1413,10 @@ if args.det_signal:
     elif args.eph_physmodel:
         # mass priors are 10x larger than IAU uncertainties
         pmax = np.append(pmax,np.array([1e-9, 5e-9, 5e-7,
-                                        1e-10, 1e-8, 5e-9,
+                                        10e-10, 1e-8, 5e-9,
                                         1e-10, 10.0 * 9.29860141e-11, 100.0 * 4.90383710e-11,
                                         100.0 * 3.43154016e-10, 5.0 * 10.0 * 4.77662313e-10,
-                                        10e-8, 10e-8, 10e-8]))
+                                        100e-8, 100e-8, 100e-8]))
                                         # 1e-10, 3.43154016e-10, 4.77662313e-10, # IAU uranus/neptune
                                         #1e-10, 6e-11, 16e-11, # original mass-priors
                                         #2e-8, 2e-8, 2e-8])) # original jup-orbit
@@ -1456,6 +1456,30 @@ if ((args.det_signal and args.eph_roemermix and args.eph_de_rotated) or
 
 ##################################################################################
 
+## If epochTOAs, interpolate all planet position vectors onto epoch-averaged TOAs
+if args.eph_physmodel and args.epochTOAs:
+
+    planet_epochposvecs = []
+    psr_epochposvecs = []
+    for ii,p in enumerate(psr):
+
+        # Interpolating all planet position vectors onto epoch TOAs
+        planet_epochposvec_tmp = np.zeros((len(p.detsig_avetoas,9,3)))
+        for jj in range(9):
+            planet_epochposvec_tmp[:,jj,:] = np.array([np.interp(p.detsig_avetoas,
+                                                                p.toas,
+                                                                p.planet_ssb[p.ephemname][:,:,aa])
+                                                                for aa in range(3)]).T
+        planet_epochposvecs.append(planet_epochposvec_tmp)
+
+        # Inteprolating the pulsar position vectors onto epoch TOAs
+        psr_epochposvec_tmp = np.array([np.interp(p.detsig_avetoas,
+                                                  p.toas,
+                                                  p.psrPos[:,aa])
+                                                  for aa in range(3)]).T
+        psr_epochposvecs.append(psr_epochposvec_tmp)
+
+##################################################################################
 
 def my_prior(xx):
 
@@ -2140,19 +2164,39 @@ def lnprob(xx):
 
                 for ii, p in enumerate(psr):
 
-                    # first, construct the true geocenter to barycenter roemer
-                    tmp_roemer = np.einsum('ij,ij->i',p.planet_ssb[p.ephemname][:,2,:3],p.psrPos)
-                    # now construct perturbation from physical model
-                    tmp_earth = utils.ssephem_physical_model(eph_physmodel_params, p.toas,
-                                                             p.planet_ssb[p.ephemname][:,2,:3], # earth
-                                                             p.planet_ssb[p.ephemname][:,4,:3], # jupiter
-                                                             p.planet_ssb[p.ephemname][:,5,:3], # saturn
-                                                             p.planet_ssb[p.ephemname][:,6,:3], # uranus
-                                                             p.planet_ssb[p.ephemname][:,7,:3], # neptune
-                                                             equatorial=True)
-                    # subtract off old roemer, add in new one
-                    detres[ii] -= tmp_roemer
-                    detres[ii] += np.einsum('ij,ij->i',tmp_earth,p.psrPos)
+                    if args.epochTOAs:
+                        # first, construct the true geocenter to barycenter roemer
+                        tmp_roemer = np.einsum('ij,ij->i',planet_epochposvecs[ii][:,2,:3],psr_epochposvecs[ii])
+                        # now construct perturbation from physical model
+                        tmp_earth = utils.ssephem_physical_model(eph_physmodel_params, p.detsig_avetoas.copy(),
+                                                                 planet_epochposvecs[ii][:,2,:3], # earth
+                                                                 planet_epochposvecs[ii][:,4,:3], # jupiter
+                                                                 planet_epochposvecs[ii][:,5,:3], # saturn
+                                                                 planet_epochposvecs[ii][:,6,:3], # uranus
+                                                                 planet_epochposvecs[ii][:,7,:3], # neptune
+                                                                 equatorial=True)
+                        # subtract off old roemer, add in new one
+                        tmp_detsig = np.einsum('ij,ij->i',tmp_earth,psr_epochposvecs[ii]) - tmp_roemer
+
+                        dummy_roemer = np.ones(len(p.toas))
+                        for cc, roemer_perturb in enumerate(tmp_detsig):
+                            dummy_roemer[p.detsig_Uinds[cc,0]:p.detsig_Uinds[cc,1]] *= roemer_perturb
+                        detres[ii] += dummy_roemer
+
+                    elif not args.epochTOAs:
+                        # first, construct the true geocenter to barycenter roemer
+                        tmp_roemer = np.einsum('ij,ij->i',p.planet_ssb[p.ephemname][:,2,:3],p.psrPos)
+                        # now construct perturbation from physical model
+                        tmp_earth = utils.ssephem_physical_model(eph_physmodel_params, p.toas,
+                                                                 p.planet_ssb[p.ephemname][:,2,:3], # earth
+                                                                 p.planet_ssb[p.ephemname][:,4,:3], # jupiter
+                                                                 p.planet_ssb[p.ephemname][:,5,:3], # saturn
+                                                                 p.planet_ssb[p.ephemname][:,6,:3], # uranus
+                                                                 p.planet_ssb[p.ephemname][:,7,:3], # neptune
+                                                                 equatorial=True)
+                        # subtract off old roemer, add in new one
+                        detres[ii] -= tmp_roemer
+                        detres[ii] += np.einsum('ij,ij->i',tmp_earth,p.psrPos)
 
 
             #############################################################
