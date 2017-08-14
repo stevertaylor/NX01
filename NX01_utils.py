@@ -140,24 +140,24 @@ def ssephem_physical_model(x, mjd, earth, jupiter, saturn,
     # frame rotation (three angles, a rate, and an absolute offset)
     # use priors 1e-9, 5e-9, 5e-7, 1e-10, 1e-8, 5e-9, 1e-10
     # (based on systematic comparisons between ephemerides)
-    earth = ss_framerotate(mjd, earth, x[0], x[1], x[2], x[3],
-                           offset=x[4:7], equatorial=equatorial)
+    earth = ss_framerotate(mjd, earth, 0.0, 0.0, 0.0, x[0],
+                           offset=None, equatorial=equatorial)
 
     # jupiter
-    earth = dmass(earth,jupiter,x[7])
+    earth = dmass(earth,jupiter,x[1])
 
     # saturn
-    earth = dmass(earth,saturn,x[8])
+    earth = dmass(earth,saturn,x[2])
 
     # uranus - uncertainty 3e-11, use twice that for prior (DE430-435 fit likes 6e-11)
-    earth = dmass(earth,uranus,x[9])
+    earth = dmass(earth,uranus,x[3])
 
     # neptune - uncertainty 8e-11, use twice that for prior (DE421-430 fit likes 6e-11 also)
-    earth = dmass(earth,neptune,x[10])
+    earth = dmass(earth,neptune,x[4])
 
     # rotate jupiter (use 2e-8 prior for the three angles; no rate)
     earth = dorbit(mjd, earth, jupiter,
-                   x[11], x[12], x[13],
+                   x[5], x[6], x[7],
                    0.0, 0.0009547918983127075)
 
     return earth
