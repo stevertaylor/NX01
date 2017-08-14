@@ -1464,7 +1464,7 @@ if args.eph_physmodel and args.epochTOAs:
     for ii,p in enumerate(psr):
 
         # Interpolating all planet position vectors onto epoch TOAs
-        planet_epochposvec_tmp = np.zeros((len(p.detsig_avetoas,9,3)))
+        planet_epochposvec_tmp = np.zeros((len(p.detsig_avetoas),9,3)))
         for jj in range(9):
             planet_epochposvec_tmp[:,jj,:] = np.array([np.interp(p.detsig_avetoas,
                                                                 p.toas,
