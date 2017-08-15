@@ -199,6 +199,12 @@ def makesubplot2d(ax, samples1, samples2, cmap=None, color='k', weights=None,
         contourlinestyles = ('-', '--', '-.')
         contourlinewidths = (lw, lw, lw)
 
+        # patch to fix new level ordering in mpl v 1.5.1
+        if mpl_version >= '1.5.1':
+            contourlevels = contourlevels[::-1]
+            contourcolors = contourcolors[::-1]
+            contourlinestyles = contourlinestyles[::-1]
+            contourlinewidths = contourlinewidths[::-1]
 
         c1 = ax.contour(xedges,yedges,hist2d.T,contourlevels[:2], \
                         colors=contourcolors[:2], linestyles=contourlinestyles[:2], \
