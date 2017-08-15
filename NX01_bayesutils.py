@@ -30,6 +30,10 @@ import statsmodels.api as sm
 from statsmodels.distributions.empirical_distribution import ECDF
 import os
 
+import matplotlib
+import distutils.version
+mpl_version = distutils.version.LooseVersion(matplotlib.__version__)
+
 import NX01_utils as utils
 
 """
