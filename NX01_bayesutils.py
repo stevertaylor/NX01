@@ -210,9 +210,9 @@ def makesubplot2d(ax, samples1, samples2, cmap=None, color='k', weights=None,
             contourlinestyles = contourlinestyles[::-1]
             contourlinewidths = contourlinewidths[::-1]
 
-        c1 = ax.contour(xedges,yedges,hist2d.T,contourlevels[:2], \
-                        colors=contourcolors[:2], linestyles=contourlinestyles[:2], \
-                        linewidths=contourlinewidths[:2], zorder=2)
+        c1 = ax.contour(xedges,yedges,hist2d.T,contourlevels[:3], \
+                        colors=contourcolors[:3], linestyles=contourlinestyles[:3], \
+                        linewidths=contourlinewidths[:3], zorder=2)
     if cmap:
         if logz:
             c2 = ax.imshow(np.flipud(hist2d.T), extent=extent, aspect=ax.get_aspect(), \
