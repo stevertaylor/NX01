@@ -200,7 +200,7 @@ def makesubplot2d(ax, samples1, samples2, cmap=None, color='k', weights=None,
         contourlevels = (level1, level2, level3)
 
         contourcolors = (color, color, color)
-        contourlinestyles = ('solid', '-', '-.')
+        contourlinestyles = ('solid', 'dashed', 'dashdot')
         contourlinewidths = (lw, lw, lw)
 
         # patch to fix new level ordering in mpl v 1.5.1
