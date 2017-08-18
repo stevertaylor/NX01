@@ -1242,7 +1242,7 @@ if args.det_signal:
         if args.sat_orbmodel == 'angles':
             pmin = np.append(pmin,np.array([-100e-8, -100e-8, -100e-8]))
         elif args.sat_orbmodel == 'orbelements':
-            pmin = np.append(pmin,-5e-2*np.ones(6))
+            pmin = np.append(pmin,-5e-1*np.ones(6))
     elif args.eph_roemermix_dx:
         if args.which_ephs == 'fitted':
             num_ephs = 1
@@ -1431,7 +1431,7 @@ if args.det_signal:
         if args.sat_orbmodel == 'angles':
             pmax = np.append(pmax,np.array([100e-8, 100e-8, 100e-8]))
         elif args.sat_orbmodel == 'orbelements':
-            pmax = np.append(pmax,5e-2*np.ones(6))
+            pmax = np.append(pmax,5e-1*np.ones(6))
     elif args.eph_roemermix_dx:
         if num_ephs > 1:
             pmax = np.append(pmax,50.0*np.ones(num_ephs)) # weights
