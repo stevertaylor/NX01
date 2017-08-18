@@ -5023,23 +5023,23 @@ elif args.sampler == 'ptmcmc':
             # Jupiter orbit
             if args.jup_orbmodel == 'angles':
                 # jupiter rotation
-                ids = [np.arange(param_ct+5,param_ct+8)]
+                ids = [np.arange(param_ct,param_ct+3)]
                 [ind.append(id) for id in ids]
                 param_ct += 3
             elif args.jup_orbmodel == 'orbelements':
                 # jupiter orbital elements perturbation
-                ids = [np.arange(param_ct+5,param_ct+11)]
+                ids = [np.arange(param_ct,param_ct+6)]
                 [ind.append(id) for id in ids]
                 param_ct += 6
             # Saturn orbit
             if args.sat_orbmodel == 'angles':
                 # saturn rotation
-                ids = [np.arange(param_ct+8,param_ct+11)]
+                ids = [np.arange(param_ct,param_ct+3)]
                 [ind.append(id) for id in ids]
                 param_ct += 3
             elif args.sat_orbmodel == 'orbelements':
                 # saturn orbital elements perturbation
-                ids = [np.arange(param_ct+11,param_ct+17)]
+                ids = [np.arange(param_ct,param_ct+6)]
                 [ind.append(id) for id in ids]
                 param_ct += 6
         elif args.eph_roemermix_dx:
