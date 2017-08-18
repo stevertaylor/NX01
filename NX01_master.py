@@ -3784,7 +3784,7 @@ def lnprob(xx):
         priorfac_planetmassdelta = 0.0
 
     priorfac_ephphysmodel = 0.0
-    if args.det_signal and args.eph_ephphysmodel:
+    if args.det_signal and args.eph_physmodel:
         mu = 0.0
         sig = np.array([1.54976690e-11, 8.17306184e-12,
                         5.71923361e-11, 7.96103855e-11])
