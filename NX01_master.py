@@ -1231,8 +1231,8 @@ if args.det_signal:
             pmin = np.append(pmin,np.zeros(num_ephs-1)) # weights
     elif args.eph_physmodel:
         # mass priors are 10x larger than IAU uncertainties
-        pmin = np.append(pmin,np.array([-10e-10, 10.0 * -9.29860141e-11, 100.0 * -4.90383710e-11,
-                                        100.0 * -3.43154016e-10, 5.0 * 10.0 * -4.77662313e-10]))
+        pmin = np.append(pmin,np.array([-10e-10, -9.29860141e-11, -4.90383710e-11,
+                                        -3.43154016e-10, -4.77662313e-10]))
         # jupiter orbit
         if args.jup_orbmodel == 'angles':
             pmin = np.append(pmin,np.array([-100e-8, -100e-8, -100e-8]))
@@ -1420,8 +1420,8 @@ if args.det_signal:
             pmax = np.append(pmax,np.ones(num_ephs-1)) # weights
     elif args.eph_physmodel:
         # mass priors are 10x larger than IAU uncertainties
-        pmax = np.append(pmax,np.array([10e-10, 10.0 * 9.29860141e-11, 100.0 * 4.90383710e-11,
-                                        100.0 * 3.43154016e-10, 5.0 * 10.0 * 4.77662313e-10]))
+        pmax = np.append(pmax,np.array([10e-10, 9.29860141e-11, 4.90383710e-11,
+                                        3.43154016e-10, 4.77662313e-10]))
         # jupiter orbit
         if args.jup_orbmodel == 'angles':
             pmax = np.append(pmax,np.array([100e-8, 100e-8, 100e-8]))
@@ -4691,7 +4691,7 @@ elif args.sampler == 'ptmcmc':
             if num_ephs > 1:
                 cov_diag = np.append(cov_diag,0.1*np.ones(num_ephs-1))
         elif args.eph_physmodel:
-            cov_diag = np.append(cov_diag,0.2*np.array([1e-10, 6e-11, 6e-11, 6e-11, 16e-11]))
+            cov_diag = np.append(cov_diag,0.2*np.array([1e-10, 1.55e-11, 8.2e-12, 3.24e-11, 7.96e-11]))
             if args.jup_orbmodel == 'angles' and args.sat_orbmodel == 'angles':
                 cov_diag = np.append(cov_diag,0.5*2e-8*np.ones(6))
             elif args.jup_orbmodel == 'orbelements' and args.sat_orbmodel == 'orbelements':
