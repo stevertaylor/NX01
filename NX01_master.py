@@ -233,8 +233,8 @@ parser.add_option('--use_gpu', dest='use_gpu', action='store_true', default=Fals
                   help='Do you want to use the GPU for accelerated linear algebra? (default = False)')
 parser.add_option('--sparse_cholesky', dest='sparse_cholesky', action='store_true', default=False,
                   help='Do you want to use a sparse cholesky solver? (default = False)')
-parser.add_option('--fix_slope', dest='fix_slope', action='store_true', default=False,
-                  help='Do you want to fix the slope of the GWB spectrum? (default = False)')
+parser.add_option('--fix_slope', dest='fix_slope', action='store', type=float, default=None,
+                  help='Do you want to fix the slope of the GWB spectrum? (default = None)')
 parser.add_option('--gwbAmpRange', dest='gwbAmpRange', action='store', type=str, default=None,
                   help='Provide a lower and upper log_10(Agwb) range as a comma delimited string (default = None)')
 parser.add_option('--gwbStarsRange', dest='gwbStarsRange', action='store', type=str, default='1.0,4.0',
@@ -1109,7 +1109,7 @@ if args.incGWB:
             pmin = np.append(pmin,-18.0)
         elif args.gwbAmpRange is not None:
             pmin = np.append(pmin,amp_range[0])
-        if not args.fix_slope:
+        if args.fix_slope is None:
             pmin = np.append(pmin,0.0)
     elif args.gwbSpecModel == 'spectrum':
         if args.gwbPrior != 'gaussProc':
@@ -1321,7 +1321,7 @@ if args.incGWB:
             pmax = np.append(pmax,-11.0)
         elif args.gwbAmpRange is not None:
             pmax = np.append(pmax,amp_range[1])
-        if not args.fix_slope:
+        if args.fix_slope is None:
             pmax = np.append(pmax,7.0)
     elif args.gwbSpecModel == 'spectrum':
         if args.gwbPrior != 'gaussProc':
@@ -1676,8 +1676,9 @@ def lnprob(xx):
         if args.gwbSpecModel == 'powerlaw':
             Agwb = 10.0**xx[param_ct]
             param_ct += 1
-            if args.fix_slope:
-                gam_gwb = 13./3.
+            if args.fix_slope is not None:
+                # gam_gwb = 13./3.
+                gam_gwb = args.fix_slope
             else:
                 gam_gwb = xx[param_ct]
                 param_ct += 1
@@ -3970,7 +3971,7 @@ if args.incDip:
 if args.incGWB:
     if args.gwbSpecModel == 'powerlaw':
         parameters.append("Agwb")
-        if not args.fix_slope:
+        if args.fix_slope is None:
             parameters.append("gam_gwb")
     elif args.gwbSpecModel == 'spectrum':
         for ii in range(nmodes_red):
@@ -4101,8 +4102,8 @@ if args.constLike:
     file_tag += '_constLike'
 if args.incGWB:
     if args.gwbSpecModel == 'powerlaw':
-        if args.fix_slope:
-            gamma_tag = '_gam4p33'
+        if args.fix_slope is not None:
+            gamma_tag = '_gam'+str(args.fix_slope)
         else:
             gamma_tag = '_gamVary'
     elif args.gwbSpecModel == 'spectrum':
@@ -4155,8 +4156,8 @@ if args.incGWB:
             file_tag += 'ModSct'
     else:
         if args.gwbSpecModel == 'powerlaw':
-            if args.fix_slope:
-                gamma_tag = '_gam4p33'
+            if args.fix_slope is not None:
+                gamma_tag = '_gam'+str(args.fix_slope)
             else:
                 gamma_tag = '_gamVary'
         file_tag += '_gwb{0}_noCorr{1}'.format(args.gwbPrior,gamma_tag)
@@ -4449,7 +4450,7 @@ elif args.sampler == 'ptmcmc':
     if args.incGWB:
         if args.gwbSpecModel == 'powerlaw':
             x0 = np.append(x0,-15.0)
-            if not args.fix_slope:
+            if args.fix_slope is None:
                 x0 = np.append(x0,13./3.)
         elif args.gwbSpecModel == 'spectrum':
             if args.gwbPrior != 'gaussProc':
@@ -4612,7 +4613,7 @@ elif args.sampler == 'ptmcmc':
         if args.gwbSpecModel == 'powerlaw':
             cov_diag = np.append(cov_diag,0.5)
             param_ephquad += 1
-            if not args.fix_slope:
+            if args.fix_slope is None:
                 cov_diag = np.append(cov_diag,0.5)
                 param_ephquad += 1
         elif args.gwbSpecModel == 'spectrum':
@@ -4827,10 +4828,10 @@ elif args.sampler == 'ptmcmc':
     ##### GWB #####
     if args.incGWB:
         if args.gwbSpecModel == 'powerlaw':
-            if args.fix_slope:
+            if args.fix_slope is not None:
                 ids = [[param_ct]]
                 param_ct += 1
-            elif not args.fix_slope:
+            elif args.fix_slope is None:
                 ids = [[param_ct,param_ct+1]]
                 param_ct += 2
             [ind.append(id) for id in ids]
@@ -5907,7 +5908,7 @@ elif args.sampler == 'ptmcmc':
               sig ** 2 - (mu - q[pct]) ** 2 / 2 / s ** 2
 
         # gamma
-        if not args.fix_slope:
+        if args.fix_slope is None:
             q[pct+1] = np.random.uniform(pmin[pct+1], pmax[pct+1])
             qxy += 0
 
@@ -6396,7 +6397,7 @@ elif args.sampler == 'ptmcmc':
         if args.incGWB:
             if args.gwbSpecModel == 'powerlaw':
                 pct += 1
-                if not args.fix_slope:
+                if args.fix_slope is None:
                     pct += 1
             elif args.gwbSpecModel == 'spectrum':
                 pct += nmodes_red
@@ -6484,7 +6485,7 @@ elif args.sampler == 'ptmcmc':
         if args.incGWB:
             if args.gwbSpecModel == 'powerlaw':
                 pct += 1
-                if not args.fix_slope:
+                if args.fix_slope is None:
                     pct += 1
             elif args.gwbSpecModel == 'spectrum':
                 pct += nmodes_red
@@ -6568,7 +6569,7 @@ elif args.sampler == 'ptmcmc':
         if args.incGWB:
             if args.gwbSpecModel == 'powerlaw':
                 pct += 1
-                if not args.fix_slope:
+                if args.fix_slope is None:
                     pct += 1
             elif args.gwbSpecModel == 'spectrum':
                 pct += nmodes_red
@@ -6659,7 +6660,7 @@ elif args.sampler == 'ptmcmc':
         if args.incGWB:
             if args.gwbSpecModel == 'powerlaw':
                 pct += 1
-                if not args.fix_slope:
+                if args.fix_slope is None:
                     pct += 1
             elif args.gwbSpecModel == 'spectrum':
                 pct += nmodes_red
@@ -6757,7 +6758,7 @@ elif args.sampler == 'ptmcmc':
         if args.incGWB:
             if args.gwbSpecModel == 'powerlaw':
                 pct += 1
-                if not args.fix_slope:
+                if args.fix_slope is None:
                     pct += 1
             elif args.gwbSpecModel == 'spectrum':
                 pct += nmodes_red
@@ -6858,7 +6859,7 @@ elif args.sampler == 'ptmcmc':
         if args.incGWB:
             if args.gwbSpecModel == 'powerlaw':
                 pct += 1
-                if not args.fix_slope:
+                if args.fix_slope is None:
                     pct += 1
             elif args.gwbSpecModel == 'spectrum':
                 pct += nmodes_red
@@ -6959,7 +6960,7 @@ elif args.sampler == 'ptmcmc':
         if args.incGWB:
             if args.gwbSpecModel == 'powerlaw':
                 pct += 1
-                if not args.fix_slope:
+                if args.fix_slope is None:
                     pct += 1
             elif args.gwbSpecModel == 'spectrum':
                 pct += nmodes_red
@@ -7061,7 +7062,7 @@ elif args.sampler == 'ptmcmc':
         if args.incGWB:
             if args.gwbSpecModel == 'powerlaw':
                 pct += 1
-                if not args.fix_slope:
+                if args.fix_slope is None:
                     pct += 1
             elif args.gwbSpecModel == 'spectrum':
                 pct += nmodes_red
@@ -7164,7 +7165,7 @@ elif args.sampler == 'ptmcmc':
         if args.incGWB:
             if args.gwbSpecModel == 'powerlaw':
                 pct += 1
-                if not args.fix_slope:
+                if args.fix_slope is None:
                     pct += 1
             elif args.gwbSpecModel == 'spectrum':
                 pct += nmodes_red
@@ -7266,7 +7267,7 @@ elif args.sampler == 'ptmcmc':
         if args.incGWB:
             if args.gwbSpecModel == 'powerlaw':
                 pct += 1
-                if not args.fix_slope:
+                if args.fix_slope is None:
                     pct += 1
             elif args.gwbSpecModel == 'spectrum':
                 pct += nmodes_red
@@ -7366,7 +7367,7 @@ elif args.sampler == 'ptmcmc':
         if args.incGWB:
             if args.gwbSpecModel == 'powerlaw':
                 pct += 1
-                if not args.fix_slope:
+                if args.fix_slope is None:
                     pct += 1
             elif args.gwbSpecModel == 'spectrum':
                 pct += nmodes_red
@@ -7471,7 +7472,7 @@ elif args.sampler == 'ptmcmc':
         if args.incGWB:
             if args.gwbSpecModel == 'powerlaw':
                 pct += 1
-                if not args.fix_slope:
+                if args.fix_slope is None:
                     pct += 1
             elif args.gwbSpecModel == 'spectrum':
                 pct += nmodes_red
@@ -7580,7 +7581,7 @@ elif args.sampler == 'ptmcmc':
         if args.incGWB:
             if args.gwbSpecModel == 'powerlaw':
                 pct += 1
-                if not args.fix_slope:
+                if args.fix_slope is None:
                     pct += 1
             elif args.gwbSpecModel == 'spectrum':
                 pct += nmodes_red
@@ -7700,7 +7701,7 @@ elif args.sampler == 'ptmcmc':
         if args.incGWB:
             if args.gwbSpecModel == 'powerlaw':
                 pct += 1
-                if not args.fix_slope:
+                if args.fix_slope is None:
                     pct += 1
             elif args.gwbSpecModel == 'spectrum':
                 pct += nmodes_red
@@ -7816,7 +7817,7 @@ elif args.sampler == 'ptmcmc':
         if args.incGWB:
             if args.gwbSpecModel == 'powerlaw':
                 pct += 1
-                if not args.fix_slope:
+                if args.fix_slope is None:
                     pct += 1
             elif args.gwbSpecModel == 'spectrum':
                 pct += nmodes_red
@@ -7934,7 +7935,7 @@ elif args.sampler == 'ptmcmc':
         if args.incGWB:
             if args.gwbSpecModel == 'powerlaw':
                 pct += 1
-                if not args.fix_slope:
+                if args.fix_slope is None:
                     pct += 1
             elif args.gwbSpecModel == 'spectrum':
                 pct += nmodes_red
@@ -8049,7 +8050,7 @@ elif args.sampler == 'ptmcmc':
         if args.incGWB:
             if args.gwbSpecModel == 'powerlaw':
                 pct += 1
-                if not args.fix_slope:
+                if args.fix_slope is None:
                     pct += 1
             elif args.gwbSpecModel == 'spectrum':
                 pct += nmodes_red
@@ -8167,7 +8168,7 @@ elif args.sampler == 'ptmcmc':
         if args.incGWB:
             if args.gwbSpecModel == 'powerlaw':
                 pct += 1
-                if not args.fix_slope:
+                if args.fix_slope is None:
                     pct += 1
             elif args.gwbSpecModel == 'spectrum':
                 pct += nmodes_red
