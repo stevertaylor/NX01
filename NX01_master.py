@@ -751,6 +751,16 @@ if args.incGWB and args.incCorr:
         tmp_nwins = args.nwins
         num_corr_params = 0
 
+    elif args.gwbTypeCorr == 'ssephem':
+
+        gwfreqs_per_win = args.nmodes
+        corr_modefreqs = np.arange(1,args.nmodes+1)
+        corr_modefreqs = np.reshape(corr_modefreqs,
+                                    (args.nwins,gwfreqs_per_win))
+
+        tmp_nwins = args.nwins
+        num_corr_params = 0
+
 # Creating correlation matrix for Cosinusoidal process
 if args.incDip and args.incCorr:
 
@@ -2736,6 +2746,46 @@ def lnprob(xx):
                 ORF = np.array(ORF)
                 ORFtot = ORF
 
+            elif args.gwbTypeCorr == 'ssephem':
+
+                npsrs = len(positions)
+                tmp_pos = np.array([np.sin(positions[:,1]) * np.cos(positions[:,0]),
+                                    np.sin(positions[:,1]) * np.sin(positions[:,0]),
+                                    np.cos(positions[:,1])]).T
+
+                tmp_diporf = np.dot(tmp_pos, tmp_pos.T) + 1e-5*np.diag(np.ones(npsr))
+
+                ORF=[]
+                for ii in range(tmp_nwins): # number of frequency windows
+                    for jj in range(len(corr_modefreqs[ii])): # number of frequencies in this window
+                        ORF.append( tmp_diporf )
+                        ORF.append( tmp_diporf ) # clock signal is completely correlated
+
+                if args.incDM:
+                    for ii in range(2*nmodes_dm):
+                        ORF.append( np.zeros((npsr,npsr)) )
+
+                if args.incEph:
+                    if args.jplBasis:
+                        for ii in range(nmodes_eph):
+                            ORF.append( np.zeros((npsr,npsr)) )
+                    else:
+                        for kk in range(3): # x,y,z
+                            for ii in range(2*nmodes_eph):
+                                ORF.append( np.zeros((npsr,npsr)) )
+
+                if args.incClk and args.clkDesign:
+                    for ii in range(2*nmodes_red):
+                        ORF.append( np.zeros((npsr,npsr)) )
+
+                if args.incBand:
+                    for kk in range(len(bands)-1):
+                        for ii in range(2*nmodes_band):
+                            ORF.append( np.zeros((npsr,npsr)) )
+
+                ORF = np.array(ORF)
+                ORFtot = ORF
+
         if args.incGWline:
 
             gwline_orf = np.zeros((npsr,npsr))
@@ -4142,6 +4192,9 @@ if args.incGWB:
                                                    evol_corr_tag,gamma_tag)
         elif args.gwbTypeCorr == 'clock':
             file_tag += '_gwb{0}_fulcorr{1}{2}'.format(args.gwbPrior,
+                                                         evol_corr_tag,gamma_tag)
+        elif args.gwbTypeCorr == 'ssephem':
+            file_tag += '_gwb{0}_ssephem{1}{2}'.format(args.gwbPrior,
                                                          evol_corr_tag,gamma_tag)
         elif args.gwbTypeCorr == 'custom':
             file_tag += '_gwb{0}_cstmOrf{1}{2}'.format(args.gwbPrior,
