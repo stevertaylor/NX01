@@ -1520,6 +1520,9 @@ if args.eph_physmodel:
         elif args.jup_orbmodel == 'orbelements':
             jup_mjd = np.load(nxdir+'/data/jupiter_orbitpartials/jupiter-orbel-mjd.npy')
             jup_orbelxyz = np.load(nxdir+'/data/jupiter_orbitpartials/jupiter-orbel-xyz-svd.npy')
+    elif not args.incJuporb:
+        jup_mjd = None
+        jup_orbelxyz = None
 
     # Saturn
     if args.incSatorb:
@@ -1529,6 +1532,9 @@ if args.eph_physmodel:
         elif args.sat_orbmodel == 'orbelements':
             sat_mjd = np.load(nxdir+'/data/saturn_orbitpartials/saturn-orbel-mjd.npy')
             sat_orbelxyz = np.load(nxdir+'/data/saturn_orbitpartials/saturn-orbel-xyz-svd.npy')
+    elif not args.incSatorb:
+        sat_mjd = None
+        sat_orbelxyz = None
 
 ##################################################################################
 
