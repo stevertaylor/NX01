@@ -132,57 +132,69 @@ def dorbit(mjd, earth, planet, x, y, z, dz, m_over_Msun):
 
 def ssephem_physical_model(x, mjd, earth, jupiter, saturn,
                            uranus, neptune,
-                           jup_orbmodel='orbelements', jup_orbelxyz=None, jup_mjd=None,
-                           sat_orbmodel='orbelements', sat_orbelxyz=None, sat_mjd=None,
+                           incJuporb=False, jup_orbmodel='orbelements', jup_orbelxyz=None, jup_mjd=None,
+                           incSatorb=False, sat_orbmodel='orbelements', sat_orbelxyz=None, sat_mjd=None,
                            equatorial=True):
-    # it's a 14 parameter model (with argument x, see below for priors).
+    # model with argument x, see below for priors.
     # Feed it the TOA vector (size n) and Earth-to-SSB, Jupiter-to-SSB, etc.
     # (n,3) arrays. Set equatorial=True or False depending on the tempo2
     # coordinate frame, which matches the par-file coordinates.
+    ct = 0
 
     # frame rotation (three angles, a rate, and an absolute offset)
     # use priors 1e-9, 5e-9, 5e-7, 1e-10, 1e-8, 5e-9, 1e-10
     # (based on systematic comparisons between ephemerides)
-    earth = ss_framerotate(mjd, earth, 0.0, 0.0, 0.0, x[0],
+    earth = ss_framerotate(mjd, earth, 0.0, 0.0, 0.0, x[ct],
                            offset=None, equatorial=equatorial)
+    ct += 1
 
     # jupiter
-    earth = dmass(earth,jupiter,x[1])
+    earth = dmass(earth,jupiter,x[ct])
+    ct += 1
 
     # saturn
-    earth = dmass(earth,saturn,x[2])
+    earth = dmass(earth,saturn,x[ct])
+    ct += 1
 
     # uranus - uncertainty 3e-11, use twice that for prior (DE430-435 fit likes 6e-11)
-    earth = dmass(earth,uranus,x[3])
+    earth = dmass(earth,uranus,x[ct])
+    ct += 1
 
     # neptune - uncertainty 8e-11, use twice that for prior (DE421-430 fit likes 6e-11 also)
-    earth = dmass(earth,neptune,x[4])
+    earth = dmass(earth,neptune,x[ct])
+    ct += 1
 
     # Jupiter
-    if jup_orbmodel == 'angles':
-        # rotate Jupiter (use 2e-8 prior for the three angles; no rate)
-        earth = dorbit(mjd, earth, jupiter,
-                       x[5], x[6], x[7],
-                       0.0, 0.0009547918983127075)
-    elif jup_orbmodel == 'orbelements':
-        # perturb Jupiter's orbital elements with SVD partial design matrix
-        jup_perturb_tmp = 0.0009547918983127075 * np.einsum('i,ijk->jk',
-                                                            x[5:11],jup_orbelxyz)
-        earth += np.array([np.interp(mjd, jup_mjd, jup_perturb_tmp[:,aa])
-                           for aa in range(3)]).T
+    if incJuporb:
+        if jup_orbmodel == 'angles':
+            # rotate Jupiter (use 2e-8 prior for the three angles; no rate)
+            earth = dorbit(mjd, earth, jupiter,
+                           x[ct], x[ct+1], x[ct+2],
+                           0.0, 0.0009547918983127075)
+            ct += 3
+        elif jup_orbmodel == 'orbelements':
+            # perturb Jupiter's orbital elements with SVD partial design matrix
+            jup_perturb_tmp = 0.0009547918983127075 * np.einsum('i,ijk->jk',
+                                                                x[ct:ct+6],jup_orbelxyz)
+            earth += np.array([np.interp(mjd, jup_mjd, jup_perturb_tmp[:,aa])
+                               for aa in range(3)]).T
+            ct += 6
 
     # Saturn
-    if sat_orbmodel == 'angles':
-        # rotate Saturn (use 2e-8 prior for the three angles; no rate)
-        earth = dorbit(mjd, earth, saturn,
-                       x[8], x[9], x[10],
-                       0.0, 0.00028588567008942334)
-    if sat_orbmodel == 'orbelements':
-        # perturb Saturn's orbital elements with SVD partial design matrix
-        sat_perturb_tmp = 0.00028588567008942334 * np.einsum('i,ijk->jk',
-                                                            x[11:17],sat_orbelxyz)
-        earth += np.array([np.interp(mjd, sat_mjd, sat_perturb_tmp[:,aa])
-                           for aa in range(3)]).T
+    if incSatorb:
+        if sat_orbmodel == 'angles':
+            # rotate Saturn (use 2e-8 prior for the three angles; no rate)
+            earth = dorbit(mjd, earth, saturn,
+                           x[ct], x[ct+1], x[ct+2],
+                           0.0, 0.00028588567008942334)
+            ct += 3
+        if sat_orbmodel == 'orbelements':
+            # perturb Saturn's orbital elements with SVD partial design matrix
+            sat_perturb_tmp = 0.00028588567008942334 * np.einsum('i,ijk->jk',
+                                                                x[ct:ct+6],sat_orbelxyz)
+            earth += np.array([np.interp(mjd, sat_mjd, sat_perturb_tmp[:,aa])
+                               for aa in range(3)]).T
+            ct += 6
 
 
     return earth

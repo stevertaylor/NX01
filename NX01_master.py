@@ -329,8 +329,12 @@ parser.add_option('--eph_dirichlet_alpha', dest='eph_dirichlet_alpha', action='s
                   help='What value of the dirichlet concentration do you want to use? (default = 1.0)')
 parser.add_option('--eph_physmodel', dest='eph_physmodel', action='store_true', default=False,
                   help='Do you want to use frame rotation, Jupiter+Saturn+Uranus+Neptune mass perturbations, and Jupiter orbit perturbation? (default = False)')
+parser.add_option('--incJuporb', dest='incJuporb', action='store_true', default=False,
+                  help='Include Jupiter orbital perturbations in solar-system ephemeris physical model? (default = False)')
 parser.add_option('--jup_orbmodel', dest='jup_orbmodel', action='store', type=str, default='orbelements',
                   help='Which Jupiter orbit perturbation model do you want to use [angles, orbelements]? (default = orbelements)')
+parser.add_option('--incSatorb', dest='incSatorb', action='store_true', default=False,
+                  help='Include Saturn orbital perturbations in solar-system ephemeris physical model? (default = False)')
 parser.add_option('--sat_orbmodel', dest='sat_orbmodel', action='store', type=str, default='orbelements',
                   help='Which Saturn orbit perturbation model do you want to use [orbelements]? (default = orbelements)')
 parser.add_option('--eph_roemermix_dx', dest='eph_roemermix_dx', action='store_true', default=False,
@@ -1244,15 +1248,17 @@ if args.det_signal:
         pmin = np.append(pmin,np.array([-10e-10, -9.29860141e-11, -4.90383710e-11,
                                         -3.43154016e-10, -4.77662313e-10]))
         # jupiter orbit
-        if args.jup_orbmodel == 'angles':
-            pmin = np.append(pmin,np.array([-100e-8, -100e-8, -100e-8]))
-        elif args.jup_orbmodel == 'orbelements':
-            pmin = np.append(pmin,-5e-2*np.ones(6))
+        if args.incJuporb:
+            if args.jup_orbmodel == 'angles':
+                pmin = np.append(pmin,np.array([-100e-8, -100e-8, -100e-8]))
+            elif args.jup_orbmodel == 'orbelements':
+                pmin = np.append(pmin,-5e-2*np.ones(6))
         # saturn orbit
-        if args.sat_orbmodel == 'angles':
-            pmin = np.append(pmin,np.array([-100e-8, -100e-8, -100e-8]))
-        elif args.sat_orbmodel == 'orbelements':
-            pmin = np.append(pmin,-5e-1*np.ones(6))
+        if args.incSatorb:
+            if args.sat_orbmodel == 'angles':
+                pmin = np.append(pmin,np.array([-100e-8, -100e-8, -100e-8]))
+            elif args.sat_orbmodel == 'orbelements':
+                pmin = np.append(pmin,-5e-1*np.ones(6))
     elif args.eph_roemermix_dx:
         if args.which_ephs == 'fitted':
             num_ephs = 1
@@ -1433,15 +1439,17 @@ if args.det_signal:
         pmax = np.append(pmax,np.array([10e-10, 9.29860141e-11, 4.90383710e-11,
                                         3.43154016e-10, 4.77662313e-10]))
         # jupiter orbit
-        if args.jup_orbmodel == 'angles':
-            pmax = np.append(pmax,np.array([100e-8, 100e-8, 100e-8]))
-        elif args.jup_orbmodel == 'orbelements':
-            pmax = np.append(pmax,5e-2*np.ones(6))
+        if args.incJuporb:
+            if args.jup_orbmodel == 'angles':
+                pmax = np.append(pmax,np.array([100e-8, 100e-8, 100e-8]))
+            elif args.jup_orbmodel == 'orbelements':
+                pmax = np.append(pmax,5e-2*np.ones(6))
         # saturn orbit
-        if args.sat_orbmodel == 'angles':
-            pmax = np.append(pmax,np.array([100e-8, 100e-8, 100e-8]))
-        elif args.sat_orbmodel == 'orbelements':
-            pmax = np.append(pmax,5e-1*np.ones(6))
+        if args.incSatorb:
+            if args.sat_orbmodel == 'angles':
+                pmax = np.append(pmax,np.array([100e-8, 100e-8, 100e-8]))
+            elif args.sat_orbmodel == 'orbelements':
+                pmax = np.append(pmax,5e-1*np.ones(6))
     elif args.eph_roemermix_dx:
         if num_ephs > 1:
             pmax = np.append(pmax,50.0*np.ones(num_ephs)) # weights
@@ -1505,20 +1513,22 @@ if args.eph_physmodel and args.epochTOAs:
 if args.eph_physmodel:
 
     # Jupiter
-    if args.jup_orbmodel == 'angles':
-        jup_mjd = None
-        jup_orbelxyz = None
-    elif args.jup_orbmodel == 'orbelements':
-        jup_mjd = np.load(nxdir+'/data/jupiter_orbitpartials/jupiter-orbel-mjd.npy')
-        jup_orbelxyz = np.load(nxdir+'/data/jupiter_orbitpartials/jupiter-orbel-xyz-svd.npy')
+    if args.incJuporb:
+        if args.jup_orbmodel == 'angles':
+            jup_mjd = None
+            jup_orbelxyz = None
+        elif args.jup_orbmodel == 'orbelements':
+            jup_mjd = np.load(nxdir+'/data/jupiter_orbitpartials/jupiter-orbel-mjd.npy')
+            jup_orbelxyz = np.load(nxdir+'/data/jupiter_orbitpartials/jupiter-orbel-xyz-svd.npy')
 
     # Saturn
-    if args.sat_orbmodel == 'angles':
-        sat_mjd = None
-        sat_orbelxyz = None
-    elif args.sat_orbmodel == 'orbelements':
-        sat_mjd = np.load(nxdir+'/data/saturn_orbitpartials/saturn-orbel-mjd.npy')
-        sat_orbelxyz = np.load(nxdir+'/data/saturn_orbitpartials/saturn-orbel-xyz-svd.npy')
+    if args.incSatorb:
+        if args.sat_orbmodel == 'angles':
+            sat_mjd = None
+            sat_orbelxyz = None
+        elif args.sat_orbmodel == 'orbelements':
+            sat_mjd = np.load(nxdir+'/data/saturn_orbitpartials/saturn-orbel-mjd.npy')
+            sat_orbelxyz = np.load(nxdir+'/data/saturn_orbitpartials/saturn-orbel-xyz-svd.npy')
 
 ##################################################################################
 
@@ -1800,12 +1810,26 @@ def lnprob(xx):
                 if np.sum(roemer_wgts) > 1.0:
                     return -np.inf
         elif args.eph_physmodel:
-            if args.jup_orbmodel == 'angles' and args.sat_orbmodel == 'angles':
-                eph_physmodel_params = xx[param_ct:param_ct+11].copy()
-                param_ct += 8
-            elif args.jup_orbmodel == 'orbelements' and args.sat_orbmodel == 'orbelements':
-                eph_physmodel_params = xx[param_ct:param_ct+17].copy()
-                param_ct += 17
+            eph_physmodel_params = xx[param_ct:param_ct+5].copy()
+            param_ct += 5
+            if args.incJuporb:
+                if args.jup_orbmodel == 'angles':
+                    eph_physmodel_params = np.append(eph_physmodel_params,
+                                                     xx[param_ct:param_ct+3].copy())
+                    param_ct += 3
+                elif args.jup_orbmodel == 'orbelements':
+                    eph_physmodel_params = np.append(eph_physmodel_params,
+                                                     xx[param_ct:param_ct+6].copy())
+                    param_ct += 6
+            if args.incSatorb:
+                if args.sat_orbmodel == 'angles':
+                    eph_physmodel_params = np.append(eph_physmodel_params,
+                                                     xx[param_ct:param_ct+3].copy())
+                    param_ct += 3
+                elif args.sat_orbmodel == 'orbelements':
+                    eph_physmodel_params = np.append(eph_physmodel_params,
+                                                     xx[param_ct:param_ct+6].copy())
+                    param_ct += 6
         elif args.eph_roemermix_dx:
             if num_ephs > 1:
                 roemer_wgts = xx[param_ct:param_ct+num_ephs].copy()
@@ -2220,8 +2244,8 @@ def lnprob(xx):
                                                                  planet_epochposvecs[ii][:,5,:3], # saturn
                                                                  planet_epochposvecs[ii][:,6,:3], # uranus
                                                                  planet_epochposvecs[ii][:,7,:3], # neptune
-                                                                 args.jup_orbmodel, jup_orbelxyz, jup_mjd,
-                                                                 args.sat_orbmodel, sat_orbelxyz, sat_mjd,
+                                                                 args.incJuporb, args.jup_orbmodel, jup_orbelxyz, jup_mjd, # jupiter orbit
+                                                                 args.incSatorb, args.sat_orbmodel, sat_orbelxyz, sat_mjd, # saturn orbit
                                                                  equatorial=True)
                         # subtract off old roemer, add in new one
                         tmp_detsig = np.einsum('ij,ij->i',tmp_earth,psr_epochposvecs[ii]) - tmp_roemer
@@ -2241,8 +2265,8 @@ def lnprob(xx):
                                                                  p.planet_ssb[p.ephemname][:,5,:3], # saturn
                                                                  p.planet_ssb[p.ephemname][:,6,:3], # uranus
                                                                  p.planet_ssb[p.ephemname][:,7,:3], # neptune
-                                                                 args.jup_orbmodel, jup_orbelxyz, jup_mjd,
-                                                                 args.sat_orbmodel, sat_orbelxyz, sat_mjd,
+                                                                 args.incJuporb, args.jup_orbmodel, jup_orbelxyz, jup_mjd,
+                                                                 args.incSatorb, args.sat_orbmodel, sat_orbelxyz, sat_mjd,
                                                                  equatorial=True)
                         # subtract off old roemer, add in new one
                         detres[ii] -= tmp_roemer
@@ -4123,17 +4147,19 @@ if args.det_signal:
         parameters += ["frame_rate", "jupiter_dM", "saturn_dM",
                        "uranus_dM", "neptune_dM"]
         # jupiter orbit
-        if args.jup_orbmodel == 'angles':
-            parameters += ["jupiter_ang1", "jupiter_ang2", "jupiter_ang3"]
-        elif args.jup_orbmodel == 'orbelements':
-            parameters += ["jupiter_orbel1", "jupiter_orbel2", "jupiter_orbel3",
-                           "jupiter_orbel4", "jupiter_orbel5", "jupiter_orbel6"]
+        if args.incJuporb:
+            if args.jup_orbmodel == 'angles':
+                parameters += ["jupiter_ang1", "jupiter_ang2", "jupiter_ang3"]
+            elif args.jup_orbmodel == 'orbelements':
+                parameters += ["jupiter_orbel1", "jupiter_orbel2", "jupiter_orbel3",
+                               "jupiter_orbel4", "jupiter_orbel5", "jupiter_orbel6"]
         # saturn orbit
-        if args.sat_orbmodel == 'angles':
-            parameters += ["saturn_ang1", "saturn_ang2", "saturn_ang3"]
-        elif args.sat_orbmodel == 'orbelements':
-            parameters += ["saturn_orbel1", "saturn_orbel2", "saturn_orbel3",
-                           "saturn_orbel4", "saturn_orbel5", "saturn_orbel6"]
+        if args.incSatorb:
+            if args.sat_orbmodel == 'angles':
+                parameters += ["saturn_ang1", "saturn_ang2", "saturn_ang3"]
+            elif args.sat_orbmodel == 'orbelements':
+                parameters += ["saturn_orbel1", "saturn_orbel2", "saturn_orbel3",
+                               "saturn_orbel4", "saturn_orbel5", "saturn_orbel6"]
     elif args.eph_roemermix_dx:
         for key in ephnames:
             parameters.append("roemerweight_dx_{0}".format(key))
@@ -4586,10 +4612,17 @@ elif args.sampler == 'ptmcmc':
             if num_ephs > 1:
                 x0 = np.append(x0,np.random.uniform(0.0,1.0/num_ephs,num_ephs-1))
         elif args.eph_physmodel:
-            if args.jup_orbmodel == 'angles' and args.sat_orbmodel == 'angles':
-                x0 = np.append(x0,np.zeros(11))
-            elif args.jup_orbmodel == 'orbelements' and args.sat_orbmodel == 'orbelements':
-                x0 = np.append(x0,np.zeros(17))
+            x0 = np.append(x0,np.zeros(5))
+            if args.incJuporb:
+                if args.jup_orbmodel == 'angles':
+                    x0 = np.append(x0,np.zeros(3))
+                elif args.jup_orbmodel == 'orbelements':
+                    x0 = np.append(x0,np.zeros(6))
+            if args.incSatorb:
+                if args.sat_orbmodel == 'angles':
+                    x0 = np.append(x0,np.zeros(3))
+                elif args.sat_orbmodel == 'orbelements':
+                    x0 = np.append(x0,np.zeros(6))
         elif args.eph_roemermix_dx:
             if num_ephs > 1:
                 x0 = np.append(x0,np.random.uniform(0.0,1.0/num_ephs,num_ephs))
@@ -4746,10 +4779,16 @@ elif args.sampler == 'ptmcmc':
                 cov_diag = np.append(cov_diag,0.1*np.ones(num_ephs-1))
         elif args.eph_physmodel:
             cov_diag = np.append(cov_diag,0.2*np.array([1e-10, 1.55e-11, 8.2e-12, 3.24e-11, 7.96e-11]))
-            if args.jup_orbmodel == 'angles' and args.sat_orbmodel == 'angles':
-                cov_diag = np.append(cov_diag,0.5*2e-8*np.ones(6))
-            elif args.jup_orbmodel == 'orbelements' and args.sat_orbmodel == 'orbelements':
-                cov_diag = np.append(cov_diag,2e-3*np.ones(12))
+            if args.incJuporb:
+                if args.jup_orbmodel == 'angles':
+                    cov_diag = np.append(cov_diag,0.5*2e-8*np.ones(3))
+                elif args.jup_orbmodel == 'orbelements':
+                    cov_diag = np.append(cov_diag,2e-3*np.ones(6))
+            if args.incSatorb:
+                if args.sat_orbmodel == 'angles':
+                    cov_diag = np.append(cov_diag,0.5*2e-8*np.ones(3))
+                elif args.sat_orbmodel == 'orbelements':
+                    cov_diag = np.append(cov_diag,2e-3*np.ones(6))
         elif args.eph_roemermix_dx:
             if num_ephs > 1:
                 cov_diag = np.append(cov_diag,1.0*np.ones(num_ephs))
@@ -5052,50 +5091,59 @@ elif args.sampler == 'ptmcmc':
                 [ind.append(id) for id in ids]
         elif args.eph_physmodel:
             # all
-            if args.jup_orbmodel == 'angles' and args.sat_orbmodel == 'angles':
-                ids = [np.arange(param_ct,param_ct+11)]
-                [ind.append(id) for id in ids]
-            elif args.jup_orbmodel == 'orbelements' and args.sat_orbmodel == 'orbelements':
-                ids = [np.arange(param_ct,param_ct+17)]
-                [ind.append(id) for id in ids]
+            tmp_ephct = param_ct + 5
+            if args.incJuporb:
+                if args.jup_orbmodel == 'angles':
+                    tmp_ephct += 3
+                elif args.jup_orbmodel == 'orbelements':
+                    tmp_ephct += 6
+            if args.incSatorb:
+                if args.sat_orbmodel == 'angles':
+                    tmp_ephct += 3
+                elif args.sat_orbmodel == 'orbelements':
+                    tmp_ephct += 6
+            ids = [np.arange(param_ct,tmp_ephct)]
+            [ind.append(id) for id in ids]
             # frame rotation rate
             ids = [np.arange(param_ct,param_ct+1)]
             [ind.append(id) for id in ids]
-            # jupiter
+            # jupiter mass
             ids = [np.arange(param_ct+1,param_ct+2)]
             [ind.append(id) for id in ids]
-            # saturn
+            # saturn mass
             ids = [np.arange(param_ct+2,param_ct+3)]
             [ind.append(id) for id in ids]
-            # uranus
+            # uranus mass
             ids = [np.arange(param_ct+3,param_ct+4)]
             [ind.append(id) for id in ids]
-            # neptune
+            # neptune mass
             ids = [np.arange(param_ct+4,param_ct+5)]
             [ind.append(id) for id in ids]
             param_ct += 5
             # Jupiter orbit
-            if args.jup_orbmodel == 'angles':
-                # jupiter rotation
-                ids = [np.arange(param_ct,param_ct+3)]
-                [ind.append(id) for id in ids]
-                param_ct += 3
-            elif args.jup_orbmodel == 'orbelements':
-                # jupiter orbital elements perturbation
-                ids = [np.arange(param_ct,param_ct+6)]
-                [ind.append(id) for id in ids]
-                param_ct += 6
+            if args.incJuporb:
+                if args.jup_orbmodel == 'angles':
+                    # jupiter rotation
+                    ids = [np.arange(param_ct,param_ct+3)]
+                    [ind.append(id) for id in ids]
+                    param_ct += 3
+                elif args.jup_orbmodel == 'orbelements':
+                    # jupiter orbital elements perturbation
+                    ids = [np.arange(param_ct,param_ct+6)]
+                    [ind.append(id) for id in ids]
+                    param_ct += 6
             # Saturn orbit
-            if args.sat_orbmodel == 'angles':
-                # saturn rotation
-                ids = [np.arange(param_ct,param_ct+3)]
-                [ind.append(id) for id in ids]
-                param_ct += 3
-            elif args.sat_orbmodel == 'orbelements':
-                # saturn orbital elements perturbation
-                ids = [np.arange(param_ct,param_ct+6)]
-                [ind.append(id) for id in ids]
-                param_ct += 6
+            if args.incSatorb:
+                if args.sat_orbmodel == 'angles':
+                    # saturn rotation
+                    ids = [np.arange(param_ct,param_ct+3)]
+                    [ind.append(id) for id in ids]
+                    param_ct += 3
+                elif args.sat_orbmodel == 'orbelements':
+                    # saturn orbital elements perturbation
+                    ids = [np.arange(param_ct,param_ct+6)]
+                    [ind.append(id) for id in ids]
+                    param_ct += 6
         elif args.eph_roemermix_dx:
             if num_ephs > 1:
                 ids = [np.arange(param_ct,param_ct+num_ephs)]
@@ -8142,10 +8190,18 @@ elif args.sampler == 'ptmcmc':
             pct += 9
 
         # choose a physical model parameter to perturb
-        if args.jup_orbmodel == 'angles' and args.sat_orbmodel == 'angles':
-            ind = np.unique(np.random.randint(0, 11, 1))[0]
-        elif args.jup_orbmodel == 'orbelements' and args.sat_orbmodel == 'orbelements':
-            ind = np.unique(np.random.randint(0, 17, 1))[0]
+        tmp_ephct = 5
+        if args.incJuporb:
+            if args.jup_orbmodel == 'angles':
+                tmp_ephct += 3
+            elif args.jup_orbmodel == 'orbelements':
+                tmp_ephct += 6
+        if args.incSatorb:
+            if args.sat_orbmodel == 'angles':
+                tmp_ephct += 3
+            elif args.sat_orbmodel == 'orbelements':
+                tmp_ephct += 6
+        ind = np.unique(np.random.randint(0, tmp_ephct, 1))[0]
 
         if ind in [1,2,3,4]:
             mu = 0.0
