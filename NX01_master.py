@@ -3874,7 +3874,7 @@ def lnprob(xx):
         for jj in range(len(sig)):
             priorfac_ephphysmodel += np.log( np.exp( -0.5 * (eph_physmodel_params[jj+1] - mu)**2.0 / sig[jj]**2.0) \
                                                     / np.sqrt(2.0*np.pi*sig[jj]**2.0) )
-        if args.jup_orbmodel == 'orbelements' and args.eph_priorjpl:
+        if args.incJuporb and args.jup_orbmodel == 'orbelements' and args.eph_priorjpl:
             # prior covariance on PCA coefficients from JPL and M. Vallisneri
             pca_cov = np.array([[  3.02523645e-06,   3.97004662e-06,   2.24903984e-07,
                                   -2.66611739e-07,  -4.71190041e-08,   1.30078749e-07],
@@ -8234,6 +8234,26 @@ elif args.sampler == 'ptmcmc':
             q[pct+ind] = mu + np.random.randn() * sig[ind-1]
             qxy -= (mu - parameters[pct+ind]) ** 2 / 2 / \
               sig[ind-1] ** 2 - (mu - q[pct+ind]) ** 2 / 2 / sig[ind-1] ** 2
+        elif ind > 4:
+            if args.incJuporb and args.jup_orbmodel == 'orbelements' and args.eph_priorjpl:
+                # prior covariance on PCA coefficients from JPL and M. Vallisneri
+                pca_cov = np.array([[  3.02523645e-06,   3.97004662e-06,   2.24903984e-07,
+                                      -2.66611739e-07,  -4.71190041e-08,   1.30078749e-07],
+                                    [  3.97004662e-06,   5.23961306e-06,   3.63693174e-07,
+                                      -1.97032683e-07,  -1.36506909e-07,   9.00474450e-09],
+                                    [   2.24903984e-07,   3.63693174e-07,   2.39866742e-07,
+                                      -2.80080126e-07,  -2.31449063e-07,   1.89317437e-07],
+                                    [  -2.66611739e-07,  -1.97032683e-07,  -2.80080126e-07,
+                                       9.73091356e-06,   1.04977834e-07,  -4.69086192e-06],
+                                    [  -4.71190041e-08,  -1.36506909e-07,  -2.31449063e-07,
+                                       1.04977834e-07,   2.37264475e-07,  -8.60592321e-08],
+                                    [   1.30078749e-07,   9.00474450e-09,   1.89317437e-07,
+                                      -4.69086192e-06,  -8.60592321e-08,   6.31390395e-06]])
+                eph_rv = scistats.multivariate_normal(cov=pca_cov)
+                q[pct:pct+6] = eph_rv.rvs()
+                current = parameters[pct:pct+6].copy()
+                destination = q[pct:pct+6].copy()
+                qxy -= eph_rv.logpdf(destination) - eph_rv.logpdf(current)
         else:
             q[pct+ind] = np.random.uniform(pmin[pct+ind],pmax[pct+ind])
             qxy += 0
