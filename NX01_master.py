@@ -4310,6 +4310,8 @@ if args.det_signal:
             file_tag += '_derotate'
     elif args.eph_physmodel:
         file_tag += '_ephphysmodel'
+        if args.eph_priorjpl:
+            file_tag += 'priorJpl'
     elif args.eph_roemermix_dx:
         file_tag += '_ephroemermix_dx'
         if args.eph_de_rotated:
