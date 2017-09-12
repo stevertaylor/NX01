@@ -8254,6 +8254,9 @@ elif args.sampler == 'ptmcmc':
                 current = parameters[pct:pct+6].copy()
                 destination = q[pct:pct+6].copy()
                 qxy -= eph_rv.logpdf(destination) - eph_rv.logpdf(current)
+            else:
+                q[pct+ind] = np.random.uniform(pmin[pct+ind],pmax[pct+ind])
+                qxy += 0
         else:
             q[pct+ind] = np.random.uniform(pmin[pct+ind],pmax[pct+ind])
             qxy += 0
