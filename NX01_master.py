@@ -2072,11 +2072,11 @@ def lnprob(xx):
 
                 for ii,p in enumerate(psr):
 
-                    if args.cgwModelSelect and nmodel == 0:
+                    if args.cgwModelSelect and nmodel_cgw == 0:
 
                         cgw_res.append( np.zeros(len(p.toas)) )
 
-                    elif (args.cgwModelSelect and nmodel == 1) or not args.cgwModelSelect:
+                    elif (args.cgwModelSelect and nmodel_cgw == 1) or not args.cgwModelSelect:
 
                         tmp_res = utils.ecc_cgw_signal(p, gwtheta_tmp, gwphi_tmp, mc,
                                                     dist, hstrain_tmp, orbfreq_tmp,
