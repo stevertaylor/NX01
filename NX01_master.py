@@ -339,6 +339,8 @@ parser.add_option('--sat_orbmodel', dest='sat_orbmodel', action='store', type=st
                   help='Which Saturn orbit perturbation model do you want to use [orbelements]? (default = orbelements)')
 parser.add_option('--eph_priorjpl', dest='eph_priorjpl', action='store_true', default=False,
                   help='Include JPL constraints on Jupiter PCA orbital elements? (default = False)')
+parser.add_option('--ephpriorjpl_efac', dest='ephpriorjpl_efac', action='store', type=float, default=1.0,
+                  help='Fudge factor for scaling JPL ephemeris uncertainties (default = 1.0)')
 parser.add_option('--eph_roemermix_dx', dest='eph_roemermix_dx', action='store_true', default=False,
                   help='Do you want to include an arbitrarily-weighted mixture of Roemer delay offsets from the mean? (default = False)')
 parser.add_option('--eph_de_rotated', dest='eph_de_rotated', action='store_true', default=False,
@@ -3888,7 +3890,7 @@ def lnprob(xx):
                                    1.04977834e-07,   2.37264475e-07,  -8.60592321e-08],
                                 [   1.30078749e-07,   9.00474450e-09,   1.89317437e-07,
                                   -4.69086192e-06,  -8.60592321e-08,   6.31390395e-06]])
-            eph_rv = scistats.multivariate_normal(cov=pca_cov)
+            eph_rv = scistats.multivariate_normal(cov = args.ephpriorjpl_efac**2.0 * pca_cov)
             priorfac_ephphysmodel += eph_rv.logpdf(eph_physmodel_params[5:11])
     else:
         priorfac_ephphysmodel = 0.0
@@ -4311,7 +4313,7 @@ if args.det_signal:
     elif args.eph_physmodel:
         file_tag += '_ephphysmodel'
         if args.eph_priorjpl:
-            file_tag += 'priorJpl'
+            file_tag += 'priorJpl'+str(args.ephpriorjpl_efac)
     elif args.eph_roemermix_dx:
         file_tag += '_ephroemermix_dx'
         if args.eph_de_rotated:
@@ -8251,7 +8253,7 @@ elif args.sampler == 'ptmcmc':
                                        1.04977834e-07,   2.37264475e-07,  -8.60592321e-08],
                                     [   1.30078749e-07,   9.00474450e-09,   1.89317437e-07,
                                       -4.69086192e-06,  -8.60592321e-08,   6.31390395e-06]])
-                eph_rv = scistats.multivariate_normal(cov=pca_cov)
+                eph_rv = scistats.multivariate_normal(cov = args.ephpriorjpl_efac**2.0 * pca_cov)
                 q[pct:pct+6] = eph_rv.rvs()
                 current = parameters[pct:pct+6].copy()
                 destination = q[pct:pct+6].copy()
