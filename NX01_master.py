@@ -2959,12 +2959,15 @@ def lnprob(xx):
                             else:
                                 rho_pred[ii,0], rho_pred[ii,1] = mu_pred, np.sqrt(np.diag(cov_pred))
 
-                        # transforming from zero-mean unit-variance variable to rho
+                        ## transforming from zero-mean unit-variance variable to rho
+
                         # following is for starsecc
                         #rho = 2.0*np.log10(Agwb) - np.log10(12.0 * np.pi**2.0 * fqs_red**3.0) + \
                         #  rho_spec*rho_pred[:,1] + rho_pred[:,0]
+
                         # following is hack for alphastarsecc
-                        rho = rho_spec*rho_pred[:,1] + rho_pred[:,0] - \
+                        rho = np.array([gppkl[ii].mean_spectra for ii in range(len(gppkl))]) + \
+                            rho_spec*rho_pred[:,1] + rho_pred[:,0] - \
                             np.log10(12.0 * np.pi**2.0 * fqs_red**3.0)
 
                     else:
