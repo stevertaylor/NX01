@@ -243,6 +243,10 @@ parser.add_option('--gwbStarsRange', dest='gwbStarsRange', action='store', type=
                   help='Provide a lower and upper log_10(rho_stars) range as a comma delimited string (default = None)')
 parser.add_option('--gwbEccRange', dest='gwbEccRange', action='store', type=str, default='0.0,0.95',
                   help='Provide a lower and upper e0 range as a comma delimited string (default = None)')
+parser.add_option('--gwbGmuRange', dest='gwbGmuRange', action='store', type=str, default='-25.0,-8.0',
+                  help='Provide a lower and upper log10-Gmu range as a comma delimited string (default = None)')
+parser.add_option('--gwbStringProbRange', dest='gwbStringProbRange', action='store', type=str, default='-3.0,0.0',
+                  help='Provide a lower and upper log10-stringprob range as a comma delimited string (default = None)')
 parser.add_option('--gwbPrior', dest='gwbPrior', action='store', type=str, default='uniform',
                    help='Do you want to use a uniform prior on log_10(amplitude) for detection [loguniform], on amplitudes themselves for limits [uniform], an astrophysical prior (only when the amplitude is Agwb: for powerlaw, turnover, gpEnvInterp models) [s13, s16_shankar, s16_korho, mop14, sbs16_mcma, sbs16_korho], or a gaussian process prior [gaussProc] (default=\'uniform\')?')
 parser.add_option('--gwbHyperPrior', dest='gwbHyperPrior', action='store', type=str, default='uniform',
@@ -934,9 +938,11 @@ if args.incGWB:
 
         gwb_popparam = args.gpPickle.split('/')[-1].split('_')
         for word in gwb_popparam:
-            if word in ['stars','ecc','gas','starsecc','alphastarsecc']:
+            if word in ['stars','ecc','gas','starsecc','alphastarsecc','cosmicstrings']:
                 gwb_popparam = word
                 break
+        if gwb_popparam == 'cosmicstrings':
+            gwb_popparam_ndims += 1 # for analytic modification of spectrum by 'p'
 
 ###############################################################
 # CONSTRUCT DIRECT MAPPING FROM FBEND TO ENVIRONMENT PARAMETER
@@ -1057,6 +1063,12 @@ if args.gwbStarsRange is not None:
 if args.gwbEccRange is not None:
     ecc_range = np.array([float(item) for item \
                           in args.gwbEccRange.split(',')])
+if args.gwbGmuRange is not None:
+    gmu_range = np.array([float(item) for item \
+                          in args.gwbGmuRange.split(',')])
+if args.gwbStringProbRange is not None:
+    stringprob_range = np.array([float(item) for item \
+                          in args.gwbStringProbRange.split(',')])
 if args.cgwFreqRange is not None:
     cgw_orbfreq_range = np.array([float(item) for item \
                                   in args.cgwFreqRange.split(',')])
@@ -1157,6 +1169,14 @@ if args.incGWB:
                     pmin = np.append(pmin,alpha_range[0])
                     pmin = np.append(pmin,stars_range[0])
                     pmin = np.append(pmin,ecc_range[0])
+                elif gwb_popparam == 'cosmicstrings':
+                    if args.gwbGmuRange is not None \
+                      and args.gwbStringProbRange is not None:
+                        pmin = np.append(pmin,gmu_range[0])
+                        pmin = np.append(pmin,stringprob_range[0])
+                    else:
+                        pmin = np.append(pmin,gppkl[0].x.min())
+                        pmin = np.append(pmin,-3.0)
                 else:
                     for col in range(gppkl[0].x.shape[1]):
                         pmin = np.append(pmin,gppkl[0].x[:,col].min())
@@ -1376,6 +1396,14 @@ if args.incGWB:
                     pmax = np.append(pmax,alpha_range[1])
                     pmax = np.append(pmax,stars_range[1])
                     pmax = np.append(pmax,ecc_range[1])
+                elif gwb_popparam == 'cosmicstrings':
+                    if args.gwbGmuRange is not None \
+                      and args.gwbStringProbRange is not None:
+                        pmax = np.append(pmax,gmu_range[1])
+                        pmax = np.append(pmax,stringprob_range[1])
+                    else:
+                        pmax = np.append(pmax,gppkl[0].x.max())
+                        pmax = np.append(pmax,0.0)
                 else:
                     for col in range(gppkl[0].x.shape[1]):
                         pmax = np.append(pmax,gppkl[0].x[:,col].max())
@@ -2950,7 +2978,23 @@ def lnprob(xx):
                 if args.gwbPrior != 'gaussProc':
                     rho = np.log10( 10.0**(2.0*rho_spec) )
                 elif args.gwbPrior == 'gaussProc':
-                    if gwb_popparam_ndims > 1:
+                    if gwb_popparam == 'cosmicstrings':
+                        rho_pred = np.zeros((len(fqs_red),2))
+                        for ii,freq in enumerate(fqs_red):
+                            mu_pred, cov_pred = gp[ii].predict(gppkl[ii].y, [env_param[0]])
+                            if np.diag(cov_pred) < 0.0:
+                                rho_pred[ii,0], rho_pred[ii,1] = mu_pred, 1e-5 * mu_pred
+                            else:
+                                rho_pred[ii,0], rho_pred[ii,1] = mu_pred, np.sqrt(np.diag(cov_pred))
+                        ## transforming from zero-mean unit-variance variable to rho
+                        # -- following is for starsecc
+                        #rho = 2.0*np.log10(Agwb) - np.log10(12.0 * np.pi**2.0 * fqs_red**3.0) + \
+                        #  rho_spec*rho_pred[:,1] + rho_pred[:,0]
+                        # -- following is hack for alphastarsecc
+                        rho = np.array([gppkl[ii].mean_spectra for ii in range(len(gppkl))]) + \
+                            rho_spec*rho_pred[:,1] + rho_pred[:,0] - env_param[1] - \
+                            np.log10(12.0 * np.pi**2.0 * fqs_red**3.0)
+                    else:
                         rho_pred = np.zeros((len(fqs_red),2))
                         for ii,freq in enumerate(fqs_red):
                             mu_pred, cov_pred = gp[ii].predict(gppkl[ii].y, [env_param])
@@ -2958,30 +3002,14 @@ def lnprob(xx):
                                 rho_pred[ii,0], rho_pred[ii,1] = mu_pred, 1e-5 * mu_pred
                             else:
                                 rho_pred[ii,0], rho_pred[ii,1] = mu_pred, np.sqrt(np.diag(cov_pred))
-
                         ## transforming from zero-mean unit-variance variable to rho
-
-                        # following is for starsecc
+                        # -- following is for starsecc
                         #rho = 2.0*np.log10(Agwb) - np.log10(12.0 * np.pi**2.0 * fqs_red**3.0) + \
                         #  rho_spec*rho_pred[:,1] + rho_pred[:,0]
-
-                        # following is hack for alphastarsecc
+                        # -- following is hack for alphastarsecc
                         rho = np.array([gppkl[ii].mean_spectra for ii in range(len(gppkl))]) + \
                             rho_spec*rho_pred[:,1] + rho_pred[:,0] - \
                             np.log10(12.0 * np.pi**2.0 * fqs_red**3.0)
-
-                    else:
-                        rho_pred = np.zeros((len(fqs_red),2))
-                        for ii,freq in enumerate(fqs_red):
-                            mu_pred, cov_pred = gp[ii].predict(gppkl[ii].y, env_param)
-                            if np.diag(cov_pred) < 0.0:
-                                rho_pred[ii,0], rho_pred[ii,1] = mu_pred, 1e-5 * mu_pred
-                            else:
-                                rho_pred[ii,0], rho_pred[ii,1] = mu_pred, np.sqrt(np.diag(cov_pred))
-
-                        # transforming from zero-mean unit-variance variable to rho
-                        rho = 2.0*np.log10(Agwb) + rho_spec*rho_pred[:,1] + rho_pred[:,0]
-
             elif args.gwbSpecModel == 'turnover':
                 rho = np.log10(Agwb**2/12/np.pi**2 * \
                             f1yr**(13.0/3.0-3.0) * \
@@ -4104,6 +4132,8 @@ if args.incGWB:
                 parameters += ["Agwb","stars","ecc"]
             elif gwb_popparam == 'alphastarsecc':
                 parameters += ["Agwb","alpha","stars","ecc"]
+            elif gwb_popparam == 'cosmicstrings':
+                parameters += ["Agwb","Gmu","p"]
             else:
                 parameters += ["Agwb",gwb_popparam]
     elif args.gwbSpecModel == 'turnover':
@@ -4603,6 +4633,9 @@ elif args.sampler == 'ptmcmc':
                     x0 = np.append(x0,np.array([np.random.uniform(alpha_range[0],alpha_range[1]),
                                                 np.random.uniform(stars_range[0],stars_range[1]),
                                                 np.random.uniform(ecc_range[0],ecc_range[1])]))
+                elif gwb_popparam == 'cosmicstrings':
+                    x0 = np.append(x0,np.array([np.random.uniform(gmu_range[0],gmu_range[1]),
+                                                np.random.uniform(stringprob_range[0],stringprob_range[1])]))
         elif args.gwbSpecModel == 'turnover':
             x0 = np.append(x0,-15.0)
             if args.gwb_fb2env is not None:
@@ -4769,6 +4802,9 @@ elif args.sampler == 'ptmcmc':
                     param_ephquad += 3
                 elif gwb_popparam == 'alphastarsecc':
                     cov_diag = np.append(cov_diag,np.array([0.5,0.05,0.05,0.05]))
+                    param_ephquad += 4
+                elif gwb_popparam == 'cosmicstrings':
+                    cov_diag = np.append(cov_diag,np.array([0.5,0.05,0.05]))
                     param_ephquad += 4
                 else:
                     cov_diag = np.append(cov_diag,np.array([0.5,0.05]))
