@@ -251,6 +251,8 @@ parser.add_option('--gwbPrior', dest='gwbPrior', action='store', type=str, defau
                    help='Do you want to use a uniform prior on log_10(amplitude) for detection [loguniform], on amplitudes themselves for limits [uniform], an astrophysical prior (only when the amplitude is Agwb: for powerlaw, turnover, gpEnvInterp models) [s13, s16_shankar, s16_korho, mop14, sbs16_mcma, sbs16_korho], or a gaussian process prior [gaussProc] (default=\'uniform\')?')
 parser.add_option('--gwbHyperPrior', dest='gwbHyperPrior', action='store', type=str, default='uniform',
                    help='When gwbPrior=gaussProc, do you want to use a uniform prior on log_10(Agwb) for detection [loguniform], on Agwb itself for limits [uniform], or an astrophysical prior [s13, s16_shankar, s16_korho, mop14, sbs16_mcma, sbs16_korho] (default=\'uniform\')?')
+parser.add_option('--gwbGmuPrior', dest='gwbGmuPrior', action='store', type=str, default='uniform',
+                   help='Prior for Gmu in cosmic string GP model: uniform prior on log_10(Gmu) for detection [loguniform], on Gmu itself for limits [uniform] (default=\'uniform\')?')
 parser.add_option('--redPrior', dest='redPrior', action='store', type=str, default='uniform',
                    help='Do you want to use a uniform prior on log_10(Ared) for detection [loguniform], on Ared itself for limits [uniform] (default=\'uniform\')?')
 parser.add_option('--dmPrior', dest='dmPrior', action='store', type=str, default='uniform',
@@ -3708,6 +3710,12 @@ def lnprob(xx):
                     sig = 0.08
                     priorfac_gwb += np.log( np.exp( -0.5 * (np.log10(Agwb) - mu)**2.0 / sig**2.0)
                                         / np.sqrt(2.0*np.pi*sig**2.0) / np.log(10.0) )
+
+                if gwb_popparam == 'cosmicstring':
+                    if args.gwbGmuPrior == 'loguniform':
+                        priorfac_gwb += 0.0
+                    elif args.gwbGmuPrior == 'uniform':
+                        priorfac_gwb += np.log(10.0**env_param[0] * np.log(10.0))
 
 
         ### turnover spectral model ###
