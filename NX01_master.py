@@ -938,10 +938,10 @@ if args.incGWB:
 
         gwb_popparam = args.gpPickle.split('/')[-1].split('_')
         for word in gwb_popparam:
-            if word in ['stars','ecc','gas','starsecc','alphastarsecc','cosmicstrings']:
+            if word in ['stars','ecc','gas','starsecc','alphastarsecc','cosmicstring']:
                 gwb_popparam = word
                 break
-        if gwb_popparam == 'cosmicstrings':
+        if gwb_popparam == 'cosmicstring':
             gwb_popparam_ndims += 1 # for analytic modification of spectrum by 'p'
 
 ###############################################################
@@ -1169,7 +1169,7 @@ if args.incGWB:
                     pmin = np.append(pmin,alpha_range[0])
                     pmin = np.append(pmin,stars_range[0])
                     pmin = np.append(pmin,ecc_range[0])
-                elif gwb_popparam == 'cosmicstrings':
+                elif gwb_popparam == 'cosmicstring':
                     if args.gwbGmuRange is not None \
                       and args.gwbStringProbRange is not None:
                         pmin = np.append(pmin,gmu_range[0])
@@ -1396,7 +1396,7 @@ if args.incGWB:
                     pmax = np.append(pmax,alpha_range[1])
                     pmax = np.append(pmax,stars_range[1])
                     pmax = np.append(pmax,ecc_range[1])
-                elif gwb_popparam == 'cosmicstrings':
+                elif gwb_popparam == 'cosmicstring':
                     if args.gwbGmuRange is not None \
                       and args.gwbStringProbRange is not None:
                         pmax = np.append(pmax,gmu_range[1])
@@ -2978,7 +2978,7 @@ def lnprob(xx):
                 if args.gwbPrior != 'gaussProc':
                     rho = np.log10( 10.0**(2.0*rho_spec) )
                 elif args.gwbPrior == 'gaussProc':
-                    if gwb_popparam == 'cosmicstrings':
+                    if gwb_popparam == 'cosmicstring':
                         rho_pred = np.zeros((len(fqs_red),2))
                         for ii,freq in enumerate(fqs_red):
                             mu_pred, cov_pred = gp[ii].predict(gppkl[ii].y, [env_param[0]])
@@ -4132,7 +4132,7 @@ if args.incGWB:
                 parameters += ["Agwb","stars","ecc"]
             elif gwb_popparam == 'alphastarsecc':
                 parameters += ["Agwb","alpha","stars","ecc"]
-            elif gwb_popparam == 'cosmicstrings':
+            elif gwb_popparam == 'cosmicstring':
                 parameters += ["Agwb","Gmu","p"]
             else:
                 parameters += ["Agwb",gwb_popparam]
@@ -4633,7 +4633,7 @@ elif args.sampler == 'ptmcmc':
                     x0 = np.append(x0,np.array([np.random.uniform(alpha_range[0],alpha_range[1]),
                                                 np.random.uniform(stars_range[0],stars_range[1]),
                                                 np.random.uniform(ecc_range[0],ecc_range[1])]))
-                elif gwb_popparam == 'cosmicstrings':
+                elif gwb_popparam == 'cosmicstring':
                     x0 = np.append(x0,np.array([np.random.uniform(gmu_range[0],gmu_range[1]),
                                                 np.random.uniform(stringprob_range[0],stringprob_range[1])]))
         elif args.gwbSpecModel == 'turnover':
@@ -4803,7 +4803,7 @@ elif args.sampler == 'ptmcmc':
                 elif gwb_popparam == 'alphastarsecc':
                     cov_diag = np.append(cov_diag,np.array([0.5,0.05,0.05,0.05]))
                     param_ephquad += 4
-                elif gwb_popparam == 'cosmicstrings':
+                elif gwb_popparam == 'cosmicstring':
                     cov_diag = np.append(cov_diag,np.array([0.5,0.05,0.05]))
                     param_ephquad += 4
                 else:
