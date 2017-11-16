@@ -883,11 +883,12 @@ class PsrObjFromH5(object):
                makeEph=False, jplBasis=False, fqs_eph=None, wgts_eph=None, ephFreqs=None,
                makeClk=False, clkDesign=False,
                makeBand=False, bands=None,
-               phaseshift=False):
+               phaseshift=False, pshift_vals=None):
 
         self.Fred, self.ranphase = \
           utils.createFourierDesignmatrix_red(self.toas, fqs_red, wgts_red,
-                                              pshift=phaseshift, Tspan=Ttot)
+                                              pshift=phaseshift, pshift_vals=None,
+                                              Tspan=Ttot)
 
         self.Ftot = self.Fred
         if makeDM:
