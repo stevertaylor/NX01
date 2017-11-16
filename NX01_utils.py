@@ -298,7 +298,7 @@ def makeDmTDcov(psr, Adm, gam_dm, tm):
 
 
 def createFourierDesignmatrix_red(t, fqs, wgts, output_freqs=False,
-                                  pshift=False, Tspan=None, input_freqs=None):
+                                  pshift=False, pshift_vals=None, Tspan=None, input_freqs=None):
     """
     Construct fourier design matrix from eq 11 of Lentati et al, 2013
 
@@ -307,6 +307,7 @@ def createFourierDesignmatrix_red(t, fqs, wgts, output_freqs=False,
     @param wgts: square root of integral infinitesimal
     @param output_freqs: option to output frequencies
     @param pshift: option to add random phase shift
+    @param pshift_vals: random phase shift values
     @param Tspan: option to some other Tspan
     @param input_freqs: user-defined sampling frequencies
                         (number must match nmodes)
@@ -320,10 +321,11 @@ def createFourierDesignmatrix_red(t, fqs, wgts, output_freqs=False,
     F = np.zeros((N, 2*len(fqs)))
 
     # add random phase shift to basis functions
-    if pshift:
-        ranphase = np.random.uniform(0.0, 2.0*np.pi, len(fqs))
-    elif not pshift:
-        ranphase = np.zeros(len(fqs))
+    #if pshift:
+    #    ranphase = np.random.uniform(0.0, 2.0*np.pi, len(fqs))
+    #elif not pshift:
+    #    ranphase = np.zeros(len(fqs))
+    ranphase = pshift_vals
 
     # The sine/cosine modes
     ct = 0

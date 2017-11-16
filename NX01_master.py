@@ -791,6 +791,168 @@ if args.incDip and args.incCorr:
         print "ERROR: Cosinusoidal-process correlation matrix is not the right shape!"
 
 #############################################################################
+# DEFINING A UNIQUE FILE TAG FOR BOOK-KEEPING
+#############################################################################
+
+file_tag = 'pta'
+if args.constLike:
+    file_tag += '_constLike'
+if args.incGWB:
+    if args.gwbSpecModel == 'powerlaw':
+        if args.fix_slope is not None:
+            gamma_tag = '_gam'+str(args.fix_slope)
+        else:
+            gamma_tag = '_gamVary'
+    elif args.gwbSpecModel == 'spectrum':
+        gamma_tag = '_gwbSpec'
+        if args.gwbPrior == 'gaussProc':
+            gamma_tag += gwb_popparam+'Hyper{0}'.format(args.gwbHyperPrior)
+    elif args.gwbSpecModel == 'turnover':
+        gamma_tag = '_gwbTurn'
+        if args.gwb_fb2env is not None:
+            gamma_tag += 'fb2env'+args.gwb_fb2env
+    elif args.gwbSpecModel == 'gpEnvInterp':
+        gamma_tag = '_gwbGP'+gwb_popparam
+        if args.incCosVar:
+            gamma_tag += 'cosvar'
+    if args.incCorr:
+        if args.gwbTypeCorr == 'modelIndep':
+            file_tag += '_gwb{0}_miCorr{1}{2}'.format(args.gwbPrior,
+                                                      evol_corr_tag,gamma_tag)
+        elif args.gwbTypeCorr == 'pointSrc':
+            if args.fixPointSrcPhi is not None and args.fixPointSrcTheta is not None:
+                dummy_fixpsrc = 'Fix'
+            else:
+                dummy_fixpsrc = ''
+            file_tag += '_gwb{0}_pntSrc{1}{2}{3}'.format(args.gwbPrior,dummy_fixpsrc,
+                                                         evol_corr_tag,gamma_tag)
+        elif args.gwbTypeCorr == 'spharmAnis':
+            if args.noPhysPrior:
+                physprior_tag = '_noPhysPrior'
+            elif not args.noPhysPrior:
+                physprior_tag = ''
+            file_tag += '_gwb{0}_Lmax{1}{2}{3}{4}'.format(args.gwbPrior,
+                                                       args.LMAX,physprior_tag,
+                                                       evol_corr_tag,gamma_tag)
+        elif args.gwbTypeCorr == 'dipoleOrf':
+            file_tag += '_gwb{0}_dip{1}{2}'.format(args.gwbPrior,
+                                                   evol_corr_tag,gamma_tag)
+        elif args.gwbTypeCorr == 'clock':
+            file_tag += '_gwb{0}_fulcorr{1}{2}'.format(args.gwbPrior,
+                                                         evol_corr_tag,gamma_tag)
+        elif args.gwbTypeCorr == 'ssephem':
+            file_tag += '_gwb{0}_ssephem{1}{2}'.format(args.gwbPrior,
+                                                         evol_corr_tag,gamma_tag)
+        elif args.gwbTypeCorr == 'custom':
+            file_tag += '_gwb{0}_cstmOrf{1}{2}'.format(args.gwbPrior,
+                                                       evol_corr_tag,gamma_tag)
+        elif args.gwbTypeCorr == 'gwDisk':
+            file_tag += '_gwb{0}_gwDisk{1}{2}'.format(args.gwbPrior,
+                                                      evol_corr_tag,gamma_tag)
+        elif args.gwbTypeCorr == 'psrlocsVary':
+            file_tag += '_gwb{0}_psrlocVar{1}{2}'.format(args.gwbPrior,
+                                                           evol_corr_tag,gamma_tag)
+        if args.gwbModelSelect:
+            file_tag += 'ModSct'
+    else:
+        if args.gwbSpecModel == 'powerlaw':
+            if args.fix_slope is not None:
+                gamma_tag = '_gam'+str(args.fix_slope)
+            else:
+                gamma_tag = '_gamVary'
+        file_tag += '_gwb{0}_noCorr{1}'.format(args.gwbPrior,gamma_tag)
+if args.pshift:
+    file_tag += '_pshift'
+if args.incGWline:
+    if args.incCorr:
+        file_tag += '_gwline{0}'.format(args.gwlinePrior)
+    elif not args.incCorr:
+        file_tag += '_gwline{0}_noCorr'.format(args.gwlinePrior)
+if args.det_signal:
+    if args.cgw_search:
+        cgwtag = ''
+        if args.fixcgwFreq is not None:
+            cgwtag += 'fixFreq'
+        if args.fixcgwPhi is not None:
+            cgwtag += 'fixPhi'
+        if args.fixcgwTheta is not None:
+            cgwtag += 'fixTheta'
+        if args.ecc_search:
+            if args.fixcgwEcc is not None:
+                cgwtag += 'fixEcc'
+            file_tag += '_ecgw'+args.cgwPrior+cgwtag
+        else:
+            file_tag += '_ccgw'+args.cgwPrior+cgwtag
+        if args.psrTerm:
+            file_tag += 'psrTerm'
+        if args.cgwModelSelect:
+            file_tag += 'ModSct'
+    if args.bwm_search:
+        file_tag += '_bwm'+args.bwm_antenna
+        if args.bwm_model_select:
+            file_tag += 'ModSct'
+    if args.eph_quadratic:
+        file_tag += '_ephquad'
+    if args.eph_planetdelta:
+        if args.eph_planetmass:
+            file_tag += '_ephplanetmass'+args.eph_planetmassprior
+        if args.eph_planetoffset:
+            file_tag += '_ephorbitoffset'
+    elif args.eph_roemermix:
+        if args.eph_roemerwgts_fix is None:
+            file_tag += '_ephroemermix'+str(args.eph_dirichlet_alpha)
+        elif args.eph_roemerwgts_fix is not None:
+            file_tag += '_ephroemermixFix'
+        if args.eph_de_rotated:
+            file_tag += '_derotate'
+    elif args.eph_physmodel:
+        file_tag += '_ephphysmodel'
+        if args.eph_priorjpl:
+            file_tag += 'priorJpl'+str(args.ephpriorjpl_efac)
+    elif args.eph_roemermix_dx:
+        file_tag += '_ephroemermix_dx'
+        if args.eph_de_rotated:
+            file_tag += '_derotate'
+if args.fixRed:
+    red_tag = '_redFix'+'nm{0}'.format(nmodes_red)
+elif not args.fixRed:
+    red_tag = '_red'+args.redPrior+args.redSpecModel+'nm{0}'.format(nmodes_red)
+if args.incDM:
+    if args.fixDM:
+        dm_tag = 'dmFix'+'nm{0}'.format(nmodes_dm)
+    elif not args.fixDM:
+        dm_tag = '_dm'+args.dmPrior+args.dmSpecModel+'nm{0}'.format(nmodes_dm)
+elif not args.incDM:
+    dm_tag = ''
+if args.varyWhite:
+    file_tag += '_varyWhite'
+if args.incBand:
+    band_tag = '_band'+args.bandPrior+args.bandSpecModel+'nm{0}'.format(nmodes_band)
+elif not args.incBand:
+    band_tag = ''
+if args.incClk:
+    clk_tag = '_clk'+args.clkPrior+args.clkSpecModel
+elif not args.incClk:
+    clk_tag = ''
+if args.incCm:
+    cm_tag = '_cm'+args.cmPrior+args.cmSpecModel
+elif not args.incCm:
+    cm_tag = ''
+if args.incEph:
+    if args.jplBasis:
+        eph_tag = '_eph'+'JPLbasis'+'nm{0}'.format(nmodes_eph)
+    else:
+        eph_tag = '_eph'+args.ephPrior+args.ephSpecModel+'nm{0}'.format(nmodes_eph)
+elif not args.incEph:
+    eph_tag = ''
+if args.incDip:
+    dip_tag = '_dip'+args.dipPrior+args.dipSpecModel
+elif not args.incDip:
+    dip_tag = ''
+file_tag += red_tag + dm_tag + band_tag + \
+  clk_tag + cm_tag + eph_tag + dip_tag
+
+#############################################################################
 # GETTING MAXIMUM TIME, COMPUTING FOURIER DESIGN MATRICES, AND GETTING MODES
 #############################################################################
 
@@ -860,13 +1022,27 @@ if args.incBand:
     elif args.bands is not None:
         bands = np.array([float(item) for item in args.bands.split(',')])
 
+### Reading in or generating random phase shifts
+ranphase = []
+if args.pshift:
+    if os.path.isfile(args.dirExt+file_tag+'/psr_phaseshifts.json'):
+        ranphase_tmp = json.load(open(args.dirExt+file_tag+'/psr_phaseshifts.json'))
+        for ii,key in enumerate(ranphase_tmp.keys()):
+            ranphase.append(ranphase_tmp[key])
+    else:
+        for ii in range(len(psr)):
+            ranphase.append(np.random.uniform(0.0, 2.0*np.pi, len(fqs_red)))
+elif not pshift:
+    ranphase.append(np.zeros(len(fqs_red)))
+
 ### Make the basis matrices for all rank-reduced processes in model
 [p.makeTe(Ttot=Tmax, fqs_red=fqs_red, wgts_red=wgts_red,
           makeDM=args.incDM, fqs_dm=fqs_dm, wgts_dm=wgts_dm,
           makeEph=args.incEph, jplBasis=args.jplBasis,
           fqs_eph=fqs_eph, wgts_eph=wgts_eph, ephFreqs=args.ephFreqs,
           makeClk=args.incClk, clkDesign=args.clkDesign,
-          makeBand=args.incBand, bands=args.bands, phaseshift=args.pshift) for p in psr]
+          makeBand=args.incBand, bands=args.bands,
+          phaseshift=args.pshift, pshift_vals=ranphase[ii]) for ii,p in enumerate(psr)]
 
 if args.det_signal:
     # find reference time for all pulsars
@@ -4258,167 +4434,6 @@ n_params = len(parameters)
 if rank==0:
     print "\n You are searching for the following parameters: {0}\n".format(parameters)
     print "\n The total number of parameters is {0}\n".format(n_params)
-
-
-# Define a unique file tag
-
-file_tag = 'pta'
-if args.constLike:
-    file_tag += '_constLike'
-if args.incGWB:
-    if args.gwbSpecModel == 'powerlaw':
-        if args.fix_slope is not None:
-            gamma_tag = '_gam'+str(args.fix_slope)
-        else:
-            gamma_tag = '_gamVary'
-    elif args.gwbSpecModel == 'spectrum':
-        gamma_tag = '_gwbSpec'
-        if args.gwbPrior == 'gaussProc':
-            gamma_tag += gwb_popparam+'Hyper{0}'.format(args.gwbHyperPrior)
-    elif args.gwbSpecModel == 'turnover':
-        gamma_tag = '_gwbTurn'
-        if args.gwb_fb2env is not None:
-            gamma_tag += 'fb2env'+args.gwb_fb2env
-    elif args.gwbSpecModel == 'gpEnvInterp':
-        gamma_tag = '_gwbGP'+gwb_popparam
-        if args.incCosVar:
-            gamma_tag += 'cosvar'
-    if args.incCorr:
-        if args.gwbTypeCorr == 'modelIndep':
-            file_tag += '_gwb{0}_miCorr{1}{2}'.format(args.gwbPrior,
-                                                      evol_corr_tag,gamma_tag)
-        elif args.gwbTypeCorr == 'pointSrc':
-            if args.fixPointSrcPhi is not None and args.fixPointSrcTheta is not None:
-                dummy_fixpsrc = 'Fix'
-            else:
-                dummy_fixpsrc = ''
-            file_tag += '_gwb{0}_pntSrc{1}{2}{3}'.format(args.gwbPrior,dummy_fixpsrc,
-                                                         evol_corr_tag,gamma_tag)
-        elif args.gwbTypeCorr == 'spharmAnis':
-            if args.noPhysPrior:
-                physprior_tag = '_noPhysPrior'
-            elif not args.noPhysPrior:
-                physprior_tag = ''
-            file_tag += '_gwb{0}_Lmax{1}{2}{3}{4}'.format(args.gwbPrior,
-                                                       args.LMAX,physprior_tag,
-                                                       evol_corr_tag,gamma_tag)
-        elif args.gwbTypeCorr == 'dipoleOrf':
-            file_tag += '_gwb{0}_dip{1}{2}'.format(args.gwbPrior,
-                                                   evol_corr_tag,gamma_tag)
-        elif args.gwbTypeCorr == 'clock':
-            file_tag += '_gwb{0}_fulcorr{1}{2}'.format(args.gwbPrior,
-                                                         evol_corr_tag,gamma_tag)
-        elif args.gwbTypeCorr == 'ssephem':
-            file_tag += '_gwb{0}_ssephem{1}{2}'.format(args.gwbPrior,
-                                                         evol_corr_tag,gamma_tag)
-        elif args.gwbTypeCorr == 'custom':
-            file_tag += '_gwb{0}_cstmOrf{1}{2}'.format(args.gwbPrior,
-                                                       evol_corr_tag,gamma_tag)
-        elif args.gwbTypeCorr == 'gwDisk':
-            file_tag += '_gwb{0}_gwDisk{1}{2}'.format(args.gwbPrior,
-                                                      evol_corr_tag,gamma_tag)
-        elif args.gwbTypeCorr == 'psrlocsVary':
-            file_tag += '_gwb{0}_psrlocVar{1}{2}'.format(args.gwbPrior,
-                                                           evol_corr_tag,gamma_tag)
-        if args.gwbModelSelect:
-            file_tag += 'ModSct'
-    else:
-        if args.gwbSpecModel == 'powerlaw':
-            if args.fix_slope is not None:
-                gamma_tag = '_gam'+str(args.fix_slope)
-            else:
-                gamma_tag = '_gamVary'
-        file_tag += '_gwb{0}_noCorr{1}'.format(args.gwbPrior,gamma_tag)
-if args.pshift:
-    file_tag += '_pshift'
-if args.incGWline:
-    if args.incCorr:
-        file_tag += '_gwline{0}'.format(args.gwlinePrior)
-    elif not args.incCorr:
-        file_tag += '_gwline{0}_noCorr'.format(args.gwlinePrior)
-if args.det_signal:
-    if args.cgw_search:
-        cgwtag = ''
-        if args.fixcgwFreq is not None:
-            cgwtag += 'fixFreq'
-        if args.fixcgwPhi is not None:
-            cgwtag += 'fixPhi'
-        if args.fixcgwTheta is not None:
-            cgwtag += 'fixTheta'
-        if args.ecc_search:
-            if args.fixcgwEcc is not None:
-                cgwtag += 'fixEcc'
-            file_tag += '_ecgw'+args.cgwPrior+cgwtag
-        else:
-            file_tag += '_ccgw'+args.cgwPrior+cgwtag
-        if args.psrTerm:
-            file_tag += 'psrTerm'
-        if args.cgwModelSelect:
-            file_tag += 'ModSct'
-    if args.bwm_search:
-        file_tag += '_bwm'+args.bwm_antenna
-        if args.bwm_model_select:
-            file_tag += 'ModSct'
-    if args.eph_quadratic:
-        file_tag += '_ephquad'
-    if args.eph_planetdelta:
-        if args.eph_planetmass:
-            file_tag += '_ephplanetmass'+args.eph_planetmassprior
-        if args.eph_planetoffset:
-            file_tag += '_ephorbitoffset'
-    elif args.eph_roemermix:
-        if args.eph_roemerwgts_fix is None:
-            file_tag += '_ephroemermix'+str(args.eph_dirichlet_alpha)
-        elif args.eph_roemerwgts_fix is not None:
-            file_tag += '_ephroemermixFix'
-        if args.eph_de_rotated:
-            file_tag += '_derotate'
-    elif args.eph_physmodel:
-        file_tag += '_ephphysmodel'
-        if args.eph_priorjpl:
-            file_tag += 'priorJpl'+str(args.ephpriorjpl_efac)
-    elif args.eph_roemermix_dx:
-        file_tag += '_ephroemermix_dx'
-        if args.eph_de_rotated:
-            file_tag += '_derotate'
-if args.fixRed:
-    red_tag = '_redFix'+'nm{0}'.format(nmodes_red)
-elif not args.fixRed:
-    red_tag = '_red'+args.redPrior+args.redSpecModel+'nm{0}'.format(nmodes_red)
-if args.incDM:
-    if args.fixDM:
-        dm_tag = 'dmFix'+'nm{0}'.format(nmodes_dm)
-    elif not args.fixDM:
-        dm_tag = '_dm'+args.dmPrior+args.dmSpecModel+'nm{0}'.format(nmodes_dm)
-elif not args.incDM:
-    dm_tag = ''
-if args.varyWhite:
-    file_tag += '_varyWhite'
-if args.incBand:
-    band_tag = '_band'+args.bandPrior+args.bandSpecModel+'nm{0}'.format(nmodes_band)
-elif not args.incBand:
-    band_tag = ''
-if args.incClk:
-    clk_tag = '_clk'+args.clkPrior+args.clkSpecModel
-elif not args.incClk:
-    clk_tag = ''
-if args.incCm:
-    cm_tag = '_cm'+args.cmPrior+args.cmSpecModel
-elif not args.incCm:
-    cm_tag = ''
-if args.incEph:
-    if args.jplBasis:
-        eph_tag = '_eph'+'JPLbasis'+'nm{0}'.format(nmodes_eph)
-    else:
-        eph_tag = '_eph'+args.ephPrior+args.ephSpecModel+'nm{0}'.format(nmodes_eph)
-elif not args.incEph:
-    eph_tag = ''
-if args.incDip:
-    dip_tag = '_dip'+args.dipPrior+args.dipSpecModel
-elif not args.incDip:
-    dip_tag = ''
-file_tag += red_tag + dm_tag + band_tag + \
-  clk_tag + cm_tag + eph_tag + dip_tag
 
 
 if rank == 0:
