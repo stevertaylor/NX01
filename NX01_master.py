@@ -791,6 +791,76 @@ if args.incDip and args.incCorr:
         print "ERROR: Cosinusoidal-process correlation matrix is not the right shape!"
 
 #############################################################################
+# GETTING MAXIMUM TIME, COMPUTING FOURIER DESIGN MATRICES, AND GETTING MODES
+#############################################################################
+
+if args.TmaxType == 'pta':
+    Tmax = np.max([p.toas.max() for p in psr]) - \
+      np.min([p.toas.min() for p in psr])
+    Tmax *= 86400.0
+else:
+    Tmax = np.max([p.toas.max() - p.toas.min() for p in psr])
+    Tmax *= 86400.0
+
+### Define number of red noise modes and set sampling frequencies
+if args.nmodes is not None:
+    nmodes_red = args.nmodes + args.nmodes_log
+elif args.nmodes is None and args.cadence is not None:
+    nmodes_red = int(round(0.5 * Tmax / (args.cadence * 86400.0))) + args.nmodes_log
+fqs_red, wgts_red = rr.linBinning(Tmax, args.logmode, 1 / args.fmin / Tmax,
+                                  nmodes_red-args.nmodes_log, args.nmodes_log)
+
+### Define number of DM-variation modes and set sampling frequencies
+nmodes_dm = args.nmodes_dm + args.nmodes_log
+fqs_dm, wgts_dm = None, None
+if args.incDM:
+    if args.nmodes_dm > 0:
+        nmodes_dm = args.nmodes_dm + args.nmodes_log
+    else:
+        nmodes_dm = nmodes_red
+    fqs_dm, wgts_dm = rr.linBinning(Tmax, args.logmode, 1 / args.fmin / Tmax,
+                                    nmodes_dm-args.nmodes_log, args.nmodes_log)
+
+### Define number of ephemeris-error modes and set sampling frequencies
+nmodes_eph = None
+fqs_eph, wgts_eph = None, None
+if args.incEph:
+    if args.jplBasis:
+        # No sampling frequencies here.
+        # Basis is in planet mass perturbations.
+        nmodes_eph = 7
+        ephPhivec = np.load(nxdir+'/data/jplephbasis/phivec.npy')
+    else:
+        nmodes_eph = args.nmodes_eph
+        if args.nmodes_eph > 0:
+            nmodes_eph = args.nmodes_eph + args.nmodes_log
+        else:
+            nmodes_eph = nmodes_red
+        ##
+        if args.ephFreqs is None:
+            fqs_eph, wgts_eph = rr.linBinning(Tmax, args.logmode, 1 / args.fmin / Tmax,
+                                              nmodes_eph-args.nmodes_log, args.nmodes_log)
+        elif args.ephFreqs is not None:
+            fqs_eph = np.array([float(item) for item in args.ephFreqs.split(',')])
+            wgts_eph = np.ones(len(args.ephFreqs.split(',')))
+
+### Define number of band-noise modes and set sampling frequencies
+nmodes_band = args.nmodes_band
+fqs_band, wgts_band = None, None
+if args.incBand:
+    if args.nmodes_band > 0:
+        nmodes_band = args.nmodes_band + args.nmodes_log
+    else:
+        nmodes_band = nmodes_red
+    fqs_band, wgts_band = rr.linBinning(Tmax, args.logmode, 1 / args.fmin / Tmax,
+                                        nmodes_band-args.nmodes_log, args.nmodes_log)
+
+    if args.bands is None:
+        bands = np.array([0.0, 1.0, 2.0, 3.0])
+    elif args.bands is not None:
+        bands = np.array([float(item) for item in args.bands.split(',')])
+
+#############################################################################
 # DEFINING A UNIQUE FILE TAG FOR BOOK-KEEPING
 #############################################################################
 
@@ -951,76 +1021,6 @@ elif not args.incDip:
     dip_tag = ''
 file_tag += red_tag + dm_tag + band_tag + \
   clk_tag + cm_tag + eph_tag + dip_tag
-
-#############################################################################
-# GETTING MAXIMUM TIME, COMPUTING FOURIER DESIGN MATRICES, AND GETTING MODES
-#############################################################################
-
-if args.TmaxType == 'pta':
-    Tmax = np.max([p.toas.max() for p in psr]) - \
-      np.min([p.toas.min() for p in psr])
-    Tmax *= 86400.0
-else:
-    Tmax = np.max([p.toas.max() - p.toas.min() for p in psr])
-    Tmax *= 86400.0
-
-### Define number of red noise modes and set sampling frequencies
-if args.nmodes is not None:
-    nmodes_red = args.nmodes + args.nmodes_log
-elif args.nmodes is None and args.cadence is not None:
-    nmodes_red = int(round(0.5 * Tmax / (args.cadence * 86400.0))) + args.nmodes_log
-fqs_red, wgts_red = rr.linBinning(Tmax, args.logmode, 1 / args.fmin / Tmax,
-                                  nmodes_red-args.nmodes_log, args.nmodes_log)
-
-### Define number of DM-variation modes and set sampling frequencies
-nmodes_dm = args.nmodes_dm + args.nmodes_log
-fqs_dm, wgts_dm = None, None
-if args.incDM:
-    if args.nmodes_dm > 0:
-        nmodes_dm = args.nmodes_dm + args.nmodes_log
-    else:
-        nmodes_dm = nmodes_red
-    fqs_dm, wgts_dm = rr.linBinning(Tmax, args.logmode, 1 / args.fmin / Tmax,
-                                    nmodes_dm-args.nmodes_log, args.nmodes_log)
-
-### Define number of ephemeris-error modes and set sampling frequencies
-nmodes_eph = None
-fqs_eph, wgts_eph = None, None
-if args.incEph:
-    if args.jplBasis:
-        # No sampling frequencies here.
-        # Basis is in planet mass perturbations.
-        nmodes_eph = 7
-        ephPhivec = np.load(nxdir+'/data/jplephbasis/phivec.npy')
-    else:
-        nmodes_eph = args.nmodes_eph
-        if args.nmodes_eph > 0:
-            nmodes_eph = args.nmodes_eph + args.nmodes_log
-        else:
-            nmodes_eph = nmodes_red
-        ##
-        if args.ephFreqs is None:
-            fqs_eph, wgts_eph = rr.linBinning(Tmax, args.logmode, 1 / args.fmin / Tmax,
-                                              nmodes_eph-args.nmodes_log, args.nmodes_log)
-        elif args.ephFreqs is not None:
-            fqs_eph = np.array([float(item) for item in args.ephFreqs.split(',')])
-            wgts_eph = np.ones(len(args.ephFreqs.split(',')))
-
-### Define number of band-noise modes and set sampling frequencies
-nmodes_band = args.nmodes_band
-fqs_band, wgts_band = None, None
-if args.incBand:
-    if args.nmodes_band > 0:
-        nmodes_band = args.nmodes_band + args.nmodes_log
-    else:
-        nmodes_band = nmodes_red
-    fqs_band, wgts_band = rr.linBinning(Tmax, args.logmode, 1 / args.fmin / Tmax,
-                                        nmodes_band-args.nmodes_log, args.nmodes_log)
-
-    if args.bands is None:
-        bands = np.array([0.0, 1.0, 2.0, 3.0])
-    elif args.bands is not None:
-        bands = np.array([float(item) for item in args.bands.split(',')])
 
 ### Reading in or generating random phase shifts
 ranphase = []
