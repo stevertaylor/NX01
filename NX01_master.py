@@ -1026,6 +1026,7 @@ file_tag += red_tag + dm_tag + band_tag + \
 ranphase = []
 if args.pshift:
     if os.path.isfile(args.dirExt+file_tag+'/psr_phaseshifts.json'):
+        print 'Reading in previous phase-shift values...'
         ranphase_tmp = json.load(open(args.dirExt+file_tag+'/psr_phaseshifts.json'))
         for ii,key in enumerate(ranphase_tmp.keys()):
             ranphase.append(ranphase_tmp[key])
