@@ -1033,7 +1033,8 @@ if args.pshift:
         for ii in range(len(psr)):
             ranphase.append(np.random.uniform(0.0, 2.0*np.pi, len(fqs_red)))
 elif not args.pshift:
-    ranphase.append(np.zeros(len(fqs_red)))
+    for ii in range(len(psr)):
+        ranphase.append(np.zeros(len(fqs_red)))
 
 ### Make the basis matrices for all rank-reduced processes in model
 [p.makeTe(Ttot=Tmax, fqs_red=fqs_red, wgts_red=wgts_red,
