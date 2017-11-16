@@ -1035,8 +1035,6 @@ if args.pshift:
 elif not pshift:
     ranphase.append(np.zeros(len(fqs_red)))
 
-print ranphase[0]
-
 ### Make the basis matrices for all rank-reduced processes in model
 [p.makeTe(Ttot=Tmax, fqs_red=fqs_red, wgts_red=wgts_red,
           makeDM=args.incDM, fqs_dm=fqs_dm, wgts_dm=wgts_dm,
