@@ -887,7 +887,7 @@ class PsrObjFromH5(object):
 
         self.Fred, self.ranphase = \
           utils.createFourierDesignmatrix_red(self.toas, fqs_red, wgts_red,
-                                              pshift=phaseshift, pshift_vals=None,
+                                              pshift=phaseshift, pshift_vals=pshift_vals,
                                               Tspan=Ttot)
 
         self.Ftot = self.Fred
